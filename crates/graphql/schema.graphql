@@ -210,6 +210,7 @@ type Bookmark {
 	page: Int
 	mediaId: String!
 	userId: String!
+	createdAt: DateTime!
 }
 
 input BookmarkInput {
@@ -224,6 +225,36 @@ type CleanLibraryResponse {
 	isEmpty: Boolean!
 }
 
+"""
+Represents a collected issue/series within a TPB or GN
+See https://github.com/mylar3/mylar3/wiki/series.json-schema-%28version-1.0.1%29
+"""
+type CollectedItem {
+	"The title of the series"
+	series: String
+	"CV ComicID of series"
+	comicid: String
+	"CV IssueID of single issue (not valid if multiple issues)"
+	issueid: String
+	"Listing of issue numbers present pertaining to related comicid in collection"
+	issues: String
+}
+
+"""
+Represents a collected issue/series within a TPB or GN
+See https://github.com/mylar3/mylar3/wiki/series.json-schema-%28version-1.0.1%29
+"""
+input CollectedItemInput {
+	"The title of the series"
+	series: String
+	"CV ComicID of series"
+	comicid: String
+	"CV IssueID of single issue (not valid if multiple issues)"
+	issueid: String
+	"Listing of issue numbers present pertaining to related comicid in collection"
+	issues: String
+}
+
 input ComputedFilterReadingStatus @oneOf {
 	is: ReadingStatus
 	isNot: ReadingStatus
@@ -234,7 +265,13 @@ input ComputedFilterReadingStatus @oneOf {
 "An event that is emitted by the core and consumed by a client"
 union CoreEvent = JobStarted | JobUpdate | JobOutput | DiscoveredMissingLibrary | CreatedMedia | CreatedManySeries | CreatedOrUpdatedManyMedia
 
-union CoreJobOutput = LibraryScanOutput | SeriesScanOutput | ThumbnailGenerationOutput | ExternalJobOutput
+union CoreJobOutput = LibraryScanOutput | SeriesScanOutput | ThumbnailGenerationOutput | PlaceholderGenerationOutput | ExternalJobOutput
+
+input CreateAnnotationInput {
+	mediaId: String!
+	locator: ReadiumLocatorInput!
+	annotationText: String
+}
 
 input CreateBookClubInput {
 	name: String!
@@ -296,11 +333,13 @@ type CreatedManySeries {
 type CreatedMedia {
 	id: String!
 	seriesId: String!
+	libraryId: String!
 }
 
 type CreatedOrUpdatedManyMedia {
 	count: Int!
 	seriesId: String!
+	libraryId: String!
 }
 
 "A simple cursor-based pagination input object"
@@ -479,7 +518,7 @@ type Epub {
 	rootBase: String!
 	rootFile: String!
 	extraCss: [String!]!
-	annotations: [MediaAnnotationsModel!]!
+	annotations: [MediaAnnotationModel!]!
 	bookmarks: [Bookmark!]!
 	media: Media!
 }
@@ -600,6 +639,17 @@ type FinishedReadingSessionModel {
 	elapsedSeconds: Int
 }
 
+type ImageColor {
+	color: String!
+	percentage: Decimal!
+}
+
+type ImageMetadata {
+	averageColor: String
+	colors: [ImageColor!]!
+	thumbhash: String
+}
+
 "Options for processing images throughout Stump."
 type ImageProcessorOptions {
 	"The size factor to use when generating an image. See [`ImageResizeOptions`]"
@@ -636,6 +686,7 @@ type ImageRef {
 	url: String!
 	height: Int
 	width: Int
+	metadata: ImageMetadata
 }
 
 "The resize options to use when generating an image"
@@ -739,6 +790,8 @@ type Library {
 	description: String
 	path: String!
 	status: FileStatus!
+	thumbnailMeta: ImageMetadata
+	thumbnailPath: String
 	createdAt: DateTime!
 	updatedAt: DateTime
 	emoji: String
@@ -749,10 +802,13 @@ type Library {
 	isFavorite: Boolean!
 	"Get the details of the last scan job for this library, if any exists."
 	lastScan: LibraryScanRecord
+	"Get media in this library"
+	media(take: Int = null): [Media!]!
 	mediaAlphabet: JSONObject!
 	"Get the full history of scan jobs for this library."
 	scanHistory: [LibraryScanRecord!]!
-	series: [Series!]!
+	"Get series in this library"
+	series(take: Int = null, skip: Int = null): [Series!]!
 	seriesAlphabet: JSONObject!
 	stats(allUsers: Boolean): LibraryStats!
 	tags: [Tag!]!
@@ -775,6 +831,9 @@ type LibraryConfig {
 	processMetadata: Boolean!
 	watch: Boolean!
 	libraryPattern: LibraryPattern!
+	defaultLibraryViewMode: LibraryViewMode!
+	hideSeriesView: Boolean!
+	processThumbnailColorsEvenWithoutConfig: Boolean!
 	libraryId: String
 	thumbnailConfig: ImageProcessorOptions
 	ignoreRules: [String!]
@@ -788,7 +847,10 @@ input LibraryConfigInput {
 	processMetadata: Boolean!
 	watch: Boolean!
 	libraryPattern: LibraryPattern!
+	defaultLibraryViewMode: LibraryViewMode!
+	hideSeriesView: Boolean!
 	thumbnailConfig: ImageProcessorOptionsInput
+	processThumbnailColorsEvenWithoutConfig: Boolean!
 	defaultReadingDir: ReadingDirection!
 	defaultReadingMode: ReadingMode!
 	defaultReadingImageScaleFit: ReadingImageScaleFit!
@@ -815,6 +877,8 @@ enum LibraryModelOrdering {
 	DESCRIPTION
 	PATH
 	STATUS
+	THUMBNAIL_META
+	THUMBNAIL_PATH
 	CREATED_AT
 	UPDATED_AT
 	EMOJI
@@ -855,10 +919,10 @@ type LibraryScanOutput {
 
 type LibraryScanRecord {
 	id: Int!
-	options: JSON
 	timestamp: DateTime!
 	libraryId: String!
 	jobId: String
+	options: JSON
 }
 
 type LibraryStats {
@@ -867,6 +931,12 @@ type LibraryStats {
 	totalBytes: Int!
 	completedBooks: Int!
 	inProgressBooks: Int!
+	totalReadingTimeSeconds: Int!
+}
+
+enum LibraryViewMode {
+	SERIES
+	BOOKS
 }
 
 type Log {
@@ -954,6 +1024,10 @@ type Media {
 	if it is available on disk)
 	"""
 	status: FileStatus!
+	"The metadata for the thumbnail image of the media"
+	thumbnailMeta: ImageMetadata
+	"The path to the thumbnail image of the media on disk"
+	thumbnailPath: String
 	"""
 	The unique identifier of the series that the media belongs to. While this is nullable, it is
 	expected that all media will belong to a series
@@ -973,7 +1047,7 @@ type Media {
 	libraryId: String!
 	library: Library!
 	libraryConfig: LibraryConfig!
-	pageAnalysis: PageAnalysis
+	analysisData: MediaAnalysisData
 	"""
 	A reference to the thumbnail image for the media. This will be a fully
 	qualified URL to the image.
@@ -997,19 +1071,34 @@ type Media {
 	relativeLibraryPath: String!
 }
 
-type MediaAnnotationsModel {
+type MediaAnalysisData {
+	dimensions: [PageDimension!]!
+	contentTypes: [String!]!
+}
+
+type MediaAnnotation {
 	id: String!
-	highlightedText: String
-	epubcfi: String
-	page: Int
-	pageCoordinatesX: Decimal
-	pageCoordinatesY: Decimal
-	notes: String
-	userId: String!
+	locator: ReadiumLocator!
+	annotationText: String
 	mediaId: String!
+	userId: String!
+	createdAt: DateTime!
+	updatedAt: DateTime!
+}
+
+"A media annotation represents a highlight and/or note"
+type MediaAnnotationModel {
+	id: String!
+	locator: ReadiumLocator!
+	annotationText: String
+	mediaId: String!
+	userId: String!
+	createdAt: DateTime!
+	updatedAt: DateTime!
 }
 
 input MediaFilterInput {
+	id: FieldFilterString = null
 	name: FieldFilterString = null
 	size: NumericFilterI64 = null
 	extension: FieldFilterString = null
@@ -1096,11 +1185,15 @@ input MediaMetadataInput {
 	title: String
 	titleSort: String
 	series: String
+	seriesGroup: String
+	storyArc: String
+	storyArcNumber: Decimal
 	number: Decimal
 	volume: Int
 	summary: String
 	notes: String
 	genres: [String!]
+	format: String
 	year: Int
 	month: Int
 	day: Int
@@ -1198,6 +1291,8 @@ enum MediaModelOrdering {
 	KOREADER_HASH
 	PATH
 	STATUS
+	THUMBNAIL_META
+	THUMBNAIL_PATH
 	SERIES_ID
 	DELETED_AT
 }
@@ -1271,14 +1366,19 @@ type Mutation {
 	createNotifier(input: NotifierInput!): Notifier!
 	updateNotifier(id: Int!, input: NotifierInput!): Notifier!
 	deleteNotifier(id: Int!): Notifier!
-	"""
-	Create or update a bookmark for a user. If a bookmark already exists for the given media
-	and epubcfi, the preview content is updated.
-	"""
-	createOrUpdateBookmark(input: BookmarkInput!): Bookmark!
-	"Delete a bookmark by epubcfi. The user must be the owner of the bookmark."
-	deleteBookmark(epubcfi: String!): Bookmark!
-	analyzeMedia(id: ID!): Boolean!
+	"Create a bookmark for a user"
+	createBookmark(input: BookmarkInput!): Bookmark!
+	"Delete a bookmark by ID, only if the user created it"
+	deleteBookmark(id: String!): Bookmark!
+	"Delete a bookmark by epubcfi"
+	deleteBookmarkByEpubcfi(epubcfi: String!): Bookmark!
+	"Create an annotation (highlight/note)"
+	createAnnotation(input: CreateAnnotationInput!): MediaAnnotation!
+	"Update an annotation's note text"
+	updateAnnotation(input: UpdateAnnotationInput!): MediaAnnotation!
+	"Delete an annotation by ID"
+	deleteAnnotation(id: String!): MediaAnnotation!
+	analyzeMedia(id: ID!, forceReanalysis: Boolean! = false): Boolean!
 	convertMedia(id: ID!): Boolean!
 	deleteMedia(id: ID!): Media!
 	favoriteMedia(id: ID!, isFavorite: Boolean!): Media!
@@ -1297,7 +1397,7 @@ type Mutation {
 	deleteMediaReadHistory(id: ID!): Media!
 	updateMediaProgress(id: ID!, input: MediaProgressInput!): ReadingProgressOutput!
 	markMediaAsComplete(id: ID!, isComplete: Boolean!, page: Int): FinishedReadingSessionModel
-	analyzeLibrary(id: ID!): Boolean!
+	analyzeLibrary(id: ID!, forceReanalysis: Boolean! = false): Boolean!
 	"""
 	Delete media and series from a library that match one of the following conditions:
 	
@@ -1345,6 +1445,7 @@ type Mutation {
 	"""
 	deleteLibrary(id: ID!): Library!
 	generateLibraryThumbnails(id: ID!, forceRegenerate: Boolean! = false): Boolean!
+	processLibraryThumbnails(id: ID!, forceRegenerate: Boolean! = false): Boolean!
 	deleteLibraryThumbnails(id: ID!): Boolean!
 	"""
 	Enqueue a scan job for a library. This will index the filesystem from the library's root path
@@ -1382,7 +1483,7 @@ type Mutation {
 	A result containing the deleted reading list, or an error if deletion failed.
 	"""
 	deleteReadingList(id: String!): ReadingList!
-	analyzeSeries(id: ID!): Boolean!
+	analyzeSeries(id: ID!, forceReanalysis: Boolean! = false): Boolean!
 	favoriteSeries(id: ID!, isFavorite: Boolean!): Series!
 	"""
 	Update the thumbnail for a series. This will replace the existing thumbnail with the the one
@@ -1392,7 +1493,13 @@ type Mutation {
 	updateSeriesThumbnail(id: ID!, input: UpdateThumbnailInput!): Series!
 	updateSeriesMetadata(id: ID!, input: SeriesMetadataInput!): Series!
 	resetSeriesMetadata(id: ID!, impact: MetadataResetImpact!): Series!
-	markSeriesAsComplete(id: ID!): Series!
+	"""
+	Toggle the completion status of a series. If the series is marked as completed, all books
+	in the series will also be marked as completed, and vice versa for marking as not completed.
+	This is considered a dangerous operation since it can modify all your read progression related
+	to a single series all at once. Please use with caution.
+	"""
+	toggleSeriesCompletion(id: ID!, isCompleted: Boolean!): Series!
 	scanSeries(id: ID!): Boolean!
 	"""
 	Returns a list containing the newly created tags, or an error if creation failed.
@@ -1413,6 +1520,18 @@ type Mutation {
 	uploadLibraryThumbnail(id: ID!, file: Upload!): Library!
 	uploadSeriesThumbnail(id: ID!, file: Upload!): Series!
 	uploadMediaThumbnail(id: ID!, file: Upload!): Media!
+	"""
+	Upload a series thumbnail from a base64-encoded image string.
+	Note: This was added specifically for Komf, which would have been annyoing to
+	implement multipart uploads for
+	"""
+	uploadSeriesThumbnailBase64(id: ID!, image: String!): Series!
+	"""
+	Upload a media thumbnail from a base64-encoded image string.
+	Note: This was added specifically for Komf, which would have been annyoing to
+	implement multipart uploads for
+	"""
+	uploadMediaThumbnailBase64(id: ID!, image: String!): Media!
 	deleteLoginActivity: Int!
 	createUser(input: CreateUserInput!): User!
 	updateViewer(input: UpdateUserInput!): User!
@@ -1429,7 +1548,7 @@ type Mutation {
 	sendAttachmentEmail(input: SendAttachmentEmailsInput!): SendAttachmentEmailOutput!
 	createEmailDevice(input: EmailDeviceInput!): RegisteredEmailDevice!
 	updateEmailDevice(id: Int!, input: EmailDeviceInput!): RegisteredEmailDevice!
-	patchEmailDevice(id: Int!, input: EmailDeviceInput!): Int!
+	patchEmailDevice(id: Int!, input: PatchEmailDeviceInput!): RegisteredEmailDevice!
 	deleteEmailDevice(id: Int!): RegisteredEmailDevice!
 	createSmartListView(input: SaveSmartListView!): SmartListView!
 	updateSmartListView(originalName: String!, input: SaveSmartListView!): SmartListView!
@@ -1531,6 +1650,8 @@ type OffsetPaginationInfo {
 	logic accordingly.
 	"""
 	totalPages: Int!
+	"The total number of items available"
+	totalItems: Int!
 	"The current page, zero-indexed."
 	currentPage: Int!
 	"The number of elements per page."
@@ -1544,11 +1665,6 @@ type OffsetPaginationInfo {
 enum OrderDirection {
 	ASC
 	DESC
-}
-
-"A struct containing the various analyses of a book in Stump, e.g., page dimensions."
-type PageAnalysis {
-	dimensions: [PageDimension!]!
 }
 
 input PageBasedThumbnailInput {
@@ -1644,6 +1760,21 @@ input Pagination @oneOf {
 
 union PaginationInfo = CursorPaginationInfo | OffsetPaginationInfo
 
+input PatchEmailDeviceInput {
+	name: String
+	email: String
+	forbidden: Boolean
+}
+
+type PlaceholderGenerationOutput {
+	"The total number of entities that were visited"
+	visitedEntities: Int!
+	"The number of entities that were skipped (already had metadata or no thumbnail file)"
+	skippedEntities: Int!
+	"The number of placeholder metadata entries that were generated"
+	generatedMetadata: Int!
+}
+
 type Query {
 	apiKeys: [Apikey!]!
 	apiKeyById(id: Int!): Apikey!
@@ -1662,7 +1793,7 @@ type Query {
 	finishedReadingSessionCount: Int!
 	activeReadingSessionCount: Int!
 	mediaDiskUsage: Int!
-	media(filter: MediaFilterInput! = {name: null, size: null, extension: null, createdAt: null, updatedAt: null, seriesId: null, status: null, path: null, pages: null, readingStatus: null, metadata: null, series: null, _and: null, _not: null, _or: null}, orderBy: [MediaOrderBy!]! = [{media: {field: NAME, direction: ASC}}], pagination: Pagination! = {offset: {page: 1, pageSize: 20, zeroBased: false}}): PaginatedMediaResponse!
+	media(filter: MediaFilterInput! = {id: null, name: null, size: null, extension: null, createdAt: null, updatedAt: null, seriesId: null, status: null, path: null, pages: null, readingStatus: null, metadata: null, series: null, _and: null, _not: null, _or: null}, orderBy: [MediaOrderBy!]! = [{media: {field: NAME, direction: ASC}}], pagination: Pagination! = {offset: {page: 1, pageSize: 20, zeroBased: false}}): PaginatedMediaResponse!
 	mediaById(id: ID!): Media
 	mediaByPath(path: String!): Media
 	"Returns the available alphabet for all media in the server"
@@ -1699,6 +1830,8 @@ type Query {
 	epubById(id: ID!): Epub!
 	"Get all bookmarks for a single epub by its media ID"
 	bookmarksByMediaId(id: ID!): [Bookmark!]!
+	"Get all annotations (highlights/notes) for a single book"
+	annotationsByMediaId(id: ID!): [MediaAnnotation!]!
 	libraries(orderBy: [LibraryModelOrderBy!]! = [{field: NAME, direction: ASC}], pagination: Pagination! = {offset: {page: 1, pageSize: 20, zeroBased: false}}, search: String): PaginatedLibraryResponse!
 	libraryById(id: ID!): Library
 	"Returns the available alphabet for all libraries in the server"
@@ -1726,7 +1859,7 @@ type Query {
 	smartLists(input: SmartListsInput! = {all: null, mine: true, search: null}): [SmartList!]!
 	smartListById(id: ID!): SmartList
 	smartListMeta(id: ID!): SmartListMeta
-	smartListItems(id: ID!): SmartListItems!
+	smartListItems(id: ID!, limit: Int = null): SmartListItems!
 }
 
 "The different reading directions supported by any Stump reader"
@@ -1940,13 +2073,16 @@ type Series {
 	deletedAt: DateTime
 	path: String!
 	status: FileStatus!
+	thumbnailMeta: ImageMetadata
+	thumbnailPath: String
 	libraryId: String
 	metadata: SeriesMetadata
 	isFavorite: Boolean!
 	resolvedName: String!
 	resolvedDescription: String
 	library: Library!
-	media: [Media!]!
+	"Get media in this series"
+	media(take: Int = null, skip: Int = null): [Media!]!
 	mediaCount: Int!
 	mediaAlphabet: JSONObject!
 	upNext(take: Int! = 1, cursor: String): [Media!]!
@@ -1960,6 +2096,7 @@ type Series {
 	qualified URL to the image.
 	"""
 	thumbnail: ImageRef!
+	stats(allUsers: Boolean): SeriesStats!
 }
 
 input SeriesFilterInput {
@@ -1975,17 +2112,41 @@ input SeriesFilterInput {
 
 type SeriesMetadata {
 	seriesId: String!
+	"Age rating of the series"
 	ageRating: Int
+	"Booktype of the series (Print, OneShot, TPB or GN)"
 	booktype: String
+	"ComicVine comicid"
 	comicid: Int
+	"Image URL pointing to CV image of series cover (usually issue #1)"
+	comicImage: String
+	"Description (summary) with line breaks, carriage returns, etc."
+	descriptionFormatted: String
+	"Name of imprint while under publisher"
 	imprint: String
+	"Type of series (e.g. \"comicSeries\")"
 	metaType: String
+	"Start and end of the series in \"Month Year - Month Year\" format. If series status is Continuing, the end value is \"Present\""
+	publicationRun: String
+	"Publisher name"
 	publisher: String
+	"Either \"Continuing\" or \"Ended\""
 	status: String
+	"""
+	Description taken from source (un-edited) with no line breaks, carriage returns, etc.
+	Stump calls this 'summary' to align with other models, but is derived from 'description_text' in series.json
+	"""
 	summary: String
+	"Title of series"
 	title: String
+	"Total issues in the series up until this point in time"
+	totalIssues: Int
+	"Volume of the series in relation to other titles (this can be either numerical or the series year)"
 	volume: Int
+	"Year the series started (publication start)"
+	year: Int
 	characters: [String!]!
+	collects: [CollectedItem!]!
 	genres: [String!]!
 	links: [String!]!
 	writers: [String!]!
@@ -2011,17 +2172,23 @@ input SeriesMetadataInput {
 	ageRating: Int
 	booktype: String
 	characters: [String!]
+	collects: [CollectedItemInput!]
+	comicImage: String
 	comicid: Int
+	descriptionFormatted: String
 	genres: [String!]
 	imprint: String
 	links: [String!]
 	metaType: String
+	publicationRun: String
 	publisher: String
 	status: String
 	summary: String
 	title: String
+	totalIssues: Int
 	volume: Int
 	writers: [String!]
+	year: Int
 }
 
 enum SeriesMetadataModelOrdering {
@@ -2029,17 +2196,23 @@ enum SeriesMetadataModelOrdering {
 	AGE_RATING
 	CHARACTERS
 	BOOKTYPE
+	COLLECTS
 	COMICID
+	COMIC_IMAGE
+	DESCRIPTION_FORMATTED
 	GENRES
 	IMPRINT
 	LINKS
 	META_TYPE
+	PUBLICATION_RUN
 	PUBLISHER
 	STATUS
 	SUMMARY
 	TITLE
+	TOTAL_ISSUES
 	VOLUME
 	WRITERS
+	YEAR
 }
 
 input SeriesMetadataOrderByField {
@@ -2056,6 +2229,8 @@ enum SeriesModelOrdering {
 	DELETED_AT
 	PATH
 	STATUS
+	THUMBNAIL_META
+	THUMBNAIL_PATH
 	LIBRARY_ID
 }
 
@@ -2085,6 +2260,14 @@ type SeriesScanOutput {
 	updatedMedia: Int!
 }
 
+type SeriesStats {
+	bookCount: Int!
+	totalBytes: Int!
+	completedBooks: Int!
+	inProgressBooks: Int!
+	totalReadingTimeSeconds: Int!
+}
+
 type SmartList {
 	id: String!
 	name: String!
@@ -2096,6 +2279,9 @@ type SmartList {
 	filters: String!
 	thumbnail: ImageRef!
 	views: [SmartListView!]!
+	books(limit: Int = null): [Media!]!
+	items(limit: Int = null): SmartListItems!
+	meta: SmartListMeta!
 }
 
 input SmartListFilterGroupInput {
@@ -2232,7 +2418,7 @@ type StumpConfig {
 	profile: String!
 	"The port from which to serve the application (default: 10801)."
 	port: Int!
-	"The verbosity with which to log errors (default: 0)."
+	"The verbosity with which system logs are visible (default: 1)."
 	verbosity: Int!
 	"Whether or not to pretty print logs."
 	prettyLogs: Boolean!
@@ -2369,6 +2555,14 @@ type ThumbnailGenerationOutput {
 	removedThumbnails: Int!
 }
 
+"The style of placeholder to use for thumbnails while they are loading"
+enum ThumbnailPlaceholderStyle {
+	GRAYSCALE
+	AVERAGE_COLOR
+	COLORFUL
+	THUMBHASH
+}
+
 """
 A simple pagination input object which does not paginate. An explicit struct is
 required as a limitation of async_graphql's [OneofObject], which doesn't allow
@@ -2376,6 +2570,11 @@ for empty variants.
 """
 input Unpaginated {
 	unpaginated: Boolean!
+}
+
+input UpdateAnnotationInput {
+	id: String!
+	annotationText: String
 }
 
 input UpdateBookClubInput {
@@ -2420,12 +2619,15 @@ input UpdateUserPreferencesInput {
 	enableReplacePrimarySidebar: Boolean!
 	enableHideScrollbar: Boolean!
 	enableJobOverlay: Boolean!
+	enableFancyAnimations: Boolean!
 	preferAccentColor: Boolean!
 	showThumbnailsInHeaders: Boolean!
 	thumbnailRatio: Float!
+	thumbnailPlaceholderStyle: ThumbnailPlaceholderStyle!
 	enableAlphabetSelect: Boolean!
 }
 
+"A multipart file upload"
 scalar Upload
 
 input UploadBooksInput {
@@ -2455,6 +2657,7 @@ type User {
 	deletedAt: DateTime
 	isLocked: Boolean!
 	maxSessionsAllowed: Int
+	oidcEmail: String
 	ageRestriction: AgeRestriction
 	continueReading(pagination: Pagination! = {offset: {page: 1, pageSize: 20, zeroBased: false}}): PaginatedMediaResponse!
 	permissions: [UserPermission!]!
@@ -2574,9 +2777,11 @@ type UserPreferences {
 	enableDoubleSidebar: Boolean!
 	enableReplacePrimarySidebar: Boolean!
 	enableHideScrollbar: Boolean!
+	enableFancyAnimations: Boolean!
 	preferAccentColor: Boolean!
 	showThumbnailsInHeaders: Boolean!
 	thumbnailRatio: Float!
+	thumbnailPlaceholderStyle: ThumbnailPlaceholderStyle!
 	enableJobOverlay: Boolean!
 	enableAlphabetSelect: Boolean!
 	userId: String

@@ -15,7 +15,7 @@ use sea_orm::{
 use stump_core::{
 	filesystem::{
 		image::{generate_book_thumbnail, GenerateThumbnailOptions},
-		media::analyze_media_job::AnalyzeMediaJob,
+		media::analysis::{AnalysisJobConfig, AnalyzeMediaJob, MediaAnalysisJobScope},
 	},
 	utils::chain_optional_iter,
 };
@@ -44,7 +44,12 @@ pub struct MediaMutation;
 
 #[Object]
 impl MediaMutation {
-	async fn analyze_media(&self, ctx: &Context<'_>, id: ID) -> Result<bool> {
+	async fn analyze_media(
+		&self,
+		ctx: &Context<'_>,
+		id: ID,
+		#[graphql(default = false)] force_reanalysis: bool,
+	) -> Result<bool> {
 		let AuthContext { user, .. } = ctx.data::<AuthContext>()?;
 		let core = ctx.data::<CoreContext>()?;
 		let conn = core.conn.as_ref();
@@ -58,12 +63,18 @@ impl MediaMutation {
 			.await?
 			.ok_or("Media not found")?;
 
-		core.enqueue_job(AnalyzeMediaJob::analyze_media_item(model.id))?;
+		core.enqueue_job(
+			AnalyzeMediaJob::new(AnalysisJobConfig {
+				force_reanalysis,
+				scope: MediaAnalysisJobScope::Book(model.id),
+			})
+			.wrapped(),
+		)?;
 
 		Ok(true)
 	}
 
-	// TODO(graphql): Implement convert_media in core then here
+	// TODO: Support converting other formats in the future
 	async fn convert_media(&self, ctx: &Context<'_>, id: ID) -> Result<bool> {
 		let AuthContext { user, .. } = ctx.data::<AuthContext>()?;
 		let core = ctx.data::<CoreContext>()?;
@@ -212,6 +223,7 @@ impl MediaMutation {
 
 		let (_, path_buf, _) = generate_book_thumbnail(
 			&book.media.clone().into(),
+			core.conn.as_ref(),
 			GenerateThumbnailOptions {
 				image_options,
 				core_config: core.config.as_ref().clone(),
@@ -397,6 +409,24 @@ impl MediaMutation {
 				active_session.into(),
 			)))
 		} else {
+			let recent_completion =
+				finished_reading_session::Entity::recent_completed_record(
+					conn,
+					&user.id,
+					id.as_ref(),
+					finished_reading_session::COMPLETION_DEDUP_TIMEOUT_MINUTES,
+				)
+				.await?;
+
+			// TODO: See if this creates too much churn in practice
+			if let Some(existing_session) = recent_completion {
+				// Already completed recently - delete active session but return existing finished session
+				let _ = active_session.delete(conn).await?;
+				return Ok(ReadingProgressOutput::Finished(Box::new(
+					existing_session.into(),
+				)));
+			}
+
 			let finished_reading_session = finished_reading_session::ActiveModel {
 				user_id: Set(user.id.clone()),
 				media_id: Set(id.to_string()),
@@ -517,7 +547,7 @@ async fn set_completed_media(
 	let started_at = active_session
 		.as_ref()
 		.map(|s| s.started_at)
-		.unwrap_or_default();
+		.unwrap_or_else(|| Utc::now().into());
 
 	let finished_reading_session = finished_reading_session::ActiveModel {
 		user_id: Set(user.id.clone()),
@@ -530,6 +560,7 @@ async fn set_completed_media(
 	let finished_reading_session =
 		insert_finished_reading_session(active_session, finished_reading_session, txn)
 			.await?;
+
 	Ok(finished_reading_session)
 }
 

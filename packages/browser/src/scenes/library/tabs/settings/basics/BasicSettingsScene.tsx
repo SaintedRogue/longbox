@@ -1,9 +1,9 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useSDK, useSuspenseGraphQL } from '@stump/client'
 import { Button, Form } from '@stump/components'
-import { graphql } from '@stump/graphql'
+import { graphql, UserPermission } from '@stump/graphql'
 import { useCallback, useMemo, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 
 import DirectoryPickerModal from '@/components/DirectoryPickerModal'
 import {
@@ -14,6 +14,7 @@ import {
 	normalizePath,
 } from '@/components/library/createOrUpdate'
 import { BasicLibraryInformation } from '@/components/library/createOrUpdate/sections'
+import { useAppContext } from '@/context'
 
 import { useLibraryManagement } from '../context'
 
@@ -37,6 +38,7 @@ export default function BasicSettingsScene() {
 			libraries: { nodes: libraries },
 		},
 	} = useSuspenseGraphQL(query, [sdk.cacheKeys.libraryCreateLibraryQuery])
+	const { checkPermission } = useAppContext()
 
 	const schema = useMemo(() => buildSchema(libraries, library), [libraries, library])
 	const form = useForm<CreateOrUpdateLibrarySchema>({
@@ -46,7 +48,10 @@ export default function BasicSettingsScene() {
 	})
 
 	const [showDirectoryPicker, setShowDirectoryPicker] = useState(false)
-	const [path, name, description, tags] = form.watch(['path', 'name', 'description', 'tags'])
+	const [path, name, description, tags] = useWatch({
+		control: form.control,
+		name: ['path', 'name', 'description', 'tags'],
+	})
 
 	const hasChanges = useMemo(() => {
 		const currentTagSet = new Set(tags?.map(({ label }) => label) || [])
@@ -77,16 +82,18 @@ export default function BasicSettingsScene() {
 
 	return (
 		<Form form={form} onSubmit={handleSubmit} fieldsetClassName="flex flex-col gap-12">
-			<DirectoryPickerModal
-				isOpen={showDirectoryPicker}
-				onClose={() => setShowDirectoryPicker(false)}
-				startingPath={path}
-				onPathChange={(path) => {
-					if (path) {
-						form.setValue('path', path)
-					}
-				}}
-			/>
+			{checkPermission(UserPermission.FileExplorer) && (
+				<DirectoryPickerModal
+					isOpen={showDirectoryPicker}
+					onClose={() => setShowDirectoryPicker(false)}
+					startingPath={path}
+					onPathChange={(path) => {
+						if (path) {
+							form.setValue('path', path)
+						}
+					}}
+				/>
+			)}
 
 			<BasicLibraryInformation onSetShowDirectoryPicker={setShowDirectoryPicker} />
 

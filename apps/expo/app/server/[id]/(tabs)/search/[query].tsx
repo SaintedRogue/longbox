@@ -1,6 +1,6 @@
 import { useSDK } from '@stump/client'
 import { graphql, PaginationInfo } from '@stump/graphql'
-import { useQueries, useQueryClient } from '@tanstack/react-query'
+import { useQueries } from '@tanstack/react-query'
 import { Link, useLocalSearchParams } from 'expo-router'
 import chunk from 'lodash/chunk'
 import { useCallback } from 'react'
@@ -10,13 +10,11 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { useActiveServer } from '~/components/activeServer'
 import { BookSearchItem, IBookSearchItemFragment } from '~/components/book'
+import EmptyState from '~/components/EmptyState'
 import { ILibrarySearchItemFragment, LibrarySearchItem } from '~/components/library'
 import { ISeriesSearchItemFragment, SeriesSearchItem } from '~/components/series'
 import { Heading, Text } from '~/components/ui'
-import { icons } from '~/lib'
 import { useDynamicHeader } from '~/lib/hooks/useDynamicHeader'
-
-const { Search } = icons
 
 const mediaQuery = graphql(`
 	query SearchMedia($filter: MediaFilterInput!) {
@@ -76,8 +74,6 @@ export default function Screen() {
 	} = useActiveServer()
 	const { sdk } = useSDK()
 
-	const client = useQueryClient()
-
 	useDynamicHeader({
 		title: `"${query}"`,
 	})
@@ -88,7 +84,7 @@ export default function Screen() {
 				_or: [{ name: { contains: query } }, { metadata: { title: { contains: query } } }],
 			},
 		})
-	}, [sdk, query, client])
+	}, [sdk, query])
 
 	const getSeries = useCallback(
 		() =>
@@ -145,13 +141,10 @@ export default function Screen() {
 
 	if (noResults) {
 		return (
-			<View className="flex-1 items-center justify-center gap-4 bg-background p-4 tablet:p-7">
-				<Search className="h-8 w-8 text-foreground-muted" />
-
-				<View>
-					<Text className="text-foreground-muted">No results found for "{query}"</Text>
-				</View>
-			</View>
+			<EmptyState
+				title="Nothing was returned"
+				message={`There was nothing matching "${query}" in your library`}
+			/>
 		)
 	}
 

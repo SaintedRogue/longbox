@@ -23,35 +23,19 @@ pub async fn connect(config: &StumpConfig) -> Result<DatabaseConnection, CoreErr
 		format!("sqlite://{}/stump.db?mode=rwc", config_dir.display())
 	};
 
-	// Configure connection pool for SQLite with proper sizing
 	let mut opt = ConnectOptions::new(sqlite_url);
-	opt
-		// SQLite can only handle 1 writer at a time, but we want enough connections
-		// for concurrent reads and to handle connection churn during heavy operations
-		.max_connections(config.db_max_connections)
+	opt.max_connections(config.db_max_connections)
 		.min_connections(config.db_min_connections)
-		// Connections should be released quickly
-		.acquire_timeout(Duration::from_secs(30)) // Fail fast if pool is exhausted
-		.idle_timeout(Duration::from_secs(300)) // 5 min idle timeout
-		.max_lifetime(Duration::from_secs(3600)) // 1 hour max lifetime
-		// Enable SQLx query logging at debug level
+		.acquire_timeout(Duration::from_secs(30))
+		.idle_timeout(Duration::from_secs(300))
+		.max_lifetime(Duration::from_secs(3600))
 		.sqlx_logging(true);
 
 	let connection = sea_orm::Database::connect(opt).await?;
 
-	// Enable SQLite optimizations for better concurrency and performance
 	connection
 		.execute_unprepared("PRAGMA busy_timeout = 30000;")
 		.await?; // 30 sec busy timeout
-	connection
-		.execute_unprepared("PRAGMA synchronous = NORMAL;")
-		.await?; // Faster writes (still safe with WAL)
-	connection
-		.execute_unprepared("PRAGMA cache_size = -64000;")
-		.await?; // 64MB cache
-	connection
-		.execute_unprepared("PRAGMA temp_store = MEMORY;")
-		.await?; // Temp tables in RAM
 
 	let force_reset = match env::var(FORCE_RESET_KEY) {
 		Ok(value) => value == "true",
@@ -90,18 +74,13 @@ pub struct CountQueryReturn {
 
 // TODO: Use strum, maybe move to models::shared::enums?
 
-#[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub enum JournalMode {
 	#[serde(alias = "wal")]
+	#[default]
 	WAL,
 	#[serde(alias = "delete")]
 	DELETE,
-}
-
-impl Default for JournalMode {
-	fn default() -> Self {
-		Self::WAL
-	}
 }
 
 impl AsRef<str> for JournalMode {

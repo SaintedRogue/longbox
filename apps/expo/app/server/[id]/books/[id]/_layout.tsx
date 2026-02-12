@@ -3,12 +3,17 @@ import { Platform } from 'react-native'
 
 import ChevronBackLink from '~/components/ChevronBackLink'
 import { IS_IOS_24_PLUS } from '~/lib/constants'
+import { usePreferencesStore } from '~/stores'
 
 export default function Screen() {
+	const disableDismissGesture = usePreferencesStore((store) => store.disableDismissGesture)
+
 	return (
 		<Stack
 			screenOptions={{
 				headerShown: false,
+				presentation:
+					disableDismissGesture && Platform.OS === 'ios' ? 'fullScreenModal' : undefined,
 			}}
 		>
 			<Stack.Screen
@@ -25,7 +30,7 @@ export default function Screen() {
 			<Stack.Screen
 				name="ebook-settings"
 				options={{
-					presentation: 'modal',
+					presentation: 'formSheet',
 					headerShown: false,
 				}}
 			/>
@@ -33,7 +38,7 @@ export default function Screen() {
 			<Stack.Screen
 				name="ebook-locations-modal"
 				options={{
-					presentation: 'modal',
+					presentation: 'formSheet',
 					headerShown: false,
 				}}
 			/>

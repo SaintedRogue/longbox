@@ -1,9 +1,8 @@
 import { ReadingMode } from '@stump/graphql'
-import { Fragment, useCallback, useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 import { View } from 'react-native'
 
-import { Card, Switch, Text } from '~/components/ui'
-import { cn } from '~/lib/utils'
+import { CardList, CardRow, Switch } from '~/components/ui'
 import { BookPreferences, GlobalSettings, useReaderStore } from '~/stores/reader'
 
 import DoublePageSelect from './DoublePageSelect'
@@ -64,102 +63,81 @@ export default function ReaderSettings({ forBook, forServer }: Props) {
 
 	return (
 		<View className="flex-1 gap-8">
-			<View>
-				<Text className="mb-3 text-foreground-muted">Mode</Text>
-
-				<Card className="squircle flex rounded-2xl border border-edge bg-background-surface">
+			<CardList label="Mode">
+				<CardRow label="Flow">
 					<ReadingModeSelect
 						mode={activeSettings.readingMode}
 						onChange={(mode) => onPreferenceChange({ readingMode: mode })}
 					/>
+				</CardRow>
 
-					{activeSettings.readingMode !== ReadingMode.ContinuousVertical && (
-						<Fragment>
-							<View className="h-px w-full bg-edge" />
+				<CardRow
+					label="Direction"
+					disabled={activeSettings.readingMode === ReadingMode.ContinuousVertical}
+				>
+					<ReadingDirectionSelect
+						direction={activeSettings.readingDirection}
+						onChange={(direction) => onPreferenceChange({ readingDirection: direction })}
+					/>
+				</CardRow>
+			</CardList>
 
-							<ReadingDirectionSelect
-								direction={activeSettings.readingDirection}
-								onChange={(direction) => onPreferenceChange({ readingDirection: direction })}
-							/>
-						</Fragment>
-					)}
-				</Card>
-			</View>
-
-			<View>
-				<Text className="mb-3 text-foreground-muted">Image Options</Text>
-
-				<Card className="squircle flex rounded-2xl border border-edge bg-background-surface">
+			<CardList label="Image Options">
+				<CardRow label="Double Paged">
 					<DoublePageSelect
 						behavior={activeSettings.doublePageBehavior || 'auto'}
 						onChange={(behavior) => onPreferenceChange({ doublePageBehavior: behavior })}
 					/>
+				</CardRow>
 
-					<View className="h-px w-full bg-edge" />
+				<CardRow
+					label="Separate Second Page"
+					disabled={activeSettings.doublePageBehavior === 'off'}
+				>
+					<Switch
+						checked={
+							activeSettings.secondPageSeparate && activeSettings.doublePageBehavior !== 'off'
+						}
+						onCheckedChange={(value) => onPreferenceChange({ secondPageSeparate: value })}
+					/>
+				</CardRow>
 
-					<View
-						className={cn('flex flex-row items-center justify-between p-4', {
-							'opacity-50': activeSettings.doublePageBehavior === 'off',
-						})}
-					>
-						<Text>Separate Second Page</Text>
-
-						<Switch
-							checked={
-								activeSettings.secondPageSeparate && activeSettings.doublePageBehavior !== 'off'
-							}
-							onCheckedChange={(value) => onPreferenceChange({ secondPageSeparate: value })}
-						/>
-					</View>
-
-					<View className="h-px w-full bg-edge" />
-
+				<CardRow label="Scaling">
 					<ImageScalingSelect
 						behavior={activeSettings.imageScaling.scaleToFit}
 						onChange={(fit) => onPreferenceChange({ imageScaling: { scaleToFit: fit } })}
 					/>
+				</CardRow>
 
-					<View className="h-px w-full bg-edge" />
+				<CardRow label="Downscaling">
+					<Switch
+						checked={allowDownscaling}
+						onCheckedChange={(value) => onPreferenceChange({ allowDownscaling: value })}
+					/>
+				</CardRow>
 
-					<View className="flex flex-row items-center justify-between p-4">
-						<Text>Downscaling</Text>
+				{/* TODO: https://docs.expo.dev/versions/latest/sdk/media-library/ */}
+				<CardRow label="Panel Downloads" disabled>
+					<Switch checked={false} onCheckedChange={() => {}} />
+				</CardRow>
+			</CardList>
 
-						<Switch
-							checked={allowDownscaling}
-							onCheckedChange={(value) => onPreferenceChange({ allowDownscaling: value })}
-						/>
-					</View>
+			<CardList label="Navigation">
+				<CardRow label="Tap Sides to Navigate">
+					<Switch
+						variant="brand"
+						checked={activeSettings.tapSidesToNavigate ?? true}
+						onCheckedChange={(checked) => onPreferenceChange({ tapSidesToNavigate: checked })}
+					/>
+				</CardRow>
 
-					<View className="h-px w-full bg-edge" />
-
-					{/* TODO: https://docs.expo.dev/versions/latest/sdk/media-library/ */}
-					<View className="flex flex-row items-center justify-between p-4 opacity-50">
-						<Text>Panel Downloads</Text>
-
-						<Switch checked={false} onCheckedChange={() => {}} />
-					</View>
-				</Card>
-			</View>
-
-			<View>
-				<Text className="mb-3 text-foreground-muted">Navigation</Text>
-
-				<Card className="squircle flex rounded-2xl border border-edge bg-background-surface">
-					<View className="flex flex-row items-center justify-between border-b border-b-edge p-4">
-						<Text>Tap Sides to Navigate</Text>
-						<Switch
-							variant="brand"
-							checked={activeSettings.tapSidesToNavigate ?? true}
-							onCheckedChange={(checked) => onPreferenceChange({ tapSidesToNavigate: checked })}
-						/>
-					</View>
-
+				<CardRow label="Bottom Controls">
 					<FooterControlsSelect
 						variant={activeSettings.footerControls || 'images'}
 						onChange={(variant) => onPreferenceChange({ footerControls: variant })}
 					/>
-				</Card>
-			</View>
+				</CardRow>
+			</CardList>
 		</View>
 	)
 }

@@ -9,6 +9,7 @@ import {
 	JwtTokenPair,
 	LibraryAPI,
 	MediaAPI,
+	OPDSLegacyAPI,
 	OPDSV2API,
 	SeriesAPI,
 	ServerAPI,
@@ -37,11 +38,6 @@ export type ApiParams = {
 			apiKey: string
 	  }
 )
-
-// TODO(graphql): Add cacheKeys for centralized cache invalidation features. Previously, this
-// was the responsibility of any given controller, but now that we aren't using REST and the
-// majority of API calls using this class will be routed through `execute`, it makes sense to
-// centralize this functionality somewhere else
 
 /**
  * A class representing the Stump API
@@ -100,6 +96,24 @@ export class Api {
 		const instance = axios.create({
 			baseURL: this.serviceURL,
 			withCredentials: this.configuration.authMethod === 'session',
+			// Note: Keeping this here for posterity. I went down a DEEP rabbit hole on this one.
+			// If you read through https://github.com/ajslater/codex/issues/524 basically Stump
+			// was stripping trailing slashes from OPDS urls which caused issues with Codex, it would
+			// redirect to a url and axios wasn't preserving the Authorization header on the redirect for iOS.
+			// It _does_ on Android, though. From what I can tell about how axios works in the context of iOS in
+			// a react-native app, it uses native networking (i.e., CFNetwork/NSURLSession) which doesn't seem to
+			// adhere to _this_ beforeRedirect config. From what I understand, I'd need to hook into maybe
+			// https://developer.apple.com/documentation/foundation/urlsessiontaskdelegate/urlsession(_:task:willperformhttpredirection:newrequest:completionhandler:)
+			// which would mean a native module to handle it. That is a pretty sizable effort so for now I am just
+			// going to accept it as a limitation for iOS. A little unfortunate, but as long as there aren't servers
+			// which put feeds behind layers of redirects it should be fine.
+			// beforeRedirect: (config) => {
+			// 	config.headers = config.headers.concat(this.getHeaders())
+			// 	if (this._basicAuth) {
+			// 		config.auth = this._basicAuth
+			// 	}
+			// 	return config
+			// },
 		})
 
 		instance.interceptors.request.use(async (config) => {
@@ -290,7 +304,6 @@ export class Api {
 	async execute<TResult, TVariables>(
 		query: TypedDocumentString<TResult, TVariables>,
 		variables?: TVariables extends Record<string, never> ? never : TVariables,
-		config?: Pick<AxiosRequestConfig, 'onUploadProgress'>,
 	): Promise<TResult> {
 		const response = await this.axiosInstance.post<GraphQLResponse<TResult>>(
 			'/api/graphql',
@@ -301,6 +314,59 @@ export class Api {
 			{
 				headers: {
 					...this.headers,
+				},
+				baseURL: this.rootURL,
+			},
+		)
+
+		const { data, errors } = response.data
+
+		if (errors) {
+			const firstExtensionError = errors.find((error) => error.extensions?.error)?.extensions?.error
+			if (firstExtensionError && typeof firstExtensionError === 'string') {
+				throw new Error(firstExtensionError)
+			}
+			throw new Error(errors.map((error) => error.message).join(', '))
+		}
+
+		return data
+	}
+
+	/**
+	 * Execute a GraphQL mutation with file uploads using the multipart request spec
+	 */
+	async executeUpload<TResult, TVariables>(
+		query: TypedDocumentString<TResult, TVariables>,
+		variables?: TVariables extends Record<string, never> ? never : TVariables,
+		config?: Pick<AxiosRequestConfig, 'onUploadProgress'>,
+	): Promise<TResult> {
+		const formData = new FormData()
+
+		if (!variables) {
+			throw new Error('Variables are required for file uploads')
+		}
+
+		const operations = { query: query.toString(), variables: {} as Record<string, unknown> }
+		const map: Record<string, string[]> = {}
+		const files: File[] = []
+
+		const processedVariables = this.extractFiles(variables, files, map)
+		operations.variables = processedVariables as Record<string, unknown>
+
+		formData.append('operations', JSON.stringify(operations))
+		formData.append('map', JSON.stringify(map))
+
+		files.forEach((file, index) => {
+			formData.append(index.toString(), file)
+		})
+
+		const response = await this.axiosInstance.post<GraphQLResponse<TResult>>(
+			'/api/graphql',
+			formData,
+			{
+				headers: {
+					...this.headers,
+					'Content-Type': 'multipart/form-data',
 				},
 				baseURL: this.rootURL,
 				...config,
@@ -318,6 +384,36 @@ export class Api {
 		}
 
 		return data
+	}
+
+	// Note: This feels fragile but does work for basic uploads. If it breaks down probably best to see what is
+	// out there instead of reinventing the wheel
+	private extractFiles(
+		obj: unknown,
+		files: File[],
+		map: Record<string, string[]>,
+		path: string = 'variables',
+	): unknown {
+		if (obj instanceof File) {
+			const index = files.length
+			files.push(obj)
+			map[index.toString()] = [path]
+			return null
+		}
+
+		if (Array.isArray(obj)) {
+			return obj.map((item, index) => this.extractFiles(item, files, map, `${path}.${index}`))
+		}
+
+		if (obj && typeof obj === 'object') {
+			const result: Record<string, unknown> = {}
+			for (const [key, value] of Object.entries(obj)) {
+				result[key] = this.extractFiles(value, files, map, `${path}.${key}`)
+			}
+			return result
+		}
+
+		return obj
 	}
 
 	async executeRaw<TResult = unknown, TVariables = Record<string, unknown> | never>(
@@ -408,6 +504,10 @@ export class Api {
 
 	get opds(): OPDSV2API {
 		return new OPDSV2API(this)
+	}
+
+	get opdsLegacy(): OPDSLegacyAPI {
+		return new OPDSLegacyAPI(this)
 	}
 
 	/**

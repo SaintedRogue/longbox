@@ -116,6 +116,8 @@ pub enum APIError {
 	Unauthorized,
 	#[error("{0}")]
 	Forbidden(String),
+	#[error("{0}")]
+	Conflict(String),
 	#[error("This functionality has not been implemented yet")]
 	NotImplemented,
 	#[error("This functionality is not supported")]
@@ -132,6 +134,20 @@ pub enum APIError {
 	SessionFetchError(#[from] SessionError),
 	#[error("{0}")]
 	DbError(#[from] sea_orm::error::DbErr),
+	#[error("OIDC is not enabled")]
+	OIDCNotEnabled,
+	#[error("The provided OIDC configuration is invalid or missing required fields")]
+	OIDCConfigurationInvalid,
+	#[error("{0}")]
+	OIDCConfigurationError(#[from] openidconnect::ConfigurationError),
+	#[error("Failed to exchange OIDC token: {0}")]
+	OIDCTokenExchangeFailed(String),
+	#[error("The OIDC token is missing from the response")]
+	OIDCMissingToken,
+	#[error("Failed to verify OIDC claims: {0}")]
+	OIDCClaimsVerificationFailed(#[from] openidconnect::ClaimsVerificationError),
+	#[error("The OIDC token is missing an email claim")]
+	OIDCMissingEmail,
 }
 
 impl APIError {
@@ -144,6 +160,7 @@ impl APIError {
 			APIError::InternalServerError(_) => StatusCode::INTERNAL_SERVER_ERROR,
 			APIError::Unauthorized => StatusCode::UNAUTHORIZED,
 			APIError::Forbidden(_) => StatusCode::FORBIDDEN,
+			APIError::Conflict(_) => StatusCode::CONFLICT,
 			APIError::NotImplemented => StatusCode::NOT_IMPLEMENTED,
 			APIError::ServiceUnavailable(_) => StatusCode::SERVICE_UNAVAILABLE,
 			APIError::BadGateway(_) => StatusCode::BAD_GATEWAY,
@@ -152,6 +169,8 @@ impl APIError {
 			},
 			APIError::DbError(_) => StatusCode::INTERNAL_SERVER_ERROR,
 			APIError::Redirect(_) => StatusCode::TEMPORARY_REDIRECT,
+			APIError::OIDCConfigurationInvalid => StatusCode::BAD_REQUEST,
+			APIError::OIDCNotEnabled => StatusCode::FORBIDDEN,
 			_ => StatusCode::INTERNAL_SERVER_ERROR,
 		}
 	}

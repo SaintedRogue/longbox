@@ -10,6 +10,17 @@ const fragment = graphql(`
 		resolvedName
 		thumbnail {
 			url
+			metadata {
+				averageColor
+				colors {
+					color
+					percentage
+				}
+				thumbhash
+			}
+		}
+		readProgress {
+			percentageCompleted
 		}
 	}
 `)
@@ -27,12 +38,16 @@ export default function BookGridItem({ book }: Props) {
 
 	const data = useFragment(fragment, book)
 
+	const percentageCompleted = parseFloat(data.readProgress?.percentageCompleted)
+
 	return (
 		<View className="w-full items-center">
 			<GridImageItem
 				uri={data.thumbnail.url}
 				title={data.resolvedName}
 				href={`/server/${serverID}/books/${data.id}`}
+				placeholderData={data.thumbnail.metadata}
+				percentageCompleted={isNaN(percentageCompleted) ? undefined : percentageCompleted}
 			/>
 		</View>
 	)

@@ -6,13 +6,13 @@ import { IImageBaseReaderContext, ImagePageDimensionRef } from './context'
 
 type Params = Pick<IImageBaseReaderContext, 'book'>
 
-export function useImageSizes({ book: { id, pageAnalysis } }: Params) {
+export function useImageSizes({ book: { id, analysisData } }: Params) {
 	const cachedSizes = useSizeStore((state) => state.cache[id]?.imageSizes || {})
 	const storeSize = useSizeStore((state) => state.storeSize)
 
 	const [initialSizes] = useState(
 		() =>
-			pageAnalysis?.dimensions
+			analysisData?.dimensions
 				?.map(({ height, width }) => ({
 					height,
 					width,

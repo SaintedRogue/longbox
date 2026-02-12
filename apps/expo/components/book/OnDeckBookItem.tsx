@@ -4,25 +4,36 @@ import { useRouter } from 'expo-router'
 import { memo } from 'react'
 import { Easing, Pressable, View } from 'react-native'
 import { easeGradient } from 'react-native-easing-gradient'
-import LinearGradient from 'react-native-linear-gradient'
 
+import { formatSeriesPosition } from '~/lib/bookUtils'
 import { COLORS } from '~/lib/constants'
 import { useListItemSize } from '~/lib/hooks'
 
 import { useActiveServer } from '../activeServer'
-import { BorderAndShadow } from '../BorderAndShadow'
-import { TurboImage } from '../Image'
+import { ThumbnailImage } from '../image'
 import { Text } from '../ui'
 
 const fragment = graphql(`
 	fragment OnDeckBookItem on Media {
 		id
+		metadata {
+			number
+		}
 		resolvedName
 		thumbnail {
 			url
+			metadata {
+				averageColor
+				colors {
+					color
+					percentage
+				}
+				thumbhash
+			}
 		}
 		seriesPosition
 		series {
+			resolvedName
 			mediaCount
 		}
 	}
@@ -55,64 +66,65 @@ function OnDeckBookItem({ book }: Props) {
 		easing: Easing.bezier(0.42, 0, 1, 1), // https://cubic-bezier.com/#.42,0,1,1
 	})
 
+	const { url: uri, metadata: placeholderData } = data.thumbnail
+
+	const seriesPosition = formatSeriesPosition(
+		Number(data.metadata?.number) || data.seriesPosition,
+		data.series.mediaCount,
+		{
+			seriesName: data.series.resolvedName,
+		},
+	)
+
 	return (
 		<Pressable onPress={() => router.navigate(`/server/${serverID}/books/${data.id}`)}>
 			{({ pressed }) => (
 				<View className="relative" style={{ opacity: pressed ? 0.8 : 1 }}>
-					<BorderAndShadow
-						style={{ borderRadius: 8, borderWidth: 0.3, shadowRadius: 1.41, elevation: 2 }}
-					>
-						<LinearGradient
-							colors={gradientColors}
-							style={{ position: 'absolute', inset: 0, zIndex: 10 }}
-							locations={gradientLocations}
-						/>
+					<ThumbnailImage
+						source={{
+							uri,
+							headers: {
+								...sdk.customHeaders,
+								Authorization: sdk.authorizationHeader || '',
+							},
+						}}
+						resizeMode="stretch"
+						size={{ width, height }}
+						gradient={{ colors: gradientColors, locations: gradientLocations }}
+						placeholderData={placeholderData}
+					/>
 
-						<TurboImage
-							source={{
-								uri: data.thumbnail.url,
-								headers: {
-									...sdk.customHeaders,
-									Authorization: sdk.authorizationHeader || '',
-								},
+					<View className="absolute bottom-0 z-20 w-full gap-1 p-2">
+						<Text
+							className="flex-1 flex-wrap text-lg font-semibold leading-5"
+							style={{
+								textShadowOffset: { width: 2, height: 1 },
+								textShadowRadius: 2,
+								textShadowColor: 'rgba(0, 0, 0, 0.5)',
+								zIndex: 20,
+								color: COLORS.dark.foreground.DEFAULT,
 							}}
-							resizeMode="stretch"
-							resize={width * 1.5}
-							style={{ width, height }}
-						/>
+							numberOfLines={2}
+						>
+							{data.resolvedName}
+						</Text>
 
-						<View className="absolute bottom-0 z-20 w-full gap-1 p-2">
+						{seriesPosition != null && (
 							<Text
-								className="flex-1 flex-wrap text-lg font-semibold leading-5"
+								className="flex-1 flex-wrap text-sm font-medium tablet:text-base"
 								style={{
 									textShadowOffset: { width: 2, height: 1 },
 									textShadowRadius: 2,
 									textShadowColor: 'rgba(0, 0, 0, 0.5)',
 									zIndex: 20,
-									color: COLORS.dark.foreground.DEFAULT,
+									color: COLORS.dark.foreground.subtle,
 								}}
-								numberOfLines={2}
+								numberOfLines={0}
 							>
-								{data.resolvedName}
+								{seriesPosition}
 							</Text>
-
-							{data.seriesPosition != null && (
-								<Text
-									className="flex-1 flex-wrap text-sm font-medium"
-									style={{
-										textShadowOffset: { width: 2, height: 1 },
-										textShadowRadius: 2,
-										textShadowColor: 'rgba(0, 0, 0, 0.5)',
-										zIndex: 20,
-										color: COLORS.dark.foreground.subtle,
-									}}
-									numberOfLines={0}
-								>
-									Book {data.seriesPosition} of {data.series?.mediaCount ?? '?'}
-								</Text>
-							)}
-						</View>
-					</BorderAndShadow>
+						)}
+					</View>
 				</View>
 			)}
 		</Pressable>

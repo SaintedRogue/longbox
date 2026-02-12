@@ -1,7 +1,9 @@
 pub(crate) mod auth;
+pub(crate) mod epub;
 pub(crate) mod library;
 pub(crate) mod media;
-pub(crate) mod series;
+mod oidc;
+mod series;
 
 use axum::{
 	extract::State,
@@ -21,7 +23,9 @@ use crate::{
 pub(crate) fn mount(app_state: AppState) -> Router<AppState> {
 	Router::new()
 		.merge(auth::mount(app_state.clone()))
+		.merge(oidc::mount())
 		.merge(media::mount(app_state.clone()))
+		.merge(epub::mount(app_state.clone()))
 		.merge(series::mount(app_state.clone()))
 		.merge(library::mount(app_state))
 		.route("/claim", get(claim))
@@ -46,11 +50,12 @@ async fn ping() -> APIResult<String> {
 	Ok("pong".to_string())
 }
 
-// TODO: Add docker-specific version info (e.g. tag) to this struct
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StumpVersion {
 	pub semver: String,
+	// E.g., nightly, experimental, unstable, etc.
+	pub build_channel: Option<String>,
 	pub rev: String,
 	pub compile_time: String,
 }
@@ -58,6 +63,7 @@ pub struct StumpVersion {
 async fn version() -> APIResult<Json<StumpVersion>> {
 	Ok(Json(StumpVersion {
 		semver: env!("CARGO_PKG_VERSION").to_string(),
+		build_channel: option_env!("BUILD_CHANNEL").map(|s| s.to_string()),
 		rev: env!("GIT_REV").to_string(),
 		compile_time: env!("STATIC_BUILD_DATE").to_string(),
 	}))

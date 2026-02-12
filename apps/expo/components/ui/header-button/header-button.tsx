@@ -1,37 +1,46 @@
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons'
-import { Pressable } from 'react-native-gesture-handler'
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
+import { X } from 'lucide-react-native'
+import { View } from 'react-native'
 
-import { HeaderButtonProps } from './header-button.ios'
+import { useColors } from '~/lib/constants'
 
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable)
+import { Button } from '../button'
+import { Icon } from '../icon'
+import { HeaderButtonProps } from './types'
 
-export function HeaderButton({ imageProps, buttonProps }: HeaderButtonProps) {
-	const scale = useSharedValue(1)
-
-	const animatedStyle = useAnimatedStyle(() => ({
-		transform: [{ scale: scale.value }],
-	}))
+export function HeaderButton({
+	icon = { android: X },
+	onPress,
+	style,
+	android = { variant: 'default' },
+}: HeaderButtonProps) {
+	const colors = useColors()
 
 	return (
-		<AnimatedPressable
-			hitSlop={20}
-			onPress={buttonProps?.onPress}
-			onPressIn={() => {
-				scale.value = withTiming(0.8)
-			}}
-			onPressOut={() => {
-				scale.value = withTiming(1)
-			}}
-			style={animatedStyle}
+		<Button
+			className="squircle h-[unset] w-[unset] rounded-full border p-1 tablet:p-2"
+			variant={android.variant === 'prominent' ? 'brand' : 'outline'}
+			size="icon"
+			style={style}
+			onPress={onPress}
 		>
-			<MaterialCommunityIcons
-				// TODO: fix this type and _actually_ support both icon systems
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				name={(imageProps?.systemName as any) || 'cross'}
-				size={24}
-				color={imageProps?.color || 'grey'}
-			/>
-		</AnimatedPressable>
+			{({ pressed }) => (
+				<View
+					className="squircle items-center justify-center rounded-full"
+					style={{
+						height: 35,
+						width: 35,
+					}}
+				>
+					<Icon
+						as={icon?.android || X}
+						size={icon?.size || 24}
+						color={icon?.color || colors.foreground.DEFAULT}
+						style={{
+							opacity: pressed ? 0.85 : 1,
+						}}
+					/>
+				</View>
+			)}
+		</Button>
 	)
 }

@@ -18,9 +18,11 @@ use sea_orm::{
 use stump_core::filesystem::{
 	image::{
 		generate_book_thumbnail, remove_thumbnails, GenerateThumbnailOptions,
-		ImageProcessorOptionsExt, ThumbnailGenerationJob, ThumbnailGenerationJobParams,
+		ImageProcessorOptionsExt, PlaceholderGenerationJob,
+		PlaceholderGenerationJobConfig, PlaceholderGenerationJobScope,
+		ThumbnailGenerationJob, ThumbnailGenerationJobParams,
 	},
-	media::analyze_media_job::AnalyzeMediaJob,
+	media::analysis::{AnalysisJobConfig, AnalyzeMediaJob, MediaAnalysisJobScope},
 	scanner::{LibraryScanJob, ScanOptions},
 };
 use tokio::fs;
@@ -46,7 +48,12 @@ pub struct LibraryMutation;
 #[Object]
 impl LibraryMutation {
 	#[graphql(guard = "PermissionGuard::one(UserPermission::ManageLibrary)")]
-	async fn analyze_library(&self, ctx: &Context<'_>, id: ID) -> Result<bool> {
+	async fn analyze_library(
+		&self,
+		ctx: &Context<'_>,
+		id: ID,
+		#[graphql(default = false)] force_reanalysis: bool,
+	) -> Result<bool> {
 		let AuthContext { user, .. } = ctx.data::<AuthContext>()?;
 		let core = ctx.data::<CoreContext>()?;
 		let conn = core.conn.as_ref();
@@ -58,7 +65,13 @@ impl LibraryMutation {
 			.await?
 			.ok_or("Library not found")?;
 
-		core.enqueue_job(AnalyzeMediaJob::analyze_library(model.id))?;
+		core.enqueue_job(
+			AnalyzeMediaJob::new(AnalysisJobConfig {
+				force_reanalysis,
+				scope: MediaAnalysisJobScope::Library(model.id),
+			})
+			.wrapped(),
+		)?;
 
 		Ok(true)
 	}
@@ -482,9 +495,13 @@ impl LibraryMutation {
 					"Creating and linking tags to library",
 				);
 
-				let created_tags = tag::Entity::insert_many(tags_to_create)
-					.exec_with_returning_many(&txn)
-					.await?;
+				let created_tags = if !tags_to_create.is_empty() {
+					tag::Entity::insert_many(tags_to_create)
+						.exec_with_returning_many(&txn)
+						.await?
+				} else {
+					vec![]
+				};
 
 				let tags_to_connect = tags_to_add_which_already_exist
 					.iter()
@@ -617,6 +634,7 @@ impl LibraryMutation {
 
 		let (_, path_buf, _) = generate_book_thumbnail(
 			&book.into(),
+			core.conn.as_ref(),
 			GenerateThumbnailOptions {
 				image_options,
 				core_config: core.config.as_ref().clone(),
@@ -792,16 +810,45 @@ impl LibraryMutation {
 			.ok_or("Library not found")?;
 		let config = config.ok_or("Library config not found")?;
 
-		let job_config =
-			ThumbnailGenerationJobParams::single_library(library.id, force_regenerate);
-		core.enqueue_job(ThumbnailGenerationJob::new(
+		let job_config = ThumbnailGenerationJob::new(
 			config.thumbnail_config.unwrap_or_default(),
-			job_config,
-		))
-		.map_err(|error| {
+			ThumbnailGenerationJobParams::books_in_library(library.id, force_regenerate),
+		);
+
+		if let Err(error) = core.enqueue_job(job_config) {
 			tracing::error!(?error, "Failed to enqueue thumbnail generation job");
-			error
-		})?;
+			return Err(error.into());
+		}
+
+		Ok(true)
+	}
+
+	#[graphql(guard = "PermissionGuard::one(UserPermission::ManageLibrary)")]
+	async fn process_library_thumbnails(
+		&self,
+		ctx: &Context<'_>,
+		id: ID,
+		#[graphql(default = false)] force_regenerate: bool,
+	) -> Result<bool> {
+		let AuthContext { user, .. } = ctx.data::<AuthContext>()?;
+		let core = ctx.data::<CoreContext>()?;
+
+		let library = library::Entity::find_for_user(user)
+			.filter(library::Column::Id.eq(id.to_string()))
+			.one(core.conn.as_ref())
+			.await?
+			.ok_or("Library not found")?;
+
+		let jobs_config = PlaceholderGenerationJob::new(PlaceholderGenerationJobConfig {
+			scope: PlaceholderGenerationJobScope::BooksInLibrary(library.id.clone()),
+			force_regenerate,
+		})
+		.wrapped();
+
+		if let Err(error) = core.enqueue_job(jobs_config) {
+			tracing::error!(?error, "Failed to enqueue placeholder generation job");
+			return Err(error.into());
+		}
 
 		Ok(true)
 	}
@@ -864,9 +911,6 @@ impl LibraryMutation {
 		&self,
 		ctx: &Context<'_>,
 		id: ID,
-		// TODO(graphql): Investigate not using a JSON wrapper for this. async_graphql doesn't support
-		// non-unit enums, so it might just be a limitation. It does degrate the DX a bit missing
-		// out on the types.
 		options: Option<Json<ScanOptions>>,
 	) -> Result<bool> {
 		let AuthContext { user, .. } = ctx.data::<AuthContext>()?;

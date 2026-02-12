@@ -79,6 +79,7 @@ export type OPDSDynamicMetadata = Record<string, unknown>
 const metadata = z
 	.object({
 		title: z.string(),
+		subtitle: z.string().nullish(),
 		identifier: z.string().nullish(),
 		modified: z.string().nullish(),
 		description: z.string().nullish(),
@@ -109,7 +110,7 @@ export type OPDSPublication = z.infer<typeof publication>
 
 const progessionLocation = z.object({
 	fragments: z.array(z.string()).nullish(),
-	position: z.string().nullish(),
+	position: z.number().nullish(),
 	progression: z.number().nullish(),
 	totalProgression: z.number().nullish(),
 })
@@ -118,7 +119,7 @@ const progressionLocator = z.object({
 	title: z.string().nullish(),
 	href: z.string().nullish(),
 	type: z.string().nullish(),
-	locations: z.array(progessionLocation).nullish(),
+	locations: progessionLocation.nullish(),
 })
 
 const progressionDevice = z.object({
@@ -137,6 +138,39 @@ export const progression = z
 		modified: new Date(data.modified),
 	}))
 export type OPDSProgression = z.infer<typeof progression>
+
+const progressionLocationInput = z.object({
+	fragments: z.array(z.string()).optional(),
+	position: z.number().optional(),
+	progression: z.number().optional(),
+	totalProgression: z.number().optional(),
+})
+
+const progressionTextInput = z.object({
+	before: z.string().optional(),
+	highlight: z.string().optional(),
+	after: z.string().optional(),
+})
+
+const progressionLocatorInput = z.object({
+	href: z.string(),
+	type: z.string(),
+	title: z.string().optional(),
+	locations: progressionLocationInput.optional(),
+	text: progressionTextInput.optional(),
+})
+
+const progressionDeviceInput = z.object({
+	id: z.string(),
+	name: z.string(),
+})
+
+export const progressionInput = z.object({
+	modified: z.string(),
+	device: progressionDeviceInput,
+	locator: progressionLocatorInput,
+})
+export type OPDSProgressionInput = z.infer<typeof progressionInput>
 
 const feedGroup = z.object({
 	links: z.array(link).default([]),

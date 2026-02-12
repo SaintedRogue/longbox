@@ -86,11 +86,11 @@ export default function Screen() {
 					onEndReachedThreshold={ON_END_REACHED_THRESHOLD}
 					onEndReached={onEndReached}
 					contentInsetAdjustmentBehavior="automatic"
-					ListHeaderComponent={() => (
+					ListHeaderComponent={
 						<Suspense fallback={null}>
 							<BookFilterHeader />
 						</Suspense>
-					)}
+					}
 					ListHeaderComponentStyle={{ paddingBottom: 16, marginHorizontal: -paddingHorizontal }}
 					refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
 					ListEmptyComponent={
@@ -99,11 +99,11 @@ export default function Screen() {
 							actions={
 								<>
 									{isFiltered && (
-										<Button variant="secondary" onPress={() => resetFilters()}>
+										<Button roundness="full" variant="secondary" onPress={() => resetFilters()}>
 											<Text>Clear Filters</Text>
 										</Button>
 									)}
-									<Button onPress={() => refetch()}>
+									<Button roundness="full" onPress={() => refetch()}>
 										<Text>Refresh</Text>
 									</Button>
 								</>

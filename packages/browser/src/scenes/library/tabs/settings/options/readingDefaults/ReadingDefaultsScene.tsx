@@ -1,12 +1,13 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Button, Form } from '@stump/components'
 import { useCallback, useEffect, useMemo } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { useDebouncedValue } from 'rooks'
 
 import {
 	buildSchema,
 	CreateOrUpdateLibrarySchema,
+	DefaultLibraryView,
 	DefaultReadingSettings,
 	formDefaults,
 } from '@/components/library/createOrUpdate'
@@ -16,7 +17,11 @@ import { useLibraryManagement } from '../../context'
 type PatchParams = Partial<
 	Pick<
 		CreateOrUpdateLibrarySchema,
-		'defaultReadingDir' | 'defaultReadingImageScaleFit' | 'defaultReadingMode'
+		| 'defaultReadingDir'
+		| 'defaultReadingImageScaleFit'
+		| 'defaultReadingMode'
+		| 'defaultLibraryViewMode'
+		| 'hideSeriesView'
 	>
 >
 
@@ -43,6 +48,8 @@ export default function ReadingDefaultsScene() {
 				defaultReadingDir: true,
 				defaultReadingImageScaleFit: true,
 				defaultReadingMode: true,
+				defaultLibraryViewMode: true,
+				hideSeriesView: true,
 			}),
 		[library],
 	)
@@ -52,18 +59,25 @@ export default function ReadingDefaultsScene() {
 		resolver: zodResolver(schema),
 	})
 
-	const formValues = form.watch([
-		'defaultReadingDir',
-		'defaultReadingImageScaleFit',
-		'defaultReadingMode',
-	])
+	const formValues = useWatch({
+		control: form.control,
+		name: [
+			'defaultReadingDir',
+			'defaultReadingImageScaleFit',
+			'defaultReadingMode',
+			'defaultLibraryViewMode',
+			'hideSeriesView',
+		],
+	})
 	const didChange = useMemo(() => {
 		const config = library.config
-		const [dir, scale, mode] = formValues
+		const [dir, scale, mode, viewMode, hideSeriesView] = formValues
 		return (
 			config.defaultReadingDir !== dir ||
 			config.defaultReadingImageScaleFit !== scale ||
-			config.defaultReadingMode !== mode
+			config.defaultReadingMode !== mode ||
+			config.defaultLibraryViewMode !== viewMode ||
+			config.hideSeriesView !== hideSeriesView
 		)
 	}, [formValues, library])
 	const [debouncedDidChange] = useDebouncedValue(didChange, 500)
@@ -84,6 +98,7 @@ export default function ReadingDefaultsScene() {
 			form={form}
 			onSubmit={handleSubmit}
 		>
+			<DefaultLibraryView />
 			<DefaultReadingSettings />
 
 			<div className="invisible hidden">

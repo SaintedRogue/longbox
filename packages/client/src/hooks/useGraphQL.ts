@@ -3,6 +3,7 @@ import { Api } from '@stump/sdk'
 import { GraphQLWebsocketConnectEventHandlers } from '@stump/sdk/socket'
 import {
 	InfiniteData,
+	noop,
 	QueryKey,
 	useInfiniteQuery,
 	UseInfiniteQueryResult,
@@ -118,14 +119,11 @@ type UseGraphQLMutationOptions<TResult, TVariables> = Omit<
 		unknown
 	>,
 	'mutationFn'
-> & {
-	config?: Pick<AxiosRequestConfig, 'onUploadProgress'>
-}
+>
 
 export function useGraphQLMutation<TResult, TVariables>(
 	document: TypedDocumentString<TResult, TVariables>,
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	{ config, ...options }: UseGraphQLMutationOptions<TResult, TVariables> = {},
+	options: UseGraphQLMutationOptions<TResult, TVariables> = {},
 ) {
 	const { sdk } = useSDK()
 	const { onUnauthenticatedResponse, onConnectionWithServerChanged } = useClientContext()
@@ -145,7 +143,55 @@ export function useGraphQLMutation<TResult, TVariables>(
 				onUnauthenticatedResponse,
 				onConnectionWithServerChanged,
 			})
-			options?.onError?.(error, variables, context)
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			options?.onError?.(error, variables, noop, context as any)
+		},
+	})
+
+	return { error, ...rest } as UseMutationResult<
+		TResult,
+		unknown,
+		TVariables extends Record<string, never> ? never : TVariables,
+		unknown
+	>
+}
+
+type UseGraphQLUploadMutationOptions<TResult, TVariables> = Omit<
+	UseMutationOptions<
+		TResult,
+		unknown,
+		TVariables extends Record<string, never> ? never : TVariables,
+		unknown
+	>,
+	'mutationFn'
+> & {
+	config?: Pick<AxiosRequestConfig, 'onUploadProgress'>
+}
+
+export function useGraphQLUploadMutation<TResult, TVariables>(
+	document: TypedDocumentString<TResult, TVariables>,
+	{ config, ...options }: UseGraphQLUploadMutationOptions<TResult, TVariables> = {},
+) {
+	const { sdk } = useSDK()
+	const { onUnauthenticatedResponse, onConnectionWithServerChanged } = useClientContext()
+
+	const mutationFn = useCallback(
+		async (variables?: TVariables extends Record<string, never> ? never : TVariables) =>
+			sdk.executeUpload(document, variables, config),
+		[sdk, document, config],
+	)
+	const { error, ...rest } = useMutation({
+		...options,
+		mutationFn,
+		onError: (error, variables, context) => {
+			handleError({
+				sdk,
+				error,
+				onUnauthenticatedResponse,
+				onConnectionWithServerChanged,
+			})
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			options?.onError?.(error, variables, noop, context as any)
 		},
 	})
 
@@ -190,7 +236,6 @@ export function useSuspenseGraphQL<TResult, TVariables>(
 	return { error, ...rest } as UseSuspenseQueryResult<TResult>
 }
 
-// TODO(graphql): Fix the type inference for query variables
 /**
  * Executes multiple GraphQL queries in parallel using tanstack's useQueries
  *

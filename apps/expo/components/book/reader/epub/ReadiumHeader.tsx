@@ -1,53 +1,51 @@
-import { useRouter } from 'expo-router'
-import { ALargeSmall, Ellipsis, TableOfContents } from 'lucide-react-native'
+import { ALargeSmall, TableOfContents } from 'lucide-react-native'
 import { useEffect } from 'react'
-import { Platform, Pressable, View } from 'react-native'
+import { Pressable, View } from 'react-native'
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { initialWindowMetrics, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import ChevronBackLink from '~/components/ChevronBackLink'
 import { Text } from '~/components/ui'
 import { Icon } from '~/components/ui/icon'
+import { CONTROLS_TIMING_CONFIG } from '~/lib/constants'
 import { useDisplay } from '~/lib/hooks'
 import { useReaderStore } from '~/stores'
 import { useEpubLocationStore, useEpubTheme } from '~/stores/epub'
+import { useEpubSheetStore } from '~/stores/epubSheet'
+
+import BookmarkButton from './BookmarkButton'
 
 export const HEADER_HEIGHT = 48
 
-type Props = {
-	settingsUrl: string
-	locationsUrl?: string
-}
+// TODO: Figure out ideal UI for reader, I have largely been influenced by Yomu but
+// think I want to deviate a bit moving forward
 
-export default function ReadiumHeader({ settingsUrl, locationsUrl }: Props) {
+export default function ReadiumHeader() {
 	const { height } = useDisplay()
+
+	const openSheet = useEpubSheetStore((state) => state.openSheet)
 
 	const visible = useReaderStore((state) => state.showControls)
 	const chapterTitle = useEpubLocationStore(
 		(state) => state.currentChapter || state.book?.name || state.embeddedMetadata?.title,
 	)
-
 	const { colors } = useEpubTheme()
 
 	const insets = useSafeAreaInsets()
 
-	const translateY = useSharedValue(-400)
+	const opacity = useSharedValue(0)
 	useEffect(() => {
-		translateY.value = withTiming(visible ? 0 : 400 * -1, {
-			duration: 300,
-		})
-	}, [visible, translateY, height, insets.top])
+		opacity.value = withTiming(visible ? 1 : 0, CONTROLS_TIMING_CONFIG)
+	}, [visible, opacity, height, insets.top])
 
 	const animatedStyles = useAnimatedStyle(() => {
 		return {
-			top: insets.top + (Platform.OS === 'android' ? 0 : 0),
+			top: initialWindowMetrics?.insets.top || insets.top,
 			left: insets.left,
 			right: insets.right,
-			transform: [{ translateY: translateY.value }],
+			opacity: opacity.value,
 		}
 	})
-
-	const router = useRouter()
 
 	return (
 		<Animated.View
@@ -56,23 +54,16 @@ export default function ReadiumHeader({ settingsUrl, locationsUrl }: Props) {
 		>
 			<View className="flex-1 flex-row items-center gap-4">
 				<ChevronBackLink style={{ color: colors?.foreground, opacity: 0.9 }} />
-				{locationsUrl && (
-					<Pressable
-						onPress={() =>
-							// @ts-expect-error: String path
-							router.push(locationsUrl)
-						}
-					>
-						{({ pressed }) => (
-							<Icon
-								as={TableOfContents}
-								className="h-6 w-6"
-								// @ts-expect-error: Color definitely works
-								style={{ opacity: pressed ? 0.7 : 0.9, color: colors?.foreground }}
-							/>
-						)}
-					</Pressable>
-				)}
+				<Pressable onPress={() => openSheet('locations')}>
+					{({ pressed }) => (
+						<Icon
+							as={TableOfContents}
+							className="h-6 w-6"
+							// @ts-expect-error: Color definitely works
+							style={{ opacity: pressed ? 0.7 : 0.9, color: colors?.foreground }}
+						/>
+					)}
+				</Pressable>
 			</View>
 
 			<View className="absolute left-0 right-0 items-center justify-center px-16">
@@ -82,26 +73,12 @@ export default function ReadiumHeader({ settingsUrl, locationsUrl }: Props) {
 			</View>
 
 			<View className="flex-1 flex-row items-center justify-end gap-4">
-				<Pressable
-					onPress={() =>
-						// @ts-expect-error: String path
-						router.push(settingsUrl)
-					}
-				>
+				<BookmarkButton color={colors?.foreground} />
+
+				<Pressable onPress={() => openSheet('settings')}>
 					{({ pressed }) => (
 						<Icon
 							as={ALargeSmall}
-							className="h-6 w-6"
-							// @ts-expect-error: Color definitely works
-							style={{ opacity: pressed ? 0.7 : 0.9, color: colors?.foreground }}
-						/>
-					)}
-				</Pressable>
-
-				<Pressable>
-					{({ pressed }) => (
-						<Icon
-							as={Ellipsis}
 							className="h-6 w-6"
 							// @ts-expect-error: Color definitely works
 							style={{ opacity: pressed ? 0.7 : 0.9, color: colors?.foreground }}

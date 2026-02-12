@@ -10,7 +10,7 @@ import { useCacheStore } from './cache'
 import { ZustandMMKVStorage } from './store'
 
 type ServerID = string
-export type ServerKind = 'stump' | 'opds'
+export type ServerKind = 'stump' | 'opds' | 'opds-legacy'
 
 export type SavedServer = {
 	id: ServerID
@@ -104,6 +104,67 @@ export type CreateServer = {
 // NOTE: for debugging, uncomment to clear saved tokens each render basically
 // SecureStore.deleteItemAsync('stump-mobile-saved-tokens-dev')
 
+// TODO: I added these fn exports but I am sure they can share 90% if not all logic
+// of the ones inside useSavedServers below. I am too lazy right now so just copy pasta
+
+/**
+ * Get the saved server config for a given server ID.
+ * Note: This should be used where it is awkward to use useSavedServers(),
+ * e.g. outside react lifecycle
+ */
+export const getServerConfig = async (id: ServerID) => {
+	const config = await SecureStore.getItemAsync(formatPrefix('config', id))
+	return config ? serverConfig.parse(JSON.parse(config)) : null
+}
+
+const deleteServerToken = async (id: ServerID) => {
+	await SecureStore.deleteItemAsync(formatPrefix('token', id))
+	useCacheStore.getState().removeSDK(id)
+	queryClient.removeQueries({ predicate: ({ queryKey }) => queryKey.includes(id) })
+}
+
+/**
+ * Get a non-expired JWT for a server. This is **not** an API key or long-lived token.
+ * Note: This should be used where it is awkward to use useSavedServers(),
+ * e.g. outside react lifecycle.
+ *
+ * @param id The ID of the server to get the token for
+ * @returns A JWT if the token is valid, otherwise null
+ */
+export const getServerToken = async (id: ServerID) => {
+	const record = await SecureStore.getItemAsync(formatPrefix('token', id))
+
+	const token = record ? managedToken.safeParse(JSON.parse(record))?.data : null
+
+	if (record && !token) {
+		console.warn('Malformed token record detected')
+		await deleteServerToken(id)
+		return null
+	}
+
+	if (!token) return null
+
+	if (new Date(token.expiresAt) < new Date()) {
+		await deleteServerToken(id)
+		return null
+	}
+
+	return token
+}
+
+/**
+ * Save a JWT for a server. This is **not** an API key or long-lived token, and should
+ * only be used for Stump servers.
+ * Note: This should be used where it is awkward to use useSavedServers(),
+ * e.g. outside react lifecycle
+ *
+ * @param id The ID of the server to save the token for
+ * @param token The token to save
+ */
+export const saveServerToken = async (id: ServerID, token: ManagedToken) => {
+	await SecureStore.setItemAsync(formatPrefix('token', id), JSON.stringify(token))
+}
+
 // TODO: safety in parsing
 /**
  * An RPC-like hook for interacting with saved servers and their encrypted tokens/configs.
@@ -162,13 +223,21 @@ export const useSavedServers = () => {
 		async (id: ServerID, { config, ...server }: CreateServer) => {
 			const serverMeta = { ...server, id }
 			editServer(id, serverMeta)
+
 			if (server.defaultServer) {
 				// Ensure only one default server
 				setDefaultServer(serverMeta.id)
 			}
+
 			if (config) {
 				await createServerConfig(id, config)
+			} else {
+				// If no config is provided, remove any existing config
+				await SecureStore.deleteItemAsync(formatPrefix('config', id)).catch(() => {
+					// Ignore errors
+				})
 			}
+
 			return serverMeta
 		},
 		[setDefaultServer, editServer, createServerConfig],
@@ -269,4 +338,9 @@ export const useSavedServers = () => {
 		deleteServerToken,
 		setDefaultServer,
 	}
+}
+
+export const useIsOboardingState = () => {
+	const savedServers = useSavedServerStore((state) => state.servers)
+	return savedServers.length === 0
 }

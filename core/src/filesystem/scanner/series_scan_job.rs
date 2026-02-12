@@ -1,4 +1,7 @@
-use std::{collections::VecDeque, path::PathBuf};
+use std::{
+	collections::VecDeque,
+	path::{Path, PathBuf},
+};
 
 use async_graphql::SimpleObject;
 use models::{
@@ -10,7 +13,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
 	event,
-	filesystem::image::{ThumbnailGenerationJob, ThumbnailGenerationJobParams},
+	filesystem::image::{
+		PlaceholderGenerationJob, PlaceholderGenerationJobConfig,
+		PlaceholderGenerationJobScope, ThumbnailGenerationJob,
+		ThumbnailGenerationJobParams,
+	},
 	job::{
 		error::JobError, CoreJobOutput, Executor, JobExt, JobOutputExt, JobProgress,
 		JobTaskOutput, WorkerCtx, WorkerSendExt, WorkingState, WrappedJob,
@@ -57,6 +64,10 @@ impl SeriesScanJob {
 			config: None,
 			options: options.unwrap_or_default(),
 		})
+	}
+
+	fn library_id(&self) -> Option<String> {
+		self.config.as_ref().and_then(|c| c.library_id.clone())
 	}
 }
 
@@ -136,7 +147,7 @@ impl JobExt for SeriesScanJob {
 		// Therefore, we only scan one level deep when walking a series whose library is not
 		// collection-priority to avoid scanning duplicates which are part of other series
 		let mut max_depth = (!config.is_collection_based()).then_some(1);
-		if path_buf == PathBuf::from(&library.path) {
+		if path_buf.as_path() == Path::new(&library.path) {
 			// The exception is when the series "is" the libray (i.e. the root of the library contains
 			// books). This is kind of an anti-pattern wrt collection-priority, but it needs to be handled
 			// in order to avoid the scanner re-scanning the entire library...
@@ -207,7 +218,7 @@ impl JobExt for SeriesScanJob {
 		&self,
 		ctx: &WorkerCtx,
 		output: &Self::Output,
-	) -> Result<Option<Box<dyn Executor>>, JobError> {
+	) -> Result<Option<Vec<Box<dyn Executor>>>, JobError> {
 		ctx.send_core_event(CoreEvent::JobOutput(event::JobOutput {
 			id: ctx.job_id.clone(),
 			output: CoreJobOutput::SeriesScan(output.clone()),
@@ -219,22 +230,42 @@ impl JobExt for SeriesScanJob {
 			.as_ref()
 			.and_then(|o| o.thumbnail_config.clone());
 
+		let mut jobs: Vec<Box<dyn Executor>> = vec![];
+
 		match image_options {
 			Some(options) if did_create | did_update => {
 				tracing::trace!("Thumbnail generation job should be enqueued");
-				Ok(Some(WrappedJob::new(ThumbnailGenerationJob {
+				jobs.push(WrappedJob::new(ThumbnailGenerationJob {
 					options,
-					params: ThumbnailGenerationJobParams::single_series(
+					params: ThumbnailGenerationJobParams::books_in_series(
 						self.id.clone(),
 						false,
 					),
-				})))
+				}));
 			},
 			_ => {
 				tracing::trace!("No cleanup required for series scan job");
-				Ok(None)
 			},
 		}
+
+		let process_even_without_config = self
+			.config
+			.as_ref()
+			.map(|c| c.process_thumbnail_colors_even_without_config)
+			.unwrap_or(false);
+
+		if process_even_without_config {
+			tracing::trace!("Thumbnail color processing job should be enqueued");
+			jobs.push(
+				PlaceholderGenerationJob::new(PlaceholderGenerationJobConfig::new(
+					PlaceholderGenerationJobScope::BooksInLibrary(self.id.clone()),
+					false,
+				))
+				.wrapped(),
+			);
+		}
+
+		Ok((!jobs.is_empty()).then_some(jobs))
 	}
 
 	async fn execute_task(
@@ -255,16 +286,19 @@ impl JobExt for SeriesScanJob {
 					logs: new_logs,
 					..
 				} = handle_restored_media(ctx, &self.id, ids).await;
-				ctx.send_batch(vec![
-					JobProgress::msg("Restored media entities").into_worker_send(),
-					CoreEvent::CreatedOrUpdatedManyMedia(
-						event::CreatedOrUpdatedManyMedia {
-							count: updated_media,
-							series_id: self.id.clone(),
-						},
-					)
-					.into_worker_send(),
-				]);
+				if let Some(library_id) = self.library_id() {
+					ctx.send_batch(vec![
+						JobProgress::msg("Restored media entities").into_worker_send(),
+						CoreEvent::CreatedOrUpdatedManyMedia(
+							event::CreatedOrUpdatedManyMedia {
+								count: updated_media,
+								series_id: self.id.clone(),
+								library_id,
+							},
+						)
+						.into_worker_send(),
+					]);
+				}
 				output.updated_media += updated_media;
 				logs.extend(new_logs);
 			},
@@ -275,16 +309,19 @@ impl JobExt for SeriesScanJob {
 					logs: new_logs,
 					..
 				} = handle_missing_media(ctx, &self.id, paths).await;
-				ctx.send_batch(vec![
-					JobProgress::msg("Handled missing media").into_worker_send(),
-					CoreEvent::CreatedOrUpdatedManyMedia(
-						event::CreatedOrUpdatedManyMedia {
-							count: updated_media,
-							series_id: self.id.clone(),
-						},
-					)
-					.into_worker_send(),
-				]);
+				if let Some(library_id) = self.library_id() {
+					ctx.send_batch(vec![
+						JobProgress::msg("Handled missing media").into_worker_send(),
+						CoreEvent::CreatedOrUpdatedManyMedia(
+							event::CreatedOrUpdatedManyMedia {
+								count: updated_media,
+								series_id: self.id.clone(),
+								library_id,
+							},
+						)
+						.into_worker_send(),
+					]);
+				}
 				output.updated_media += updated_media;
 				logs.extend(new_logs);
 			},
@@ -310,16 +347,19 @@ impl JobExt for SeriesScanJob {
 					paths,
 				)
 				.await?;
-				ctx.send_batch(vec![
-					JobProgress::msg("Created new media").into_worker_send(),
-					CoreEvent::CreatedOrUpdatedManyMedia(
-						event::CreatedOrUpdatedManyMedia {
-							count: created_media,
-							series_id: self.id.clone(),
-						},
-					)
-					.into_worker_send(),
-				]);
+				if let Some(library_id) = self.library_id() {
+					ctx.send_batch(vec![
+						JobProgress::msg("Created new media").into_worker_send(),
+						CoreEvent::CreatedOrUpdatedManyMedia(
+							event::CreatedOrUpdatedManyMedia {
+								count: created_media,
+								series_id: self.id.clone(),
+								library_id,
+							},
+						)
+						.into_worker_send(),
+					]);
+				}
 				output.created_media += created_media;
 				logs.extend(new_logs);
 			},
@@ -345,16 +385,19 @@ impl JobExt for SeriesScanJob {
 					params,
 				)
 				.await?;
-				ctx.send_batch(vec![
-					JobProgress::msg("Visited all media").into_worker_send(),
-					CoreEvent::CreatedOrUpdatedManyMedia(
-						event::CreatedOrUpdatedManyMedia {
-							count: updated_media,
-							series_id: self.id.clone(),
-						},
-					)
-					.into_worker_send(),
-				]);
+				if let Some(library_id) = self.library_id() {
+					ctx.send_batch(vec![
+						JobProgress::msg("Visited all media").into_worker_send(),
+						CoreEvent::CreatedOrUpdatedManyMedia(
+							event::CreatedOrUpdatedManyMedia {
+								count: updated_media,
+								series_id: self.id.clone(),
+								library_id,
+							},
+						)
+						.into_worker_send(),
+					]);
+				}
 				output.updated_media += updated_media;
 				logs.extend(new_logs);
 			},

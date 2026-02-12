@@ -1,11 +1,11 @@
 import { cn, DatePicker, Input } from '@stump/components'
 import { useLocaleContext } from '@stump/i18n'
 import dayjs from 'dayjs'
-import { useMemo } from 'react'
-import { useFormContext } from 'react-hook-form'
+import { useFormContext, useWatch } from 'react-hook-form'
 import { match } from 'ts-pattern'
 
 import {
+	isConceptualField,
 	isDateField,
 	isListOperator,
 	isNumberField,
@@ -14,6 +14,7 @@ import {
 } from '@/components/smartList/createOrUpdate'
 
 import { useFilterGroupContext } from '../context'
+import EnumValue from './EnumValue'
 import ListValue from './ListValue'
 import RangeValue, { RangeFilterDef } from './RangeValue'
 
@@ -29,10 +30,11 @@ export default function FilterValue({ idx }: Props) {
 
 	const form = useFormContext<SmartListFormSchema>()
 
-	const fieldDef = useMemo(
-		() => form.watch(`filters.groups.${groupIdx}.filters.${idx}`) || ({} as FieldDef),
-		[form, groupIdx, idx],
-	)
+	const fieldDef = useWatch({
+		control: form.control,
+		name: `filters.groups.${groupIdx}.filters.${idx}`,
+		defaultValue: {} as FieldDef,
+	})
 
 	const variant = match(fieldDef.operation)
 		.when(
@@ -44,6 +46,10 @@ export default function FilterValue({ idx }: Props) {
 			(value) => (value === 'range' ? 'range' : 'number'),
 		)
 		.otherwise(() => 'string')
+
+	if (isConceptualField(fieldDef.field)) {
+		return <EnumValue idx={idx} />
+	}
 
 	if (variant === 'list') {
 		return <ListValue idx={idx} />

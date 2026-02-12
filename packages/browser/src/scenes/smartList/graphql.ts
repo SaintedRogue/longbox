@@ -52,6 +52,7 @@ const listByIdQuery = graphql(`
 					id
 					desc
 				}
+				search
 			}
 		}
 	}
@@ -101,9 +102,50 @@ const smartListItemsQuery = graphql(`
 			... on SmartListUngrouped {
 				books {
 					...BookCard
-					...BookMetadata
+					...SmartListItemBookMetadata
 				}
 			}
+		}
+	}
+`)
+
+export const smartListMediaItemMetadataFragment = graphql(`
+	fragment SmartListItemBookMetadata on Media {
+		metadata {
+			ageRating
+			characters
+			colorists
+			coverArtists
+			editors
+			genres
+			inkers
+			letterers
+			links
+			pencillers
+			publisher
+			teams
+			writers
+			year
+			month
+			day
+			format
+			identifierAmazon
+			identifierCalibre
+			identifierGoogle
+			identifierIsbn
+			identifierMobiAsin
+			identifierUuid
+			language
+			notes
+			number
+			pageCount
+			series
+			seriesGroup
+			storyArc
+			storyArcNumber
+			title
+			titleSort
+			volume
 		}
 	}
 `)
@@ -172,6 +214,18 @@ export function useUpdateSmartList({ id, list }: { id: string; list?: SmartListP
 		delete listWithoutFields.id
 		delete listWithoutFields.creatorId
 		delete listWithoutFields.views
+
+		if (listWithoutFields.joiner) {
+			listWithoutFields.joiner =
+				listWithoutFields.joiner.toUpperCase() as typeof listWithoutFields.joiner
+		}
+		if (listWithoutFields.filters) {
+			listWithoutFields.filters = listWithoutFields.filters.map((group) => ({
+				...group,
+				joiner: group.joiner.toUpperCase() as typeof group.joiner,
+			}))
+		}
+
 		return listWithoutFields
 	}, [list])
 
@@ -213,7 +267,6 @@ export function useSmartListById({ id }: UseSmartListByIdParams): UseSmartListBy
 		},
 	)
 
-	// TODO(graphql): wrap in try/catch to handle parse errors
 	const list = useMemo(() => {
 		if (listUnparsed) {
 			const filtersFromJson = JSON.parse(listUnparsed.filters) as Array<SmartListFilterGroupInput>

@@ -4,7 +4,7 @@
 
 Stump supports code-based theming. This means that you can create your own themes by writing a few lines of code. This is done by creating a new, exported object that defines each required piece of the palette.
 
-For example, the default dark theme for Stump can be found [here](https://github.com/stumpapp/stump/tree/develop/packages/components/themes/dark.ts). For brevity, the entire theme won't be shown here, but let's say we wanted to make a new theme called "midnight" that is based on the dark theme, but with a darker background:
+For example, the default dark theme for Stump can be found [here](https://github.com/stumpapp/stump/tree/nightly/packages/components/themes/dark.ts). For brevity, the entire theme won't be shown here, but let's say we wanted to make a new theme called "midnight" that is based on the dark theme, but with a darker background:
 
 ```ts filename="themes/midnight.ts" copy
 export const midnight: StumpTheme = {
@@ -27,7 +27,7 @@ export const themes = {
 }
 ```
 
-Then we should add it to the main [`ThemeSelect` component](https://github.com/stumpapp/stump/tree/develop/packages/browser/src/scenes/settings/app/preferences/ThemeSelect.tsx) so that it can be selected:
+Then we should add it to the main [`ThemeSelect` component](https://github.com/stumpapp/stump/tree/nightly/packages/browser/src/scenes/settings/app/preferences/ThemeSelect.tsx) so that it can be selected:
 
 ```tsx filename="scenes/settings/app/preferences/ThemeSelect.tsx" copy
 <NativeSelect
@@ -42,7 +42,7 @@ Then we should add it to the main [`ThemeSelect` component](https://github.com/s
 />
 ```
 
-Note that the `label` is a translation key, so we should add it to the [`locales/en.json` file](https://github.com/stumpapp/stump/tree/develop/packages/browser/src/i18n/locales/en.json), as well.
+Note that the `label` is a translation key, so we should add it to the [`locales/en.json` file](https://github.com/stumpapp/stump/tree/nightly/packages/browser/src/i18n/locales/en.json), as well.
 
 ## Fonts
 

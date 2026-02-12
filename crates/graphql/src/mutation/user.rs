@@ -102,10 +102,18 @@ impl UserMutation {
 			..Default::default()
 		};
 
-		user_preferences.save(&txn).await.map_err(|e| {
-			tracing::error!(error = ?e, "Failed to create user preferences");
-			"Failed to create user preferences"
-		})?;
+		let user_preferences = user_preferences
+			.save(&txn)
+			.await
+			.map_err(|e| {
+				tracing::error!(error = ?e, "Failed to create user preferences");
+				"Failed to create user preferences"
+			})?
+			.try_into_model()?;
+
+		let mut user_model = user_model.into_active_model();
+		user_model.user_preferences_id = Set(Some(user_preferences.id));
+		let user_model = user_model.update(&txn).await?;
 
 		txn.commit().await?;
 
@@ -124,8 +132,6 @@ impl UserMutation {
 
 		let updated_user =
 			update_user(user, user.id.clone(), conn, config, &input).await?;
-
-		// TODO(graphql): Insert user session
 
 		Ok(updated_user)
 	}
@@ -194,8 +200,6 @@ impl UserMutation {
 			// When a server owner updates another user, we need to delete all sessions for that user
 			// because the user's permissions may have changed. This is a bit lazy but it works.
 			remove_all_session_for_user(id.to_string(), conn).await?;
-		} else {
-			// TODO(graphql): Insert user session
 		}
 
 		Ok(updated_user)
@@ -397,9 +401,11 @@ async fn update_user_preferences_by_id(
 		),
 		enable_hide_scrollbar: Set(user_preferences.enable_hide_scrollbar),
 		enable_job_overlay: Set(user_preferences.enable_job_overlay),
+		enable_fancy_animations: Set(user_preferences.enable_fancy_animations),
 		prefer_accent_color: Set(user_preferences.prefer_accent_color),
 		show_thumbnails_in_headers: Set(user_preferences.show_thumbnails_in_headers),
 		thumbnail_ratio: Set(user_preferences.thumbnail_ratio),
+		thumbnail_placeholder_style: Set(user_preferences.thumbnail_placeholder_style),
 		enable_alphabet_select: Set(user_preferences.enable_alphabet_select),
 		home_arrangement: NotSet,
 		navigation_arrangement: NotSet,
@@ -590,6 +596,8 @@ mod tests {
 					created_at: chrono::Utc::now().into(),
 					deleted_at: None,
 					user_preferences_id: None,
+					oidc_issuer_id: None,
+					oidc_email: None,
 				},
 			]])
 			.into_connection();
@@ -618,7 +626,7 @@ mod tests {
 		let stmt = &txn.statements()[1];
 		assert_eq!(
 			stmt.to_string(),
-			r#"UPDATE "users" SET "username" = 'test_user', "avatar_url" = 'http://example.com/avatar.png', "max_sessions_allowed" = 5 WHERE "users"."id" = '42' RETURNING "id", "username", "hashed_password", "is_server_owner", "avatar_url", "created_at", "deleted_at", "is_locked", "max_sessions_allowed", "permissions", "user_preferences_id""#
+			r#"UPDATE "users" SET "username" = 'test_user', "avatar_url" = 'http://example.com/avatar.png', "max_sessions_allowed" = 5 WHERE "users"."id" = '42' RETURNING "id", "username", "hashed_password", "is_server_owner", "avatar_url", "created_at", "deleted_at", "is_locked", "max_sessions_allowed", "permissions", "user_preferences_id", "oidc_issuer_id", "oidc_email""#
 		);
 	}
 }

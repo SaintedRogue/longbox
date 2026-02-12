@@ -2,23 +2,48 @@ import { useMemo } from 'react'
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 
-import { EbookReaderBookRef } from '~/components/book/reader/image/context'
+import { BookmarkRef, EbookReaderBookRef } from '~/components/book/reader/image/context'
 import { COLORS } from '~/lib/constants'
 import { useColorScheme } from '~/lib/useColorScheme'
 import {
 	BookMetadata,
+	Decoration,
 	EPUBReaderThemeConfig,
+	NativeTableOfContentsItem,
+	ReadiumLocation,
 	ReadiumLocator,
 	ReadiumViewRef,
 } from '~/modules/readium'
 
 import { ZustandMMKVStorage } from './store'
 
+export { BookmarkRef } from '~/components/book/reader/image/context'
+export type { Decoration } from '~/modules/readium'
+
+export const trimFragmentFromHref = (href: string) => {
+	return href.split('#')[0]
+}
+
+export const findTocItemByHref = (href: string) => {
+	const toc = useEpubLocationStore.getState().toc
+	const flatToc = flattenToc(toc)
+	const targetHref = trimFragmentFromHref(href)
+	return flatToc.find((item) => trimFragmentFromHref(item.content) === targetHref)
+}
+
 export type TableOfContentsItem = {
 	label: string
 	content: string
 	children: TableOfContentsItem[]
 	play_order: number
+	position?: number | undefined | null
+}
+
+export const convertNativeToc = (items: NativeTableOfContentsItem[]): TableOfContentsItem[] => {
+	return items.map((item) => ({
+		...item,
+		children: item.children ? convertNativeToc(item.children) : [],
+	}))
 }
 
 export const parseToc = (toc?: string[]): TableOfContentsItem[] => {
@@ -38,7 +63,76 @@ export const parseToc = (toc?: string[]): TableOfContentsItem[] => {
 	return parsedToc
 }
 
+export const addPositionsToToc = (
+	toc: TableOfContentsItem[],
+	positions: ReadiumLocator[],
+): TableOfContentsItem[] => {
+	const tocWithPositions = toc.map((item) => {
+		const tocItemLocator = positions.find(
+			(p) => trimFragmentFromHref(p.href) === trimFragmentFromHref(item.content),
+		)
+
+		const tocItemWithPosition = {
+			...item,
+			position: tocItemLocator?.locations?.position,
+			children: item.children ? addPositionsToToc(item.children, positions) : [],
+		}
+
+		return tocItemWithPosition
+	})
+
+	return tocWithPositions
+}
+
+export const flattenToc = (toc: TableOfContentsItem[]): TableOfContentsItem[] => {
+	return toc.flatMap((item) => [item, ...flattenToc(item.children || [])])
+}
+
+/**
+ * Resolves the toc item for a given position.
+ *
+ * For cases where we have `chapter2_1.xhtml`, `chapter2_insert.xhtml`, `chapter2_2.xhtml` in the spine,
+ * but only `chapter2_1.xhtml` is mentioned in the toc, it will try to find this toc item.
+ */
+export const resolveTocItemByPosition = (position: ReadiumLocation['position']) => {
+	const toc = useEpubLocationStore.getState().toc
+	const flatToc = flattenToc(toc)
+	return flatToc.find((item, index) => {
+		const nextItem = flatToc[index + 1]
+		if (item.position && position) {
+			const isAfterChapterStart = position >= item.position
+			const isBeforeChapterEnd = nextItem?.position ? position < nextItem?.position : true
+			return isAfterChapterStart && isBeforeChapterEnd
+		}
+	})
+}
+
 export type EmbeddedMetadata = Pick<BookMetadata, 'title' | 'author' | 'language' | 'publisher'>
+
+export type OnBookmarkCallback = (
+	locator: ReadiumLocator,
+	previewContent?: string,
+) => Promise<{ id: string } | void>
+
+export type OnCreateAnnotationCallback = (
+	locator: ReadiumLocator,
+	annotationText?: string,
+) => Promise<{ id: string }>
+
+export type OnUpdateAnnotationCallback = (
+	annotationId: string,
+	annotationText: string | null,
+) => Promise<void>
+
+export type OnDeleteAnnotationCallback = (annotationId: string) => Promise<void>
+
+export type TocSource = 'native' | 'server'
+
+// FIXME: This store has gotten way out of control. Originally, I shoved all this in a store
+// because I was using expo router for navigation between various sheets within the reader stack,
+// however since moving to a programmatic sheet we don't need the store necessarily any more. I
+// kept the same approach for annotations, mostly because I don't have the time to rethink it and refactor,
+// however it should be done at some point down the road
 
 export type IEpubLocationStore = {
 	book?: EbookReaderBookRef
@@ -46,45 +140,153 @@ export type IEpubLocationStore = {
 	actions?: ReadiumViewRef | null
 	storeActions: (actions: ReadiumViewRef | null) => void
 
+	requestHeaders?: () => Record<string, string>
+	storeHeaders: (callback: (() => Record<string, string>) | undefined) => void
+
+	locator?: ReadiumLocator
 	currentChapter: string
 	position: number
 	totalPages: number
 	toc: TableOfContentsItem[]
+	tocSource: TocSource | null
 	embeddedMetadata?: EmbeddedMetadata
+	positions: ReadiumLocator[]
 
-	onTocChange: (toc: TableOfContentsItem[] | string[]) => void
-	onBookLoad: (metadata?: BookMetadata) => void
+	onTocChange: (toc: TableOfContentsItem[] | string[], source: TocSource) => void
+	onBookLoad: (metadata?: BookMetadata, positions?: ReadiumLocator[]) => void
 	onLocationChange: (locator: ReadiumLocator) => void
 	onUnload: () => void
+
+	bookmarks: BookmarkRef[]
+	storeBookmarks: (bookmarks: BookmarkRef[]) => void
+	addBookmark: (bookmark: BookmarkRef) => void
+	removeBookmark: (bookmarkId: string) => void
+	isCurrentLocationBookmarked: () => boolean
+	getCurrentLocationBookmark: () => BookmarkRef | undefined
+
+	onBookmark?: OnBookmarkCallback
+	storeOnBookmark: (callback: OnBookmarkCallback | undefined) => void
+	onDeleteBookmark?: (bookmarkId: string) => Promise<void>
+	storeOnDeleteBookmark: (callback: ((bookmarkId: string) => Promise<void>) | undefined) => void
+
+	annotations: Decoration[]
+	storeAnnotations: (annotations: Decoration[]) => void
+	addAnnotation: (annotation: Decoration) => void
+	updateAnnotation: (annotation: Decoration) => void
+	removeAnnotation: (annotationId: string) => void
+	getAnnotation: (annotationId: string) => Decoration | undefined
+
+	onCreateAnnotation?: OnCreateAnnotationCallback
+	storeOnCreateAnnotation: (callback: OnCreateAnnotationCallback | undefined) => void
+	onUpdateAnnotation?: OnUpdateAnnotationCallback
+	storeOnUpdateAnnotation: (callback: OnUpdateAnnotationCallback | undefined) => void
+	onDeleteAnnotation?: OnDeleteAnnotationCallback
+	storeOnDeleteAnnotation: (callback: OnDeleteAnnotationCallback | undefined) => void
 }
 
-export const useEpubLocationStore = create<IEpubLocationStore>((set) => ({
+export const useEpubLocationStore = create<IEpubLocationStore>((set, get) => ({
 	storeBook: (book) => set({ book }),
 	storeActions: (ref) => set({ actions: ref }),
+
+	requestHeaders: undefined,
+	storeHeaders: (callback) => set({ requestHeaders: callback }),
 
 	currentChapter: '',
 	position: 0,
 	totalPages: 0,
 	toc: [],
+	tocSource: null,
+	positions: [],
 
-	onTocChange: (toc) => {
+	onTocChange: (toc, source) => {
+		let parsedToc: TableOfContentsItem[] = []
 		if (typeof toc[0] === 'string') {
-			set({
-				toc: parseToc(toc as string[]),
-			})
+			parsedToc = parseToc(toc as string[])
 		} else {
-			set({
-				toc: toc as TableOfContentsItem[],
-			})
+			parsedToc = toc as TableOfContentsItem[]
 		}
+
+		const positions = get().positions
+		if (positions && positions.length > 0) {
+			parsedToc = addPositionsToToc(parsedToc, positions)
+		}
+
+		set({
+			toc: parsedToc,
+			tocSource: source,
+		})
 	},
-	onBookLoad: (metadata) =>
+	onBookLoad: (metadata, positions) =>
 		set({
 			totalPages: metadata?.totalPages ?? 0,
 			embeddedMetadata: metadata,
+			positions: positions ?? [],
 		}),
 	onLocationChange: (locator) =>
-		set({ currentChapter: locator.chapterTitle, position: locator.locations?.position ?? 0 }),
+		set({
+			currentChapter: locator.chapterTitle,
+			position: locator.locations?.position ?? 0,
+			locator,
+		}),
+
+	bookmarks: [],
+	storeBookmarks: (bookmarks) => set({ bookmarks }),
+	addBookmark: (bookmark) =>
+		set((state) => ({
+			bookmarks: [...state.bookmarks, bookmark],
+		})),
+	removeBookmark: (bookmarkId) =>
+		set((state) => ({
+			bookmarks: state.bookmarks.filter((b) => b.id !== bookmarkId),
+		})),
+	isCurrentLocationBookmarked: () => {
+		const state = get()
+		if (!state.locator) return false
+		return state.bookmarks.some(
+			(b) =>
+				trimFragmentFromHref(b.href) === trimFragmentFromHref(state.locator!.href) &&
+				b.locations?.progression === state.locator!.locations?.progression,
+		)
+	},
+	getCurrentLocationBookmark: () => {
+		const state = get()
+		if (!state.locator) return undefined
+		return state.bookmarks.find(
+			(b) =>
+				trimFragmentFromHref(b.href) === trimFragmentFromHref(state.locator!.href) &&
+				b.locations?.progression === state.locator!.locations?.progression,
+		)
+	},
+
+	onBookmark: undefined,
+	storeOnBookmark: (callback) => set({ onBookmark: callback }),
+	onDeleteBookmark: undefined,
+	storeOnDeleteBookmark: (callback) => set({ onDeleteBookmark: callback }),
+
+	annotations: [],
+	storeAnnotations: (annotations) => set({ annotations }),
+	addAnnotation: (annotation) =>
+		set((state) => ({
+			annotations: [...state.annotations, annotation],
+		})),
+	updateAnnotation: (annotation) =>
+		set((state) => ({
+			annotations: state.annotations.map((a) => (a.id === annotation.id ? annotation : a)),
+		})),
+	removeAnnotation: (annotationId) =>
+		set((state) => ({
+			annotations: state.annotations.filter((a) => a.id !== annotationId),
+		})),
+	getAnnotation: (annotationId) => {
+		return get().annotations.find((a) => a.id === annotationId)
+	},
+
+	onCreateAnnotation: undefined,
+	storeOnCreateAnnotation: (callback) => set({ onCreateAnnotation: callback }),
+	onUpdateAnnotation: undefined,
+	storeOnUpdateAnnotation: (callback) => set({ onUpdateAnnotation: callback }),
+	onDeleteAnnotation: undefined,
+	storeOnDeleteAnnotation: (callback) => set({ onDeleteAnnotation: callback }),
 
 	onUnload: () =>
 		set({
@@ -92,29 +294,41 @@ export const useEpubLocationStore = create<IEpubLocationStore>((set) => ({
 			position: 0,
 			totalPages: 0,
 			toc: [],
+			tocSource: null,
 			book: undefined,
 			embeddedMetadata: undefined,
 			actions: null,
+			bookmarks: [],
+			onBookmark: undefined,
+			onDeleteBookmark: undefined,
+			annotations: [],
+			onCreateAnnotation: undefined,
+			onUpdateAnnotation: undefined,
+			onDeleteAnnotation: undefined,
 		}),
 }))
 
+// TODO(highlights): Think through highlight colors that make sense for each preset theme
 const defaultThemes: Record<string, EPUBReaderThemeConfig> = {
 	Light: {
 		colors: {
 			background: COLORS.light.background.DEFAULT,
 			foreground: COLORS.light.foreground.DEFAULT,
+			highlight: '#FFEB3B',
 		},
 	},
 	Dark: {
 		colors: {
 			background: COLORS.dark.background.DEFAULT,
 			foreground: COLORS.dark.foreground.DEFAULT,
+			highlight: '#FFEB3B',
 		},
 	},
-	Sepia: {
+	Papyrus: {
 		colors: {
-			background: '#F5E9D3',
-			foreground: '#5B4636',
+			background: '#e7d3b5',
+			foreground: '#423328',
+			highlight: '#FFEB3B',
 		},
 	},
 }
@@ -157,7 +371,7 @@ export const useEpubThemesStore = create<IEpubThemesStore>()(
 		{
 			name: 'stump-epub-themes-store',
 			storage: createJSONStorage(() => ZustandMMKVStorage),
-			version: 1,
+			version: 2,
 		},
 	),
 )
@@ -168,7 +382,7 @@ export const resolveTheme = (
 	colorScheme: 'light' | 'dark',
 ): StoredConfig => {
 	const theme = themes[themeName]
-	return theme ?? (colorScheme === 'dark' ? themes.Dark : themes.Light)
+	return theme ?? ((colorScheme === 'dark' ? themes.Dark : themes.Light) as StoredConfig)
 }
 
 export const resolveThemeName = (

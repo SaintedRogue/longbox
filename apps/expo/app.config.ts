@@ -28,6 +28,26 @@ export default ({ config }: ConfigContext): ExpoConfig => {
 				NSAppTransportSecurity: {
 					NSAllowsArbitraryLoads: true,
 				},
+				UISupportsDocumentBrowser: true,
+				UIFileSharingEnabled: true,
+				LSSupportsOpeningDocumentsInPlace: true,
+				CFBundleDocumentTypes: [
+					{
+						CFBundleTypeName: 'EPUB Document',
+						LSItemContentTypes: ['org.idpf.epub-container'],
+						LSHandlerRank: 'Alternate',
+					},
+					{
+						CFBundleTypeName: 'Comic Book Archive (CBZ)',
+						LSItemContentTypes: ['public.zip-archive'],
+						LSHandlerRank: 'Alternate',
+					},
+					{
+						CFBundleTypeName: 'PDF Document',
+						LSItemContentTypes: ['com.adobe.pdf'],
+						LSHandlerRank: 'Alternate',
+					},
+				],
 			},
 		},
 		android: {
@@ -37,6 +57,32 @@ export default ({ config }: ConfigContext): ExpoConfig => {
 				backgroundColor: '#ffffff',
 			},
 			package: 'com.stumpapp.stump',
+			permissions: ['WRITE_SETTINGS'],
+			intentFilters: [
+				{
+					action: 'VIEW',
+					category: ['BROWSABLE', 'DEFAULT'],
+					data: [
+						{ mimeType: 'application/epub+zip', scheme: 'content' },
+						{ mimeType: 'application/epub+zip', scheme: 'file' },
+						{ mimeType: 'application/pdf', scheme: 'content' },
+						{ mimeType: 'application/pdf', scheme: 'file' },
+						{ mimeType: 'application/x-cbz', scheme: 'content' },
+						{ mimeType: 'application/x-cbz', scheme: 'file' },
+						{ mimeType: 'application/vnd.comicbook+zip', scheme: 'content' },
+						{ mimeType: 'application/vnd.comicbook+zip', scheme: 'file' },
+					],
+				},
+				{
+					action: 'VIEW',
+					category: ['BROWSABLE', 'DEFAULT'],
+					data: [
+						{ mimeType: '*/*', pathPattern: '.*\\.epub', scheme: 'content' },
+						{ mimeType: '*/*', pathPattern: '.*\\.cbz', scheme: 'content' },
+						{ mimeType: '*/*', pathPattern: '.*\\.pdf', scheme: 'content' },
+					],
+				},
+			],
 		},
 		androidNavigationBar: {
 			visible: 'immersive',
@@ -55,7 +101,14 @@ export default ({ config }: ConfigContext): ExpoConfig => {
 					faceIDPermission: 'Allow $(PRODUCT_NAME) to access your Face ID biometric data.',
 				},
 			],
+			[
+				'expo-asset',
+				{
+					assets: ['./assets/images', './assets/splash'],
+				},
+			],
 			['./plugins/withGradle.ts'],
+			['./plugins/withNetworkSecurityConfig.ts'],
 			[
 				'./plugins/withPods.ts',
 				{
@@ -64,13 +117,12 @@ export default ({ config }: ConfigContext): ExpoConfig => {
 						"source 'https://cdn.cocoapods.org/'",
 
 						"pod 'Minizip', modular_headers: true",
-						"pod 'ReadiumShared', podspec: 'https://raw.githubusercontent.com/readium/swift-toolkit/3.4.0/Support/CocoaPods/ReadiumShared.podspec'",
-						"pod 'ReadiumStreamer', podspec: 'https://raw.githubusercontent.com/readium/swift-toolkit/3.4.0/Support/CocoaPods/ReadiumStreamer.podspec'",
-						"pod 'ReadiumNavigator', podspec: 'https://raw.githubusercontent.com/readium/swift-toolkit/3.4.0/Support/CocoaPods/ReadiumNavigator.podspec'",
-						"pod 'ReadiumAdapterGCDWebServer', podspec: 'https://raw.githubusercontent.com/readium/swift-toolkit/3.4.0/Support/CocoaPods/ReadiumAdapterGCDWebServer.podspec'",
-						"pod 'ReadiumOPDS', podspec: 'https://raw.githubusercontent.com/readium/swift-toolkit/3.4.0/Support/CocoaPods/ReadiumOPDS.podspec'",
-						"pod 'ReadiumInternal', podspec: 'https://raw.githubusercontent.com/readium/swift-toolkit/3.4.0/Support/CocoaPods/ReadiumInternal.podspec'",
-						"pod 'Fuzi', podspec: 'https://raw.githubusercontent.com/readium/Fuzi/refs/heads/master/Fuzi.podspec'",
+						"pod 'ReadiumShared', podspec: 'https://raw.githubusercontent.com/readium/swift-toolkit/3.5.0/Support/CocoaPods/ReadiumShared.podspec'",
+						"pod 'ReadiumStreamer', podspec: 'https://raw.githubusercontent.com/readium/swift-toolkit/3.5.0/Support/CocoaPods/ReadiumStreamer.podspec'",
+						"pod 'ReadiumNavigator', podspec: 'https://raw.githubusercontent.com/readium/swift-toolkit/3.5.0/Support/CocoaPods/ReadiumNavigator.podspec'",
+						"pod 'ReadiumAdapterGCDWebServer', podspec: 'https://raw.githubusercontent.com/readium/swift-toolkit/3.5.0/Support/CocoaPods/ReadiumAdapterGCDWebServer.podspec'",
+						"pod 'ReadiumOPDS', podspec: 'https://raw.githubusercontent.com/readium/swift-toolkit/3.5.0/Support/CocoaPods/ReadiumOPDS.podspec'",
+						"pod 'ReadiumInternal', podspec: 'https://raw.githubusercontent.com/readium/swift-toolkit/3.5.0/Support/CocoaPods/ReadiumInternal.podspec'",
 						"pod 'ReadiumGCDWebServer', podspec: 'https://raw.githubusercontent.com/readium/GCDWebServer/4.0.0/GCDWebServer.podspec', modular_headers: true",
 					],
 				},
@@ -90,8 +142,8 @@ export default ({ config }: ConfigContext): ExpoConfig => {
 						'assets/fonts/CharisSIL-BoldItalic.ttf',
 						'assets/fonts/CharisSIL-Italic.ttf',
 						'assets/fonts/CharisSIL-Regular.ttf',
-						'assets/fonts/Literata-Italic[opsz,wght].ttf',
-						'assets/fonts/Literata[opsz,wght].ttf',
+						'assets/fonts/Literata-Italic-VariableFont_opsz,wght.ttf',
+						'assets/fonts/Literata-VariableFont_opsz,wght.ttf',
 						'assets/fonts/OpenDyslexic-Bold-Italic.otf',
 						'assets/fonts/OpenDyslexic-Bold.otf',
 						'assets/fonts/OpenDyslexic-Italic.otf',

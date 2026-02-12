@@ -12,7 +12,7 @@ use models::{
 use sea_orm::{prelude::*, sea_query::Query, QueryOrder};
 use stump_core::{
 	config::StumpConfig,
-	filesystem::{get_thumbnail, ContentType},
+	filesystem::{get_saved_thumbnail, get_thumbnail, ContentType},
 };
 
 use crate::{
@@ -34,19 +34,28 @@ pub(crate) fn mount(app_state: AppState) -> Router<AppState> {
 }
 
 pub(crate) async fn get_series_thumbnail(
-	id: &str,
+	series: &series::SeriesThumbSelect,
 	first_book: Option<media::MediaThumbSelect>,
 	image_format: Option<SupportedImageFormat>,
 	config: &StumpConfig,
 ) -> APIResult<(ContentType, Vec<u8>)> {
+	// Note: This doesn't hard-fail because if the saved thumbnail is missing or corrupt, we want
+	// to just pull something else instead of erroring out entirely.
+	if let Some(path) = &series.thumbnail_path {
+		match get_saved_thumbnail(std::path::Path::new(path)).await {
+			Ok(result) => return Ok(result),
+			Err(_) => {
+				tracing::warn!(path = ?path, "Failed to get saved thumbnail");
+			},
+		}
+	}
+
 	let generated_thumb =
-		get_thumbnail(config.get_thumbnails_dir(), id, image_format).await?;
+		get_thumbnail(config.get_thumbnails_dir(), &series.id, image_format).await?;
 
 	match (generated_thumb, first_book) {
 		(Some(result), _) => Ok(result),
-		(None, Some(book)) => {
-			get_media_thumbnail(&book.id, &book.path, image_format, config).await
-		},
+		(None, Some(book)) => get_media_thumbnail(&book, image_format, config).await,
 		(None, None) => Err(APIError::NotFound(
 			"Series does not have a thumbnail".to_string(),
 		)),
@@ -61,16 +70,29 @@ async fn get_series_thumbnail_handler(
 	let user = req.user();
 	let series = series::Entity::find_for_user(&user)
 		.filter(series::Column::Id.eq(id.clone()))
-		.into_model::<series::SeriesIdentSelect>()
+		.into_model::<series::SeriesThumbSelect>()
 		.one(ctx.conn.as_ref())
 		.await?
-		.ok_or(APIError::NotFound("Book not found".to_string()))?;
+		.ok_or(APIError::NotFound("Series not found".to_string()))?;
+
+	// Note: This doesn't hard-fail because if the saved thumbnail is missing or corrupt, we want
+	// to just pull something else instead of erroring out entirely.
+	if let Some(path) = &series.thumbnail_path {
+		match get_saved_thumbnail(std::path::Path::new(path)).await {
+			Ok(result) => return Ok(result.into()),
+			Err(_) => {
+				tracing::warn!(path = ?path, "Failed to get saved thumbnail");
+			},
+		}
+	}
+
 	let first_book = media::Entity::find_for_user(&user)
 		.filter(media::Column::SeriesId.eq(series.id.clone()))
 		.order_by_asc(media::Column::Name)
 		.into_model::<media::MediaThumbSelect>()
 		.one(ctx.conn.as_ref())
 		.await?;
+
 	let library_config = library_config::Entity::find()
 		.filter(
 			library_config::Column::LibraryId.in_subquery(
@@ -86,7 +108,8 @@ async fn get_series_thumbnail_handler(
 	let image_format = library_config.and_then(|o| o.thumbnail_config.map(|c| c.format));
 
 	let (content_type, bytes) =
-		get_series_thumbnail(id.as_str(), first_book, image_format, ctx.config.as_ref())
+		get_series_thumbnail(&series, first_book, image_format, ctx.config.as_ref())
 			.await?;
+
 	Ok(ImageResponse::new(content_type, bytes))
 }

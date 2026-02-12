@@ -14,8 +14,10 @@ import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.ExperimentalReadiumApi
 import android.util.Log
+import org.readium.r2.navigator.preferences.ColumnCount
 import org.readium.r2.navigator.preferences.FontFamily
 import org.readium.r2.navigator.preferences.ImageFilter
+import org.readium.r2.navigator.preferences.TextAlign
 import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.util.getOrElse
 
@@ -65,13 +67,11 @@ class ReadiumModule : Module() {
     }
 
     AsyncFunction("goForward") { view: EPUBView ->
-      val navigator = view.navigator ?: return@AsyncFunction
-      navigator.goForward(animated = false)
+      view.goForward()
     }
 
     AsyncFunction("goBackward") { view: EPUBView ->
-      val navigator = view.navigator ?: return@AsyncFunction
-      navigator.goBackward(animated = false)
+      view.goBackward()
     }
 
     AsyncFunction("goToLocation") { view: EPUBView, locatorMap: Map<String, Any> ->
@@ -82,7 +82,7 @@ class ReadiumModule : Module() {
     }
 
     View(EPUBView::class) {
-      Events("onLocatorChange", "onPageChange", "onBookLoaded", "onLayoutChange", "onMiddleTouch", "onSelection", "onDoubleTouch", "onError")
+      Events("onLocatorChange", "onPageChange", "onBookLoaded", "onLayoutChange", "onMiddleTouch", "onSelection", "onAnnotationTap", "onHighlightRequest", "onNoteRequest", "onEditHighlight", "onDeleteHighlight", "onDoubleTouch", "onError", "onReachedEnd")
 
       Prop("bookId") { view: EPUBView, prop: String ->
         if (view.bookService == null) {
@@ -92,13 +92,11 @@ class ReadiumModule : Module() {
       }
 
       AsyncFunction("goForward") { view: EPUBView ->
-        val navigator = view.navigator ?: return@AsyncFunction
-        navigator.goForward(animated = false)
+        view.goForward()
       }
 
       AsyncFunction("goBackward") { view: EPUBView ->
-        val navigator = view.navigator ?: return@AsyncFunction
-        navigator.goBackward(animated = false)
+        view.goBackward()
       }
 
       AsyncFunction("goToLocation") { view: EPUBView, locatorMap: Map<String, Any> ->
@@ -116,6 +114,14 @@ class ReadiumModule : Module() {
         Log.d("ReadiumModule", "destroy called - cleaning up EPUBView resources")
         view.destroyNavigator()
       }
+      
+      AsyncFunction("getSelection") Coroutine { view: EPUBView ->
+        view.getSelection()
+      }
+      
+      AsyncFunction("clearSelection") { view: EPUBView ->
+        view.clearSelection()
+      }
 
       Prop("locator") { view: EPUBView, prop: Map<String, Any?>? ->
         if (prop == null) {
@@ -128,8 +134,30 @@ class ReadiumModule : Module() {
         view.pendingProps.locator = locator
       }
 
+      Prop("initialLocator") { view: EPUBView, prop: Map<String, Any?>? ->
+        if (prop == null) {
+          view.pendingProps.initialLocator = null
+          return@Prop
+        }
+        val locator = Locator.fromJSON(JSONObject(prop)) ?: return@Prop
+        view.pendingProps.initialLocator = locator
+      }
+
       Prop("url") { view: EPUBView, prop: String ->
         view.pendingProps.url = prop
+      }
+
+      Prop("decorations") { view: EPUBView, prop: List<Map<String, Any?>> ->
+        val decorations = prop.mapNotNull { decorationMap ->
+          val id = decorationMap["id"] as? String ?: return@mapNotNull null
+          val colorHex = decorationMap["color"] as? String ?: return@mapNotNull null
+          @Suppress("UNCHECKED_CAST")
+          val locatorMap = decorationMap["locator"] as? Map<String, Any?> ?: return@mapNotNull null
+          val locator = Locator.fromJSON(JSONObject(locatorMap)) ?: return@mapNotNull null
+          val color = try { Color.parseColor(colorHex) } catch (e: Exception) { return@mapNotNull null }
+          DecorationItem(id = id, color = color, locator = locator)
+        }
+        view.pendingProps.decorations = decorations
       }
 
       Prop("colors") { view: EPUBView, prop: Map<String, String> ->
@@ -152,7 +180,10 @@ class ReadiumModule : Module() {
       }
 
       Prop("readingDirection") { view: EPUBView, prop: String ->
-        view.pendingProps.readingDirection = prop
+        view.pendingProps.readingProgression = when (prop) {
+          "rtl" -> org.readium.r2.navigator.preferences.ReadingProgression.RTL
+          else -> org.readium.r2.navigator.preferences.ReadingProgression.LTR
+        }
       }
 
       Prop("publisherStyles") { view: EPUBView, prop: Boolean ->
@@ -167,7 +198,162 @@ class ReadiumModule : Module() {
         }
       }
 
+      Prop("pageMargins") { view: EPUBView, prop: Double? ->
+        view.pendingProps.pageMargins = prop
+      }
+
+      Prop("columnCount") { view: EPUBView, prop: String? ->
+        view.pendingProps.columnCount = when (prop) {
+          "1" -> ColumnCount.ONE
+          "2" -> ColumnCount.TWO
+          else -> ColumnCount.AUTO
+        }
+      }
+
+      Prop("textAlign") { view: EPUBView, prop: String? ->
+        view.pendingProps.textAlign = when (prop) {
+          "start" -> TextAlign.START
+          "left" -> TextAlign.LEFT
+          "right" -> TextAlign.RIGHT
+          "center" -> TextAlign.CENTER
+          "justify" -> TextAlign.JUSTIFY
+          else -> null
+        }
+      }
+
+      Prop("typeScale") { view: EPUBView, prop: Double? ->
+        view.pendingProps.typeScale = prop
+      }
+
+      Prop("paragraphIndent") { view: EPUBView, prop: Double? ->
+        view.pendingProps.paragraphIndent = prop
+      }
+
+      Prop("paragraphSpacing") { view: EPUBView, prop: Double? ->
+        view.pendingProps.paragraphSpacing = prop
+      }
+
+      Prop("wordSpacing") { view: EPUBView, prop: Double? ->
+        view.pendingProps.wordSpacing = prop
+      }
+
+      Prop("letterSpacing") { view: EPUBView, prop: Double? ->
+        view.pendingProps.letterSpacing = prop
+      }
+
+      Prop("hyphens") { view: EPUBView, prop: Boolean? ->
+        view.pendingProps.hyphens = prop
+      }
+
+      Prop("ligatures") { view: EPUBView, prop: Boolean? ->
+        view.pendingProps.ligatures = prop
+      }
+
+      Prop("fontWeight") { view: EPUBView, prop: Double? ->
+        view.pendingProps.fontWeight = prop
+      }
+
+      Prop("textNormalization") { view: EPUBView, prop: Boolean? ->
+        view.pendingProps.textNormalization = prop
+      }
+
+      Prop("verticalText") { view: EPUBView, prop: Boolean? ->
+        view.pendingProps.verticalText = prop
+      }
+
       OnViewDidUpdateProps { view: EPUBView ->
+        view.finalizeProps()
+      }
+    }
+
+    View(PDFView::class) {
+      Events("onLocatorChange", "onPageChange", "onBookLoaded", "onMiddleTouch", "onError")
+
+      Prop("bookId") { view: PDFView, prop: String ->
+        if (view.bookService == null) {
+          view.bookService = bookService
+        }
+        view.pendingProps.bookId = prop
+      }
+
+      Prop("locator") { view: PDFView, prop: Map<String, Any?>? ->
+        if (prop == null) {
+          view.pendingProps.locator = null
+          return@Prop
+        }
+        val locator = Locator.fromJSON(JSONObject(prop)) ?: return@Prop
+        view.pendingProps.locator = locator
+      }
+
+      Prop("initialLocator") { view: PDFView, prop: Map<String, Any?>? ->
+        if (prop == null) {
+          view.pendingProps.initialLocator = null
+          return@Prop
+        }
+        val locator = Locator.fromJSON(JSONObject(prop)) ?: return@Prop
+        view.pendingProps.initialLocator = locator
+      }
+
+      Prop("url") { view: PDFView, prop: String ->
+        view.pendingProps.url = prop
+      }
+
+      Prop("backgroundColor") { view: PDFView, prop: String ->
+        view.pendingProps.background = Color.parseColor(prop)
+      }
+
+      Prop("pageSpacing") { view: PDFView, prop: Double ->
+        view.pendingProps.pageSpacing = prop
+      }
+
+      Prop("scrollAxis") { view: PDFView, prop: String ->
+        view.pendingProps.scrollAxis = prop
+      }
+
+      Prop("scroll") { view: PDFView, prop: Boolean ->
+        view.pendingProps.scroll = prop
+      }
+
+      Prop("readingProgression") { view: PDFView, prop: String ->
+        view.pendingProps.readingProgression = when (prop) {
+          "rtl" -> org.readium.r2.shared.publication.ReadingProgression.RTL
+          else -> org.readium.r2.shared.publication.ReadingProgression.LTR
+        }
+      }
+      
+      Prop("spread") { view: PDFView, prop: String ->
+        view.pendingProps.spread = when (prop) {
+          "never" -> org.readium.r2.navigator.preferences.Spread.NEVER
+          "always" -> org.readium.r2.navigator.preferences.Spread.ALWAYS
+          else -> org.readium.r2.navigator.preferences.Spread.AUTO
+        }
+      }
+
+      AsyncFunction("goToLocation") { view: PDFView, locatorMap: Map<String, Any> ->
+        val navigator = view.navigator ?: return@AsyncFunction
+        val jsonLocator = JSONObject(locatorMap)
+        val locator = Locator.fromJSON(jsonLocator) ?: throw Exception("Failed to parse locator from JSON")
+        view.goToLocation(locator)
+      }
+
+      AsyncFunction("goToPage") { view: PDFView, page: Int ->
+        view.goToPage(page)
+      }
+
+      AsyncFunction("goForward") { view: PDFView ->
+        view.goForward()
+      }
+
+      AsyncFunction("goBackward") { view: PDFView ->
+        view.goBackward()
+      }
+
+      AsyncFunction("destroy") { view: PDFView ->
+        Log.d("ReadiumModule", "PDF destroy called - cleaning up PDFView resources")
+        view.destroyNavigator()
+      }
+
+      OnViewDidUpdateProps { view: PDFView ->
         view.finalizeProps()
       }
     }

@@ -5,11 +5,6 @@ import { useReaderStore } from '~/stores'
 import { BookPreferences } from '~/stores/reader'
 import { useSavedServerStore } from '~/stores/savedServer'
 
-// TODO: allow for:
-// - Custom organization of files on UI (e.g. folders)
-// - Organization derived from server-side metadata (e.g. series, library)
-// - Deleting files
-
 /*
 Filesystem structure:
 
@@ -24,25 +19,108 @@ Filesystem structure:
 				- etc
 */
 
-// FIXME: Need to migrate off of legacy FS methods
+// TODO(filesystem): Use non-deprecated filesystem
 
 export const baseDirectory = `${FileSystem.documentDirectory}`
+export const cacheDirectory = `${FileSystem.cacheDirectory}`
+
+/**
+ * Converts an absolute path to a relative path by stripping the documentDirectory prefix.
+ * Note: iOS changes the app container UUID between app updates, so when we store
+ * paths in the db we need to store relative paths and construct at runtime
+ */
+export const toRelativePath = (absolutePath: string): string => {
+	if (!absolutePath) return absolutePath
+
+	const path = absolutePath.replace('file://', '')
+
+	const docDir = baseDirectory.replace('file://', '')
+	if (path.startsWith(docDir)) {
+		return path.slice(docDir.length)
+	}
+
+	return path
+}
+
+/**
+ * Converts a stored relative path back to an absolute path by prepending the current documentDirectory
+ */
+export const toAbsolutePath = (storedPath: string): string => {
+	if (!storedPath) return storedPath
+
+	const path = storedPath.replace('file://', '')
+
+	if (path.startsWith('/')) {
+		return path
+	}
+
+	const docDir = baseDirectory.replace('file://', '')
+	return urlJoin(docDir, path)
+}
 
 const serverDirectory = (serverID: string) => urlJoin(baseDirectory, serverID)
 
 export const serverPath = (serverID: string, path: string) =>
 	urlJoin(serverDirectory(serverID), path)
 
+export const serverCachePath = (serverID: string, path: string) =>
+	urlJoin(cacheDirectory, serverID, path)
+
 export const booksDirectory = (serverID: string) => serverPath(serverID, 'books')
 
-export const activelyReadingDirectory = (serverID: string) =>
-	serverPath(serverID, 'actively-reading')
+export const thumbnailsDirectory = (serverID: string) => serverPath(serverID, 'thumbnails')
+
+export const bookThumbnailPath = (serverID: string, bookID: string) =>
+	urlJoin(thumbnailsDirectory(serverID), `${bookID}.jpg`)
+
+export const unpackedDirectory = (serverID: string) => serverCachePath(serverID, 'unpacked')
+
+export const unpackedBookDirectory = (serverID: string, bookID: string) =>
+	urlJoin(unpackedDirectory(serverID), bookID)
 
 export async function ensureDirectoryExists(path = baseDirectory) {
 	const info = await FileSystem.getInfoAsync(path)
 	if (!info.exists) {
 		await FileSystem.makeDirectoryAsync(path, { intermediates: true })
 	}
+}
+
+/**
+ * Verifies that a downloaded file is fully written and readable.
+ * This prevents a race condition on Android where the file system
+ * may not have fully flushed the file before Readium tries to access it
+ */
+export async function verifyFileReadable(
+	uri: string,
+	maxAttempts: number = 5,
+	delayMs: number = 200,
+): Promise<void> {
+	for (let attempt = 0; attempt < maxAttempts; attempt++) {
+		try {
+			const fileInfo = await FileSystem.getInfoAsync(uri)
+
+			if (fileInfo.exists && fileInfo.size && fileInfo.size > 0) {
+				if (attempt === 0) {
+					await new Promise((resolve) => setTimeout(resolve, delayMs))
+				}
+				return
+			}
+
+			// File doesn't exist or has zero size, wait and retry
+			if (attempt < maxAttempts - 1) {
+				await new Promise((resolve) => setTimeout(resolve, delayMs))
+			}
+		} catch (error) {
+			console.warn(`File verification attempt ${attempt + 1} failed:`, error)
+			if (attempt < maxAttempts - 1) {
+				await new Promise((resolve) => setTimeout(resolve, delayMs))
+			}
+		}
+	}
+
+	throw new Error('Failed to verify file exists', {
+		cause: `File not found or inaccessible: ${uri}`,
+	})
 }
 
 const getFileSize = async (path: string): Promise<number> => {
@@ -100,6 +178,7 @@ export async function getAllServersUsage() {
 	const usage = await Promise.all(serverIDs.map(getServerUsage))
 	return serverIDs.reduce(
 		(acc, server, i) => {
+			// @ts-expect-error: indexing
 			acc[server] = usage[i]
 			return acc
 		},
@@ -124,6 +203,7 @@ export async function getAppUsage() {
 		serversTotal: serverUsageTotal,
 		perServer: serverUsage.reduce(
 			(acc, size, i) => {
+				// @ts-expect-error: indexing
 				acc[serverIDs[i]] = size
 				return acc
 			},

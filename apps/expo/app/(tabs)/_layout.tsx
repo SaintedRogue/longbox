@@ -1,14 +1,13 @@
 import { Tabs } from 'expo-router'
 import { Icon, Label, NativeTabs } from 'expo-router/unstable-native-tabs'
+import { HardDriveDownload, Server, Settings } from 'lucide-react-native'
 import { Platform } from 'react-native'
 
 import { AddServerDialog } from '~/components/savedServer'
-import { icons } from '~/lib'
+import { Icon as JSIcon } from '~/components/ui'
 import { useColors } from '~/lib/constants'
 import { cn } from '~/lib/utils'
 import { usePreferencesStore } from '~/stores'
-
-const { Server, HardDriveDownload, Settings } = icons
 
 export default function TabLayout() {
 	const colors = useColors()
@@ -24,9 +23,9 @@ export default function TabLayout() {
 					<Label>Servers</Label>
 					<Icon sf="server.rack" drawable="custom_android_drawable" />
 				</NativeTabs.Trigger>
-				<NativeTabs.Trigger name="downloads">
-					<Label>Downloads</Label>
-					<Icon sf="arrow.down.circle" drawable="custom_android_drawable" />
+				<NativeTabs.Trigger name="library">
+					<Label>Library</Label>
+					<Icon sf="books.vertical" drawable="custom_android_drawable" />
 				</NativeTabs.Trigger>
 				<NativeTabs.Trigger name="settings">
 					<Label>Settings</Label>
@@ -47,7 +46,8 @@ export default function TabLayout() {
 						headerShown: true,
 						title: 'Servers',
 						tabBarIcon: ({ focused }) => (
-							<Server
+							<JSIcon
+								as={Server}
 								className={cn('h-6 w-6 text-foreground-muted', { 'text-foreground': focused })}
 							/>
 						),
@@ -55,11 +55,12 @@ export default function TabLayout() {
 					}}
 				/>
 				<Tabs.Screen
-					name="downloads"
+					name="library"
 					options={{
-						title: 'Downloads',
+						title: 'Library',
 						tabBarIcon: ({ focused }) => (
-							<HardDriveDownload
+							<JSIcon
+								as={HardDriveDownload}
 								className={cn('h-6 w-6 text-foreground-muted', { 'text-foreground': focused })}
 							/>
 						),
@@ -70,7 +71,8 @@ export default function TabLayout() {
 					options={{
 						title: 'Settings',
 						tabBarIcon: ({ focused }) => (
-							<Settings
+							<JSIcon
+								as={Settings}
 								className={cn('h-6 w-6 text-foreground-muted', { 'text-foreground': focused })}
 							/>
 						),

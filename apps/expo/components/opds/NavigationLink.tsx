@@ -1,15 +1,15 @@
-import { OPDSNavigationLink } from '@stump/sdk'
+import { useSDK } from '@stump/client'
+import { OPDSNavigationLink, resolveUrl } from '@stump/sdk'
 import { useRouter } from 'expo-router'
+import { ChevronRight } from 'lucide-react-native'
 import { ComponentPropsWithoutRef } from 'react'
 import { Pressable, View } from 'react-native'
 
 import { cn } from '~/lib/utils'
 
 import { useActiveServer } from '../activeServer'
-import { icons, Text } from '../ui'
+import { Text } from '../ui'
 import { Icon } from '../ui/icon'
-
-const { ChevronRight } = icons
 
 type Props = {
 	link: OPDSNavigationLink
@@ -17,6 +17,7 @@ type Props = {
 
 export default function NavigationLink({ link }: Props) {
 	const router = useRouter()
+	const { sdk } = useSDK()
 	const {
 		activeServer: { id: serverID },
 	} = useActiveServer()
@@ -26,14 +27,14 @@ export default function NavigationLink({ link }: Props) {
 			key={link.href}
 			onPress={() =>
 				router.push({
-					pathname: '/opds/[id]/feed',
-					params: { id: serverID, url: link.href },
+					pathname: '/opds/[id]/feed/[url]',
+					params: { id: serverID, url: resolveUrl(link.href, sdk.rootURL) },
 				})
 			}
 		>
 			{({ pressed }) => (
 				<View
-					className={cn('flex-row items-center justify-between py-4', {
+					className={cn('flex-row items-center justify-between p-4', {
 						'opacity-60': pressed,
 					})}
 				>

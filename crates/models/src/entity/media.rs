@@ -1,4 +1,4 @@
-use crate::entity::age_restriction;
+use crate::{entity::age_restriction, shared::image::ImageMetadata};
 use async_graphql::SimpleObject;
 use async_trait::async_trait;
 use chrono::Utc;
@@ -60,6 +60,12 @@ pub struct Model {
 	/// if it is available on disk)
 	#[sea_orm(column_type = "Text")]
 	pub status: FileStatus,
+	/// The metadata for the thumbnail image of the media
+	#[sea_orm(column_type = "Json", nullable)]
+	pub thumbnail_meta: Option<ImageMetadata>,
+	/// The path to the thumbnail image of the media on disk
+	#[sea_orm(column_type = "Text", nullable)]
+	pub thumbnail_path: Option<String>,
 	/// The unique identifier of the series that the media belongs to. While this is nullable, it is
 	/// expected that all media will belong to a series
 	#[sea_orm(column_type = "Text", nullable)]
@@ -263,11 +269,31 @@ pub struct MediaThumbSelect {
 	pub id: String,
 	pub path: String,
 	pub series_id: String,
+	pub thumbnail_path: Option<String>,
+	pub thumbnail_meta: Option<ImageMetadata>,
 }
 
 impl MediaThumbSelect {
 	pub fn columns() -> Vec<Column> {
-		vec![Column::Id, Column::Path, Column::SeriesId]
+		vec![
+			Column::Id,
+			Column::Path,
+			Column::SeriesId,
+			Column::ThumbnailPath,
+			Column::ThumbnailMeta,
+		]
+	}
+}
+
+impl From<Model> for MediaThumbSelect {
+	fn from(model: Model) -> Self {
+		Self {
+			id: model.id,
+			path: model.path,
+			series_id: model.series_id.unwrap_or_default(),
+			thumbnail_path: model.thumbnail_path,
+			thumbnail_meta: model.thumbnail_meta,
+		}
 	}
 }
 
@@ -318,6 +344,8 @@ pub enum Relation {
 		on_delete = "Cascade"
 	)]
 	Series,
+	#[sea_orm(has_many = "super::media_analysis::Entity")]
+	Analysis,
 }
 
 impl Related<super::book_club_book_suggestion::Entity> for Entity {
@@ -389,6 +417,12 @@ impl Related<super::review::Entity> for Entity {
 impl Related<super::series::Entity> for Entity {
 	fn to() -> RelationDef {
 		Relation::Series.def()
+	}
+}
+
+impl Related<super::media_analysis::Entity> for Entity {
+	fn to() -> RelationDef {
+		Relation::Analysis.def()
 	}
 }
 

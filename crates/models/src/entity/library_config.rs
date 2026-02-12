@@ -2,7 +2,10 @@ use async_graphql::SimpleObject;
 use sea_orm::{entity::prelude::*, FromQueryResult};
 
 use crate::shared::{
-	enums::{LibraryPattern, ReadingDirection, ReadingImageScaleFit, ReadingMode},
+	enums::{
+		LibraryPattern, LibraryViewMode, ReadingDirection, ReadingImageScaleFit,
+		ReadingMode,
+	},
 	ignore_rules::IgnoreRules,
 	image_processor_options::ImageProcessorOptions,
 };
@@ -27,9 +30,14 @@ pub struct Model {
 	pub watch: bool,
 	#[sea_orm(column_type = "Text")]
 	pub library_pattern: LibraryPattern,
+	#[sea_orm(column_type = "Text")]
+	pub default_library_view_mode: LibraryViewMode,
+	pub hide_series_view: bool,
 	#[graphql(skip)]
 	#[sea_orm(column_type = "Json", nullable)]
 	pub thumbnail_config: Option<ImageProcessorOptions>,
+	#[sea_orm(default_value = "false")]
+	pub process_thumbnail_colors_even_without_config: bool,
 	#[sea_orm(column_type = "Json", nullable)]
 	#[graphql(skip)]
 	pub ignore_rules: Option<IgnoreRules>,

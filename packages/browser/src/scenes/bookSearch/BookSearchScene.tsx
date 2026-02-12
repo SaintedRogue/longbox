@@ -5,8 +5,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { Helmet } from 'react-helmet'
 
-import { BookTable } from '@/components/book'
-import BookCard from '@/components/book/BookCard'
+import { BookCard, BookTable } from '@/components/book'
 import { defaultBookColumnSort } from '@/components/book/table'
 import { DynamicCardGrid, GridSizeSlider } from '@/components/container'
 import {
@@ -236,19 +235,15 @@ function BookSearchScene() {
 
 	const previousPage = usePrevious(pageInfo.currentPage)
 	const shouldScroll = !!previousPage && previousPage !== pageInfo.currentPage
-	useEffect(
-		() => {
-			if (!isInView && shouldScroll) {
-				containerRef.current?.scrollIntoView({
-					behavior: 'smooth',
-					block: 'nearest',
-					inline: 'start',
-				})
-			}
-		},
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-		[shouldScroll, isInView],
-	)
+	useEffect(() => {
+		if (!isInView && shouldScroll) {
+			containerRef.current?.scrollIntoView({
+				behavior: 'smooth',
+				block: 'nearest',
+				inline: 'start',
+			})
+		}
+	}, [shouldScroll, isInView, containerRef])
 
 	const renderContent = () => {
 		if (layoutMode === InterfaceLayout.Grid) {

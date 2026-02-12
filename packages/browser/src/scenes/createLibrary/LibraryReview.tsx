@@ -3,33 +3,42 @@ import { LibraryPattern } from '@stump/graphql'
 import { useLocaleContext } from '@stump/i18n'
 import pluralize from 'pluralize'
 import { PropsWithChildren } from 'react'
-import { useFormContext } from 'react-hook-form'
+import { useFormContext, useWatch } from 'react-hook-form'
 import { match } from 'ts-pattern'
 
 import { CreateOrUpdateLibrarySchema } from '@/components/library/createOrUpdate'
 
 export default function LibraryReview() {
 	const form = useFormContext<CreateOrUpdateLibrarySchema>()
-	const state = form.watch()
+	const state = useWatch({ control: form.control })
 
 	const { t } = useLocaleContext()
 
 	const renderThumbnailSettings = () => {
-		if (!state.thumbnailConfig.enabled || !state.thumbnailConfig.resizeMethod) {
+		if (!state.thumbnailConfig?.enabled || !state.thumbnailConfig?.resizeMethod) {
 			return (
-				<div>
-					<Label>{t(getLabelKey('generateThumbnails'))}</Label>
-					<Text variant="muted" size="sm">
-						{t(getKey('no'))}
-					</Text>
-				</div>
+				<>
+					<div>
+						<Label>{t(getLabelKey('generateThumbnails'))}</Label>
+						<Text variant="muted" size="sm">
+							{t(getKey('no'))}
+						</Text>
+					</div>
+
+					<div>
+						<Label>{t(getLabelKey('processThumbnailColors'))}</Label>
+						<Text variant="muted" size="sm">
+							{state.processThumbnailColorsEvenWithoutConfig ? t(getKey('yes')) : t(getKey('no'))}
+						</Text>
+					</div>
+				</>
 			)
 		} else {
 			const dimensionUnit =
 				state.thumbnailConfig.resizeMethod.mode === 'scaleEvenlyByFactor' ? 'x' : 'px'
 
 			const renderResizeModeDetails = () =>
-				match(state.thumbnailConfig.resizeMethod)
+				match(state.thumbnailConfig?.resizeMethod)
 					.with({ mode: 'scaleEvenlyByFactor' }, ({ factor }) => `${factor}${dimensionUnit}`)
 					.with(
 						{ mode: 'exact' },
@@ -52,8 +61,8 @@ export default function LibraryReview() {
 					<div>
 						<Label>{t(getLabelKey('mode'))}</Label>
 						<Text variant="muted" size="sm">
-							{t(getLabelKey(state.thumbnailConfig.resizeMethod.mode))} ({renderResizeModeDetails()}
-							)
+							{t(getLabelKey(state.thumbnailConfig.resizeMethod.mode || 'scaleEvenlyByFactor'))} (
+							{renderResizeModeDetails()})
 						</Text>
 					</div>
 
@@ -68,6 +77,13 @@ export default function LibraryReview() {
 						<Label>{t(getLabelKey('quality'))}</Label>
 						<Text variant="muted" size="sm">
 							{state.thumbnailConfig.quality || 'Default'}
+						</Text>
+					</div>
+
+					<div>
+						<Label>{t(getLabelKey('processThumbnailColors'))}</Label>
+						<Text variant="muted" size="sm">
+							{t(getKey('yes'))}
 						</Text>
 					</div>
 				</>

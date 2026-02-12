@@ -17,7 +17,6 @@ use super::{
 	StringLikeFilter,
 };
 
-// TODO: Probably not correct....
 fn apply_reading_status_filter(
 	value: ReadingStatus,
 	not: bool,
@@ -26,7 +25,9 @@ fn apply_reading_status_filter(
 		ReadingStatus::Reading => reading_session::Column::Id.is_not_null(),
 		ReadingStatus::Finished => finished_reading_session::Column::Id.is_not_null(),
 		// TODO: add a field to reading_session for marking DNF
-		ReadingStatus::Abandoned => unimplemented!("Abandoned filter not implemented"),
+		ReadingStatus::Abandoned => {
+			media::Column::Id.eq("").and(media::Column::Id.ne(""))
+		},
 		ReadingStatus::NotStarted => reading_session::Column::Id
 			.is_null()
 			.and(finished_reading_session::Column::Id.is_null()),
@@ -45,6 +46,8 @@ fn apply_reading_status_filter(
 #[derive(InputObject, Clone, Serialize, Deserialize, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct MediaFilterInput {
+	#[graphql(default)]
+	pub id: Option<StringLikeFilter<String>>,
 	#[graphql(default)]
 	pub name: Option<StringLikeFilter<String>>,
 	#[graphql(default)]
@@ -191,6 +194,7 @@ mod tests {
 	#[test]
 	fn test_reading_status_in() {
 		let filter = MediaFilterInput {
+			id: None,
 			_and: None,
 			created_at: None,
 			extension: None,
@@ -225,6 +229,7 @@ mod tests {
 	#[test]
 	fn test_reading_status_not_in() {
 		let filter = MediaFilterInput {
+			id: None,
 			_and: None,
 			created_at: None,
 			extension: None,

@@ -9,7 +9,13 @@ import { useColorScheme } from '~/lib/useColorScheme'
 import { CreateServer, SavedServerWithConfig } from '~/stores/savedServer'
 
 import { BottomSheet } from '../ui'
-import AddOrEditServerForm from './AddOrEditServerForm'
+import AddOrEditServerForm, {
+	AddOrEditServerSchema,
+	transformFormData,
+} from './AddOrEditServerForm'
+
+// TODO: Refactor to true sheet, but expect keyboard aware issues:
+// https://github.com/lodev09/react-native-true-sheet/issues/391
 
 type Props = {
 	editingServer: SavedServerWithConfig | null
@@ -33,6 +39,13 @@ export default function EditServerDialog({ editingServer, onClose, onSubmit }: P
 			}
 		},
 		[isOpen, onClose],
+	)
+
+	const handleSubmit = useCallback(
+		(data: AddOrEditServerSchema) => {
+			onSubmit(transformFormData(data))
+		},
+		[onSubmit],
 	)
 
 	useEffect(() => {
@@ -78,7 +91,7 @@ export default function EditServerDialog({ editingServer, onClose, onSubmit }: P
 					<View className="gap-4">
 						<AddOrEditServerForm
 							editingServer={editingServer || undefined}
-							onSubmit={onSubmit}
+							onSubmit={handleSubmit}
 							onClose={() => {
 								ref.current?.dismiss()
 								onClose()

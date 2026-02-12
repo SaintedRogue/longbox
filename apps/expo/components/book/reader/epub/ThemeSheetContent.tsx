@@ -1,42 +1,42 @@
-import { useRef } from 'react'
-import { ScrollView, View } from 'react-native'
-import PagerView from 'react-native-pager-view'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { View } from 'react-native'
 
-import { Brightness, FontConfig, PublisherStyles, ThemeSelect } from './controls'
-import { CustomizeTheme, ThemeHeaderPreview } from './controls/customTheme'
+import { CardList } from '~/components/ui'
+
+import {
+	Brightness,
+	ColumnCount,
+	FontConfig,
+	ImageFilter,
+	PageMargins,
+	ReadingProgression,
+	ThemeSelect,
+	TypographySettings,
+} from './controls'
 
 export default function ThemeSheetContent() {
-	const pagerRef = useRef<PagerView>(null)
-
-	const insets = useSafeAreaInsets()
-
+	// FIXME: The settings after ThemeSelect on iOS are having really wonky issues that
+	// are honestly kinda fucking annoying at this point lol. It seems some of them break in
+	// alignment randomly, adding a View container around the native element fixes it (sometimes)
+	// but then breaks other rows. It's killing me. I'm ignoring it for now but AHH
 	return (
-		<PagerView ref={pagerRef} initialPage={0} style={{ flex: 1 }} scrollEnabled={false}>
-			<View className="flex-1 bg-background" key="0">
-				<ThemeHeaderPreview />
+		<View className="flex-1 gap-8 py-3">
+			<Brightness />
 
-				<ScrollView
-					contentContainerStyle={{
-						padding: 0,
-						paddingTop: 32,
-						paddingBottom: insets.bottom,
-						gap: 32,
-					}}
-				>
-					<Brightness />
+			<ThemeSelect />
 
-					<ThemeSelect onCustomizePress={() => pagerRef.current?.setPage(1)} />
+			<FontConfig />
 
-					<FontConfig />
+			<CardList>
+				<ReadingProgression />
+				<ColumnCount />
+				<PageMargins />
+			</CardList>
 
-					<PublisherStyles />
-				</ScrollView>
-			</View>
+			<CardList>
+				<ImageFilter />
+			</CardList>
 
-			<View className="flex-1 gap-8" key="1">
-				<CustomizeTheme onCancel={() => pagerRef.current?.setPage(0)} />
-			</View>
-		</PagerView>
+			<TypographySettings />
+		</View>
 	)
 }

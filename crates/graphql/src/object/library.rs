@@ -7,7 +7,7 @@ use async_graphql::{
 use models::{
 	entity::{
 		library, library_config, library_exclusion, library_scan_record, library_tag,
-		series, tag, user,
+		media, series, tag, user,
 	},
 	shared::{
 		alphabet::{AvailableAlphabet, EntityLetter},
@@ -16,14 +16,15 @@ use models::{
 	},
 };
 use sea_orm::{
-	prelude::*, sea_query::Query, DatabaseBackend, FromQueryResult, QueryOrder, Statement,
+	prelude::*, sea_query::Query, DatabaseBackend, FromQueryResult, QueryOrder,
+	QuerySelect, QueryTrait, Statement,
 };
 
 use crate::{
 	data::{AuthContext, CoreContext, ServiceContext},
 	guard::PermissionGuard,
 	loader::favorite::{FavoriteLibraryLoaderKey, FavoritesLoader},
-	object::library_scan_record::LibraryScanRecord,
+	object::{library_scan_record::LibraryScanRecord, media::Media},
 };
 
 use super::{library_config::LibraryConfig, series::Series, tag::Tag, user::User};
@@ -107,6 +108,36 @@ impl Library {
 		Ok(record.map(LibraryScanRecord::from))
 	}
 
+	// TODO(perf): We probably could put this behind a dataloader if used frequently
+	/// Get media in this library
+	async fn media(
+		&self,
+		ctx: &Context<'_>,
+		#[graphql(default, validator(minimum = 1))] take: Option<u64>,
+	) -> Result<Vec<Media>> {
+		let AuthContext { user, .. } = ctx.data::<AuthContext>()?;
+		let conn = ctx.data::<CoreContext>()?.conn.as_ref();
+
+		let models = media::ModelWithMetadata::find_for_user(user)
+			.filter(
+				media::Column::SeriesId.in_subquery(
+					Query::select()
+						.column(series::Column::Id)
+						.from(series::Entity)
+						.and_where(series::Column::LibraryId.eq(self.model.id.clone()))
+						.to_owned(),
+				),
+			)
+			// TODO: Consider allowing custom ordering?
+			.order_by_asc(media::Column::Name)
+			.apply_if(take, |query, take| query.limit(take))
+			.into_model::<media::ModelWithMetadata>()
+			.all(conn)
+			.await?;
+
+		Ok(models.into_iter().map(Media::from).collect())
+	}
+
 	async fn media_alphabet(&self, ctx: &Context<'_>) -> Result<HashMap<String, i64>> {
 		let conn = ctx.data::<CoreContext>()?.conn.as_ref();
 
@@ -158,12 +189,22 @@ impl Library {
 		Ok(records.into_iter().map(LibraryScanRecord::from).collect())
 	}
 
-	// TODO(graphql): Pagination
-	async fn series(&self, ctx: &Context<'_>) -> Result<Vec<Series>> {
+	// TODO(perf): We probably could put this behind a dataloader if used frequently
+	/// Get series in this library
+	async fn series(
+		&self,
+		ctx: &Context<'_>,
+		#[graphql(default, validator(minimum = 1))] take: Option<u64>,
+		#[graphql(default, validator(minimum = 0))] skip: Option<u64>,
+	) -> Result<Vec<Series>> {
 		let conn = ctx.data::<CoreContext>()?.conn.as_ref();
 
 		let models = series::ModelWithMetadata::find()
 			.filter(series::Column::LibraryId.eq(Some(self.model.id.clone())))
+			// TODO: Consider allowing custom ordering?
+			.order_by_asc(series::Column::Name)
+			.apply_if(take, |query, take| query.limit(take))
+			.apply_if(skip, |query, skip| query.offset(skip))
 			.into_model::<series::ModelWithMetadata>()
 			.all(conn)
 			.await?;
@@ -219,34 +260,56 @@ impl Library {
 				r"
 				WITH base_counts AS (
 					SELECT
-						COUNT(*) AS book_count,
-						IFNULL(SUM(media.size), 0) AS total_bytes,
-						IFNULL(series_count, 0) AS series_count
+						COUNT(DISTINCT m.id) AS book_count,
+						IFNULL(SUM(m.size), 0) AS total_bytes,
+						COUNT(DISTINCT s.id) AS series_count
 					FROM
-						media
-						INNER JOIN (
-							SELECT
-								COUNT(*) AS series_count
-							FROM
-								series)
+						series s
+						LEFT JOIN media m ON m.series_id = s.id
+					WHERE
+						s.library_id = $1
 				),
-				progress_counts AS (
+				finished_stats AS (
 					SELECT
-						COUNT(frs.id) AS completed_books,
-						COUNT(rs.id) AS in_progress_books
+						COUNT(DISTINCT frs.media_id) AS completed_books,
+						IFNULL(SUM(frs.elapsed_seconds), 0) AS finished_reading_time
 					FROM
-						media m
-						LEFT JOIN finished_reading_sessions frs ON frs.media_id = m.id
-						LEFT JOIN reading_sessions rs ON rs.media_id = m.id
-					WHERE $1 IS TRUE OR (rs.user_id = $2 OR frs.user_id = $2)
+						finished_reading_sessions frs
+						INNER JOIN media m ON frs.media_id = m.id
+						INNER JOIN series s ON m.series_id = s.id
+					WHERE
+						s.library_id = $1
+						AND ($2 IS TRUE OR frs.user_id = $3)
+				),
+				in_progress_stats AS (
+					SELECT
+						COUNT(DISTINCT rs.media_id) AS in_progress_books,
+						IFNULL(SUM(rs.elapsed_seconds), 0) AS in_progress_reading_time
+					FROM
+						reading_sessions rs
+						INNER JOIN media m ON rs.media_id = m.id
+						INNER JOIN series s ON m.series_id = s.id
+					WHERE
+						s.library_id = $1
+						AND ($2 IS TRUE OR rs.user_id = $3)
 				)
 				SELECT
-					*
+					bc.book_count,
+					bc.total_bytes,
+					bc.series_count,
+					fs.completed_books,
+					ips.in_progress_books,
+					(fs.finished_reading_time + ips.in_progress_reading_time) AS total_reading_time_seconds
 				FROM
-					base_counts
-					INNER JOIN progress_counts;
+					base_counts bc
+					CROSS JOIN finished_stats fs
+					CROSS JOIN in_progress_stats ips;
 				",
-				[all_users.unwrap_or(false).into(), user.id.clone().into()],
+				[
+					self.model.id.clone().into(),
+					all_users.unwrap_or(false).into(),
+					user.id.clone().into(),
+				],
 			))
 			.await?
 			.ok_or("Library stats failed to be calculated")?;
@@ -281,13 +344,14 @@ impl Library {
 		let service = ctx.data::<ServiceContext>()?;
 
 		// TODO: Spawn a blocking task to get the image dimensions
-		// Use a cache as to not read the file system every time
+		// Use a cache as to not read the file system every time?
 
 		Ok(ImageRef {
 			url: service
 				.format_url(format!("/api/v2/library/{}/thumbnail", self.model.id)),
 			// height: page_dimension.as_ref().map(|dim| dim.height),
 			// width: page_dimension.as_ref().map(|dim| dim.width),
+			metadata: self.model.thumbnail_meta.clone(),
 			..Default::default()
 		})
 	}
@@ -302,4 +366,5 @@ pub struct LibraryStats {
 	total_bytes: i64,
 	completed_books: i64,
 	in_progress_books: i64,
+	total_reading_time_seconds: i64,
 }

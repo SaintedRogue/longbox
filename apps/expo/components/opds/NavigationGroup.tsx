@@ -1,12 +1,14 @@
 import { OPDSFeedGroup } from '@stump/sdk'
+import { Rss } from 'lucide-react-native'
 import { Fragment } from 'react'
 import { View } from 'react-native'
 
-import { Text } from '../ui'
-import EmptyFeed from './EmptyFeed'
+import { Divider } from '../Divider'
+import { ListEmptyMessage, Text } from '../ui'
 import FeedSelfURL from './FeedSelfURL'
 import NavigationLink from './NavigationLink'
 import { FeedComponentOptions } from './types'
+import { useResolveURL } from './utils'
 
 type Props = {
 	group: OPDSFeedGroup
@@ -18,16 +20,18 @@ export default function NavigationGroup({
 }: Props) {
 	const selfURL = links.find((link) => link.rel === 'self')?.href
 
+	const resolveUrl = useResolveURL()
+
 	if (!navigation.length && !renderEmpty) return null
 
 	return (
 		<View key={metadata.title}>
-			<View className="flex flex-row items-center justify-between pb-2">
+			<View className="flex flex-row items-center justify-between px-4 pb-2">
 				<Text size="xl" className="font-medium leading-6 tracking-wide">
 					{metadata.title || 'Browse'}
 				</Text>
 
-				{selfURL && <FeedSelfURL url={selfURL} />}
+				{selfURL && <FeedSelfURL url={resolveUrl(selfURL)} />}
 			</View>
 
 			{navigation.map((link) => (
@@ -37,9 +41,7 @@ export default function NavigationGroup({
 				</Fragment>
 			))}
 
-			{!navigation.length && <EmptyFeed message="No navigation links in group" />}
+			{!navigation.length && <ListEmptyMessage icon={Rss} message="No navigation links in group" />}
 		</View>
 	)
 }
-
-const Divider = () => <View className="h-px w-full bg-edge" />

@@ -78,7 +78,7 @@ For more information about getting started, check out the [guides](https://stump
 
 ## Developer Guide 💻
 
-Contributions are very **welcome**! Please review the [CONTRIBUTING.md](https://github.com/stumpapp/stump/tree/develop/.github/CONTRIBUTING.md) before getting started.
+Contributions are very **welcome**! Please review the [CONTRIBUTING.md](https://github.com/stumpapp/stump/tree/nightly/.github/CONTRIBUTING.md) before getting started.
 
 A quick summary of the steps required to get going:
 

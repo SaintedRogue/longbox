@@ -3,8 +3,8 @@ use async_graphql::{
 };
 
 use models::{
-	entity::{library, library_config, media, page_analysis, series, tag},
-	shared::{image::ImageRef, page_dimension::PageAnalysis},
+	entity::{library, library_config, media, media_analysis, series, tag},
+	shared::{analysis::MediaAnalysisData, image::ImageRef},
 };
 use num_traits::cast::ToPrimitive;
 use sea_orm::{
@@ -16,6 +16,7 @@ use crate::{
 	data::{AuthContext, CoreContext, ServiceContext},
 	loader::{
 		favorite::{FavoriteMediaLoaderKey, FavoritesLoader},
+		media_analysis::{MediaAnalysisLoader, PageDimensionLoaderKey},
 		reading_session::{
 			ActiveReadingSessionLoaderKey, FinishedReadingSessionLoaderKey,
 			ReadingSessionLoader,
@@ -181,11 +182,14 @@ impl Media {
 		Ok(LibraryConfig::from(model))
 	}
 
-	async fn page_analysis(&self, ctx: &Context<'_>) -> Result<Option<PageAnalysis>> {
+	async fn analysis_data(
+		&self,
+		ctx: &Context<'_>,
+	) -> Result<Option<MediaAnalysisData>> {
 		let conn = ctx.data::<CoreContext>()?.conn.as_ref();
 
-		let model = page_analysis::Entity::find()
-			.filter(page_analysis::Column::MediaId.eq(self.model.id.clone()))
+		let model = media_analysis::Entity::find()
+			.filter(media_analysis::Column::MediaId.eq(self.model.id.clone()))
 			.one(conn)
 			.await?;
 
@@ -196,18 +200,19 @@ impl Media {
 	/// qualified URL to the image.
 	async fn thumbnail(&self, ctx: &Context<'_>) -> Result<ImageRef> {
 		let service = ctx.data::<ServiceContext>()?;
+		let loader = ctx.data::<DataLoader<MediaAnalysisLoader>>()?;
 
-		// TODO: DEFINITELY behind a dataloader here
-		let page_dimension = page_analysis::Entity::find()
-			.filter(page_analysis::Column::MediaId.eq(self.model.id.clone()))
-			.one(ctx.data::<CoreContext>()?.conn.as_ref())
-			.await?
-			.and_then(|pa| pa.data.dimensions.first().cloned());
+		let page_dimension = loader
+			.load_one(PageDimensionLoaderKey {
+				media_id: self.model.id.clone(),
+			})
+			.await?;
 
 		Ok(ImageRef {
 			url: service.format_url(format!("/api/v2/media/{}/thumbnail", self.model.id)),
 			height: page_dimension.as_ref().map(|dim| dim.height),
 			width: page_dimension.as_ref().map(|dim| dim.width),
+			metadata: self.model.thumbnail_meta.clone(),
 		})
 	}
 
@@ -221,7 +226,7 @@ impl Media {
 			.to_string()
 	}
 
-	// TODO(graphql): Create object to query for device
+	// TODO(graphql): Create object to query for device used (e.g., KoReader device ID)
 	async fn read_progress(
 		&self,
 		ctx: &Context<'_>,
@@ -239,7 +244,7 @@ impl Media {
 		Ok(progress)
 	}
 
-	// TODO(graphql): Create object to query for device
+	// TODO(graphql): Create object to query for device used (e.g., KoReader device ID)
 	async fn read_history(
 		&self,
 		ctx: &Context<'_>,

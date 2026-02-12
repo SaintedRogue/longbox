@@ -6,49 +6,34 @@ import { SceneContainer } from '@/components/container'
 
 import { useSmartListContext } from '../context'
 import { useSmartListItems } from '../graphql'
-import { GroupedSmartListItemList } from './list'
-import { GroupedSmartListItemTable, SmartListBookTable } from './table'
+import GroupedVirtualSmartListTable from './table/GroupedVirtualSmartListTable'
+import VirtualSmartListTable from './table/VirtualSmartListTable'
 
-// FIXME: performance of these tables is ass, it really just needs virtualization
 export default function UserSmartListItemsScene() {
 	const { t } = useLocaleContext()
 	const {
 		list: { id },
-		layout,
 	} = useSmartListContext()
 
 	const { items, isLoading } = useSmartListItems({ id })
 
-	if (isLoading || !items) {
+	if (isLoading) {
 		return null
 	}
 
-	const shouldThrow = !items
-	if (shouldThrow) {
-		// TODO: redirect for these?
+	if (!items) {
 		throw new Error(t('userSmartListScene.itemsScene.smartListNotFound'))
 	}
 
 	const renderContent = () => {
 		const isGrouped = 'items' in items
-		if (isGrouped) {
-			return layout === 'table' ? (
-				<GroupedSmartListItemTable items={items.items as SmartListGroupedItem[]} />
-			) : (
-				<GroupedSmartListItemList items={items.items as SmartListGroupedItem[]} />
-			)
-		}
 
-		return layout === 'table' ? (
-			<SmartListBookTable books={items.books as Media[]} />
-		) : (
-			<pre className="text-xs text-foreground-subtle">{JSON.stringify({ items }, null, 2)}</pre>
-		)
+		if (isGrouped) {
+			return <GroupedVirtualSmartListTable items={items.items as SmartListGroupedItem[]} />
+		} else {
+			return <VirtualSmartListTable books={items.books as Media[]} />
+		}
 	}
 
-	return (
-		<SceneContainer className={cn({ 'p-0 py-4': layout === 'table' })}>
-			{renderContent()}
-		</SceneContainer>
-	)
+	return <SceneContainer className={cn('p-0 py-4')}>{renderContent()}</SceneContainer>
 }

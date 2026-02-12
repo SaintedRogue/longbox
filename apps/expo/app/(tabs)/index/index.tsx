@@ -1,17 +1,18 @@
 import { useRouter } from 'expo-router'
 import partition from 'lodash/partition'
-import { useCallback, useEffect, useState } from 'react'
-import { useWindowDimensions, View } from 'react-native'
+import { ExternalLink, Rss, Server } from 'lucide-react-native'
+import { Fragment, useCallback, useEffect, useState } from 'react'
+import { Linking, useWindowDimensions, View } from 'react-native'
 import { ScrollView } from 'react-native-gesture-handler'
 
+import EmptyState from '~/components/EmptyState'
+import { useOwlHeaderOffset } from '~/components/Owl'
 import DeleteServerConfirmation from '~/components/savedServer/DeleteServerConfirmation'
 import EditServerDialog from '~/components/savedServer/EditServerDialog'
 import SavedServerListItem from '~/components/savedServer/SavedServerListItem'
-import { icons, Text } from '~/components/ui'
+import { Button, Icon, ListEmptyMessage, Text } from '~/components/ui'
 import { useSavedServers } from '~/stores'
 import { CreateServer, SavedServer, SavedServerWithConfig } from '~/stores/savedServer'
-
-const { Server, Slash, Rss } = icons
 
 export default function Screen() {
 	const { savedServers, stumpEnabled, updateServer, deleteServer, getServerConfig } =
@@ -24,7 +25,8 @@ export default function Screen() {
 	const [deletingServer, setDeletingServer] = useState<SavedServer | null>(null)
 
 	const allOPDSServers = [...stumpServers.filter((server) => server.stumpOPDS), ...opdsServers]
-	const defaultServer = allOPDSServers.find((server) => server.defaultServer)
+
+	const defaultServer = savedServers.find((server) => server.defaultServer)
 
 	const [didMount, setDidMount] = useState(false)
 	useEffect(() => {
@@ -45,6 +47,7 @@ export default function Screen() {
 				})
 			}
 		},
+		// eslint-disable-next-line react-compiler/react-compiler
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 		[router, didMount],
 	)
@@ -89,12 +92,11 @@ export default function Screen() {
 		[setEditingServer, updateServer, editingServer],
 	)
 
+	const isCleanSlate = stumpServers.length === 0 && opdsServers.length === 0
+	const emptyContainerStyle = useOwlHeaderOffset()
+
 	return (
-		<ScrollView
-			key={`${width}-${allOPDSServers.length}-${stumpServers.length}`}
-			className="flex-1 bg-background"
-			contentInsetAdjustmentBehavior="automatic"
-		>
+		<Fragment>
 			<DeleteServerConfirmation
 				deletingServer={deletingServer}
 				onClose={() => setDeletingServer(null)}
@@ -107,62 +109,79 @@ export default function Screen() {
 				onSubmit={onEdit}
 			/>
 
-			<View className="flex-1 items-start justify-start gap-5 bg-background p-6">
-				{stumpEnabled && (
-					<View className="flex w-full items-start gap-2">
-						<Text className="text-foreground-muted">Stump</Text>
+			{isCleanSlate && (
+				<EmptyState
+					title="Nothing to show yet"
+					message="Get started by adding a server to access book collections"
+					actions={
+						<>
+							<Button
+								variant="brand"
+								size="lg"
+								roundness="full"
+								className="relative"
+								onPress={() => Linking.openURL('https://www.stumpapp.dev/guides/mobile/app')}
+							>
+								<Text>See Documentation</Text>
 
-						{!stumpServers.length && (
-							<View className="squircle h-24 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-edge p-3">
-								<View className="relative flex justify-center">
-									<View className="squircle flex items-center justify-center rounded-lg bg-background-surface p-2">
-										<Server className="h-6 w-6 text-foreground-muted" />
-										<Slash className="absolute h-6 w-6 scale-x-[-1] transform text-foreground opacity-80" />
-									</View>
-								</View>
+								<Icon
+									as={ExternalLink}
+									size={16}
+									className="absolute right-4 transform text-foreground"
+								/>
+							</Button>
+						</>
+					}
+					containerStyle={emptyContainerStyle}
+				/>
+			)}
 
-								<Text>No Stump servers added</Text>
+			{!isCleanSlate && (
+				<ScrollView
+					key={`${width}-${allOPDSServers.length}-${stumpServers.length}-${stumpEnabled}`}
+					className="flex-1 bg-background"
+					contentInsetAdjustmentBehavior="automatic"
+				>
+					<View className="flex-1 items-start justify-start gap-5 bg-background p-6">
+						{stumpEnabled && (
+							<View className="flex w-full items-start gap-2">
+								<Text className="text-foreground-muted">Stump</Text>
+
+								{!stumpServers.length && (
+									<ListEmptyMessage icon={Server} message="No Stump servers added" />
+								)}
+
+								{stumpServers.map((server) => (
+									<SavedServerListItem
+										key={server.id}
+										server={server}
+										onEdit={() => onSelectForEdit(server)}
+										onDelete={() => setDeletingServer(server)}
+									/>
+								))}
 							</View>
 						)}
 
-						{stumpServers.map((server) => (
-							<SavedServerListItem
-								key={server.id}
-								server={server}
-								onEdit={() => onSelectForEdit(server)}
-								onDelete={() => setDeletingServer(server)}
-							/>
-						))}
-					</View>
-				)}
+						<View className="flex w-full items-start gap-2">
+							<Text className="text-foreground-muted">OPDS</Text>
 
-				<View className="flex w-full items-start gap-2">
-					<Text className="text-foreground-muted">OPDS</Text>
+							{!allOPDSServers.length && (
+								<ListEmptyMessage icon={Rss} message="No OPDS feeds added" />
+							)}
 
-					{!allOPDSServers.length && (
-						<View className="squircle h-24 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-edge p-3">
-							<View className="relative flex justify-center">
-								<View className="squircle flex items-center justify-center rounded-lg bg-background-surface p-2">
-									<Rss className="h-6 w-6 text-foreground-muted" />
-									<Slash className="absolute h-6 w-6 scale-x-[-1] transform text-foreground opacity-80" />
-								</View>
-							</View>
-
-							<Text>No OPDS feeds added</Text>
+							{allOPDSServers.map((server) => (
+								<SavedServerListItem
+									key={server.id}
+									server={server}
+									forceOPDS
+									onEdit={() => onSelectForEdit(server)}
+									onDelete={() => setDeletingServer(server)}
+								/>
+							))}
 						</View>
-					)}
-
-					{allOPDSServers.map((server) => (
-						<SavedServerListItem
-							key={server.id}
-							server={server}
-							forceOPDS
-							onEdit={() => onSelectForEdit(server)}
-							onDelete={() => setDeletingServer(server)}
-						/>
-					))}
-				</View>
-			</View>
-		</ScrollView>
+					</View>
+				</ScrollView>
+			)}
+		</Fragment>
 	)
 }

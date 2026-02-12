@@ -2,16 +2,16 @@ import { useAuthQuery, useClientContext, useSDK } from '@stump/client'
 import { isAxiosError } from 'axios'
 import { Tabs } from 'expo-router'
 import { Icon, Label, NativeTabs } from 'expo-router/unstable-native-tabs'
+import { Home, Search, SquareLibrary } from 'lucide-react-native'
 import { useEffect } from 'react'
 import { Platform } from 'react-native'
 
-import ServerErrorBoundary from '~/components/ServerErrorBoundary'
-import { icons } from '~/lib'
+import { ServerErrorBoundary } from '~/components/error'
+import { Icon as JSIcon } from '~/components/ui'
 import { useColors } from '~/lib/constants'
+import { useAutoSyncActiveServer } from '~/lib/hooks'
 import { cn } from '~/lib/utils'
 import { usePreferencesStore, useUserStore } from '~/stores'
-
-const { Home, Search, SquareLibrary } = icons
 
 export default function TabLayout() {
 	const { sdk } = useSDK()
@@ -20,6 +20,11 @@ export default function TabLayout() {
 	const accentColor = usePreferencesStore((state) => state.accentColor)
 	const animationEnabled = usePreferencesStore((state) => !state.reduceAnimations)
 	const setUser = useUserStore((state) => state.setUser)
+	const autoSyncEnabled = usePreferencesStore((state) => state.autoSyncLocalData)
+
+	useAutoSyncActiveServer({
+		enabled: !!sdk.token && autoSyncEnabled,
+	})
 
 	const { onUnauthenticatedResponse } = useClientContext()
 
@@ -87,7 +92,8 @@ export default function TabLayout() {
 					options={{
 						title: 'Home',
 						tabBarIcon: ({ focused }) => (
-							<Home
+							<JSIcon
+								as={Home}
 								className={cn('h-6 w-6 text-foreground-muted', { 'text-foreground': focused })}
 							/>
 						),
@@ -100,7 +106,8 @@ export default function TabLayout() {
 					options={{
 						title: 'Browse',
 						tabBarIcon: ({ focused }) => (
-							<SquareLibrary
+							<JSIcon
+								as={SquareLibrary}
 								className={cn('h-6 w-6 text-foreground-muted', { 'text-foreground': focused })}
 							/>
 						),
@@ -114,7 +121,8 @@ export default function TabLayout() {
 						headerShown: false,
 						title: 'Search',
 						tabBarIcon: ({ focused }) => (
-							<Search
+							<JSIcon
+								as={Search}
 								className={cn('h-6 w-6 text-foreground-muted', { 'text-foreground': focused })}
 							/>
 						),

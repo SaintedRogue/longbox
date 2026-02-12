@@ -1,12 +1,11 @@
 import { Slider } from '@miblanchard/react-native-slider'
-import { useSDK } from '@stump/client'
-import { ReadingDirection } from '@stump/graphql'
+import { FlashList, FlashListRef, useMappingHelper } from '@shopify/flash-list'
+import { ReadingDirection, ReadingMode } from '@stump/graphql'
 import { STUMP_SAVE_BASIC_SESSION_HEADER } from '@stump/sdk/constants'
 import dayjs from 'dayjs'
 import duration from 'dayjs/plugin/duration'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Platform, View } from 'react-native'
-import { FlatList, Pressable } from 'react-native-gesture-handler'
+import { Platform, Pressable, View } from 'react-native'
 import Animated, {
 	Easing,
 	useAnimatedStyle,
@@ -16,8 +15,9 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import TImage from 'react-native-turbo-image'
 
-import { TurboImage } from '~/components/Image'
+import { TurboImage } from '~/components/image'
 import { Progress, Text } from '~/components/ui'
+import { CONTROLS_TIMING_CONFIG } from '~/lib/constants'
 import { useDisplay, usePrevious } from '~/lib/hooks'
 import { cn } from '~/lib/utils'
 import { usePreferencesStore, useReaderStore } from '~/stores'
@@ -27,27 +27,37 @@ import { useImageBasedReader } from './context'
 
 dayjs.extend(duration)
 
+const SIZE_MODIFIER = 1.5
+
 export default function Footer() {
-	const { sdk } = useSDK()
-	const { isTablet, height, width } = useDisplay()
+	const { isTablet, width } = useDisplay()
 	const {
 		book,
 		pageURL,
 		pageThumbnailURL,
 		currentPage = 1,
 		pageSets,
-		flatListRef: readerRef,
+		flashListRef: readerRef,
 		imageSizes,
 		setImageSizes,
 		isOPDS,
+		requestHeaders,
+		serverId,
 	} = useImageBasedReader()
 	const elapsedSeconds = useBookReadTime(book.id)
 	const {
-		preferences: { footerControls = 'slider', trackElapsedTime, readingDirection },
-	} = useBookPreferences({ book })
+		preferences: {
+			footerControls = 'slider',
+			trackElapsedTime,
+			readingDirection,
+			readingMode,
+			doublePageBehavior,
+		},
+	} = useBookPreferences({ book, serverId })
 
-	const galleryRef = useRef<FlatList>(null)
+	const galleryRef = useRef<FlashListRef<number[]>>(null)
 	const insets = useSafeAreaInsets()
+	const { getMappingKey } = useMappingHelper()
 
 	const visible = useReaderStore((state) => state.showControls)
 	const setShowControls = useReaderStore((state) => state.setShowControls)
@@ -63,14 +73,22 @@ export default function Footer() {
 		}
 	}, [isTablet, thumbnailRatio])
 
-	const largestHeight = baseSize.height / thumbnailRatio
-	const translateY = useSharedValue(largestHeight * 2)
-	useEffect(() => {
-		translateY.value = withTiming(visible ? 0 : largestHeight * 1.8, {
-			duration: 250,
-			easing: visible ? Easing.out(Easing.quad) : Easing.in(Easing.quad),
-		})
-	}, [visible])
+	const opacity = useSharedValue(visible ? 1 : 0)
+	const translateY = useSharedValue(visible ? 0 : 50)
+	useEffect(
+		() => {
+			opacity.value = withTiming(visible ? 1 : 0, CONTROLS_TIMING_CONFIG)
+			translateY.value = withTiming(visible ? 0 : 50, {
+				...CONTROLS_TIMING_CONFIG,
+				easing: visible
+					? Easing.out(Easing.quad) // slow near the start
+					: Easing.in(Easing.quad), // slow near the end
+			})
+		},
+		// eslint-disable-next-line react-compiler/react-compiler
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+		[visible],
+	)
 
 	const animatedStyles = useAnimatedStyle(() => {
 		return {
@@ -78,31 +96,35 @@ export default function Footer() {
 			right: insets.right,
 			bottom: insets.bottom,
 			transform: [{ translateY: translateY.value }],
+			opacity: opacity.value,
 		}
 	})
 
 	const percentage = (currentPage / book.pages) * 100
 
-	const calcSetContainerSize = useCallback(
+	/**
+	 * A function that calculates:
+	 * The widths and heights of a page set container to use in the gallery item container.
+	 */
+	const calcPageSetSize = useCallback(
 		(set: number[]) => {
 			const isDoubleSpread = set.length === 2
 			const isLandscape = set.some((page) => (imageSizes?.[page]?.ratio || 0) >= 1)
+			const isCurrentSet = set.includes(currentPage - 1)
 
-			let containerSize = baseSize
-
+			let heightModifier = 1
+			let widthModifier = 1
 			if (isDoubleSpread || isLandscape) {
-				containerSize = {
-					height: containerSize.height,
-					width: containerSize.width * 2,
-				}
+				widthModifier *= 2
+			}
+			if (isCurrentSet) {
+				heightModifier *= SIZE_MODIFIER
+				widthModifier *= SIZE_MODIFIER
 			}
 
-			// Make the current page set's images larger by 1.5 times
-			if (set.includes(currentPage - 1)) {
-				containerSize = {
-					height: containerSize.height * 1.5,
-					width: containerSize.width * 1.5,
-				}
+			const containerSize = {
+				height: baseSize.height * heightModifier,
+				width: baseSize.width * widthModifier,
 			}
 
 			return containerSize
@@ -110,34 +132,13 @@ export default function Footer() {
 		[currentPage, baseSize, imageSizes],
 	)
 
-	const getGalleryItemSize = useCallback(
+	const getPageSetSize = useCallback(
 		(idx: number) => {
 			const set = pageSets[idx]
-			const containerSize = calcSetContainerSize(set)
+			const containerSize = calcPageSetSize(set || [])
 			return containerSize
 		},
-		[pageSets, calcSetContainerSize],
-	)
-
-	const getItemLayout = useCallback(
-		(_: ArrayLike<number[]> | null | undefined, index: number) => {
-			const totalOffset =
-				8 +
-				pageSets.slice(0, index).reduce(
-					(acc, set) =>
-						acc +
-						6 + // add gap between pages
-						calcSetContainerSize(set).width,
-					0,
-				)
-
-			return {
-				length: getGalleryItemSize(index).width,
-				offset: totalOffset,
-				index,
-			}
-		},
-		[getGalleryItemSize, pageSets, calcSetContainerSize],
+		[pageSets, calcPageSetSize],
 	)
 
 	const onChangePage = useCallback(
@@ -150,19 +151,21 @@ export default function Footer() {
 	)
 
 	const visibilityChanged = usePrevious(visible) !== visible
+	const doublePageBehaviorChanged = usePrevious(doublePageBehavior) !== doublePageBehavior
 	useEffect(() => {
 		if (footerControls !== 'images') return
 
-		if (visible && visibilityChanged) {
+		if (visible && (visibilityChanged || doublePageBehaviorChanged)) {
 			const idx = pageSets.findIndex((set) => set.includes(currentPage - 1))
 			if (idx === -1) return
 			galleryRef.current?.scrollToIndex({
 				index: idx,
 				animated: false,
 				viewPosition: 0.5,
+				viewOffset: -3, // account for half of the gap between two adjacent page sets
 			})
 		}
-	}, [footerControls, currentPage, visible, visibilityChanged, pageSets])
+	}, [footerControls, currentPage, visible, visibilityChanged, pageSets, doublePageBehaviorChanged])
 
 	const formatDuration = useCallback(() => {
 		const duration = dayjs.duration(elapsedSeconds, 'seconds')
@@ -183,11 +186,11 @@ export default function Footer() {
 		(page: number) => ({
 			uri: pageThumbnailURL ? pageThumbnailURL(page) : pageURL(page),
 			headers: {
-				Authorization: sdk.authorizationHeader,
+				...requestHeaders?.(),
 				[STUMP_SAVE_BASIC_SESSION_HEADER]: 'false',
 			},
 		}),
-		[pageURL, pageThumbnailURL, sdk],
+		[pageURL, pageThumbnailURL, requestHeaders],
 	)
 
 	const onImageLoaded = useCallback(
@@ -226,14 +229,14 @@ export default function Footer() {
 				urls.map((url) => ({
 					uri: url,
 					headers: {
-						...sdk.customHeaders,
-						Authorization: sdk.authorizationHeader || '',
+						...requestHeaders?.(),
 						[STUMP_SAVE_BASIC_SESSION_HEADER]: 'false',
 					},
 				})),
 				'dataCache',
 			)
 		},
+		// eslint-disable-next-line react-compiler/react-compiler
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 		[currentPage, readingDirection, isOPDS],
 	)
@@ -271,12 +274,12 @@ export default function Footer() {
 
 			setSliderValue(value)
 		},
-		[currentPage, pageSets.length, footerControls],
+		[currentPage, footerControls, pageSets, getPageSetIndex],
 	)
 
 	const getSliderImageContainerStyles = useCallback(
 		(value: number, pageSet: number[]) => {
-			const isLandscape = (imageSizes?.[pageSet[0]]?.ratio || 0) >= 1
+			const isLandscape = (imageSizes?.[pageSet[0] ?? 0]?.ratio || 0) >= 1
 
 			let containerSize = baseSize
 
@@ -327,18 +330,7 @@ export default function Footer() {
 				readingDirection === ReadingDirection.Rtl ? [...pageSet].reverse() : pageSet
 
 			return (
-				<View
-					style={[
-						{
-							transform: [
-								{ translateX },
-								{
-									translateY,
-								},
-							],
-						},
-					]}
-				>
+				<View style={{ transform: [{ translateX }, { translateY }] }}>
 					<View
 						className="flex flex-row"
 						style={{
@@ -389,6 +381,7 @@ export default function Footer() {
 			pageSets,
 			onImageLoaded,
 			readingDirection,
+			getPageSetIndex,
 		],
 	)
 
@@ -401,7 +394,7 @@ export default function Footer() {
 			const pageSetIdx = getPageSetIndex(value)
 			onChangePage(pageSetIdx)
 		},
-		[onChangePage, pageSets.length, readingDirection, footerControls, pageSets],
+		[onChangePage, footerControls, pageSets.length, getPageSetIndex],
 	)
 
 	const previousReadingDirection = usePrevious(readingDirection)
@@ -424,6 +417,7 @@ export default function Footer() {
 		previousReadingDirection,
 		footerControls,
 		getSliderValue,
+		pageSets,
 	])
 
 	// Note: The minimum and maximum track styles are inverted based on the reading direction, as
@@ -439,99 +433,110 @@ export default function Footer() {
 		[readingDirection],
 	)
 
+	const isRtl = readingDirection === ReadingDirection.Rtl
 	const renderGalleryItem = useCallback(
 		({ item, index }: { item: number[]; index: number }) => {
 			if (!item || !item.length) return null
 
 			const isCurrentPage = item.includes(currentPage - 1)
-
-			const directionRespectingItem =
-				readingDirection === ReadingDirection.Rtl ? [...item].reverse() : item
+			const directionRespectingItem = isRtl ? [...item].reverse() : item
+			const pageSetSize = getPageSetSize(index)
 
 			return (
-				<Pressable onPress={() => onChangePage(index)}>
-					<View
-						className="flex flex-row"
-						style={{
-							...getGalleryItemSize(index),
-							borderCurve: 'continuous',
-							overflow: 'hidden',
-							borderRadius: 6,
-						}}
-					>
-						{directionRespectingItem.map((pageIdx, i) => {
-							return (
-								<TurboImage
-									key={`thumb-${pageIdx + 1}-${i}`}
-									source={{
-										uri: pageSource(pageIdx + 1).uri,
-										headers: pageSource(pageIdx + 1).headers as Record<string, string>,
-									}}
-									resizeMode="stretch"
-									// we downscale (resize) by width, so when we resize an individual image, the gallery size is halved when the item length is 2.
-									resize={(getGalleryItemSize(index).width / item.length) * 1.5}
-									style={{ width: item.length === 1 ? '100%' : '50%', height: '100%' }}
-									onSuccess={({ nativeEvent }) => onImageLoaded(pageIdx, nativeEvent)}
-								/>
-							)
-						})}
-					</View>
+				<View style={isRtl && { transform: [{ scaleX: -1 }] }}>
+					<Pressable onPress={() => onChangePage(index)}>
+						<View
+							className="flex-col justify-end"
+							style={{ width: pageSetSize.width, height: baseSize.height * SIZE_MODIFIER }}
+						>
+							<View
+								className="flex flex-row"
+								style={[
+									pageSetSize,
+									{ borderCurve: 'continuous', overflow: 'hidden', borderRadius: 6 },
+								]}
+							>
+								{directionRespectingItem.map((pageIdx, i) => {
+									return (
+										<TurboImage
+											key={getMappingKey(pageIdx, i)}
+											source={{
+												uri: pageSource(pageIdx + 1).uri,
+												headers: pageSource(pageIdx + 1).headers as Record<string, string>,
+											}}
+											resizeMode="stretch"
+											// we downscale (resize) by width, so when we resize an individual image, the gallery size is halved when the item length is 2.
+											resize={(pageSetSize.width / item.length) * 1.5}
+											style={{ width: item.length === 1 ? '100%' : '50%', height: '100%' }}
+											onSuccess={({ nativeEvent }) => onImageLoaded(pageIdx, nativeEvent)}
+										/>
+									)
+								})}
+							</View>
 
-					{!isCurrentPage && (
-						<Text size="sm" className="shrink-0 text-center text-[#898d94]">
-							{item
-								.sort((a, b) => a - b) // we always use (from left to right) the smaller then larger number even if using RTL (e.g. pages 3-4 and never 4-3)
-								.map((i) => i + 1)
-								.join('-')}
-						</Text>
-					)}
-				</Pressable>
+							{!isCurrentPage && (
+								<Text size="sm" className="shrink-0 text-center text-[#898d94]">
+									{item
+										.sort((a, b) => a - b) // we always use (from left to right) the smaller then larger number even if using RTL (e.g. pages 3-4 and never 4-3)
+										.map((i) => i + 1)
+										.join('-')}
+								</Text>
+							)}
+						</View>
+					</Pressable>
+				</View>
 			)
 		},
 		[
 			onChangePage,
 			currentPage,
-			book.pages,
 			pageSource,
-			getGalleryItemSize,
 			onImageLoaded,
-			isTablet,
-			imageSizes,
+			getMappingKey,
+			getPageSetSize,
+			isRtl,
+			baseSize.height,
 		],
 	)
 
-	// TODO: swap to flashlist, does NOT like dynamic height though...
 	return (
 		<Animated.View className="absolute z-20 shrink gap-4" style={animatedStyles}>
-			{footerControls === 'images' && (
-				<FlatList
-					ref={galleryRef}
-					data={pageSets ?? []}
-					inverted={readingDirection === ReadingDirection.Rtl}
-					keyExtractor={(item) => `gallery-${item?.join('-')}`}
-					renderItem={renderGalleryItem}
-					contentContainerStyle={{ gap: 6, alignItems: 'flex-end', paddingHorizontal: 8 }}
-					getItemLayout={getItemLayout}
-					horizontal
-					showsHorizontalScrollIndicator={false}
-					windowSize={5}
-					initialNumToRender={isTablet ? 8 : 6}
-					maxToRenderPerBatch={isTablet ? 8 : 6}
-				/>
+			{footerControls === 'images' && readingMode !== ReadingMode.ContinuousVertical && (
+				<View style={isRtl && { transform: [{ scaleX: -1 }] }}>
+					<FlashList
+						ref={galleryRef}
+						data={pageSets ?? []}
+						keyExtractor={(item) => `gallery-${item?.join('-')}`}
+						renderItem={renderGalleryItem}
+						getItemType={(item) => {
+							if (item.length === 2) return 'double'
+							else if ((imageSizes?.[item[0] ?? 0]?.ratio || 0) >= 1) return 'landscape'
+							else return 'single'
+						}}
+						contentContainerStyle={{ paddingHorizontal: 8 }}
+						ItemSeparatorComponent={() => <View style={{ width: 6 }} />}
+						horizontal
+						drawDistance={width * 2}
+						showsHorizontalScrollIndicator={false}
+					/>
+				</View>
 			)}
 
 			<View className={cn('gap-2 px-3', { 'pb-1': Platform.OS === 'android' })}>
-				{footerControls === 'images' && (
+				{(footerControls === 'images' || readingMode === ReadingMode.ContinuousVertical) && (
 					<Progress
 						className="h-1 bg-[#898d94]"
 						indicatorClassName="bg-[#f5f3ef]"
 						value={percentage}
-						inverted={readingDirection === ReadingDirection.Rtl}
+						inverted={
+							readingDirection === ReadingDirection.Rtl &&
+							readingMode !== ReadingMode.ContinuousVertical
+						}
 						max={100}
 					/>
 				)}
 
-				{footerControls === 'slider' && (
+				{footerControls === 'slider' && readingMode !== ReadingMode.ContinuousVertical && (
 					<Slider
 						maximumValue={pageSets.length - 1}
 						step={1}
@@ -545,10 +550,10 @@ export default function Footer() {
 						minimumTrackStyle={minimumTrackStyle}
 						maximumTrackStyle={maximumTrackStyle}
 						thumbStyle={{ width: 24, height: 24, backgroundColor: 'white', borderRadius: 999 }}
-						onValueChange={([value]) => handleSlideValueChange(value)}
+						onValueChange={([value]) => (value != null ? handleSlideValueChange(value) : null)}
 						animationType="timing"
 						renderAboveThumbComponent={renderAboveThumbComponent}
-						onSlidingComplete={([value]) => onSlidingComplete(value)}
+						onSlidingComplete={([value]) => (value != null ? onSlidingComplete(value) : null)}
 						onSlidingStart={() => setIsSliderDragging(true)}
 					/>
 				)}

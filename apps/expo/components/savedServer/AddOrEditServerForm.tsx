@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { checkUrl, formatApiURL } from '@stump/sdk'
+import { checkOPDSURL, checkUrl, formatApiURL } from '@stump/sdk'
 import isEqual from 'lodash/isEqual'
+import omit from 'lodash/omit'
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 import { Controller, useForm, useFormState, useWatch } from 'react-hook-form'
 import { FocusEvent, Platform, Pressable, View } from 'react-native'
@@ -45,9 +46,21 @@ export default function AddOrEditServerForm({
 	const maskURLs = usePreferencesStore((state) => state.maskURLs)
 
 	const [didConnect, setDidConnect] = useState(false)
-	const url = form.watch('url')
+
+	const [kind, url] = useWatch({ control, name: ['kind', 'url'] })
+
+	// Note: Internally v1 is referred to as legacy. Stump was also developed with v2 in mind, and so
+	// "regressing" to v1 felt like adding "legacy" support. I obviously understand that v1.2 is WILDY used.
+	// On the UI, I will only refer to versions explicitly.
+	const [opdsVersion, setOpdsVersion] = useState<'v1' | 'v2'>(() =>
+		kind === 'opds-legacy' ? 'v1' : 'v2',
+	)
+
+	const broadKind = useMemo(() => (kind === 'stump' ? 'stump' : 'opds'), [kind])
+
 	const checkConnection = useCallback(async () => {
-		const isValid = await checkUrl(formatApiURL(url, 'v2'))
+		const isValid =
+			kind === 'stump' ? await checkUrl(formatApiURL(url, 'v2')) : await checkOPDSURL(url)
 		if (!isValid) {
 			form.setError('url', {
 				type: 'manual',
@@ -57,7 +70,7 @@ export default function AddOrEditServerForm({
 			form.clearErrors('url')
 			setDidConnect(true)
 		}
-	}, [url, form])
+	}, [kind, url, form, setDidConnect])
 
 	const [isAddingHeader, setIsAddingHeader] = useState(false)
 
@@ -88,7 +101,6 @@ export default function AddOrEditServerForm({
 		setIsAddingHeader(false)
 	}
 
-	const kind = form.watch('kind')
 	const { setValue } = form
 	useEffect(() => {
 		if (kind !== 'stump') {
@@ -106,11 +118,10 @@ export default function AddOrEditServerForm({
 		}
 	}, [didConnect])
 
-	const [defaultServer, stumpOPDS, authMode] = form.watch([
-		'defaultServer',
-		'stumpOPDS',
-		'authMode',
-	])
+	const [defaultServer, stumpOPDS, authMode] = useWatch({
+		control,
+		name: ['defaultServer', 'stumpOPDS', 'authMode'],
+	})
 
 	const renderAuthMode = () => {
 		if (authMode === 'default') {
@@ -212,29 +223,6 @@ export default function AddOrEditServerForm({
 		[form],
 	)
 
-	function RenderHeaderAction(
-		_: SharedValue<number>,
-		drag: SharedValue<number>,
-		onDelete: () => void,
-	) {
-		const styleAnimation = useAnimatedStyle(() => {
-			return {
-				transform: [{ translateX: drag.value + 50 }],
-			}
-		})
-
-		return (
-			<Reanimated.View style={styleAnimation}>
-				<Pressable
-					className="h-full w-14 items-center justify-center bg-fill-danger"
-					onPress={onDelete}
-				>
-					{({ pressed }) => <Text className={cn({ 'opacity-80': pressed })}>Delete</Text>}
-				</Pressable>
-			</Reanimated.View>
-		)
-	}
-
 	const insets = useSafeAreaInsets()
 
 	return (
@@ -271,24 +259,45 @@ export default function AddOrEditServerForm({
 			<View className="w-full flex-row items-center justify-between">
 				<Text className="flex-1 text-base font-medium text-foreground-muted">Kind</Text>
 
-				<Controller
-					control={control}
-					render={({ field: { onChange, value } }) => (
-						<Tabs value={value} onValueChange={onChange}>
-							<Tabs.List className="flex-row">
-								<Tabs.Trigger value="stump">
-									<Text>Stump</Text>
-								</Tabs.Trigger>
+				<Tabs
+					value={broadKind}
+					onValueChange={(v) => form.setValue('kind', v as 'stump' | 'opds' | 'opds-legacy')}
+				>
+					<Tabs.List className="flex-row">
+						<Tabs.Trigger value="stump">
+							<Text>Stump</Text>
+						</Tabs.Trigger>
 
-								<Tabs.Trigger value="opds">
-									<Text>OPDS</Text>
-								</Tabs.Trigger>
-							</Tabs.List>
-						</Tabs>
-					)}
-					name="kind"
-				/>
+						<Tabs.Trigger value="opds">
+							<Text>OPDS</Text>
+						</Tabs.Trigger>
+					</Tabs.List>
+				</Tabs>
 			</View>
+
+			{broadKind === 'opds' && (
+				<View className="w-full flex-row items-center justify-between">
+					<Text className="flex-1 text-base font-medium text-foreground-muted">OPDS Version</Text>
+
+					<Tabs
+						value={opdsVersion}
+						onValueChange={(v) => {
+							setOpdsVersion(v as 'v1' | 'v2')
+							form.setValue('kind', v === 'v1' ? 'opds-legacy' : 'opds')
+						}}
+					>
+						<Tabs.List className="flex-row">
+							<Tabs.Trigger value="v1">
+								<Text>v1.2</Text>
+							</Tabs.Trigger>
+
+							<Tabs.Trigger value="v2">
+								<Text>v2.0</Text>
+							</Tabs.Trigger>
+						</Tabs.List>
+					</Tabs>
+				</View>
+			)}
 
 			<Controller
 				control={control}
@@ -320,7 +329,7 @@ export default function AddOrEditServerForm({
 						label={kind === 'stump' ? 'URL' : 'Catalog URL'}
 						autoCorrect={false}
 						autoCapitalize="none"
-						placeholder={`https://stump.my-domain.cloud${kind !== 'stump' ? '/opds/v2.0/catalog' : ''}`}
+						placeholder={`https://stump.my-domain.cloud${kind !== 'stump' ? `/opds/${opdsVersion === 'v1' ? 'v1.2' : 'v2.0'}/catalog` : ''}`}
 						onBlur={onBlur}
 						onChangeText={onChange}
 						value={value}
@@ -377,7 +386,7 @@ export default function AddOrEditServerForm({
 					</View>
 				)}
 
-				<Button variant="outline" onPress={() => setIsAddingHeader(true)}>
+				<Button roundness="xl" variant="outline" onPress={() => setIsAddingHeader(true)}>
 					<Text>Add header</Text>
 				</Button>
 			</View>
@@ -475,6 +484,29 @@ export default function AddOrEditServerForm({
 	)
 }
 
+function RenderHeaderAction(
+	_: SharedValue<number>,
+	drag: SharedValue<number>,
+	onDelete: () => void,
+) {
+	const styleAnimation = useAnimatedStyle(() => {
+		return {
+			transform: [{ translateX: drag.value + 50 }],
+		}
+	})
+
+	return (
+		<Reanimated.View style={styleAnimation}>
+			<Pressable
+				className="h-full w-14 items-center justify-center bg-fill-danger"
+				onPress={onDelete}
+			>
+				{({ pressed }) => <Text className={cn({ 'opacity-80': pressed })}>Delete</Text>}
+			</Pressable>
+		</Reanimated.View>
+	)
+}
+
 const defaultValues = {
 	defaultServer: false,
 	kind: 'stump',
@@ -546,60 +578,64 @@ const headerSchema = z
 	})
 
 const createSchema = (names: string[]) =>
-	z
-		.object({
-			name: z
-				.string()
-				.nonempty()
-				.min(1)
-				.refine((value) => !names.includes(value), {
-					message: 'Name already exists',
-				}),
-			url: z.string().url(),
-			kind: z.union([z.literal('stump'), z.literal('opds')]).default('stump'),
-			defaultServer: z.boolean().default(false),
-			stumpOPDS: z.boolean().default(false),
-			authMode: z
-				.union([z.literal('token'), z.literal('basic'), z.literal('default')])
-				.default('default'),
-			token: z.string().optional(),
-			basicUser: z.string().optional(),
-			basicPassword: z.string().optional(),
-			customHeaders: z.array(headerSchema).optional(),
-		})
-		.transform((data) => {
-			const baseConfig =
-				data.authMode !== 'default'
-					? {
-							auth: data.token
-								? { bearer: data.token as string }
-								: data.basicUser
-									? {
-											basic: {
-												username: data.basicUser as string,
-												password: data.basicPassword as string,
-											},
-										}
-									: undefined,
-						}
-					: undefined
+	z.object({
+		name: z
+			.string()
+			.nonempty()
+			.min(1)
+			.refine((value) => !names.includes(value), {
+				message: 'Name already exists',
+			}),
+		url: z.string().url(),
+		kind: z
+			.union([z.literal('stump'), z.literal('opds'), z.literal('opds-legacy')])
+			.default('stump'),
+		defaultServer: z.boolean().default(false),
+		stumpOPDS: z.boolean().default(false),
+		authMode: z
+			.union([z.literal('token'), z.literal('basic'), z.literal('default')])
+			.default('default'),
+		token: z.string().optional(),
+		basicUser: z.string().optional(),
+		basicPassword: z.string().optional(),
+		customHeaders: z.array(headerSchema).optional(),
+	})
+export type AddOrEditServerSchema = z.infer<ReturnType<typeof createSchema>>
 
-			return {
-				...data,
-				stumpOPDS: data.kind === 'stump' ? data.stumpOPDS : false,
-				config:
-					!!data.customHeaders && data.customHeaders.length > 0
-						? {
-								...baseConfig,
-								customHeaders: data.customHeaders.reduce(
-									(acc, { key, value }) => ({
-										...acc,
-										[key]: value,
-									}),
-									{},
-								),
-							}
-						: baseConfig,
-			}
-		})
-type AddOrEditServerSchema = z.infer<ReturnType<typeof createSchema>>
+export const transformFormData = (data: AddOrEditServerSchema) => {
+	const baseConfig =
+		data.authMode !== 'default'
+			? {
+					auth: data.token
+						? { bearer: data.token as string }
+						: data.basicUser
+							? {
+									basic: {
+										username: data.basicUser as string,
+										password: data.basicPassword as string,
+									},
+								}
+							: undefined,
+				}
+			: undefined
+
+	const config =
+		!!data.customHeaders && data.customHeaders.length > 0
+			? {
+					...baseConfig,
+					customHeaders: data.customHeaders.reduce(
+						(acc, { key, value }) => ({
+							...acc,
+							[key]: value,
+						}),
+						{},
+					),
+				}
+			: baseConfig
+
+	return {
+		...omit(data, ['authMode', 'token', 'basicUser', 'basicPassword', 'customHeaders']),
+		stumpOPDS: data.kind === 'stump' ? data.stumpOPDS : false,
+		config,
+	}
+}

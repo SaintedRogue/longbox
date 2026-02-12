@@ -13,12 +13,13 @@ import { SupportedImageFormat } from '@stump/graphql'
 import { useLocaleContext } from '@stump/i18n'
 import { Check } from 'lucide-react'
 import { useCallback } from 'react'
-import { useFormContext, useFormState } from 'react-hook-form'
+import { useFormContext, useFormState, useWatch } from 'react-hook-form'
 import { match } from 'ts-pattern'
 
 import { useLibraryManagementSafe } from '@/scenes/library/tabs/settings/context'
 
 import { CreateOrUpdateLibrarySchema, intoFormThumbnailConfig } from '../schema'
+import GenerateThumbnailColorsSwitch from './GenerateThumbnailColorsSwitch'
 
 type Option =
 	| NonNullable<CreateOrUpdateLibrarySchema['thumbnailConfig']['resizeMethod']>['mode']
@@ -30,18 +31,16 @@ const formatOptions = [
 	{ label: 'PNG', value: 'PNG' },
 ]
 
-// TODO(graphql): Add appropriate error reporting
-
 export default function ThumbnailConfigForm() {
 	const form = useFormContext<CreateOrUpdateLibrarySchema>()
 	const ctx = useLibraryManagementSafe()
 
 	const { t } = useLocaleContext()
 
-	const [resizeMethod, enabled] = form.watch([
-		'thumbnailConfig.resizeMethod',
-		'thumbnailConfig.enabled',
-	])
+	const [resizeMethod, enabled] = useWatch({
+		control: form.control,
+		name: ['thumbnailConfig.resizeMethod', 'thumbnailConfig.enabled'],
+	})
 	const isCreating = !ctx?.library
 
 	const {
@@ -301,6 +300,8 @@ export default function ThumbnailConfigForm() {
 						)} */}
 					</>
 				)}
+
+				<GenerateThumbnailColorsSwitch />
 
 				{!!ctx?.library && (
 					<div className="mt-4">

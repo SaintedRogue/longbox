@@ -9,8 +9,7 @@ import { useDisplay } from '~/lib/hooks'
 import { usePreferencesStore } from '~/stores'
 
 import { useActiveServer } from '../activeServer'
-import { BorderAndShadow } from '../BorderAndShadow'
-import { TurboImage } from '../Image'
+import { ThumbnailImage } from '../image'
 import { Text } from '../ui'
 
 const fragment = graphql(`
@@ -19,6 +18,14 @@ const fragment = graphql(`
 		resolvedName
 		thumbnail {
 			url
+			metadata {
+				averageColor
+				colors {
+					color
+					percentage
+				}
+				thumbhash
+			}
 		}
 		size
 		pages
@@ -49,6 +56,8 @@ export default function BookSearchItem({ book }: Props) {
 	const router = useRouter()
 	const thumbnailRatio = usePreferencesStore((state) => state.thumbnailRatio)
 
+	const { url: uri, metadata: placeholderData } = data.thumbnail
+
 	return (
 		<Pressable
 			onPress={() => router.navigate(`/server/${serverID}/books/${data.id}`)}
@@ -57,22 +66,18 @@ export default function BookSearchItem({ book }: Props) {
 			}}
 		>
 			<View className="flex-row items-start gap-4 px-6 py-2 tablet:px-10">
-				<BorderAndShadow
-					style={{ borderRadius: 4, borderWidth: 0.3, shadowRadius: 1.41, elevation: 2 }}
-				>
-					<TurboImage
-						source={{
-							uri: data.thumbnail.url,
-							headers: {
-								...sdk.customHeaders,
-								Authorization: sdk.authorizationHeader || '',
-							},
-						}}
-						resizeMode="stretch"
-						resize={75 * 1.5}
-						style={{ height: 75 / thumbnailRatio, width: 75 }}
-					/>
-				</BorderAndShadow>
+				<ThumbnailImage
+					source={{
+						uri,
+						headers: {
+							...sdk.customHeaders,
+							Authorization: sdk.authorizationHeader || '',
+						},
+					}}
+					resizeMode="stretch"
+					size={{ height: 75 / thumbnailRatio, width: 75 }}
+					placeholderData={placeholderData}
+				/>
 
 				<View className="flex flex-1 flex-col gap-1">
 					<Text>{data.resolvedName}</Text>

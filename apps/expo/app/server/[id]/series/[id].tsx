@@ -1,9 +1,10 @@
+import { TrueSheet } from '@lodev09/react-native-true-sheet'
 import { useNavigationState, useScrollToTop } from '@react-navigation/native'
 import { FlashList, FlashListRef } from '@shopify/flash-list'
-import { useInfiniteSuspenseGraphQL, useSuspenseGraphQL } from '@stump/client'
+import { useInfiniteSuspenseGraphQL, useRefetch, useSuspenseGraphQL } from '@stump/client'
 import { graphql } from '@stump/graphql'
 import { useLocalSearchParams } from 'expo-router'
-import { useCallback, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { Platform } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useStore } from 'zustand'
@@ -14,8 +15,14 @@ import { BookFilterHeader } from '~/components/book/filterHeader'
 import { useGridItemSize } from '~/components/grid/useGridItemSize'
 import ListEmpty from '~/components/ListEmpty'
 import RefreshControl from '~/components/RefreshControl'
-import { Button, Text } from '~/components/ui'
+import {
+	SeriesActionMenu,
+	SeriesOverviewSheet,
+	usePrefetchSeriesOverview,
+} from '~/components/series'
+import { Button, RefreshButton, Text } from '~/components/ui'
 import { ON_END_REACHED_THRESHOLD } from '~/lib/constants'
+import { useDownloadSeries } from '~/lib/hooks/db/downloadSeries'
 import { useDynamicHeader } from '~/lib/hooks/useDynamicHeader'
 import { BookFilterContext, createBookFilterStore } from '~/stores/filters'
 
@@ -58,10 +65,14 @@ export default function Screen() {
 	const {
 		data: { seriesById: series },
 	} = useSuspenseGraphQL(query, ['seriesById', id], { id })
+	const { downloadSeries } = useDownloadSeries()
 
 	const showBackButton = useMemo(() => {
 		return navigationState?.length <= 1 && Platform.OS === 'ios'
 	}, [navigationState])
+
+	const sheetRef = useRef<TrueSheet>(null)
+	const prefetch = usePrefetchSeriesOverview()
 
 	if (!series) {
 		throw new Error(`Series with ID ${id} not found`)
@@ -70,8 +81,20 @@ export default function Screen() {
 	useDynamicHeader({
 		title: series.resolvedName,
 		showBackButton,
+		headerRight: () => (
+			<SeriesActionMenu
+				seriesId={id}
+				onShowOverview={() => sheetRef.current?.present()}
+				onDownloadSeries={() => downloadSeries(id)}
+			/>
+		),
 	})
 
+	useEffect(() => {
+		prefetch(id)
+	}, [id, prefetch])
+
+	// eslint-disable-next-line react-hooks/refs
 	const store = useRef(createBookFilterStore()).current
 	const { filters, sort, resetFilters } = useStore(store, (state) => ({
 		filters: state.filters,
@@ -79,7 +102,7 @@ export default function Screen() {
 		resetFilters: state.resetFilters,
 	}))
 
-	const { data, hasNextPage, fetchNextPage, refetch, isRefetching } = useInfiniteSuspenseGraphQL(
+	const { data, hasNextPage, fetchNextPage, refetch } = useInfiniteSuspenseGraphQL(
 		booksQuery,
 		['seriesBooks', id, filters, sort],
 		{
@@ -92,6 +115,10 @@ export default function Screen() {
 		},
 	)
 	const { numColumns, paddingHorizontal } = useGridItemSize()
+
+	const nodes = data?.pages.flatMap((page) => page.media.nodes) || []
+
+	const [isRefetching, handleRefetch] = useRefetch(refetch)
 
 	const onEndReached = useCallback(() => {
 		if (hasNextPage) {
@@ -112,7 +139,7 @@ export default function Screen() {
 			>
 				<FlashList
 					ref={listRef}
-					data={data?.pages.flatMap((page) => page.media.nodes) || []}
+					data={nodes}
 					renderItem={({ item }) => <BookGridItem book={item} />}
 					contentContainerStyle={{
 						paddingHorizontal: paddingHorizontal,
@@ -124,26 +151,42 @@ export default function Screen() {
 					ListHeaderComponent={<BookFilterHeader seriesId={id} />}
 					ListHeaderComponentStyle={{ paddingBottom: 16, marginHorizontal: -paddingHorizontal }}
 					contentInsetAdjustmentBehavior="always"
-					refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
+					refreshControl={
+						nodes.length > 0 ? (
+							<RefreshControl refreshing={isRefetching} onRefresh={handleRefetch} />
+						) : undefined
+					}
 					ListEmptyComponent={
 						<ListEmpty
 							message={isFiltered ? 'No books found matching your filters' : 'No books returned'}
 							actions={
 								<>
 									{isFiltered && (
-										<Button variant="secondary" onPress={() => resetFilters()}>
+										<Button
+											size="lg"
+											roundness="full"
+											variant="secondary"
+											onPress={() => resetFilters()}
+										>
 											<Text>Clear Filters</Text>
 										</Button>
 									)}
-									<Button onPress={() => refetch()}>
+									<RefreshButton
+										size="lg"
+										roundness="full"
+										onPress={() => handleRefetch()}
+										isRefreshing={isRefetching}
+									>
 										<Text>Refresh</Text>
-									</Button>
+									</RefreshButton>
 								</>
 							}
 						/>
 					}
 				/>
 			</SafeAreaView>
+
+			<SeriesOverviewSheet ref={sheetRef} seriesId={id} />
 		</BookFilterContext.Provider>
 	)
 }

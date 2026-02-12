@@ -1,17 +1,15 @@
-import { BottomSheetModal } from '@gorhom/bottom-sheet'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { View } from 'react-native'
-import { useSharedValue } from 'react-native-reanimated'
+import { Host, Picker } from '@expo/ui/swift-ui'
+import { TrueSheet } from '@lodev09/react-native-true-sheet'
+import { useEffect, useRef, useState } from 'react'
+import { Platform, ScrollView, View } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { useActiveServer } from '~/components/activeServer'
 import { Heading, Tabs, Text } from '~/components/ui'
-import { BottomSheet } from '~/components/ui/bottom-sheet'
+import { IS_IOS_24_PLUS, useColors } from '~/lib/constants'
 import { useColorScheme } from '~/lib/useColorScheme'
 
 import { ReaderSettings } from '../settings'
 import { useImageBasedReader } from './context'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { useColors } from '~/lib/constants'
 
 type Props = {
 	isOpen: boolean
@@ -20,16 +18,11 @@ type Props = {
 
 export default function ImageReaderGlobalSettingsDialog({ isOpen, onClose }: Props) {
 	const {
-		activeServer: { id: serverID },
-	} = useActiveServer()
-	const {
 		book: { id: bookID },
+		serverId,
 	} = useImageBasedReader()
 
-	const ref = useRef<BottomSheetModal | null>(null)
-	const snapPoints = useMemo(() => ['100%'], [])
-	const animatedIndex = useSharedValue<number>(0)
-	const animatedPosition = useSharedValue<number>(0)
+	const ref = useRef<TrueSheet | null>(null)
 
 	const { colorScheme } = useColorScheme()
 
@@ -44,15 +37,6 @@ export default function ImageReaderGlobalSettingsDialog({ isOpen, onClose }: Pro
 		}
 	}, [isOpen])
 
-	const handleChange = useCallback(
-		(index: number) => {
-			if (index === -1 && isOpen) {
-				onClose()
-			}
-		},
-		[isOpen, onClose],
-	)
-
 	const renderHelpText = () => {
 		if (modality === 'book') {
 			return 'These settings only apply to this book, overriding any global settings'
@@ -65,34 +49,23 @@ export default function ImageReaderGlobalSettingsDialog({ isOpen, onClose }: Pro
 	const colors = useColors()
 
 	return (
-		<BottomSheet.Modal
+		<TrueSheet
 			ref={ref}
-			index={snapPoints.length - 1}
-			snapPoints={snapPoints}
-			topInset={insets.top}
-			enableDynamicSizing={false}
-			onChange={handleChange}
-			backgroundStyle={{
-				borderRadius: 24,
-				borderCurve: 'continuous',
-				overflow: 'hidden',
-				borderWidth: 1,
-				borderColor: colors.edge.DEFAULT,
-				backgroundColor: colors.background.DEFAULT,
+			detents={[0.5, 1]}
+			cornerRadius={24}
+			grabber
+			scrollable
+			backgroundColor={IS_IOS_24_PLUS ? undefined : colors.background.DEFAULT}
+			grabberOptions={{
+				color: colorScheme === 'dark' ? '#333' : '#ccc',
 			}}
-			handleIndicatorStyle={{ backgroundColor: colorScheme === 'dark' ? '#333' : '#ccc' }}
-			handleComponent={(props) => (
-				<BottomSheet.Handle
-					{...props}
-					className="mt-2"
-					animatedIndex={animatedIndex}
-					animatedPosition={animatedPosition}
-				/>
-			)}
+			onDidDismiss={onClose}
+			insetAdjustment="automatic"
 		>
-			<BottomSheet.ScrollView
+			<ScrollView
 				className="flex-1 p-6"
 				contentContainerStyle={{ alignItems: 'flex-start' }}
+				nestedScrollEnabled
 			>
 				<View
 					className="w-full flex-1 gap-8"
@@ -104,20 +77,40 @@ export default function ImageReaderGlobalSettingsDialog({ isOpen, onClose }: Pro
 						<View className="flex flex-row items-center justify-between">
 							<Heading size="lg">Settings</Heading>
 
-							<Tabs
-								value={modality}
-								onValueChange={(value) => setModality(value as 'book' | 'global')}
-							>
-								<Tabs.List className="flex-row">
-									<Tabs.Trigger value="book">
-										<Text>Book</Text>
-									</Tabs.Trigger>
+							{Platform.select({
+								ios: (
+									<Host matchContents style={{ width: 120 }}>
+										<Picker
+											options={['Book', 'Global']}
+											selectedIndex={modality === 'book' ? 0 : 1}
+											onOptionSelected={({ nativeEvent: { index } }) => {
+												if (index === 0) {
+													setModality('book')
+												} else {
+													setModality('global')
+												}
+											}}
+											variant="segmented"
+										/>
+									</Host>
+								),
+								android: (
+									<Tabs
+										value={modality}
+										onValueChange={(value) => setModality(value as 'book' | 'global')}
+									>
+										<Tabs.List className="flex-row">
+											<Tabs.Trigger value="book">
+												<Text>Book</Text>
+											</Tabs.Trigger>
 
-									<Tabs.Trigger value="global">
-										<Text>Global</Text>
-									</Tabs.Trigger>
-								</Tabs.List>
-							</Tabs>
+											<Tabs.Trigger value="global">
+												<Text>Global</Text>
+											</Tabs.Trigger>
+										</Tabs.List>
+									</Tabs>
+								),
+							})}
 						</View>
 
 						<Text className="text-foreground-muted">{renderHelpText()}</Text>
@@ -127,12 +120,12 @@ export default function ImageReaderGlobalSettingsDialog({ isOpen, onClose }: Pro
 						{...(modality === 'book'
 							? {
 									forBook: bookID,
-									forServer: serverID,
+									forServer: serverId,
 								}
 							: {})}
 					/>
 				</View>
-			</BottomSheet.ScrollView>
-		</BottomSheet.Modal>
+			</ScrollView>
+		</TrueSheet>
 	)
 }

@@ -14,6 +14,7 @@ import { Platform, Pressable, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { useStumpServer } from '~/components/activeServer'
+import { Divider } from '~/components/Divider'
 import { RecentlyAddedSeries } from '~/components/series'
 import { Heading, Text } from '~/components/ui'
 import { Icon } from '~/components/ui/icon'
@@ -111,7 +112,7 @@ export default function Screen() {
 										)}
 									</Pressable>
 
-									<Divider />
+									<Divider hasIcon />
 								</Fragment>
 							))}
 						</View>
@@ -125,13 +126,3 @@ export default function Screen() {
 		</SafeAreaView>
 	)
 }
-
-const Divider = () => (
-	<View
-		className={cn('h-px w-full bg-edge')}
-		style={{
-			// px-4 is 16, icon is 24, so 16 + 24 = 40 to edge of icon, then add 8px padding
-			marginLeft: Platform.OS === 'android' ? 0 : 48,
-		}}
-	/>
-)

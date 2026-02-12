@@ -1,6 +1,6 @@
 use async_graphql::{InputObject, OneofObject};
 use models::{
-	entity::{bookmark, media_metadata, user::AuthUser},
+	entity::{bookmark, media_annotation, media_metadata, user::AuthUser},
 	shared::readium::ReadiumLocator,
 };
 use sea_orm::{prelude::*, ActiveValue::Set, IntoActiveModel};
@@ -61,6 +61,7 @@ impl BookmarkInput {
 			media_id: Set(self.media_id.clone()),
 			user_id: Set(user.id.clone()),
 			page: Set(Some(-1)),
+			..Default::default()
 		}
 	}
 }
@@ -70,11 +71,15 @@ pub struct MediaMetadataInput {
 	pub title: Option<String>,
 	pub title_sort: Option<String>,
 	pub series: Option<String>,
+	pub series_group: Option<String>,
+	pub story_arc: Option<String>,
+	pub story_arc_number: Option<Decimal>,
 	pub number: Option<Decimal>,
 	pub volume: Option<i32>,
 	pub summary: Option<String>,
 	pub notes: Option<String>,
 	pub genres: Option<Vec<String>>,
+	pub format: Option<String>,
 	pub year: Option<i32>,
 	pub month: Option<i32>,
 	pub day: Option<i32>,
@@ -106,11 +111,15 @@ impl IntoActiveModel<media_metadata::ActiveModel> for MediaMetadataInput {
 			title: Set(self.title),
 			title_sort: Set(self.title_sort),
 			series: Set(self.series),
+			series_group: Set(self.series_group),
+			story_arc: Set(self.story_arc),
+			story_arc_number: Set(self.story_arc_number),
 			number: Set(self.number),
 			volume: Set(self.volume),
 			summary: Set(self.summary),
 			notes: Set(self.notes),
 			genres: Set(into_array_string(self.genres)),
+			format: Set(self.format),
 			year: Set(self.year),
 			month: Set(self.month),
 			day: Set(self.day),
@@ -144,4 +153,29 @@ fn into_array_string(s: Option<Vec<String>>) -> Option<String> {
 		Some(v) if !v.is_empty() => Some(v.join(", ")),
 		_ => None,
 	}
+}
+
+#[derive(Debug, Clone, InputObject)]
+pub struct CreateAnnotationInput {
+	pub media_id: String,
+	pub locator: ReadiumLocator,
+	pub annotation_text: Option<String>,
+}
+
+impl CreateAnnotationInput {
+	pub fn into_active_model(self, user: &AuthUser) -> media_annotation::ActiveModel {
+		media_annotation::ActiveModel {
+			locator: Set(self.locator),
+			annotation_text: Set(self.annotation_text),
+			media_id: Set(self.media_id),
+			user_id: Set(user.id.clone()),
+			..Default::default()
+		}
+	}
+}
+
+#[derive(Debug, Clone, InputObject)]
+pub struct UpdateAnnotationInput {
+	pub id: String,
+	pub annotation_text: Option<String>,
 }

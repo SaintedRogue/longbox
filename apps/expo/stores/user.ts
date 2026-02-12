@@ -7,6 +7,8 @@ import { ZustandMMKVStorage } from './store'
 
 export const useUserStore = createUserStore(ZustandMMKVStorage)
 
+export type ListLayout = 'grid' | 'list'
+
 type MobilePreferencesStore = {
 	showTabLabels: boolean
 	maskURLs: boolean
@@ -16,8 +18,15 @@ type MobilePreferencesStore = {
 	cachePolicy: CachePolicy
 	allowDownscaling: boolean
 	thumbnailRatio: number
+	thumbnailPlaceholder: 'grayscale' | 'averageColor' | 'colorful' | 'thumbhash'
 	performanceMonitor: boolean
 	accentColor?: string | undefined
+	showCuratedDownloads?: boolean | undefined
+	preferNativePdf?: boolean | undefined
+	disableDismissGesture: boolean
+	autoSyncLocalData: boolean
+	opdsLayout: ListLayout
+	smartListLayout: ListLayout
 	/**
 	 * Patch the store with new values.
 	 */
@@ -39,8 +48,15 @@ export const usePreferencesStore = create<MobilePreferencesStore>()(
 			cachePolicy: 'memory-disk',
 			allowDownscaling: true,
 			thumbnailRatio: 2 / 3,
+			thumbnailPlaceholder: 'grayscale',
 			accentColor: undefined,
 			performanceMonitor: false,
+			showCuratedDownloads: true,
+			preferNativePdf: false,
+			disableDismissGesture: false,
+			autoSyncLocalData: true,
+			opdsLayout: 'grid',
+			smartListLayout: 'grid',
 			patch: (data) => set(data),
 		}),
 		{

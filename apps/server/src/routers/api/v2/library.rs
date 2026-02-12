@@ -12,32 +12,18 @@ use axum::{
 };
 use graphql::data::AuthContext;
 use models::{
-	entity::{
-		library, library_config, media,
-		series::{self, SeriesIdentSelect},
-	},
+	entity::{library, library_config, media, series},
 	shared::image_processor_options::SupportedImageFormat,
 };
 use sea_orm::{prelude::*, QueryOrder};
 use stump_core::{
 	config::StumpConfig,
-	filesystem::{get_thumbnail, ContentType},
+	filesystem::{get_saved_thumbnail, get_thumbnail, ContentType},
 };
 
 use super::series::get_series_thumbnail;
 
 pub(crate) fn mount(app_state: AppState) -> Router<AppState> {
-	// let mut library_router =
-	// 	Router::new().route("/thumbnail", get(get_library_thumbnail_handler));
-
-	// if app_state.config.enable_upload {
-	// 	library_router = library_router
-	// 		.route("/upload", post(upload_library_thumbnail))
-	// 		.layer(DefaultBodyLimit::max(
-	// 			app_state.config.max_image_upload_size,
-	// 		));
-	// }
-
 	Router::new()
 		.nest(
 			"/library/{id}",
@@ -47,19 +33,30 @@ pub(crate) fn mount(app_state: AppState) -> Router<AppState> {
 }
 
 pub(crate) async fn get_library_thumbnail(
-	id: &str,
-	first_series: Option<SeriesIdentSelect>,
+	library: &library::LibraryThumbSelect,
+	first_series: Option<series::SeriesThumbSelect>,
 	first_book: Option<media::MediaThumbSelect>,
 	image_format: Option<SupportedImageFormat>,
 	config: &StumpConfig,
 ) -> APIResult<(ContentType, Vec<u8>)> {
+	// Note: This doesn't hard-fail because if the saved thumbnail is missing or corrupt, we want
+	// to just pull something else instead of erroring out entirely.
+	if let Some(path) = &library.thumbnail_path {
+		match get_saved_thumbnail(std::path::Path::new(path)).await {
+			Ok(result) => return Ok(result),
+			Err(_) => {
+				tracing::warn!(path = ?path, "Failed to get saved thumbnail");
+			},
+		}
+	}
+
 	let generated_thumb =
-		get_thumbnail(config.get_thumbnails_dir(), id, image_format).await?;
+		get_thumbnail(config.get_thumbnails_dir(), &library.id, image_format).await?;
 
 	match (generated_thumb, first_series) {
 		(Some(result), _) => Ok(result),
 		(None, Some(series)) => {
-			get_series_thumbnail(&series.id, first_book, image_format, config).await
+			get_series_thumbnail(&series, first_book, image_format, config).await
 		},
 		(None, None) => Err(APIError::NotFound(
 			"Library does not have a thumbnail".to_string(),
@@ -76,16 +73,29 @@ async fn get_library_thumbnail_handler(
 	let (library, library_config) = library::Entity::find_for_user(&user)
 		.filter(library::Column::Id.eq(id.clone()))
         .find_also_related(library_config::Entity)
-		.into_model::<library::LibraryIdentSelect, library_config::LibraryConfigThumbnailConfig>()
+		.into_model::<library::LibraryThumbSelect, library_config::LibraryConfigThumbnailConfig>()
 		.one(ctx.conn.as_ref())
 		.await?
 		.ok_or(APIError::NotFound("Library not found".to_string()))?;
+
+	// Note: This doesn't hard-fail because if the saved thumbnail is missing or corrupt, we want
+	// to just pull something else instead of erroring out entirely.
+	if let Some(path) = &library.thumbnail_path {
+		match get_saved_thumbnail(std::path::Path::new(path)).await {
+			Ok(result) => return Ok(result.into()),
+			Err(_) => {
+				tracing::warn!(path = ?path, "Failed to get saved thumbnail");
+			},
+		}
+	}
+
 	let first_series = series::Entity::find_for_user(&user)
 		.filter(series::Column::LibraryId.eq(library.id.clone()))
 		.order_by_asc(series::Column::Name)
-		.into_model::<series::SeriesIdentSelect>()
+		.into_model::<series::SeriesThumbSelect>()
 		.one(ctx.conn.as_ref())
 		.await?;
+
 	let first_book = if let Some(ref series) = first_series {
 		media::Entity::find_for_user(&user)
 			.filter(media::Column::SeriesId.eq(series.id.clone()))
@@ -96,15 +106,17 @@ async fn get_library_thumbnail_handler(
 	} else {
 		None
 	};
+
 	let image_format = library_config.and_then(|o| o.thumbnail_config.map(|c| c.format));
 
 	let (content_type, bytes) = get_library_thumbnail(
-		id.as_str(),
+		&library,
 		first_series,
 		first_book,
 		image_format,
 		ctx.config.as_ref(),
 	)
 	.await?;
+
 	Ok(ImageResponse::new(content_type, bytes))
 }

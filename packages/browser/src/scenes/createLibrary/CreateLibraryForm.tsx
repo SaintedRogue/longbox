@@ -1,8 +1,8 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Button, cn, Form } from '@stump/components'
-import { CreateLibrarySceneExistingLibrariesQuery } from '@stump/graphql'
+import { CreateLibrarySceneExistingLibrariesQuery, UserPermission } from '@stump/graphql'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 
 import { ContentContainer } from '@/components/container'
 import DirectoryPickerModal from '@/components/DirectoryPickerModal'
@@ -13,6 +13,7 @@ import {
 } from '@/components/library/createOrUpdate/schema'
 import {
 	BasicLibraryInformation,
+	DefaultLibraryView,
 	FileConversionOptions,
 	LibraryPattern as LibraryPatternSection,
 	ScannerOptInFeatures,
@@ -20,6 +21,7 @@ import {
 } from '@/components/library/createOrUpdate/sections'
 import IgnoreRulesConfig from '@/components/library/createOrUpdate/sections/IgnoreRulesConfig'
 import { useSteppedFormContext } from '@/components/steppedForm'
+import { useAppContext } from '@/context'
 
 import LibraryReview from './LibraryReview'
 import ScanAfterPersist from './ScanAfterPersist'
@@ -32,6 +34,7 @@ type Props = {
 
 export default function CreateLibraryForm({ existingLibraries, onSubmit, isLoading }: Props) {
 	const { currentStep, setStep } = useSteppedFormContext()
+	const { checkPermission } = useAppContext()
 
 	const [showDirectoryPicker, setShowDirectoryPicker] = useState(false)
 
@@ -52,7 +55,7 @@ export default function CreateLibraryForm({ existingLibraries, onSubmit, isLoadi
 	/**
 	 * The current path value from the form
 	 */
-	const [formPath] = form.watch(['path'])
+	const [formPath] = useWatch({ control: form.control, name: ['path'] })
 
 	/**
 	 * A callback to handle changing the form step. This will validate the current step
@@ -115,6 +118,7 @@ export default function CreateLibraryForm({ existingLibraries, onSubmit, isLoadi
 				return (
 					<>
 						<LibraryPatternSection />
+						<DefaultLibraryView />
 						<ScannerOptInFeatures />
 						<FileConversionOptions />
 						<IgnoreRulesConfig />
@@ -155,21 +159,32 @@ export default function CreateLibraryForm({ existingLibraries, onSubmit, isLoadi
 		}
 	}
 
+	/**
+	 * Prevent a submit event triggering when the enter key is pressed on an input
+	 */
+	const handleKeyDown = (e: React.KeyboardEvent<HTMLFormElement>) => {
+		if (e.key === 'Enter' && e.target instanceof HTMLInputElement) {
+			e.preventDefault()
+		}
+	}
+
 	// Note: The submit button is always rendered because I noticed that conditional rendering
 	// causes the form to trigger a submit event. FYI
 	return (
 		<>
-			<DirectoryPickerModal
-				isOpen={showDirectoryPicker}
-				onClose={() => setShowDirectoryPicker(false)}
-				startingPath={formPath}
-				onPathChange={(path) => {
-					if (path) {
-						form.setValue('path', path)
-					}
-				}}
-			/>
-			<Form form={form} onSubmit={onSubmit} id="createLibraryForm">
+			{checkPermission(UserPermission.FileExplorer) && (
+				<DirectoryPickerModal
+					isOpen={showDirectoryPicker}
+					onClose={() => setShowDirectoryPicker(false)}
+					startingPath={formPath}
+					onPathChange={(path) => {
+						if (path) {
+							form.setValue('path', path)
+						}
+					}}
+				/>
+			)}
+			<Form form={form} onSubmit={onSubmit} id="createLibraryForm" onKeyDown={handleKeyDown}>
 				<ContentContainer className="mt-0">
 					{renderStep()}
 

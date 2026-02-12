@@ -20,7 +20,9 @@
 			},
 			"buttons": {
 				"createAccount": "Create Account",
-				"login": "Log in"
+				"login": "Log in",
+				"loginWithOidc": "Log in with OIDC",
+				"createAccountWithOidc": "Create Account with OIDC"
 			}
 		},
 		"toasts": {
@@ -251,6 +253,24 @@
 				"label": "Tags",
 				"description": "Used to categorize your library or enforce access rules"
 			},
+			"defaultLibraryView": {
+				"label": "Default library view",
+				"description": "Configure which tab is shown by default when opening this library",
+				"hideSeriesView": {
+					"label": "Hide series tab",
+					"description": "Hide the series tab from the library navigation"
+				},
+				"options": {
+					"series": {
+						"label": "Series",
+						"description": "Show the series tab by default"
+					},
+					"books": {
+						"label": "Books",
+						"description": "Show the books tab by default"
+					}
+				}
+			},
 			"readingSettings": {
 				"section": {
 					"heading": "Reading settings",
@@ -465,6 +485,7 @@
 				"none": "None",
 				"labels": {
 					"generateThumbnails": "Generate thumbnails",
+					"processThumbnailColors": "Process thumbnail colors",
 					"mode": "Mode",
 					"format": "Format",
 					"quality": "Quality",
@@ -697,6 +718,13 @@
 		}
 	},
 	"homeScene": {
+		"onDeck": {
+			"title": "Your next read",
+			"emptyState": {
+				"heading": "No books on deck",
+				"message": "Your next recommended books will show up here"
+			}
+		},
 		"continueReading": {
 			"title": "Continue reading",
 			"emptyState": {
@@ -757,10 +785,14 @@
 			"writers": "Writers",
 			"year": "Year",
 			"metaType": "Type",
-			"imprint":"Imprint",
+			"imprint": "Imprint",
 			"comicid": "Comic ID",
-			"booktype":"Book type",
-			"status":"Status"
+			"booktype": "Book type",
+			"status": "Status",
+			"totalIssues": "Total issues",
+			"publicationRun": "Publication run",
+			"comicImage": "Comic image",
+			"descriptionFormatted": "Description (formatted)"
 		},
 		"addFields": {
 			"description": "Add each addition on its own line"
@@ -872,7 +904,8 @@
 									"pages": "Pages",
 									"tags": "Tags",
 									"createdAt": "Created at",
-									"updatedAt": "Updated at"
+									"updatedAt": "Updated at",
+									"readingStatus": "Reading status"
 								}
 							},
 							"book_meta": {
@@ -944,6 +977,11 @@
 					"listValue": {
 						"placeholder": "Add values",
 						"emptyState": "No values to display"
+					},
+					"enumValue": {
+						"placeholder": "Select values",
+						"emptyState": "No options available",
+						"selectPlaceholder": "Select a value"
 					}
 				}
 			}
@@ -1138,7 +1176,8 @@
 					"placeholder": "Quick filter"
 				},
 				"viewManager": {
-					"updateSelected": "Update selected",
+					"updateSelected": "Update view",
+					"deleteSelected": "Delete view",
 					"create": "Create new view",
 					"modal": {
 						"heading": {
@@ -1163,6 +1202,10 @@
 								"description": "The updated name for this view, if desired"
 							}
 						}
+					},
+					"deleteModal": {
+						"title": "Delete view",
+						"description": "Are you sure you want to delete this view?"
 					}
 				}
 			}
@@ -1544,6 +1587,13 @@
 							"commitHash": "Exact commit",
 							"date": "Build date"
 						}
+					},
+					"nonStableChannel": {
+						"title": "You are running a non-stable build of Stump",
+						"description": [
+							"It looks like you are running the",
+							"build channel"
+						]
 					}
 				},
 				"serverPublicUrl": {
@@ -2065,6 +2115,7 @@
 		"add": "Add",
 		"cancel": "Cancel",
 		"confirm": "Confirm",
+		"delete": "Delete",
 		"enter": "Enter",
 		"save": "Save",
 		"send": "Send",
@@ -2205,6 +2256,14 @@
 		"MANAGE_JOBS": {
 			"label": "Manage jobs",
 			"description": "Allows the user to manage any queued jobs"
+		},
+		"EDIT_METADATA": {
+			"label": "Edit metadata",
+			"description": "Allows the user to edit metadata for books and series"
+		},
+		"WRITE_BACK_METADATA": {
+			"label": "Write back metadata",
+			"description": "Allows the user to write metadata changes back to the source files"
 		}
 	}
 }

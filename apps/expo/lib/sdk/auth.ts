@@ -1,8 +1,13 @@
 import { Api, AuthUser, constants } from '@stump/sdk'
-import { isAxiosError } from 'axios'
+import { AxiosError, isAxiosError } from 'axios'
+import * as AuthSession from 'expo-auth-session'
+import * as WebBrowser from 'expo-web-browser'
+import partition from 'lodash/partition'
 import { match, P } from 'ts-pattern'
 
-import { ManagedToken, ServerConfig, ServerKind } from '~/stores/savedServer'
+import { ManagedToken, SavedServerWithConfig, ServerConfig, ServerKind } from '~/stores/savedServer'
+
+WebBrowser.maybeCompleteAuthSession()
 
 type AuthSDKParams = {
 	config: ServerConfig | null
@@ -88,6 +93,16 @@ const login = async (
 	}
 }
 
+// Note: I've observed Codex return 403s which originally threw off the auth flow
+// since we were only checking for 401s. This kinda goes against the semantics of
+// HTTP status codes, it doesn't make sense to render a login prompt if the user is forbidden
+// from accessing OPDS.
+// TODO(opds): For now, treat 403s the same as 401s but I definitely would like to revisiot this
+export const OPDS_AUTH_ERROR_STATUSES = [401, 403]
+
+export const isOPDSAuthError = (error: unknown): error is AxiosError =>
+	isAxiosError(error) && OPDS_AUTH_ERROR_STATUSES.includes(error.response?.status ?? 0)
+
 type GetOPDSParams = {
 	config: ServerConfig | null
 	serverKind: ServerKind
@@ -127,4 +142,161 @@ export const getOPDSInstance = async ({ config, serverKind, url }: GetOPDSParams
 	}
 
 	return instance
+}
+
+type GetInstancesForServersParams = {
+	getServerToken: (id: string) => Promise<ManagedToken | null>
+	saveToken: (id: string, token: ManagedToken) => Promise<void>
+	getCachedInstance?: (id: string) => Api | undefined
+	onCacheInstance?: (id: string, instance: Api) => void
+}
+
+export const getInstanceForServer = async (
+	server: SavedServerWithConfig,
+	{ getServerToken, saveToken, onCacheInstance, getCachedInstance }: GetInstancesForServersParams,
+) => {
+	if (server.kind !== 'stump') {
+		const cachedInstance = onCacheInstance ? getCachedInstance?.(server.id) : undefined
+		if (cachedInstance) {
+			return cachedInstance
+		}
+		const instance = await getOPDSInstance({
+			config: server.config,
+			serverKind: server.kind,
+			url: server.url,
+		})
+		onCacheInstance?.(server.id, instance)
+		return instance
+	}
+
+	const storedToken = await getServerToken(server.id)
+	const authMethod = match(server.config?.auth)
+		.with({ bearer: P.string }, () => 'api-key' as const)
+		.otherwise(() => 'token' as const)
+
+	const cachedInstance = onCacheInstance ? getCachedInstance?.(server.id) : undefined
+
+	const instance =
+		cachedInstance ??
+		new Api({
+			baseURL: server.url,
+			authMethod,
+			customHeaders: server.config?.customHeaders,
+		})
+
+	instance.tokens = storedToken || undefined
+	const existingToken = await instance.getOrRefreshTokens()
+
+	try {
+		const authedInstance = await authSDKInstance(instance, {
+			config: server.config,
+			existingToken,
+			saveToken: async (token) => {
+				if (token) {
+					await saveToken(server.id, token)
+				}
+			},
+		})
+
+		if (authedInstance) {
+			onCacheInstance?.(server.id, authedInstance)
+			return authedInstance
+		} else {
+			console.warn(`Failed to authenticate server ${server.name} for auto-auth`)
+		}
+	} catch (error) {
+		console.error(`Failed to authenticate server ${server.name}:`, error)
+	}
+
+	return null
+}
+
+export const getInstancesForServers = async (
+	servers: SavedServerWithConfig[],
+	{ getServerToken, saveToken, onCacheInstance, getCachedInstance }: GetInstancesForServersParams,
+): Promise<Record<string, Api>> => {
+	const [compatibleServers, incompatibleServers] = partition(
+		servers,
+		(server) =>
+			server.kind === 'stump' &&
+			match(server.config?.auth)
+				.with({ basic: P.shape({ username: P.string, password: P.string }) }, () => true)
+				.with({ bearer: P.string }, () => true)
+				.otherwise(() => false),
+	)
+
+	if (compatibleServers.length === 0) {
+		console.warn('No compatible servers found for auto-auth')
+		return {}
+	}
+
+	if (incompatibleServers.length > 0) {
+		console.warn(`Found ${incompatibleServers.length} incompatible servers for auto-auth`)
+	}
+
+	const instances: Record<string, Api> = {}
+
+	const getInstance = async (server: SavedServerWithConfig) => {
+		const instance = await getInstanceForServer(server, {
+			getServerToken,
+			saveToken,
+			onCacheInstance,
+			getCachedInstance,
+		})
+		if (instance) {
+			instances[server.id] = instance
+		}
+	}
+
+	await Promise.all(compatibleServers.map((server) => getInstance(server)))
+
+	return instances
+}
+
+type OidcLoginParams = {
+	serverUrl: string
+	saveToken?: (token: ManagedToken, forUser: AuthUser) => Promise<void>
+}
+
+/**
+ * Start OIDC login flow, which will open the system browser for authentication, then redirects back
+ * to app with tokens
+ */
+export const startOidcLogin = async ({
+	serverUrl,
+	saveToken,
+}: OidcLoginParams): Promise<({ forUser: AuthUser } & ManagedToken) | null> => {
+	const redirectUri = AuthSession.makeRedirectUri({
+		scheme: 'stump',
+	})
+
+	const authorizeUrl = `${serverUrl}/api/v2/auth/oidc/authorize?generate_token=true&redirect_uri=${encodeURIComponent(redirectUri)}`
+
+	const result = await WebBrowser.openAuthSessionAsync(authorizeUrl, redirectUri)
+
+	if (result.type === 'success') {
+		const url = new URL(result.url)
+		const accessToken = url.searchParams.get('access_token')
+		const refreshToken = url.searchParams.get('refresh_token')
+		const expiresAt = url.searchParams.get('expires_at')
+
+		if (!accessToken || !expiresAt) {
+			throw new Error('Missing tokens in OIDC callback')
+		}
+
+		const api = new Api({ baseURL: serverUrl, authMethod: 'token' })
+		api.tokens = {
+			accessToken,
+			refreshToken: refreshToken || undefined,
+			expiresAt,
+		}
+
+		const forUser = await api.auth.me()
+		const tokenPair = { accessToken, refreshToken, expiresAt }
+		await saveToken?.(tokenPair, forUser)
+
+		return { forUser, ...tokenPair }
+	}
+
+	return null
 }

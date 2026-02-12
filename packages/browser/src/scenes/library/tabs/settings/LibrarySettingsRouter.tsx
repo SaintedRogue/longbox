@@ -5,12 +5,14 @@ import omit from 'lodash/omit'
 import pick from 'lodash/pick'
 import { lazy, Suspense, useCallback } from 'react'
 import { Navigate, Route, Routes } from 'react-router'
+import { toast } from 'sonner'
 
 import { useAppContext } from '@/context'
 
 import { useLibraryContext } from '../../context'
 import { LibraryManagementContext, LibraryPatchParams } from './context'
 import { ScanOptions } from './options/scanner/history/ScanHistoryTable'
+import { transformConfigForMutation } from './utils'
 
 const BasicSettingsScene = lazy(() => import('./basics/BasicSettingsScene'))
 const ThumbnailSettingsScene = lazy(() => import('./options/thumbnails/ThumbnailSettingsScene'))
@@ -30,6 +32,8 @@ export const LibrarySettingsConfig = graphql(`
 			defaultReadingDir
 			defaultReadingMode
 			defaultReadingImageScaleFit
+			defaultLibraryViewMode
+			hideSeriesView
 			generateFileHashes
 			generateKoreaderHashes
 			processMetadata
@@ -55,6 +59,7 @@ export const LibrarySettingsConfig = graphql(`
 				quality
 				page
 			}
+			processThumbnailColorsEvenWithoutConfig
 			ignoreRules
 		}
 	}
@@ -99,7 +104,14 @@ export default function LibrarySettingsRouter() {
 		},
 	})
 
-	const { mutate: scan } = useGraphQLMutation(scanMutation)
+	const { mutate: scan } = useGraphQLMutation(scanMutation, {
+		onError: (error) => {
+			console.error('Failed to scan library', error)
+			toast.error('Failed to scan library', {
+				description: 'Please check the logs for more details',
+			})
+		},
+	})
 
 	const scanLibrary = useCallback(
 		(options?: ScanOptions) => scan({ id: library.id, options }),
@@ -117,15 +129,17 @@ export default function LibrarySettingsRouter() {
 	const patch = useCallback(
 		(updates: LibraryPatchParams) => {
 			if (isPending) return
+			// TODO: This cast is very unsafe and the cause of multiple bugs already. Fix it.
 			const configWithoutId = omit(
 				updates.config ? { ...config, ...updates.config } : config,
 				'id',
 			) as CreateOrUpdateLibraryInput['config']
+			const adjustedConfig = transformConfigForMutation(configWithoutId)
 			const payload = {
 				// Note: pick returns a deep partial for whatever reason, so we cast it. This should be safe
 				...(pick(library, ['name', 'description', 'emoji', 'path']) as typeof library),
 				...updates,
-				config: configWithoutId,
+				config: adjustedConfig,
 				tags: updates.tags ? updates.tags : library?.tags?.map(({ name }) => name),
 			} satisfies CreateOrUpdateLibraryInput
 			editLibrary({ id: library.id, input: payload })

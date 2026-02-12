@@ -5,6 +5,7 @@ import android.util.Log
 import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
+import org.readium.r2.shared.publication.services.cover
 import org.readium.r2.shared.publication.services.isRestricted
 import org.readium.r2.shared.publication.services.positions
 import org.readium.r2.shared.publication.services.protectionError
@@ -13,14 +14,12 @@ import org.readium.r2.shared.util.data.ReadTry
 import org.readium.r2.shared.util.getOrElse
 import org.readium.r2.streamer.PublicationOpener
 import org.readium.r2.shared.util.http.DefaultHttpClient
-import org.readium.r2.shared.util.pdf.PdfDocument
-import org.readium.r2.shared.util.pdf.PdfDocumentFactory
 import org.readium.r2.shared.util.resource.Resource
 import org.readium.r2.streamer.parser.DefaultPublicationParser
+import org.readium.adapter.pdfium.document.PdfiumDocumentFactory
 import java.io.File
 import java.net.URL
 import java.util.zip.ZipFile
-import kotlin.reflect.KClass
 
 sealed class BookServiceError : Exception() {
 
@@ -54,15 +53,6 @@ sealed class BookServiceError : Exception() {
     }
 }
 
-class NullPDFDocumentFactory : PdfDocumentFactory<PdfDocument> {
-    override val documentType: KClass<PdfDocument>
-        get() = TODO("Not supported")
-
-    override suspend fun open(resource: Resource, password: String?): ReadTry<PdfDocument> {
-        TODO("Not supported")
-    }
-}
-
 class BookService(private val context: Context) {
 
     /// An instance of AssetRetriever for accessing publication assets
@@ -80,7 +70,7 @@ class BookService(private val context: Context) {
         
         assetRetriever = AssetRetriever(context.contentResolver, httpClient)
         
-        val pdfFactory = NullPDFDocumentFactory()
+        val pdfFactory = PdfiumDocumentFactory(context)
         
         val publicationParser = DefaultPublicationParser(
             context,
@@ -207,6 +197,72 @@ class BookService(private val context: Context) {
     fun locateLink(bookId: String, link: Link): Locator? {
         val publication = getPublication(bookId) ?: return null
         return publication.locatorFromLink(link)
+    }
+    
+    /**
+     * Gets the page count for a publication (EPUB or PDF)
+     * @param url The URL of the publication file
+     * @return The number of pages, or null if positions cannot be retrieved
+     */
+    suspend fun getPageCount(url: URL): Int? {
+        return try {
+            val file = File(url.path)
+            if (!file.exists()) {
+                Log.w("BookService", "File does not exist: ${url.path}")
+                return null
+            }
+
+            val asset = assetRetriever.retrieve(file).getOrElse { error ->
+                Log.w("BookService", "Failed to retrieve asset: $error")
+                return null
+            }
+
+            val publication = publicationOpener.open(
+                asset = asset,
+                allowUserInteraction = false
+            ).getOrElse { error ->
+                Log.w("BookService", "Failed to open publication: $error")
+                return null
+            }
+
+            publication.positions().size
+        } catch (e: Exception) {
+            Log.e("BookService", "Failed to get page count", e)
+            null
+        }
+    }
+    
+    /**
+     * Extracts the cover image from an EPUB
+     * @param url The URL of the EPUB file
+     * @return The cover image as a Bitmap, or null if no cover is found
+     */
+    suspend fun getCoverImage(url: URL): android.graphics.Bitmap? {
+        val file = File(url.path)
+        if (!file.exists()) {
+            Log.w("BookService", "File does not exist: ${url.path}")
+            return null
+        }
+
+        return try {
+            val asset = assetRetriever.retrieve(file).getOrElse { error ->
+                Log.w("BookService", "Failed to retrieve asset: $error")
+                return null
+            }
+
+            val publication = publicationOpener.open(
+                asset = asset,
+                allowUserInteraction = false
+            ).getOrElse { error ->
+                Log.w("BookService", "Failed to open publication: $error")
+                return null
+            }
+
+            publication.cover()
+        } catch (e: Exception) {
+            Log.e("BookService", "Failed to extract cover", e)
+            null
+        }
     }
 
     /**

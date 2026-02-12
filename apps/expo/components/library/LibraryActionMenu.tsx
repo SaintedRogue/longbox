@@ -1,7 +1,7 @@
 import { useGraphQLMutation } from '@stump/client'
 import { graphql, UserPermission } from '@stump/graphql'
 import { useQueryClient } from '@tanstack/react-query'
-import { ScanLine } from 'lucide-react-native'
+import { Info, ScanLine } from 'lucide-react-native'
 
 import { useStumpServer } from '../activeServer'
 import { ActionMenu } from '../ui/action-menu/action-menu'
@@ -14,9 +14,10 @@ const mutation = graphql(`
 
 type Props = {
 	libraryId: string
+	onShowOverview: () => void
 }
 
-export default function LibraryActionMenu({ libraryId }: Props) {
+export default function LibraryActionMenu({ libraryId, onShowOverview }: Props) {
 	const { checkPermission } = useStumpServer()
 
 	const client = useQueryClient()
@@ -29,10 +30,6 @@ export default function LibraryActionMenu({ libraryId }: Props) {
 		},
 	})
 
-	if (!checkPermission(UserPermission.ScanLibrary)) {
-		return null
-	}
-
 	return (
 		<ActionMenu
 			groups={[
@@ -40,14 +37,30 @@ export default function LibraryActionMenu({ libraryId }: Props) {
 					items: [
 						{
 							icon: {
-								ios: 'document.viewfinder',
-								android: ScanLine,
+								ios: 'info.circle',
+								android: Info,
 							},
-							label: 'Scan Library',
-							onPress: () => mutate({ id: libraryId }),
+							label: 'Overview',
+							onPress: onShowOverview,
 						},
 					],
 				},
+				...(checkPermission(UserPermission.ScanLibrary)
+					? [
+							{
+								items: [
+									{
+										icon: {
+											ios: 'document.viewfinder',
+											android: ScanLine,
+										},
+										label: 'Scan Library',
+										onPress: () => mutate({ id: libraryId }),
+									} as const,
+								],
+							},
+						]
+					: []),
 			]}
 		/>
 	)

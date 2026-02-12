@@ -2,18 +2,24 @@ import { BottomSheetModal, BottomSheetScrollViewMethods } from '@gorhom/bottom-s
 import { Plus } from 'lucide-react-native'
 import { useColorScheme } from 'nativewind'
 import { useCallback, useMemo, useRef, useState } from 'react'
-import { Pressable, View } from 'react-native'
+import { View } from 'react-native'
+import { Pressable } from 'react-native-gesture-handler'
 import { useSharedValue } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { IS_IOS_24_PLUS, useColors } from '~/lib/constants'
 import { cn } from '~/lib/utils'
 import { useSavedServers } from '~/stores'
-import { CreateServer } from '~/stores/savedServer'
 
 import { BottomSheet } from '../ui/bottom-sheet'
 import { Icon } from '../ui/icon'
-import AddOrEditServerForm from './AddOrEditServerForm'
+import AddOrEditServerForm, {
+	AddOrEditServerSchema,
+	transformFormData,
+} from './AddOrEditServerForm'
+
+// TODO: Refactor to true sheet, but expect keyboard aware issues:
+// https://github.com/lodev09/react-native-true-sheet/issues/391
 
 export default function AddServerDialog() {
 	const [isOpen, setIsOpen] = useState(false)
@@ -30,8 +36,8 @@ export default function AddServerDialog() {
 	const { colorScheme } = useColorScheme()
 
 	const onSubmit = useCallback(
-		(data: CreateServer) => {
-			createServer(data)
+		(data: AddOrEditServerSchema) => {
+			createServer(transformFormData(data))
 			ref.current?.dismiss()
 			setIsOpen(false)
 		},

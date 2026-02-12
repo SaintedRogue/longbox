@@ -1,10 +1,12 @@
 import { Button, cn, Command, Popover } from '@stump/components'
 import { ChevronsUpDown } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useFieldArray, useFormContext } from 'react-hook-form'
+import { useFieldArray, useFormContext, useWatch } from 'react-hook-form'
 import { match } from 'ts-pattern'
 
 import {
+	ConceptualOperation,
+	isConceptualField,
 	isDateField,
 	isNumberField,
 	isStringField,
@@ -34,10 +36,11 @@ export default function OperatorSelect({ idx }: Props) {
 		name: `filters.groups.${groupIdx}.filters`,
 	})
 
-	const fieldDef = useMemo(
-		() => form.watch(`filters.groups.${groupIdx}.filters.${idx}`) || ({} as FieldDef),
-		[form, groupIdx, idx],
-	)
+	const fieldDef = useWatch({
+		control: form.control,
+		name: `filters.groups.${groupIdx}.filters.${idx}`,
+		defaultValue: {} as FieldDef,
+	})
 
 	const updateField = useCallback(
 		(params: Partial<FieldDef>, close = true) => {
@@ -52,6 +55,10 @@ export default function OperatorSelect({ idx }: Props) {
 		() =>
 			match(fieldDef.field)
 				.when(
+					(field) => isConceptualField(field),
+					() => ['is', 'isNot', 'isAnyOf', 'isNoneOf'] as ConceptualOperation[],
+				)
+				.when(
 					(field) => isStringField(field),
 					() => ['contains', 'excludes', 'neq', 'eq'] as StringOperation[],
 				)
@@ -65,13 +72,14 @@ export default function OperatorSelect({ idx }: Props) {
 
 	const selectGroups = useMemo(() => {
 		const arrayGroup = operatorGroups.list
+		const isConceptual = isConceptualField(fieldDef.field)
 
 		return [
 			{
-				label: 'Equality',
+				label: isConceptual ? 'Match' : 'Equality',
 				operators: operators,
 			},
-			...(!isDateField(fieldDef.field)
+			...(!isDateField(fieldDef.field) && !isConceptual
 				? [
 						{
 							label: 'List',
@@ -147,6 +155,10 @@ const operatorMap: Record<Operation, string> = {
 	contains: 'contains string',
 	eq: 'equal to',
 	excludes: 'excludes string',
+	is: 'is',
+	isNot: 'is not',
+	isAnyOf: 'is any of',
+	isNoneOf: 'is none of',
 	gt: 'greater than',
 	gte: 'greater than or equal to',
 	lt: 'less than',

@@ -1,7 +1,7 @@
 import { Button, Input, Text, ToolTip } from '@stump/components'
 import { Minus } from 'lucide-react'
 import { useMemo } from 'react'
-import { useFormContext } from 'react-hook-form'
+import { useFormContext, useWatch } from 'react-hook-form'
 
 import { useMetadataEditorContext } from '../context'
 
@@ -22,13 +22,15 @@ export default function NumberCell<Field extends string>({
 
 	const rules = useMemo(() => validationRules[binding as keyof typeof validationRules], [binding])
 
+	const formValue = useWatch({ control: form.control, name: binding })
+
 	if (isEditing) {
 		return (
 			<div className="group flex items-center gap-2">
 				<Input
 					type="number"
 					step={isDecimal ? 'any' : 1}
-					defaultValue={value ?? ''}
+					value={formValue ?? ''}
 					className="font-mono text-sm"
 					containerClassName="md:w-[unset]"
 					size="sm"

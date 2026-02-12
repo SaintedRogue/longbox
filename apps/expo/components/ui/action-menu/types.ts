@@ -16,11 +16,18 @@ export type ActionMenuItem = {
 		android: LucideIcon
 	}
 	onPress: () => void
+	role?: 'default' | 'destructive' | 'cancel'
+	disabled?: boolean
 }
 
 export type ActionMenuProps = {
+	icon?: {
+		ios: Pick<ButtonProps, 'systemImage'>['systemImage']
+		android: LucideIcon
+	}
 	groups: {
 		items: ActionMenuItem[]
 	}[]
 	androidProps?: AndroidProps
+	disabled?: boolean
 }

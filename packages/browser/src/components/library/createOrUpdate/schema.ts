@@ -4,6 +4,7 @@ import {
 	LibraryConfigInput,
 	LibraryPattern,
 	LibrarySettingsConfigFragment,
+	LibraryViewMode,
 	ReadingDirection,
 	ReadingImageScaleFit,
 	ReadingMode,
@@ -24,6 +25,13 @@ type Library = ILibraryContext['library']
  */
 const isLibraryPattern = (input: string): input is LibraryPattern => {
 	return input === LibraryPattern.SeriesBased || input === LibraryPattern.CollectionBased
+}
+
+/**
+ * A type guard to check if the input is a valid {@link LibraryViewMode}
+ */
+const isLibraryViewMode = (input: string): input is LibraryViewMode => {
+	return input === LibraryViewMode.Series || input === LibraryViewMode.Books
 }
 
 /**
@@ -128,6 +136,8 @@ export const buildSchema = (
 			)
 			.default([]),
 		libraryPattern: z.string().refine(isLibraryPattern).default('SERIES_BASED'),
+		defaultLibraryViewMode: z.string().refine(isLibraryViewMode).default('SERIES'),
+		hideSeriesView: z.boolean().default(false),
 		name: z
 			.string()
 			.min(1, { message: 'Library name is required' })
@@ -193,6 +203,7 @@ export const buildSchema = (
 			)
 			.optional(),
 		thumbnailConfig,
+		processThumbnailColorsEvenWithoutConfig: z.boolean().default(false),
 	})
 export type CreateOrUpdateLibrarySchema = z.infer<ReturnType<typeof buildSchema>>
 
@@ -208,6 +219,8 @@ export const formDefaults = (
 	defaultReadingImageScaleFit:
 		library?.config.defaultReadingImageScaleFit || ReadingImageScaleFit.Height,
 	defaultReadingMode: library?.config.defaultReadingMode || ReadingMode.Paged,
+	defaultLibraryViewMode: library?.config.defaultLibraryViewMode || LibraryViewMode.Series,
+	hideSeriesView: library?.config.hideSeriesView ?? false,
 	description: library?.description,
 	generateFileHashes: library?.config.generateFileHashes ?? false,
 	generateKoreaderHashes: library?.config.generateKoreaderHashes ?? false,
@@ -221,6 +234,8 @@ export const formDefaults = (
 	scanAfterPersist: true,
 	tags: library?.tags?.map((t) => ({ label: t.name, value: t.name.toLowerCase() })),
 	thumbnailConfig: intoFormThumbnailConfig(library?.config.thumbnailConfig),
+	processThumbnailColorsEvenWithoutConfig:
+		library?.config.processThumbnailColorsEvenWithoutConfig ?? false,
 })
 
 // TODO: Investigate https://the-guild.dev/graphql/codegen/plugins/typescript/typescript-validation-schema

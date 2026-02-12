@@ -12,8 +12,8 @@ use axum::{
 use graphql::{data::AuthContext, pagination::OffsetPagination};
 use models::{
 	entity::{
-		library, media, media_metadata, reading_session, series, series_metadata,
-		user::AuthUser,
+		library, media, media_metadata, reading_session, registered_reading_device,
+		series, series_metadata, user::AuthUser,
 	},
 	shared::enums::UserPermission,
 };
@@ -35,7 +35,7 @@ use stump_core::{
 			OPDSNavigationLink, OPDSNavigationLinkBuilder,
 		},
 		metadata::{OPDSMetadata, OPDSMetadataBuilder, OPDSPaginationMetadataBuilder},
-		progression::OPDSProgression,
+		progression::{OPDSProgression, OPDSProgressionInput},
 		publication::OPDSPublication,
 	},
 	utils::chain_optional_iter,
@@ -92,8 +92,11 @@ pub(crate) fn mount(app_state: AppState) -> Router<AppState> {
 								.route("/", get(get_book_by_id))
 								.route("/thumbnail", get(get_book_thumbnail))
 								.route("/pages/{page}", get(get_book_page))
-								// TODO: PUT progression
-								.route("/progression", get(get_book_progression))
+								.route(
+									"/progression",
+									get(get_book_progression)
+										.put(update_book_progression),
+								)
 								.route("/file", get(download_book)),
 						),
 				),
@@ -882,6 +885,47 @@ async fn browse_series(
 
 	let link_finalizer = OPDSLinkFinalizer::from(host);
 
+	let base_url = "/opds/v2.0/series";
+	let next_page = pagination.next_page();
+	let previous_link = match pagination.previous_page() {
+		Some(page) => Some(
+			link_finalizer.finalize(OPDSLink::Link(
+				OPDSBaseLinkBuilder::default()
+					.href(format!("{base_url}?page={page}"))
+					.rel(OPDSLinkRel::Previous.item())
+					.build()?,
+			)),
+		),
+		None => None,
+	};
+	let has_more = (pagination.offset() + take) < series_count;
+	let next_link = (has_more).then_some(
+		link_finalizer.finalize(OPDSLink::Link(
+			OPDSBaseLinkBuilder::default()
+				.href(format!("{base_url}?page={next_page}"))
+				.rel(OPDSLinkRel::Next.item())
+				.build()?,
+		)),
+	);
+
+	let links = link_finalizer.finalize_all(chain_optional_iter(
+		[
+			OPDSLink::Link(
+				OPDSBaseLinkBuilder::default()
+					.href(base_url.to_string())
+					.rel(OPDSLinkRel::SelfLink.item())
+					.build()?,
+			),
+			OPDSLink::Link(
+				OPDSBaseLinkBuilder::default()
+					.href("/opds/v2.0/catalog".to_string())
+					.rel(OPDSLinkRel::Start.item())
+					.build()?,
+			),
+		],
+		[previous_link, next_link],
+	));
+
 	Ok(Json(
 		OPDSFeedBuilder::default()
 			.metadata(
@@ -896,20 +940,7 @@ async fn browse_series(
 					))
 					.build()?,
 			)
-			.links(link_finalizer.finalize_all(vec![
-				OPDSLink::Link(
-					OPDSBaseLinkBuilder::default()
-						.href("/opds/v2.0/series".to_string())
-						.rel(OPDSLinkRel::SelfLink.item())
-						.build()?,
-				),
-				OPDSLink::Link(
-					OPDSBaseLinkBuilder::default()
-						.href("/opds/v2.0/catalog".to_string())
-						.rel(OPDSLinkRel::Start.item())
-						.build()?,
-				),
-			]))
+			.links(links)
 			.navigation(
 				series
 					.into_iter()
@@ -1069,9 +1100,7 @@ async fn get_book_thumbnail(
 	State(ctx): State<AppState>,
 	Extension(req): Extension<AuthContext>,
 ) -> APIResult<ImageResponse> {
-	let (content_type, image_buffer) =
-		get_media_thumbnail_by_id(&ctx, &req.user(), id).await?;
-	Ok(ImageResponse::new(content_type, image_buffer))
+	get_media_thumbnail_by_id(&ctx, &req.user(), id).await
 }
 
 /// A route handler which returns a single page of a book for a user as a valid image
@@ -1132,6 +1161,117 @@ async fn get_book_progression(
 	};
 
 	Ok(Json(OPDSProgression::new(reading_session, link_finalizer)?))
+}
+
+/// A route handler which updates the progression of a book for a user
+///
+/// Returns 204 on success, 409 Conflict if the timestamp is older.
+#[tracing::instrument(skip(ctx))]
+async fn update_book_progression(
+	Path(id): Path<String>,
+	State(ctx): State<AppState>,
+	Extension(req): Extension<AuthContext>,
+	Json(input): Json<OPDSProgressionInput>,
+) -> APIResult<axum::http::StatusCode> {
+	use chrono::{DateTime, FixedOffset, Utc};
+	use sea_orm::{sea_query::OnConflict, ActiveValue::Set};
+
+	let user = req.user();
+	let conn = ctx.conn.as_ref();
+
+	let book = media::Entity::find_for_user(&user)
+		.filter(media::Column::Id.eq(id.clone()))
+		.one(conn)
+		.await?
+		.ok_or(APIError::NotFound("Book not found".to_string()))?;
+
+	let existing_session =
+		reading_session::Entity::find_for_user_and_media_id(&user, &id)
+			.one(conn)
+			.await?;
+
+	if let Some(ref session) = existing_session {
+		if let Some(existing_updated_at) = session.updated_at {
+			let existing_timestamp: DateTime<FixedOffset> = existing_updated_at;
+			if input.modified < existing_timestamp {
+				return Err(APIError::Conflict(
+					"Progression timestamp is older than existing session".to_string(),
+				));
+			}
+		}
+	}
+
+	let device_id = if let Some(input_device) = input.device() {
+		let existing_device =
+			registered_reading_device::Entity::find_by_id(&input_device.id)
+				.one(conn)
+				.await?;
+
+		if existing_device.is_none() {
+			let new_device = registered_reading_device::ActiveModel {
+				id: Set(input_device.id.clone()),
+				name: Set(input_device.name.clone()),
+				kind: Set(None),
+			};
+			registered_reading_device::Entity::insert(new_device)
+				.exec(conn)
+				.await?;
+		}
+
+		Some(input_device.id.clone())
+	} else {
+		None
+	};
+
+	let page = input.page();
+	let percentage_completed = input.percentage_completed();
+	let locator = input.locator();
+
+	match page {
+		Some(p) if book.pages > -1 => {
+			if p < 1 || p > book.pages {
+				return Err(APIError::BadRequest(format!(
+					"Page {} is out of bounds (1-{})",
+					p, book.pages
+				)));
+			}
+		},
+		_ => {},
+	}
+
+	let now = Utc::now();
+
+	let active_session = reading_session::ActiveModel {
+		user_id: Set(user.id.clone()),
+		media_id: Set(id),
+		page: Set(page),
+		percentage_completed: Set(percentage_completed),
+		locator: Set(locator),
+		device_id: Set(device_id),
+		updated_at: Set(Some(now.into())),
+		started_at: Set(now.into()),
+		..Default::default()
+	};
+
+	reading_session::Entity::insert(active_session)
+		.on_conflict(
+			OnConflict::columns(vec![
+				reading_session::Column::MediaId,
+				reading_session::Column::UserId,
+			])
+			.update_columns(vec![
+				reading_session::Column::Page,
+				reading_session::Column::PercentageCompleted,
+				reading_session::Column::Locator,
+				reading_session::Column::DeviceId,
+				reading_session::Column::UpdatedAt,
+			])
+			.to_owned(),
+		)
+		.exec(conn)
+		.await?;
+
+	Ok(axum::http::StatusCode::NO_CONTENT)
 }
 
 /// A route handler which downloads a book for a user.

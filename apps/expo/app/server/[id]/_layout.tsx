@@ -8,9 +8,8 @@ import { match, P } from 'ts-pattern'
 
 import { ActiveServerContext, StumpServerContext } from '~/components/activeServer'
 import { PermissionEnforcerOptions } from '~/components/activeServer/context'
+import { ServerConnectFailed, ServerErrorBoundary } from '~/components/error'
 import ServerAuthDialog from '~/components/ServerAuthDialog'
-import ServerConnectFailed from '~/components/ServerConnectFailed'
-import ServerErrorBoundary from '~/components/ServerErrorBoundary'
 import { FullScreenLoader } from '~/components/ui'
 import { authSDKInstance } from '~/lib/sdk/auth'
 import { usePreferencesStore, useSavedServers } from '~/stores'
@@ -30,16 +29,15 @@ export default function Screen() {
 	)
 
 	const cachedInstance = useRef(useCacheStore((state) => state.sdks[serverID || '']))
-	const cacheStore = useCacheStore((state) => ({
-		addInstanceToCache: state.addSDK,
-		removeInstanceFromCache: state.removeSDK,
-	}))
+	const addInstanceToCache = useCacheStore((state) => state.addSDK)
+	const removeInstanceFromCache = useCacheStore((state) => state.removeSDK)
 
 	const [sdk, setSDK] = useState<Api | null>(() => cachedInstance.current || null)
 	const [isInitiallyConnecting, setIsInitiallyConnecting] = useState(() => !cachedInstance.current)
 	const [isAutoAuthenticating, setIsAutoAuthenticating] = useState(false)
 	const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false)
 	const [user, setUser] = useState<AuthUser | null>(null)
+	const [fatalError, setFatalError] = useState<Error | null>(null)
 
 	const isServerAccessible = useRef(true)
 
@@ -87,7 +85,7 @@ export default function Screen() {
 
 				setSDK(authedInstance || instance)
 				if (authedInstance) {
-					cacheStore.addInstanceToCache(activeServer.id, authedInstance)
+					addInstanceToCache(activeServer.id, authedInstance)
 				}
 			} catch (error) {
 				const axiosError = isAxiosError(error) ? error : null
@@ -112,7 +110,7 @@ export default function Screen() {
 		isAuthDialogOpen,
 		getServerConfig,
 		saveServerToken,
-		cacheStore,
+		addInstanceToCache,
 		isAutoAuthenticating,
 	])
 
@@ -127,13 +125,14 @@ export default function Screen() {
 				} catch (error) {
 					if (isNetworkError(error)) {
 						isServerAccessible.current = false
-						cacheStore.removeInstanceFromCache(activeServer?.id || 'unknown')
+						removeInstanceFromCache(activeServer?.id || 'unknown')
 					}
 				}
 			}
 
 			fetchUser()
 		},
+		// eslint-disable-next-line react-compiler/react-compiler
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 		[sdk, user],
 	)
@@ -177,26 +176,39 @@ export default function Screen() {
 				setSDK(instance)
 				saveServerToken(activeServer?.id || 'dev', token)
 				setUser(forUser)
-				cacheStore.addInstanceToCache(activeServer.id, instance)
+				addInstanceToCache(activeServer.id, instance)
 			} else if (!loginResp && !sdk?.isAuthed) {
 				router.dismissAll()
 			}
 		},
-		[activeServer, router, saveServerToken, cacheStore, sdk],
+		[activeServer, router, saveServerToken, addInstanceToCache, sdk],
 	)
 
 	// TODO: attempt reauth automatically when able
 
 	const onAuthError = useCallback(async () => {
-		// Get rid of the token
+		// If the active server is using an API key, we can't re-auth automatically and
+		// so we should set an error state to bubble up to the boundary during render
 		if (activeServer) {
-			await deleteServerToken(activeServer.id)
+			const serverConfig = await getServerConfig(activeServer.id)
+			if (serverConfig?.auth && 'bearer' in serverConfig.auth) {
+				setFatalError(
+					new Error(
+						'An auth-related error was encountered while using an API key. Please check that your key is still valid',
+					),
+				)
+				return
+			} else {
+				// Otherwise, just get rid of the token
+				await deleteServerToken(activeServer.id)
+			}
 		}
+
 		// We need to retrigger the auth dialog, so we'll let the effect handle it
 		setIsAuthDialogOpen(false)
 		setSDK(null)
 		setUser(null)
-	}, [activeServer, deleteServerToken])
+	}, [activeServer, deleteServerToken, getServerConfig])
 
 	const onServerConnectionError = useCallback(
 		(connected: boolean) => {
@@ -229,6 +241,10 @@ export default function Screen() {
 	if (!activeServer) {
 		// @ts-expect-error: It's fine
 		return <Redirect href="/" />
+	}
+
+	if (fatalError) {
+		throw fatalError
 	}
 
 	if (!isServerAccessible.current) {

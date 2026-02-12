@@ -8,7 +8,7 @@ on:
   push:
     branches:
       - main
-      - develop
+      - nightly
 
 jobs:
   code-changes-check:

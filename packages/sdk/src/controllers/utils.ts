@@ -3,6 +3,35 @@ import qs from 'qs'
 
 import { APIError } from '../types'
 
+/**
+ * Resolves a relative URL against a base URL
+ */
+export const resolveUrl = (url: string, baseUrl?: string): string => {
+	// If the url is already absolute, return as-is
+	if (url.startsWith('http://') || url.startsWith('https://')) {
+		return url
+	}
+
+	// If no base url is provided, return as-is
+	if (!baseUrl) {
+		return url
+	}
+
+	try {
+		// Note: URL encodes the template strings we rely on for OPDS searches, e.g.
+		// `{?query}` becomes `%7B%3Fquery%7D`, so we decode the final URL before returning
+		return decodeURIComponent(new URL(url, baseUrl).toString())
+	} catch {
+		if (url.startsWith('/')) {
+			const match = baseUrl.match(/^(https?:\/\/[^/]+)/)
+			if (match) {
+				return `${match[1]}${url}`
+			}
+		}
+		return `${baseUrl.replace(/\/$/, '')}/${url.replace(/^\//, '')}`
+	}
+}
+
 export const createRouteURLHandler =
 	(baseURL: string) => (endpoint: string, params?: Record<string, unknown>) => {
 		let adjustedParams: Record<string, unknown> | undefined = undefined

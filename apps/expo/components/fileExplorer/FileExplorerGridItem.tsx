@@ -1,17 +1,16 @@
-/* eslint-disable @typescript-eslint/no-require-imports */
 import { ARCHIVE_EXTENSION, EBOOK_EXTENSION, PDF_EXTENSION, useSDK } from '@stump/client'
 import { DirectoryListingQuery } from '@stump/graphql'
 import { useRouter } from 'expo-router'
 import { useCallback } from 'react'
-import { Image, Pressable, View } from 'react-native'
+import { Image, Platform, Pressable, View } from 'react-native'
 
 import { useColorScheme } from '~/lib/useColorScheme'
 import { usePreferencesStore } from '~/stores'
 
 import { useActiveServer } from '../activeServer'
-import { BorderAndShadow } from '../BorderAndShadow'
-import { TurboImage } from '../Image'
+import { ThumbnailImage, TurboImage } from '../image'
 import { Text } from '../ui'
+import { useFileExplorerAssets } from './FileExplorerAssetsContext'
 
 type ListedFile = DirectoryListingQuery['listDirectory']['nodes'][number]['files'][number]
 
@@ -21,7 +20,8 @@ type Props = {
 
 export default function FileExplorerGridItem({ file }: Props) {
 	const { colorScheme } = useColorScheme()
-	const iconSource = getIconSource(file, colorScheme)
+	const assets = useFileExplorerAssets()
+	const iconSource = getIconSource(file, colorScheme, assets)
 	const { sdk } = useSDK()
 	const {
 		activeServer: { id: serverID },
@@ -52,30 +52,36 @@ export default function FileExplorerGridItem({ file }: Props) {
 		<Pressable onPress={onSelect}>
 			{({ pressed }) => (
 				<View className="items-center" style={{ opacity: pressed ? 0.75 : 1 }}>
-					{!file.media && (
-						<TurboImage
-							source={{ uri: Image.resolveAssetSource(iconSource).uri }}
-							style={{ width: 100, height: 100 }}
-							resize={100 * 1.5}
-						/>
-					)}
+					{!file.media &&
+						// FIXME: On Android TurboImage doesn't work with local assets in production builds
+						Platform.select({
+							ios: (
+								<TurboImage
+									source={{ uri: iconSource.localUri || iconSource.uri }}
+									style={{ width: 100, height: 100 }}
+									resize={100 * 1.5}
+								/>
+							),
+							android: (
+								<Image
+									// @ts-expect-error: It's fine
+									source={iconSource}
+									style={{ width: 100, height: 100 }}
+								/>
+							),
+						})}
 					{!!file.media?.thumbnail.url && (
-						<BorderAndShadow
-							style={{ borderRadius: 4, borderWidth: 0.3, shadowRadius: 1.41, elevation: 2 }}
-						>
-							<TurboImage
-								source={{
-									uri: file.media.thumbnail.url,
-									headers: {
-										...sdk.customHeaders,
-										Authorization: sdk.authorizationHeader || '',
-									},
-								}}
-								resizeMode="stretch"
-								resize={70 * 1.5}
-								style={{ height: 70 / thumbnailRatio, width: 70 }}
-							/>
-						</BorderAndShadow>
+						<ThumbnailImage
+							source={{
+								uri: file.media.thumbnail.url,
+								headers: {
+									...sdk.customHeaders,
+									Authorization: sdk.authorizationHeader || '',
+								},
+							}}
+							resizeMode="stretch"
+							size={{ height: 70 / thumbnailRatio, width: 70 }}
+						/>
 					)}
 
 					<View>
@@ -89,30 +95,23 @@ export default function FileExplorerGridItem({ file }: Props) {
 	)
 }
 
-const getIconSource = (file: ListedFile, theme: 'light' | 'dark') => {
+const getIconSource = (
+	file: ListedFile,
+	theme: 'light' | 'dark',
+	assets: ReturnType<typeof useFileExplorerAssets>,
+) => {
 	if (file.isDirectory) {
-		return theme === 'light' ? ICON_PATHS.folderLight : ICON_PATHS.folder
+		return theme === 'light' ? assets.folderLight : assets.folder
 	}
 
 	const extension =
 		file?.media?.extension?.toLowerCase() || file.name.split('.').pop()?.toLowerCase() || ''
 
 	if (ARCHIVE_EXTENSION.test(extension) || EBOOK_EXTENSION.test(extension)) {
-		return theme === 'light' ? ICON_PATHS.archiveLight : ICON_PATHS.archive
+		return theme === 'light' ? assets.archiveLight : assets.archive
 	} else if (PDF_EXTENSION.test(extension)) {
-		return theme === 'light' ? ICON_PATHS.documentPdfLight : ICON_PATHS.documentPdf
+		return theme === 'light' ? assets.documentPdfLight : assets.documentPdf
 	} else {
-		return theme === 'light' ? ICON_PATHS.documentLight : ICON_PATHS.document
+		return theme === 'light' ? assets.documentLight : assets.document
 	}
-}
-
-const ICON_PATHS = {
-	folder: require('../../assets/icons/Folder.png'),
-	folderLight: require('../../assets/icons/Folder_Light.png'),
-	document: require('../../assets/icons/Document.png'),
-	documentLight: require('../../assets/icons/Document_Light.png'),
-	archive: require('../../assets/icons/Archive.png'),
-	archiveLight: require('../../assets/icons/Archive_Light.png'),
-	documentPdf: require('../../assets/icons/Document_pdf.png'),
-	documentPdfLight: require('../../assets/icons/Document_pdf_Light.png'),
 }

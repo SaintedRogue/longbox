@@ -7,8 +7,7 @@ import { Pressable, View } from 'react-native'
 import { useListItemSize } from '~/lib/hooks'
 
 import { useActiveServer } from '../activeServer'
-import { BorderAndShadow } from '../BorderAndShadow'
-import { TurboImage } from '../Image'
+import { ThumbnailImage } from '../image'
 import { Text } from '../ui'
 
 const fragment = graphql(`
@@ -17,6 +16,14 @@ const fragment = graphql(`
 		resolvedName
 		thumbnail {
 			url
+			metadata {
+				averageColor
+				colors {
+					color
+					percentage
+				}
+				thumbhash
+			}
 		}
 	}
 `)
@@ -38,27 +45,24 @@ function BookListItem({ book }: Props) {
 	const router = useRouter()
 
 	const { width, height } = useListItemSize()
+	const { url: uri, metadata: placeholderData } = data.thumbnail
 
 	return (
 		<Pressable onPress={() => router.navigate(`/server/${serverID}/books/${data.id}`)}>
 			{({ pressed }) => (
 				<View className="relative" style={{ opacity: pressed ? 0.8 : 1 }}>
-					<BorderAndShadow
-						style={{ borderRadius: 8, borderWidth: 0.3, shadowRadius: 1.41, elevation: 2 }}
-					>
-						<TurboImage
-							source={{
-								uri: data.thumbnail.url,
-								headers: {
-									...sdk.customHeaders,
-									Authorization: sdk.authorizationHeader || '',
-								},
-							}}
-							resizeMode="stretch"
-							resize={width * 1.5}
-							style={{ height, width }}
-						/>
-					</BorderAndShadow>
+					<ThumbnailImage
+						source={{
+							uri,
+							headers: {
+								...sdk.customHeaders,
+								Authorization: sdk.authorizationHeader || '',
+							},
+						}}
+						resizeMode="stretch"
+						size={{ height, width }}
+						placeholderData={placeholderData}
+					/>
 
 					<View>
 						<Text className="mt-2" style={{ maxWidth: width - 4 }} numberOfLines={2}>

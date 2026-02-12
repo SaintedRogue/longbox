@@ -12,6 +12,7 @@ use async_graphql::SimpleObject;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
+use super::oidc_config::OidcConfig;
 use crate::{CoreError, CoreResult};
 use stump_config_gen::StumpConfigGenerator;
 
@@ -45,6 +46,14 @@ pub mod env_keys {
 	pub const PDF_CACHE_PAGES_KEY: &str = "STUMP_PDF_CACHE_PAGES";
 	pub const PDF_PRERENDER_RANGE_KEY: &str = "STUMP_PDF_PRERENDER_RANGE";
 	pub const PDF_HIGH_QUALITY_KEY: &str = "STUMP_PDF_HIGH_QUALITY";
+	// OIDC configuration keys
+	pub const OIDC_ENABLED_KEY: &str = "STUMP_OIDC_ENABLED";
+	pub const OIDC_CLIENT_ID_KEY: &str = "STUMP_OIDC_CLIENT_ID";
+	pub const OIDC_CLIENT_SECRET_KEY: &str = "STUMP_OIDC_CLIENT_SECRET";
+	pub const OIDC_ISSUER_URL_KEY: &str = "STUMP_OIDC_ISSUER_URL";
+	pub const OIDC_SCOPES_KEY: &str = "STUMP_OIDC_SCOPES";
+	pub const OIDC_ALLOW_REGISTRATION_KEY: &str = "STUMP_OIDC_ALLOW_REGISTRATION";
+	pub const OIDC_DISABLE_LOCAL_AUTH_KEY: &str = "STUMP_OIDC_DISABLE_LOCAL_AUTH";
 }
 use env_keys::*;
 
@@ -114,8 +123,8 @@ pub struct StumpConfig {
 	#[env_key(PORT_KEY)]
 	pub port: u16,
 
-	/// The verbosity with which to log errors (default: 0).
-	#[default_value(0)]
+	/// The verbosity with which system logs are visible (default: 1).
+	#[default_value(1)]
 	#[env_key(VERBOSITY_KEY)]
 	pub verbosity: u64,
 
@@ -268,6 +277,12 @@ pub struct StumpConfig {
 	#[default_value(DEFAULT_PDF_HIGH_QUALITY)]
 	#[env_key(PDF_HIGH_QUALITY_KEY)]
 	pub pdf_high_quality: bool,
+
+	/// OIDC authentication configuration
+	#[serde(default)]
+	#[graphql(skip)]
+	#[default_value(None)]
+	pub oidc: Option<OidcConfig>,
 }
 
 impl StumpConfig {
@@ -454,6 +469,7 @@ mod tests {
 			pdf_high_quality: None,
 			db_max_connections: None,
 			db_min_connections: None,
+			oidc: None,
 		};
 		partial_config.apply_to_config(&mut config);
 
@@ -503,6 +519,7 @@ mod tests {
 				pdf_high_quality: Some(DEFAULT_PDF_HIGH_QUALITY),
 				db_max_connections: Some(DEFAULT_DB_MAX_CONNECTIONS),
 				db_min_connections: Some(DEFAULT_DB_MIN_CONNECTIONS),
+				oidc: None,
 			}
 		);
 
@@ -567,6 +584,7 @@ mod tests {
 						pdf_high_quality: DEFAULT_PDF_HIGH_QUALITY,
 						db_max_connections: DEFAULT_DB_MAX_CONNECTIONS,
 						db_min_connections: DEFAULT_DB_MIN_CONNECTIONS,
+						oidc: None,
 					}
 				);
 			},

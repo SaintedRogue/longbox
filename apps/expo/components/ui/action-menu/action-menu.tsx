@@ -18,8 +18,9 @@ import { Icon } from '../icon'
 import { Text } from '../text'
 import { ActionMenuProps } from './types'
 
-export function ActionMenu({ groups, androidProps }: ActionMenuProps) {
+export function ActionMenu({ icon, groups, androidProps, disabled }: ActionMenuProps) {
 	const insets = useSafeAreaInsets()
+	const TriggerIcon = icon?.android ?? Ellipsis
 	const contentInsets = {
 		top: insets.top,
 		bottom: insets.bottom,
@@ -29,7 +30,7 @@ export function ActionMenu({ groups, androidProps }: ActionMenuProps) {
 
 	const renderGroup = (group: ActionMenuProps['groups'][number], groupIndex: number) => {
 		return (
-			<Fragment key={groupIndex}>
+			<Fragment key={`action-menu-group-${groupIndex}-items-${group.items.length}`}>
 				{groupIndex > 0 && <DropdownMenuSeparator />}
 				<DropdownMenuGroup>
 					{group.items.map((item, itemIndex) => (
@@ -37,6 +38,7 @@ export function ActionMenu({ groups, androidProps }: ActionMenuProps) {
 							key={itemIndex}
 							onPress={item.onPress}
 							className="flex-row items-center"
+							disabled={item.disabled}
 						>
 							<Icon as={item.icon.android} size={16} className="mr-2 text-foreground" />
 							<Text className="text-lg">{item.label}</Text>
@@ -49,10 +51,10 @@ export function ActionMenu({ groups, androidProps }: ActionMenuProps) {
 
 	return (
 		<DropdownMenu>
-			<DropdownMenuTrigger asChild>
+			<DropdownMenuTrigger asChild disabled={disabled}>
 				<Button className="squircle h-8 w-8 rounded-full p-0" variant="ghost" size="icon">
 					<View>
-						<Ellipsis size={20} className="text-foreground" />
+						<Icon as={TriggerIcon} size={20} className="text-foreground" />
 					</View>
 				</Button>
 			</DropdownMenuTrigger>

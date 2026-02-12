@@ -4,6 +4,9 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { ReaderSettings } from '~/components/book/reader/settings'
 
+// TODO: Figure out ideal ux for including ebook settings in the global settings
+// routes (maybe a separate route? maybe tabs inside the sheet? idk)
+
 export default function Screen() {
 	const insets = useSafeAreaInsets()
 

@@ -1,9 +1,13 @@
 package expo.modules.readium
 
 import android.annotation.SuppressLint
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.os.Bundle
 import android.view.ActionMode
 import android.view.Menu
+import android.view.MenuItem
 import android.view.View
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
@@ -16,6 +20,8 @@ import org.readium.r2.navigator.epub.EpubNavigatorFragment
 import org.readium.r2.navigator.epub.EpubPreferences
 import org.readium.r2.navigator.epub.css.FontStyle
 import org.readium.r2.navigator.epub.css.FontWeight
+import org.readium.r2.navigator.epub.css.Length
+import org.readium.r2.navigator.epub.css.RsProperties
 import org.readium.r2.navigator.preferences.FontFamily
 import org.readium.r2.navigator.util.BaseActionModeCallback
 import org.readium.r2.shared.ExperimentalReadiumApi
@@ -27,22 +33,43 @@ import kotlin.math.ceil
 class SelectionActionModeCallback(private val epubView: EPUBView) : BaseActionModeCallback() {
     @OptIn(InternalReadiumApi::class)
     override fun onCreateActionMode(mode: ActionMode?, menu: Menu?): Boolean {
-        val activity: FragmentActivity? = epubView.appContext.currentActivity as FragmentActivity?
-        activity?.lifecycleScope?.launch {
+        mode?.menuInflater?.inflate(R.menu.menu_action_mode, menu)
+        return true
+    }
+    
+    @OptIn(InternalReadiumApi::class)
+    override fun onActionItemClicked(mode: ActionMode, item: MenuItem): Boolean {
+        val activity = epubView.appContext.currentActivity as? FragmentActivity ?: return false
+        
+        activity.lifecycleScope.launch {
             val selection = epubView.navigator?.currentSelection() ?: return@launch
-            selection.rect?.let {
-                val x = ceil(it.centerX() / epubView.resources.displayMetrics.density).toInt()
-                val y = ceil(it.top / epubView.resources.displayMetrics.density).toInt() - 16
-                epubView.onSelection(
-                    mapOf(
-                        "locator" to selection.locator.toJSON().toMap(),
-                        "x" to x,
-                        "y" to y
-                    )
-                )
+            val locator = selection.locator
+            val text = locator.text.highlight ?: ""
+            
+            when (item.itemId) {
+                R.id.action_highlight -> {
+                    epubView.onHighlightRequest(mapOf(
+                        "locator" to locator.toJSON().toMap(),
+                        "text" to text
+                    ))
+                }
+                R.id.action_note -> {
+                    epubView.onNoteRequest(mapOf(
+                        "locator" to locator.toJSON().toMap(),
+                        "text" to text
+                    ))
+                }
+                R.id.action_copy -> {
+                    val clipboard = epubView.context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    val clip = ClipData.newPlainText("Selected Text", text)
+                    clipboard.setPrimaryClip(clip)
+                }
             }
+            
+            epubView.navigator?.clearSelection()
         }
-
+        
+        mode?.finish()
         return true
     }
 }
@@ -68,6 +95,13 @@ class EPUBFragment(
             listener.props!!.locator,
             listener = listener,
             configuration = EpubNavigatorFragment.Configuration {
+                // Note: This was an irritating issue. In the Readium source, they define CSS which TDLR;
+                // applies a 39.99rem max line length for tablet-sized screens and up. Setting to `nil` does
+                // nothing, so I set it to a very large value to effectively disable it.
+                readiumCssRsProperties = RsProperties(
+                    maxLineLength = Length.Rem(200.0)
+                )
+
                 servedAssets = listOf(
                     "fonts/OpenDyslexic-Regular.otf",
                     "fonts/OpenDyslexic-Bold.otf",
