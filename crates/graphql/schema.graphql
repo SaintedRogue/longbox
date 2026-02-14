@@ -2458,6 +2458,16 @@ type StumpConfig {
 	"""
 	maxScannerConcurrency: Int!
 	"""
+	The maximum number of database connections in the pool. Increasing this allows more
+	concurrent database operations but uses more memory.
+	"""
+	dbMaxConnections: Int!
+	"""
+	The minimum number of database connections to keep warm in the pool. Keeping a baseline
+	of connections ready improves response time for database operations.
+	"""
+	dbMinConnections: Int!
+	"""
 	The maximum number of concurrent files which may be processed by a thumbnail generator. This is used
 	to limit/increase the number of images that are processed at once. Image generation can be
 	resource intensive, so this may be useful for those with high or low performance systems to
