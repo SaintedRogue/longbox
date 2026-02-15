@@ -1,7 +1,6 @@
 use std::{
 	collections::HashMap,
 	path::{Path, PathBuf},
-	sync::Arc,
 };
 
 use globset::GlobSet;
@@ -10,10 +9,11 @@ use models::entity::{media, series};
 use rayon::iter::{
 	IntoParallelIterator, IntoParallelRefIterator, ParallelBridge, ParallelIterator,
 };
-use sea_orm::{prelude::*, DatabaseConnection, QuerySelect};
+use sea_orm::{prelude::*, QuerySelect};
 use walkdir::{DirEntry, WalkDir};
 
 use crate::{
+	database::ConnectionGuard,
 	filesystem::{
 		scanner::{options::BookVisitOperation, utils::file_updated_since_scan},
 		PathUtils,
@@ -25,7 +25,7 @@ use super::ScanOptions;
 
 pub struct WalkerCtx {
 	/// A reference to the database connection
-	pub db: Arc<DatabaseConnection>,
+	pub db: ConnectionGuard,
 	/// The globset of ignore rules to apply during the walk
 	pub ignore_rules: GlobSet,
 	// Will be 1 if the library is collection based, None

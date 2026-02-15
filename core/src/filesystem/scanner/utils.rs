@@ -717,12 +717,14 @@ pub(crate) async fn safely_build_and_insert_media(
 
 	let atomic_cursor = Arc::new(AtomicUsize::new(1));
 
+	let conn = worker_ctx.get_connection().await;
+
 	while let Some(book) = books.pop_front() {
 		let Some(path) = book.path() else {
 			tracing::warn!(?book, "Book has no path?");
 			continue;
 		};
-		match create_media(&worker_ctx.conn, book).await {
+		match create_media(&conn, book).await {
 			Ok(created_media) => {
 				output.created_media += 1;
 				worker_ctx.send_batch(vec![
@@ -786,7 +788,7 @@ pub(crate) async fn visit_and_update_media(
 		return Ok(output);
 	}
 
-	let conn = worker_ctx.conn.as_ref();
+	let conn = worker_ctx.get_connection().await;
 	let paths_to_operation = params
 		.iter()
 		.map(|(p, o)| (p.to_string_lossy().to_string(), *o))
@@ -801,7 +803,7 @@ pub(crate) async fn visit_and_update_media(
 		)
 		.filter(media::Column::SeriesId.eq(series_id.to_string()))
 		.into_model::<media::ModelWithMetadata>()
-		.all(conn)
+		.all(conn.as_ref())
 		.await?;
 
 	if media.len() != paths_len {
@@ -893,7 +895,7 @@ pub(crate) async fn visit_and_update_media(
 
 	while let Some(result) = build_results.pop_front() {
 		let error_ctx = result.error_ctx();
-		match handle_book_visit_operation(&worker_ctx.conn, result).await {
+		match handle_book_visit_operation(&conn, result).await {
 			Ok(_) => {
 				output.updated_media += 1;
 			},

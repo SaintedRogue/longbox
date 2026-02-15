@@ -150,9 +150,10 @@ impl JobExt for LibraryScanJob {
 		// Note: We ignore the potential self.config here in the event that it was
 		// updated since being queued. This is perhaps a bit overly cautious, but it's
 		// just one additional query.
+		let conn = ctx.get_connection().await;
 		let config = library_config::Entity::find()
 			.filter(library_config::Column::LibraryId.eq(self.id.clone()))
-			.one(ctx.conn.as_ref())
+			.one(conn.as_ref())
 			.await?
 			.ok_or(JobError::InitFailed(
 				"Library is missing configuration".to_string(),
@@ -163,6 +164,7 @@ impl JobExt for LibraryScanJob {
 		self.config = Some(config);
 
 		ctx.report_progress(JobProgress::msg("Performing task discovery"));
+		let walk_conn = ctx.get_connection().await;
 		let WalkedLibrary {
 			series_to_create,
 			recovered_series,
@@ -174,7 +176,7 @@ impl JobExt for LibraryScanJob {
 		} = walk_library(
 			&self.path,
 			WalkerCtx {
-				db: ctx.conn.clone(),
+				db: walk_conn,
 				ignore_rules,
 				max_depth: is_collection_based.then_some(1),
 				options: self.options,
@@ -193,7 +195,7 @@ impl JobExt for LibraryScanJob {
 		output.ignored_directories = ignored_directories;
 
 		if library_is_missing {
-			handle_missing_library(&ctx.conn, self.id.as_str()).await?;
+			handle_missing_library(conn.as_ref(), self.id.as_str()).await?;
 			ctx.send_batch(vec![
 				JobProgress::msg("Failed to find library on disk").into_worker_send(),
 				CoreEvent::DiscoveredMissingLibrary(event::DiscoveredMissingLibrary {
@@ -337,13 +339,14 @@ impl JobExt for LibraryScanJob {
 				if !recovered_series.is_empty() {
 					ctx.report_progress(JobProgress::msg("Recovering series"));
 
+					let conn = ctx.get_connection().await;
 					let affected_rows = series::Entity::update_many()
 						.col_expr(
 							series::Column::Status,
 							Expr::value(FileStatus::Ready.to_string()),
 						)
 						.filter(series::Column::Id.is_in(recovered_series))
-						.exec(ctx.conn.as_ref())
+						.exec(conn.as_ref())
 						.await
 						.map_or_else(
 							|error| {
@@ -378,13 +381,14 @@ impl JobExt for LibraryScanJob {
 						.map(|e| e.to_string_lossy().to_string())
 						.collect::<Vec<String>>();
 
+					let conn = ctx.get_connection().await;
 					let affected_rows = series::Entity::update_many()
 						.col_expr(
 							series::Column::Status,
 							Expr::value(FileStatus::Missing.to_string()),
 						)
 						.filter(series::Column::Path.is_in(missing_series_str))
-						.exec(ctx.conn.as_ref())
+						.exec(conn.as_ref())
 						.await
 						.map_or_else(
 							|error| {
@@ -521,10 +525,11 @@ impl JobExt for LibraryScanJob {
 						},
 					};
 
+				let walk_series_conn = ctx.get_connection().await;
 				let walk_result = walk_series(
 					path_buf.as_path(),
 					WalkerCtx {
-						db: ctx.conn.clone(),
+						db: walk_series_conn,
 						ignore_rules,
 						max_depth,
 						options: self.options,
@@ -568,12 +573,13 @@ impl JobExt for LibraryScanJob {
 						JobExecuteLog::warn("Series could not be found on disk")
 							.with_ctx(path_buf.to_string_lossy().to_string()),
 					);
+					let missing_conn = ctx.get_connection().await;
 					let MissingSeriesOutput {
 						updated_series,
 						updated_media,
 						logs: new_logs,
 					} = handle_missing_series(
-						&ctx.conn,
+						&missing_conn,
 						path_buf.to_str().unwrap_or_default(),
 					)
 					.await?;
@@ -589,10 +595,11 @@ impl JobExt for LibraryScanJob {
 
 				let series_path_str = path_buf.to_str().unwrap_or_default().to_string();
 
+				let series_conn = ctx.get_connection().await;
 				let series = series::Entity::find()
 					.filter(series::Column::Path.eq(series_path_str.clone()))
 					.into_model::<series::SeriesIdentSelect>()
-					.one(ctx.conn.as_ref())
+					.one(series_conn.as_ref())
 					.await?
 					.ok_or(JobError::TaskFailed("Series not found".to_string()))?;
 
@@ -810,7 +817,7 @@ async fn handle_scan_complete(
 	ctx: &WorkerCtx,
 	options: &ScanOptions,
 ) -> Result<(), JobError> {
-	let conn = ctx.conn.as_ref();
+	let conn = ctx.get_connection().await;
 	let now = chrono::Utc::now();
 
 	let update_result = library::Entity::update_many()
@@ -819,7 +826,7 @@ async fn handle_scan_complete(
 			Expr::value(now.to_rfc3339()),
 		)
 		.filter(library::Column::Id.eq(job.id.clone()))
-		.exec(conn)
+		.exec(conn.as_ref())
 		.await;
 
 	if let Err(error) = update_result {
@@ -846,7 +853,7 @@ async fn handle_scan_complete(
 			library_id: Set(job.id.clone()),
 			..Default::default()
 		})
-		.exec(conn)
+		.exec(conn.as_ref())
 		.await;
 
 	if let Err(error) = insert_result {

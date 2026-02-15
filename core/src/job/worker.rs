@@ -9,7 +9,7 @@ use tokio::sync::{broadcast, mpsc, oneshot};
 
 use crate::{
 	config::StumpConfig,
-	database::ConnectionPoolMonitor,
+	database::{ConnectionGuard, ConnectionPoolMonitor},
 	event::{self, CoreEvent},
 	job::{JobError, JobStatus},
 };
@@ -79,6 +79,13 @@ pub struct WorkerCtx {
 }
 
 impl WorkerCtx {
+	/// Gets a database connection from the pool, respecting the connection limit
+	/// set by the [`ConnectionPoolMonitor`]
+	pub async fn get_connection(&self) -> ConnectionGuard {
+		let guard = self.pool_monitor.acquire_slot().await;
+		ConnectionGuard::new(guard, self.conn.clone())
+	}
+
 	/// Emit a [`CoreEvent`] to any clients listening to the server that a job has started
 	pub fn report_started(&self) {
 		let send_result =

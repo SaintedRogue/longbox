@@ -1,7 +1,12 @@
-use std::sync::{
-	atomic::{AtomicU32, Ordering},
-	Arc,
+use std::{
+	ops::Deref,
+	sync::{
+		atomic::{AtomicU32, Ordering},
+		Arc,
+	},
 };
+
+use sea_orm::DatabaseConnection;
 use tokio::sync::Semaphore;
 
 /// Connection pool monitor that provides backpressure for core operations
@@ -96,6 +101,35 @@ impl Drop for BackgroundConnectionGuard {
 			connections = previous - 1,
 			"Released background connection slot"
 		);
+	}
+}
+
+/// A guard that holds both a connection slot permit and the database connection.
+pub struct ConnectionGuard {
+	_guard: BackgroundConnectionGuard,
+	conn: Arc<DatabaseConnection>,
+}
+
+impl ConnectionGuard {
+	pub fn new(guard: BackgroundConnectionGuard, conn: Arc<DatabaseConnection>) -> Self {
+		Self {
+			_guard: guard,
+			conn,
+		}
+	}
+}
+
+impl Deref for ConnectionGuard {
+	type Target = DatabaseConnection;
+
+	fn deref(&self) -> &Self::Target {
+		&self.conn
+	}
+}
+
+impl AsRef<DatabaseConnection> for ConnectionGuard {
+	fn as_ref(&self) -> &DatabaseConnection {
+		&self.conn
 	}
 }
 

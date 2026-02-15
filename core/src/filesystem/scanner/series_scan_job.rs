@@ -117,6 +117,7 @@ impl JobExt for SeriesScanJob {
 		let mut output = Self::Output::default();
 		let path_buf = PathBuf::from(self.path.clone());
 
+		let lib_conn = ctx.get_connection().await;
 		let (library, config) = library::Entity::find()
 			.filter(
 				Condition::all().add(
@@ -131,7 +132,7 @@ impl JobExt for SeriesScanJob {
 				),
 			)
 			.find_also_related(library_config::Entity)
-			.one(ctx.conn.as_ref())
+			.one(lib_conn.as_ref())
 			.await?
 			.ok_or(JobError::InitFailed("Library not found".to_string()))?;
 
@@ -156,6 +157,7 @@ impl JobExt for SeriesScanJob {
 
 		self.config = Some(config);
 
+		let walk_conn = ctx.get_connection().await;
 		let WalkedSeries {
 			series_is_missing,
 			media_to_create,
@@ -168,7 +170,7 @@ impl JobExt for SeriesScanJob {
 		} = walk_series(
 			PathBuf::from(self.path.clone()).as_path(),
 			WalkerCtx {
-				db: ctx.conn.clone(),
+				db: walk_conn,
 				ignore_rules,
 				max_depth,
 				options: self.options,
@@ -177,7 +179,8 @@ impl JobExt for SeriesScanJob {
 		.await?;
 
 		if series_is_missing {
-			let _ = handle_missing_series(&ctx.conn, self.path.as_str()).await;
+			let missing_conn = ctx.get_connection().await;
+			let _ = handle_missing_series(&missing_conn, self.path.as_str()).await;
 			return Err(JobError::InitFailed(
 				"Series could not be found on disk".to_string(),
 			));

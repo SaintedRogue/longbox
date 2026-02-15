@@ -9,7 +9,7 @@ use tokio::sync::{
 
 use crate::{
 	config::StumpConfig,
-	database::{self, ConnectionPoolMonitor},
+	database::{self, ConnectionGuard, ConnectionPoolMonitor},
 	event::CoreEvent,
 	filesystem::scanner::LibraryWatcher,
 	job::{Executor, JobController, JobControllerCommand},
@@ -59,8 +59,12 @@ impl Ctx {
 		let pool_monitor =
 			Arc::new(ConnectionPoolMonitor::new(config.db_max_connections));
 
-		let job_controller =
-			JobController::new(conn.clone(), config.clone(), event_channel.0.clone());
+		let job_controller = JobController::new(
+			conn.clone(),
+			config.clone(),
+			event_channel.0.clone(),
+			pool_monitor.clone(),
+		);
 		let library_watcher =
 			Arc::new(LibraryWatcher::new(conn.clone(), job_controller.clone()));
 
@@ -83,9 +87,12 @@ impl Ctx {
 		let pool_monitor =
 			Arc::new(ConnectionPoolMonitor::new(config.db_max_connections));
 
-		// Create job manager
-		let job_controller =
-			JobController::new(conn.clone(), config.clone(), event_channel.0.clone());
+		let job_controller = JobController::new(
+			conn.clone(),
+			config.clone(),
+			event_channel.0.clone(),
+			pool_monitor.clone(),
+		);
 		let library_watcher =
 			Arc::new(LibraryWatcher::new(conn.clone(), job_controller.clone()));
 
@@ -164,9 +171,11 @@ impl Ctx {
 
 	/// Retrieves the encryption key from the server configuration
 	pub async fn get_encryption_key(&self) -> CoreResult<String> {
+		let conn = self.get_connection().await;
+
 		let record = server_config::Entity::find()
 			.select_column(server_config::Column::EncryptionKey)
-			.one(self.conn.as_ref())
+			.one(conn.as_ref())
 			.await?;
 
 		let encryption_key = record
@@ -174,5 +183,12 @@ impl Ctx {
 			.ok_or(CoreError::EncryptionKeyNotSet)?;
 
 		Ok(encryption_key)
+	}
+
+	/// Gets a database connection from the pool, respecting the connection limit
+	/// set by the [ConnectionPoolMonitor]
+	pub async fn get_connection(&self) -> ConnectionGuard {
+		let guard = self.pool_monitor.acquire_slot().await;
+		ConnectionGuard::new(guard, self.conn.clone())
 	}
 }

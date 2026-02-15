@@ -54,10 +54,9 @@ impl JobController {
 		conn: Arc<DatabaseConnection>,
 		config: Arc<StumpConfig>,
 		core_event_tx: broadcast::Sender<CoreEvent>,
+		pool_monitor: Arc<ConnectionPoolMonitor>,
 	) -> Arc<Self> {
 		let (commands_tx, commands_rx) = mpsc::unbounded_channel();
-		let pool_monitor =
-			Arc::new(ConnectionPoolMonitor::new(config.db_max_connections));
 
 		let this = Arc::new(Self {
 			commands_tx: commands_tx.clone(),
