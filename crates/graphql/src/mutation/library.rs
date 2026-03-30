@@ -930,7 +930,7 @@ impl LibraryMutation {
 
 		let (library, config) = library::Entity::find_for_user(user)
 			.filter(library::Column::Id.eq(id.to_string()))
-			.select_also(library_config::Entity)
+			.find_also_related(library_config::Entity)
 			.one(core.conn.as_ref())
 			.await?
 			.ok_or("Library not found")?;

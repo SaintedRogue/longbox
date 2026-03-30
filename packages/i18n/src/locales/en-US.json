@@ -691,7 +691,8 @@
 							"here"
 						]
 					},
-					"fetchButton": "Start background fetch"
+					"fetchButton": "Start background fetch",
+					"fetchError": "Failed to start metadata fetch"
 				}
 			}
 		},
