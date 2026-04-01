@@ -1,68 +1,81 @@
-import { useEpubReader } from '@stump/client'
-import { cx, Label, Text, TEXT_VARIANTS } from '@stump/components'
+import { cx, IconButton, Label, Text, TEXT_VARIANTS } from '@stump/components'
 import { Minus, Plus } from 'lucide-react'
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 import { usePressAndHold } from '@/hooks/usePressAndHold'
+import { useBookPreferences } from '@/scenes/book/reader/useBookPreferences'
+
+import { useEpubReaderContext } from '../context'
 
 export default function FontSizeControl() {
-	const { fontSize, setFontSize } = useEpubReader((state) => ({
-		fontSize: state.preferences.fontSize,
-		setFontSize: state.setFontSize,
-	}))
-	const fontSizeRef = useRef(fontSize)
+	const {
+		readerMeta: { bookEntity },
+	} = useEpubReaderContext()
+	const {
+		bookPreferences: { fontSize = 13 },
+		setBookPreferences,
+	} = useBookPreferences({ book: bookEntity })
+
+	const [localFontSize, setLocalFontSize] = useState(fontSize)
+
 	useEffect(() => {
-		fontSizeRef.current = fontSize
-	}, [fontSize])
+		if (localFontSize === fontSize) return
+		const bookPreferencesTimeout = setTimeout(() => {
+			setBookPreferences({ fontSize: localFontSize })
+		}, 0)
+		return () => clearTimeout(bookPreferencesTimeout)
+	}, [localFontSize, fontSize, setBookPreferences])
 
-	const handleSetFontSize = useCallback(
-		(newSize: number) => {
-			if (newSize < 1) {
-				return
-			} else {
-				setFontSize(newSize)
-			}
-		},
-		[setFontSize],
-	)
+	const incrementFontSize = useCallback((increment: number) => {
+		setLocalFontSize((currentSize) => {
+			const newSize = currentSize + increment
+			if (newSize >= 1) return newSize
+			return currentSize
+		})
+	}, [])
 
-	const { bindButton } = usePressAndHold()
+	const { bindButton: bindMinus, isHolding: isHoldingMinus } = usePressAndHold()
+	const { bindButton: bindPlus, isHolding: isHoldingPlus } = usePressAndHold()
 
 	/**
 	 * Used to preview the font size as it will be displayed in the reader. The max
 	 * font size for the preview is 50px. However, there is no limit to the font size
 	 * that can be set on the upper bound. The lower bound is 1px.
 	 */
-	const displayedFontSize = fontSize > 50 ? 50 : fontSize
+	const displayedFontSize = localFontSize > 50 ? 50 : localFontSize
 
 	return (
-		<div className="flex flex-col gap-y-2.5">
+		<div className="gap-y-2.5 flex flex-col">
 			<Label>Font size</Label>
-			<div className="flex items-center gap-x-2">
-				<button
-					{...bindButton({
-						callback: () => handleSetFontSize(fontSizeRef.current - 1),
+			<div className="gap-x-2 flex items-center">
+				<IconButton
+					{...bindMinus({
+						callback: () => incrementFontSize(-1),
 					})}
-					className={cx('text-base', TEXT_VARIANTS.secondary)}
+					variant="ghost"
+					size="xs"
+					className={isHoldingMinus ? 'bg-background-surface-hover select-none' : ''}
 				>
-					<Minus className="h-3 w-3" />
-				</button>
+					<Minus className="h-4 w-4" />
+				</IconButton>
 				<span
 					className={cx('flex items-center justify-center', TEXT_VARIANTS.default)}
 					style={{ fontSize: `${displayedFontSize}px` }}
 				>
-					{fontSize}px
+					{localFontSize}px
 				</span>
-				<button
-					{...bindButton({
-						callback: () => handleSetFontSize(fontSizeRef.current + 1),
+				<IconButton
+					{...bindPlus({
+						callback: () => incrementFontSize(+1),
 					})}
-					className={cx('text-base', TEXT_VARIANTS.secondary)}
+					variant="ghost"
+					size="xs"
+					className={isHoldingPlus ? 'bg-background-surface-hover select-none' : ''}
 				>
-					<Plus className="h-3 w-3" />
-				</button>
+					<Plus className="h-4 w-4" />
+				</IconButton>
 			</div>
-			{fontSize > 50 && (
+			{localFontSize > 50 && (
 				<Text size="xs" className="text-left" variant="muted">
 					Live font preview is capped at 50px
 				</Text>

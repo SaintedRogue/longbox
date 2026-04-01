@@ -1,26 +1,27 @@
-import { useIsFetching } from '@stump/client'
+import { useIsFetching } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 
 export default function BackgroundFetchIndicator() {
-	const isFetching = useIsFetching()
+	const activeQueries = useIsFetching()
 
-	const [isFetchingState, setIsFetchingState] = useState(isFetching)
+	const [isFetching, setIsFetching] = useState(activeQueries > 0)
 
 	// Delay the hiding of the spinner by 100ms to prevent flickering (queries are pretty quick!)
 	useEffect(() => {
-		if (isFetchingState && !isFetching) {
-			setTimeout(() => setIsFetchingState(isFetching), 100)
+		const isActivelyFetching = activeQueries > 0
+		if (isFetching && !isActivelyFetching) {
+			setTimeout(() => setIsFetching(isActivelyFetching), 100)
 		} else {
-			setIsFetchingState(isFetching)
+			setIsFetching(isActivelyFetching)
 		}
-	}, [isFetching, isFetchingState])
+	}, [isFetching, activeQueries])
 
-	if (!isFetchingState) {
+	if (!isFetching) {
 		return null
 	}
 
 	return (
-		<div className="fixed bottom-4 right-6 z-50">
+		<div className="bottom-4 right-6 fixed z-50">
 			<svg className="stroke-contrast h-6 w-6 animate-spin" viewBox="0 0 256 256">
 				<line
 					x1="128"

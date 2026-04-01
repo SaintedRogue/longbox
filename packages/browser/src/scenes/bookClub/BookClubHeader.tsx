@@ -1,5 +1,5 @@
 import { Avatar, Card, cn, Heading, Text } from '@stump/components'
-import dayjs from 'dayjs'
+import { intlFormat } from 'date-fns'
 import pluralize from 'pluralize'
 
 import { useBookClubContext } from '@/components/bookClub'
@@ -7,26 +7,27 @@ import { usePreferences } from '@/hooks'
 
 export default function BookClubHeader() {
 	const {
-		preferences: { primary_navigation_mode, layout_max_width_px },
+		preferences: { primaryNavigationMode, layoutMaxWidthPx },
 	} = usePreferences()
-	const { bookClub } = useBookClubContext()
+	const {
+		bookClub: { creator, name, description, roleSpec, membersCount, createdAt },
+	} = useBookClubContext()
 
-	const creator = bookClub.members?.find((member) => member.is_creator)
 	const renderCreator = () => {
-		if (!creator || (!creator.display_name && !creator.user)) {
+		if (!creator.displayName) {
 			return null
 		}
 
-		const displayName = creator.display_name ?? creator.user?.username
-		const avatarUrl = creator.user?.avatar_url ?? undefined
+		const displayName = creator.displayName
+		const avatarUrl = creator.avatarUrl ?? undefined
 
 		return (
-			<Card className="flex items-center justify-between gap-4 p-2.5">
+			<Card className="gap-4 p-2.5 flex items-center justify-between">
 				<Text size="sm" variant="muted">
 					Created by
 				</Text>
 
-				<div className="flex items-center gap-2">
+				<div className="gap-2 flex items-center">
 					<Avatar src={avatarUrl} fallback={displayName} className="h-8 w-8" />
 					<Text size="sm">{displayName}</Text>
 				</div>
@@ -34,30 +35,31 @@ export default function BookClubHeader() {
 		)
 	}
 
-	const preferTopBar = primary_navigation_mode === 'TOPBAR'
+	const preferTopBar = primaryNavigationMode === 'TOPBAR'
 
 	return (
 		<header
 			className={cn(
-				'flex w-full flex-col gap-4 p-4 md:flex-row md:items-start md:justify-between md:gap-0',
+				'gap-4 p-4 md:flex-row md:items-start md:justify-between md:gap-0 flex w-full flex-col',
 				{
-					'mx-auto': preferTopBar && !!layout_max_width_px,
+					'mx-auto': preferTopBar && !!layoutMaxWidthPx,
 				},
 			)}
 			style={{
-				maxWidth: preferTopBar ? layout_max_width_px || undefined : undefined,
+				maxWidth: preferTopBar ? layoutMaxWidthPx || undefined : undefined,
 			}}
 		>
-			<div className="md:max-w-xl">
-				<Heading>{bookClub.name}</Heading>
+			<div className="gap-1 md:max-w-xl flex flex-col">
+				<Heading>{name}</Heading>
 				{/* TODO: read more text for long descriptions... */}
-				<Text size="md">{bookClub.description}</Text>
+				<Text size="md" variant="muted">
+					{description}
+				</Text>
 
 				<div className="mt-2">
 					<Text size="sm">
-						<b>{bookClub.members?.length}</b>{' '}
-						{pluralize(bookClub.member_role_spec['MEMBER'], bookClub?.members?.length || 0)} •{' '}
-						Created <b>{dayjs(bookClub.created_at).format('MMMM YYYY')}</b>
+						<b>{membersCount}</b> {pluralize(roleSpec['MEMBER'], membersCount)} • Created{' '}
+						<b>{intlFormat(new Date(createdAt), { month: 'long', year: 'numeric' })}</b>
 					</Text>
 				</div>
 			</div>

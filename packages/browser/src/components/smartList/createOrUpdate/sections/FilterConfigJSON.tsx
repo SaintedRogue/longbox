@@ -8,7 +8,7 @@ export default function FilterConfigJSON() {
 	const form = useFormContext<SmartListFormSchema>()
 	const { filters } = useWatch({ control: form.control })
 
-	const [joiner] = form.watch(['filters.joiner'])
+	const [joiner] = useWatch({ control: form.control, name: ['filters.joiner'] })
 
 	const groups = useMemo(() => (filters?.groups ?? []) as FilterGroupSchema[], [filters?.groups])
 	const apiFilters = useMemo(
@@ -24,7 +24,7 @@ export default function FilterConfigJSON() {
 		<Accordion type="single" collapsible>
 			<Accordion.Item value="raw_filters" className="border-none">
 				<Accordion.Trigger noUnderline asLabel>
-					<div className="flex flex-col items-start gap-y-1">
+					<div className="gap-y-1 flex flex-col items-start">
 						<span>Show JSON</span>
 						<Text variant="muted" size="sm">
 							View the raw JSON representation of the filters

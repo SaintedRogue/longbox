@@ -8,8 +8,9 @@ use crate::{
 		error::FileError,
 		hash,
 		media::{
-			process::{FileProcessor, FileProcessorOptions, ProcessedFile},
+			process::{AnalyzedPage, FileProcessor, FileProcessorOptions, ProcessedFile},
 			utils::{metadata_from_buf, sort_file_names},
+			ProcessedFileHashes, ProcessedMediaMetadata,
 		},
 		FileParts, PathUtils,
 	},
@@ -39,7 +40,7 @@ impl FileProcessor for ZipProcessor {
 		Ok(sample_size)
 	}
 
-	fn hash(path: &str) -> Option<String> {
+	fn generate_stump_hash(path: &str) -> Option<String> {
 		let sample_result = Self::get_sample_size(path);
 
 		if let Ok(sample) = sample_result {
@@ -56,13 +57,72 @@ impl FileProcessor for ZipProcessor {
 		}
 	}
 
-	fn process(
+	fn generate_hashes(
 		path: &str,
 		FileProcessorOptions {
 			generate_file_hashes,
-			process_metadata,
+			// generate_koreader_hashes,
 			..
 		}: FileProcessorOptions,
+	) -> Result<ProcessedFileHashes, FileError> {
+		let hash = generate_file_hashes
+			.then(|| ZipProcessor::generate_stump_hash(path))
+			.flatten();
+		// TODO(koreader): Do we want to hash ZIP files?
+		// let koreader_hash = generate_koreader_hashes
+		// 	.then(|| generate_koreader_hash(path))
+		// 	.transpose()?;
+
+		Ok(ProcessedFileHashes {
+			hash,
+			koreader_hash: None,
+		})
+	}
+
+	fn process_metadata(path: &str) -> Result<Option<ProcessedMediaMetadata>, FileError> {
+		let zip_file = File::open(path)?;
+		let mut archive = zip::ZipArchive::new(zip_file)?;
+
+		let mut metadata = None;
+
+		for i in 0..archive.len() {
+			let mut file = archive.by_index(i)?;
+
+			if file.is_dir() {
+				trace!("Skipping directory");
+				continue;
+			}
+
+			let path_buf = file.enclosed_name().unwrap_or_else(|| {
+				tracing::warn!("Failed to get enclosed name for zip entry");
+				PathBuf::from(file.name())
+			});
+			let path = path_buf.as_path();
+
+			if path.is_hidden_file() {
+				trace!(path = ?path, "Skipping hidden file");
+				continue;
+			}
+
+			let FileParts { file_name, .. } = path.file_parts();
+
+			if file_name == "ComicInfo.xml" {
+				trace!("Found ComicInfo.xml");
+				let mut contents = Vec::new();
+				file.read_to_end(&mut contents)?;
+				let contents = String::from_utf8_lossy(&contents).to_string();
+				trace!(contents_len = contents.len(), "Read ComicInfo.xml");
+				metadata = metadata_from_buf(&contents);
+				break;
+			}
+		}
+
+		Ok(metadata)
+	}
+
+	fn process(
+		path: &str,
+		options: FileProcessorOptions,
 		_: &StumpConfig,
 	) -> Result<ProcessedFile, FileError> {
 		let zip_file = File::open(path)?;
@@ -71,7 +131,10 @@ impl FileProcessor for ZipProcessor {
 		let mut metadata = None;
 		let mut pages = 0;
 
-		let hash = generate_file_hashes.then(|| Self::hash(path)).flatten();
+		let ProcessedFileHashes {
+			hash,
+			koreader_hash,
+		} = Self::generate_hashes(path, options)?;
 
 		for i in 0..archive.len() {
 			let mut file = archive.by_index(i)?;
@@ -95,7 +158,7 @@ impl FileProcessor for ZipProcessor {
 			let content_type = path.naive_content_type();
 			let FileParts { file_name, .. } = path.file_parts();
 
-			if file_name == "ComicInfo.xml" && process_metadata {
+			if file_name == "ComicInfo.xml" && options.process_metadata {
 				trace!("Found ComicInfo.xml");
 				let mut contents = Vec::new();
 				file.read_to_end(&mut contents)?;
@@ -110,8 +173,7 @@ impl FileProcessor for ZipProcessor {
 		Ok(ProcessedFile {
 			path: PathBuf::from(path),
 			hash,
-			// TODO(koreader): Do we want to hash ZIP files?
-			koreader_hash: None,
+			koreader_hash,
 			metadata,
 			pages,
 		})
@@ -255,13 +317,88 @@ impl FileProcessor for ZipProcessor {
 
 		Ok(content_types)
 	}
+
+	fn analyze_page(
+		path: &str,
+		page: i32,
+		_: &StumpConfig,
+	) -> Result<AnalyzedPage, FileError> {
+		let zip_file = File::open(path)?;
+
+		let mut archive = zip::ZipArchive::new(&zip_file)?;
+		let file_names_archive = archive.clone();
+
+		if archive.is_empty() {
+			error!(path, "Empty zip file");
+			return Err(FileError::ArchiveEmptyError);
+		}
+
+		let mut file_names = file_names_archive.file_names().collect::<Vec<_>>();
+		sort_file_names(&mut file_names);
+
+		let mut images_seen = 0;
+		for name in file_names {
+			let file = archive.by_name(name)?;
+
+			if file.is_dir() {
+				continue;
+			}
+
+			let path_buf = file.enclosed_name().unwrap_or_else(|| {
+				tracing::warn!("Failed to get enclosed name for zip entry");
+				PathBuf::from(name)
+			});
+			let entry_path = path_buf.as_path();
+
+			if entry_path.is_hidden_file() {
+				tracing::trace!(path = ?path_buf, "Skipping hidden file");
+				continue;
+			}
+
+			let content_type = entry_path.naive_content_type();
+
+			if images_seen + 1 == page && content_type.is_image() {
+				trace!(
+					?name,
+					page,
+					?content_type,
+					"Found targeted zip entry for analysis"
+				);
+
+				// imagesize only needs the first few KB to read dimensions from headers, taking
+				// extra as a precaution. 64kb should be plenty.
+				const MAX_HEADER_BYTES: usize = 64 * 1024;
+				let mut buf = Vec::with_capacity(MAX_HEADER_BYTES);
+				file.take(MAX_HEADER_BYTES as u64).read_to_end(&mut buf)?;
+
+				let size = imagesize::blob_size(&buf).map_err(|e| {
+					FileError::UnknownError(format!(
+						"Failed to read image dimensions: {e}"
+					))
+				})?;
+
+				return Ok(AnalyzedPage {
+					width: size.width as u32,
+					height: size.height as u32,
+					content_type,
+				});
+			} else if content_type.is_image() {
+				images_seen += 1;
+			}
+		}
+
+		error!(page, path, "Failed to find valid image in zip file");
+
+		Err(FileError::NoImageError)
+	}
 }
 
 #[cfg(test)]
 mod tests {
 	use super::*;
 	use crate::filesystem::media::tests::{
-		get_nested_macos_compressed_cbz_path, get_test_cbz_path, get_test_zip_path,
+		get_nested_macos_compressed_cbz_path, get_test_cbz_path,
+		get_test_complex_zip_path, get_test_zip_path,
 	};
 
 	#[test]
@@ -364,5 +501,36 @@ mod tests {
 		assert!(content_types
 			.values()
 			.all(|ct| ct.mime_type() == "image/jpeg"));
+	}
+
+	#[test]
+	fn test_zip_with_complex_file_tree() {
+		let path = get_test_complex_zip_path();
+
+		let config = StumpConfig::debug();
+		let processed_file = ZipProcessor::process(
+			&path,
+			FileProcessorOptions {
+				process_metadata: true,
+				..Default::default()
+			},
+			&config,
+		)
+		.expect("Failed to process ZIP file");
+
+		// See https://github.com/stumpapp/stump/issues/641
+		assert!(processed_file.metadata.is_some());
+	}
+
+	#[test]
+	fn test_analyze_page() {
+		let path = get_test_cbz_path();
+		let config = StumpConfig::debug();
+
+		let analyzed_page = ZipProcessor::analyze_page(&path, 1, &config)
+			.expect("Failed to analyze page");
+		assert_eq!(analyzed_page.width, 480);
+		assert_eq!(analyzed_page.height, 726);
+		assert_eq!(analyzed_page.content_type.mime_type(), "image/jpeg");
 	}
 }

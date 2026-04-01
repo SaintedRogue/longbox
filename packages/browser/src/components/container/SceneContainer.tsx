@@ -9,17 +9,17 @@ type SceneContainerProps = {
 const SceneContainer = forwardRef<HTMLDivElement, SceneContainerProps>(
 	({ className, unsetConstraints = false, ...props }, ref) => {
 		const {
-			preferences: { primary_navigation_mode, layout_max_width_px },
+			preferences: { primaryNavigationMode, layoutMaxWidthPx },
 		} = usePreferences()
 
-		const preferTopBar = primary_navigation_mode === 'TOPBAR'
+		const preferTopBar = primaryNavigationMode === 'TOPBAR'
 		const maxWidth = useMemo(() => {
 			if (unsetConstraints) {
 				return undefined
 			}
 
-			return preferTopBar ? layout_max_width_px || undefined : undefined
-		}, [preferTopBar, layout_max_width_px, unsetConstraints])
+			return preferTopBar ? layoutMaxWidthPx || undefined : undefined
+		}, [preferTopBar, layoutMaxWidthPx, unsetConstraints])
 
 		return (
 			<div
@@ -27,7 +27,7 @@ const SceneContainer = forwardRef<HTMLDivElement, SceneContainerProps>(
 				// NOTE: adding padding bottom because of the overflow-hidden on the html element and the fixed
 				// topbar. This is... annoying.
 				className={cn(
-					'relative flex w-full flex-col p-4 pb-16 md:pb-4',
+					'p-4 pb-16 md:pb-4 relative flex w-full flex-col',
 					{
 						'mx-auto flex-1': preferTopBar && !unsetConstraints,
 					},

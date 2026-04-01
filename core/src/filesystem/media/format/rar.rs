@@ -1,4 +1,5 @@
 use itertools::Itertools;
+use models::shared::image_processor_options::SupportedImageFormat;
 use std::{
 	collections::HashMap,
 	fs::File,
@@ -14,13 +15,14 @@ use crate::{
 		content_type::ContentType,
 		error::FileError,
 		hash::{self, HASH_SAMPLE_COUNT, HASH_SAMPLE_SIZE},
-		image::ImageFormat,
 		media::{
 			process::{
-				FileConverter, FileProcessor, FileProcessorOptions, ProcessedFile,
+				AnalyzedPage, FileConverter, FileProcessor, FileProcessorOptions,
+				ProcessedFile, ProcessedFileHashes,
 			},
 			utils::metadata_from_buf,
 			zip::ZipProcessor,
+			ProcessedMediaMetadata,
 		},
 		FileParts, PathUtils,
 	},
@@ -80,7 +82,7 @@ impl FileProcessor for RarProcessor {
 		}
 	}
 
-	fn hash(path: &str) -> Option<String> {
+	fn generate_stump_hash(path: &str) -> Option<String> {
 		let sample_result = RarProcessor::get_sample_size(path).ok();
 
 		if let Some(sample) = sample_result {
@@ -94,6 +96,62 @@ impl FileProcessor for RarProcessor {
 			}
 		} else {
 			None
+		}
+	}
+
+	fn generate_hashes(
+		path: &str,
+		FileProcessorOptions {
+			generate_file_hashes,
+			// generate_koreader_hashes,
+			..
+		}: FileProcessorOptions,
+	) -> Result<ProcessedFileHashes, FileError> {
+		let hash = generate_file_hashes
+			.then(|| RarProcessor::generate_stump_hash(path))
+			.flatten();
+		// TODO(koreader): Do we want to hash RAR files?
+		// let koreader_hash = generate_koreader_hashes
+		// 	.then(|| generate_koreader_hash(path))
+		// 	.transpose()?;
+
+		Ok(ProcessedFileHashes {
+			hash,
+			koreader_hash: None,
+		})
+	}
+
+	fn process_metadata(path: &str) -> Result<Option<ProcessedMediaMetadata>, FileError> {
+		let mut archive = RarProcessor::open_for_processing(path)?;
+		let mut metadata_buf = None;
+
+		while let Ok(Some(header)) = archive.read_header() {
+			let entry = header.entry();
+
+			if entry.is_directory() {
+				archive = header.skip()?;
+				continue;
+			}
+
+			if entry.filename.is_hidden_file() {
+				archive = header.skip()?;
+				continue;
+			}
+
+			if entry.filename.as_os_str() == "ComicInfo.xml" {
+				let (data, _) = header.read()?;
+				metadata_buf = Some(data);
+				break;
+			} else {
+				archive = header.skip()?;
+			}
+		}
+
+		if let Some(buf) = metadata_buf {
+			let content_str = std::str::from_utf8(&buf)?;
+			Ok(metadata_from_buf(content_str))
+		} else {
+			Ok(None)
 		}
 	}
 
@@ -117,10 +175,10 @@ impl FileProcessor for RarProcessor {
 			return ZipProcessor::process(zip_path, options, config);
 		}
 
-		let hash = options
-			.generate_file_hashes
-			.then(|| RarProcessor::hash(path))
-			.flatten();
+		let ProcessedFileHashes {
+			hash,
+			koreader_hash,
+		} = RarProcessor::generate_hashes(path, options)?;
 
 		let mut archive = RarProcessor::open_for_processing(path)?;
 		let mut pages = 0;
@@ -128,6 +186,12 @@ impl FileProcessor for RarProcessor {
 
 		while let Ok(Some(header)) = archive.read_header() {
 			let entry = header.entry();
+
+			let Some(filename) = entry.filename.as_path().file_name() else {
+				tracing::warn!(?entry.filename, "Failed to get filename from entry");
+				archive = header.skip()?;
+				continue;
+			};
 
 			if entry.is_directory() {
 				archive = header.skip()?;
@@ -139,7 +203,7 @@ impl FileProcessor for RarProcessor {
 				continue;
 			}
 
-			if entry.filename.as_os_str() == "ComicInfo.xml" && options.process_metadata {
+			if filename == "ComicInfo.xml" && options.process_metadata {
 				let (data, rest) = header.read()?;
 				metadata_buf = Some(data);
 				archive = rest;
@@ -162,8 +226,7 @@ impl FileProcessor for RarProcessor {
 		Ok(ProcessedFile {
 			path: PathBuf::from(path),
 			hash,
-			// TODO(koreader): Do we want to hash RAR files?
-			koreader_hash: None,
+			koreader_hash,
 			metadata,
 			pages,
 		})
@@ -272,13 +335,66 @@ impl FileProcessor for RarProcessor {
 
 		Ok(content_types)
 	}
+
+	fn analyze_page(
+		path: &str,
+		page: i32,
+		_: &StumpConfig,
+	) -> Result<AnalyzedPage, FileError> {
+		let archive = RarProcessor::open_for_listing(path)?;
+
+		let sorted_entries = archive
+			.into_iter()
+			.filter_map(Result::ok)
+			.filter(|entry| entry.filename.is_img() && !entry.filename.is_hidden_file())
+			.sorted_by(|a, b| alphanumeric_sort::compare_path(&a.filename, &b.filename))
+			.collect::<Vec<_>>();
+
+		if sorted_entries.is_empty() {
+			return Err(FileError::NoImageError);
+		}
+
+		let target_entry = sorted_entries
+			.into_iter()
+			.nth((page - 1) as usize)
+			.ok_or(FileError::NoImageError)?;
+
+		let content_type = target_entry.filename.as_path().naive_content_type();
+
+		let mut bytes = None;
+		let mut archive = RarProcessor::open_for_processing(path)?;
+		while let Ok(Some(header)) = archive.read_header() {
+			let is_target = header.entry().filename == target_entry.filename;
+			if is_target {
+				let (data, _) = header.read()?;
+				bytes = Some(data);
+				break;
+			}
+
+			archive = header.skip()?;
+		}
+
+		let Some(bytes) = bytes else {
+			return Err(FileError::NoImageError);
+		};
+
+		let size = imagesize::blob_size(&bytes).map_err(|e| {
+			FileError::UnknownError(format!("Failed to read image dimensions: {e}"))
+		})?;
+
+		Ok(AnalyzedPage {
+			width: size.width as u32,
+			height: size.height as u32,
+			content_type,
+		})
+	}
 }
 
 impl FileConverter for RarProcessor {
 	fn to_zip(
 		path: &str,
 		delete_source: bool,
-		_: Option<ImageFormat>,
+		_: Option<SupportedImageFormat>,
 		config: &StumpConfig,
 	) -> Result<PathBuf, FileError> {
 		debug!(path, "Converting RAR to ZIP");
@@ -330,7 +446,9 @@ impl FileConverter for RarProcessor {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::filesystem::media::tests::{get_test_rar_file_data, get_test_rar_path};
+	use crate::filesystem::media::tests::{
+		get_test_complex_rar_path, get_test_rar_file_data, get_test_rar_path,
+	};
 
 	use std::fs;
 
@@ -391,5 +509,24 @@ mod tests {
 
 		let content_types = RarProcessor::get_page_content_types(&path, vec![1]);
 		assert!(content_types.is_ok());
+	}
+
+	#[test]
+	fn test_rar_with_complex_file_tree() {
+		let path = get_test_complex_rar_path();
+
+		let config = StumpConfig::debug();
+		let processed_file = RarProcessor::process(
+			&path,
+			FileProcessorOptions {
+				process_metadata: true,
+				..Default::default()
+			},
+			&config,
+		)
+		.expect("Failed to process RAR file");
+
+		// See https://github.com/stumpapp/stump/issues/641
+		assert!(processed_file.metadata.is_some());
 	}
 }

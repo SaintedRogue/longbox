@@ -51,6 +51,10 @@ export const autumn = {
 			hover: '#FFB70326',
 			secondary: '#FFB70326',
 		},
+		'on-black': {
+			DEFAULT: '#242628',
+			muted: '#242628',
+		},
 	},
 	foreground: {
 		DEFAULT: '#F7F0E4',
@@ -58,6 +62,10 @@ export const autumn = {
 		disabled: '#A29A8D',
 		muted: '#A29A8D',
 		'on-inverse': '#2C1A12',
+		'on-black': {
+			DEFAULT: '#F7F0E4',
+			muted: '#A29A8D',
+		},
 		subtle: '#E5DCC5',
 	},
 	sidebar: {
@@ -71,6 +79,24 @@ export const autumn = {
 			DEFAULT: '#35281F',
 			hover: '#3B2D23',
 			secondary: '#4B382D',
+		},
+	},
+	scrollbar: {
+		DEFAULT: '#4B382D',
+		thumb: {
+			DEFAULT: 'hsla(0, 0%, 100%, 0.4)',
+			hover: 'hsla(0, 0%, 100%, 0.3)',
+		},
+	},
+	thumbnail: {
+		border: 'rgba(233, 234, 235, 0.10)',
+		placeholder: '#422F25',
+		stack: {
+			series: '#D0802D',
+			library: {
+				start: '#5A3F33',
+				end: '#D08732',
+			},
 		},
 	},
 } satisfies StumpTheme

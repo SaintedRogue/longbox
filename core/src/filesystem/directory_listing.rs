@@ -1,31 +1,56 @@
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
-use specta::Type;
-use utoipa::ToSchema;
 
 use crate::filesystem::PathUtils;
 
-#[derive(Debug, Clone, Deserialize, Serialize, Type, ToSchema)]
+fn default_true() -> bool {
+	true
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct DirectoryListingInput {
 	pub path: Option<String>,
+	#[serde(flatten, default)]
+	pub ignore_params: DirectoryListingIgnoreParams,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct DirectoryListingIgnoreParams {
+	#[serde(default = "default_true")]
+	pub ignore_hidden: bool,
+	#[serde(default)]
+	pub ignore_files: bool,
+	#[serde(default)]
+	pub ignore_directories: bool,
+}
+
+impl Default for DirectoryListingIgnoreParams {
+	fn default() -> Self {
+		Self {
+			ignore_hidden: true,
+			ignore_files: false,
+			ignore_directories: false,
+		}
+	}
 }
 
 impl Default for DirectoryListingInput {
 	fn default() -> Self {
 		Self {
 			path: Some("/".to_string()),
+			ignore_params: DirectoryListingIgnoreParams::default(),
 		}
 	}
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, Type, ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct DirectoryListing {
 	pub parent: Option<String>,
 	pub files: Vec<DirectoryListingFile>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, Type, ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct DirectoryListingFile {
 	pub is_directory: bool,
 	pub name: String,

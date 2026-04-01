@@ -1,131 +1,238 @@
 import { useSDK } from '@stump/client'
-import { Image, ImageLoadEventData } from 'expo-image'
-import { useCallback, useMemo, useRef, useState } from 'react'
-import { FlatList, View } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { OPDSProgressionInput } from '@stump/sdk'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import * as Application from 'expo-application'
+import { useKeepAwake } from 'expo-keep-awake'
+import * as NavigationBar from 'expo-navigation-bar'
+import { useFocusEffect } from 'expo-router'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Platform } from 'react-native'
 
-import { useDisplay } from '~/lib/hooks'
+import { useActiveServer } from '~/components/activeServer'
+import { ImageBasedReader } from '~/components/book/reader'
+import { ImageReaderBookRef } from '~/components/book/reader/image/context'
+import { hashFromURL, useResolveURL } from '~/components/opds/utils'
+import { useAppState } from '~/lib/hooks'
+import { useReaderStore } from '~/stores'
+import { useBookPreferences, useBookTimer } from '~/stores/reader'
 
 import { usePublicationContext } from './context'
 
-type ImageDimension = {
-	height: number
-	width: number
-	ratio: number
-}
+// TODO(opds): We need to add ALL the progression tracking enhancements I made to the online/offline readers
+// to this one as well. I'm tired now though lol. Part of the problem is that determining the reader to use
+// is less straightforward, it might just wind up being that as part of downloads I can take an optional
+// progressionUrl or something so that the syncing locic in downloads can use it for OPDS servers
 
 export default function Screen() {
-	const insets = useSafeAreaInsets()
+	useKeepAwake()
+	const {
+		publication: {
+			metadata: { identifier, title },
+			readingOrder = [],
+		},
+		url,
+		progression,
+		progressionURL,
+		refetchProgression,
+	} = usePublicationContext()
 	const { sdk } = useSDK()
 	const {
-		publication: { readingOrder = [] },
-		progression,
-	} = usePublicationContext()
-	const { height, width } = useDisplay()
+		activeServer: { id: serverId },
+	} = useActiveServer()
 
-	const [imageSizes, setImageHeights] = useState<Record<number, ImageDimension>>(() =>
-		readingOrder.reduce(
-			(acc, { width, height }, index) => {
-				if (!width || !height) return acc
-				acc[index] = { width, height, ratio: width / height }
-				return acc
-			},
-			{} as Record<number, ImageDimension>,
-		),
+	const [id] = useState(() => identifier || hashFromURL(url))
+
+	const book = useMemo(
+		() =>
+			({
+				id,
+				name: title,
+				pages: readingOrder?.length || 0,
+				...(readingOrder?.length
+					? {
+							analysisData: {
+								__typename: 'MediaAnalysisData',
+								dimensions: readingOrder
+									.filter(({ height, width }) => height != null && width != null)
+									.map(({ height, width }) => ({
+										height: height as number,
+										width: width as number,
+									})),
+							},
+						}
+					: {}),
+				nextInSeries: { nodes: [] },
+				thumbnail: {
+					// TODO: Try pull from json instead, too tired now
+					url: readingOrder?.[0]?.href || '',
+				},
+				extension: 'unknown',
+			}) satisfies ImageReaderBookRef,
+		[id, title, readingOrder],
 	)
 
-	const safeMaxHeight = useMemo(() => height - insets.top - insets.bottom, [height, insets])
+	const {
+		preferences: { trackElapsedTime },
+	} = useBookPreferences({ book })
+	const { pause, resume, isRunning, reset } = useBookTimer(id, {
+		enabled: trackElapsedTime,
+	})
 
-	// TODO: make actually correct
-	const getPageSize = useCallback(
-		(idx: number) => {
-			if (!imageSizes[idx]) {
-				return { width, height: safeMaxHeight }
-			} else {
-				const { ratio } = imageSizes[idx]
-				const size = { width, height: width / ratio }
-				return size
+	const onFocusedChanged = useCallback(
+		(focused: boolean) => {
+			if (!focused) {
+				pause()
+			} else if (focused) {
+				resume()
 			}
 		},
-		[imageSizes, width, safeMaxHeight],
+		[pause, resume],
 	)
 
-	const onImageLoaded = useCallback(
-		({ source: { height, width } }: ImageLoadEventData, idx: number) => {
-			if (!width || !height) return
-			if (imageSizes[idx]) return
-			setImageHeights((prev) => ({
-				...prev,
-				[idx]: { height, width, ratio: width / height },
-			}))
-		},
-		[imageSizes],
-	)
+	const appState = useAppState({
+		onStateChanged: onFocusedChanged,
+	})
+
+	const showControls = useReaderStore((state) => state.showControls)
+	useEffect(() => {
+		if ((showControls && isRunning) || appState !== 'active') {
+			pause()
+		} else if (!showControls && !isRunning && appState === 'active') {
+			resume()
+		}
+	}, [showControls, pause, resume, isRunning, appState])
+
+	const setIsReading = useReaderStore((state) => state.setIsReading)
+	const setShowControls = useReaderStore((state) => state.setShowControls)
 
 	const currentPage = useMemo(() => {
-		const rawPosition = progression?.locator.locations?.at(0)?.position
-		if (!rawPosition) {
+		const extractedPosition = progression?.locator.locations?.position
+		if (!extractedPosition) {
 			return 1
 		}
-		const parsedPosition = parseInt(rawPosition, 10)
-		if (isNaN(parsedPosition)) {
-			return 1
-		}
-		return parsedPosition
+		return extractedPosition
 	}, [progression])
 
-	const flatList = useRef<FlatList>(null)
+	// TODO: Consider a store for device info? If more areas need it I guess
+	const [deviceId, setDeviceId] = useState<string | null>(null)
+	useEffect(() => {
+		async function getDeviceId() {
+			if (Platform.OS === 'ios') {
+				setDeviceId(await Application.getIosIdForVendorAsync())
+			} else {
+				setDeviceId(Application.getAndroidId())
+			}
+		}
+		getDeviceId()
+	}, [])
+
+	const queryClient = useQueryClient()
+	const lastPageRef = useRef<number | null>(null)
+
+	const { mutate: updateProgression } = useMutation({
+		retry: (attempts) => attempts < 3,
+		onError: (error) => {
+			console.error('Failed to update OPDS progression:', error)
+		},
+		mutationFn: async ({ url, input }: { url: string; input: OPDSProgressionInput }) => {
+			return sdk.opds.updateProgression(url, input)
+		},
+	})
+
+	const onPageChanged = useCallback(
+		(page: number) => {
+			if (!progressionURL || !deviceId) {
+				return
+			}
+
+			const progression = readingOrder?.length
+				? Math.round((page / readingOrder.length) * 100) / 100
+				: undefined
+
+			lastPageRef.current = page
+			const currentLink = readingOrder?.[page - 1]
+			const input: OPDSProgressionInput = {
+				modified: new Date().toISOString(),
+				device: {
+					id: deviceId,
+					// TODO(opds): Allow user to set device name in settings?
+					name: `Stump App - ${Platform.OS === 'ios' ? 'iOS' : 'Android'}`,
+				},
+				locator: {
+					href: currentLink?.href || `#page-${page}`,
+					type: currentLink?.type || 'image/jpeg',
+					locations: {
+						position: page,
+						// Note: progression and totalProgression are the same for image-based readers
+						progression,
+						totalProgression: progression,
+					},
+				},
+			}
+
+			updateProgression({ url: progressionURL, input })
+		},
+		[progressionURL, deviceId, readingOrder, updateProgression],
+	)
+
+	useFocusEffect(
+		useCallback(() => {
+			return () => {
+				if (progressionURL) {
+					queryClient.invalidateQueries({
+						queryKey: [sdk.opds.keys.progression, progressionURL],
+					})
+				}
+			}
+		}, [progressionURL, queryClient, sdk.opds.keys.progression]),
+	)
+
+	useEffect(() => {
+		setIsReading(true)
+		return () => {
+			setIsReading(false)
+		}
+	}, [setIsReading])
+
+	useEffect(() => {
+		return () => {
+			setShowControls(false)
+		}
+	}, [setShowControls])
+
+	const requestHeaders = useCallback(
+		() => ({
+			...sdk.customHeaders,
+			Authorization: sdk.authorizationHeader || '',
+		}),
+		[sdk],
+	)
+
+	useEffect(
+		() => {
+			NavigationBar.setVisibilityAsync('hidden')
+			return () => {
+				refetchProgression()
+				NavigationBar.setVisibilityAsync('visible')
+			}
+		},
+		// eslint-disable-next-line react-compiler/react-compiler
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+		[],
+	)
+
+	const getPageURL = useResolveURL()
 
 	return (
-		<View className="flex flex-1 items-center justify-center">
-			<FlatList
-				ref={flatList}
-				data={readingOrder}
-				keyExtractor={({ href }) => href}
-				renderItem={({ item: { href }, index }) => {
-					const size = getPageSize(index)
-
-					return (
-						<View
-							className="flex items-center justify-center"
-							style={{
-								height: safeMaxHeight,
-								minHeight: safeMaxHeight,
-								minWidth: width,
-								width: width,
-							}}
-						>
-							<Image
-								source={{
-									uri: href,
-									headers: {
-										Authorization: sdk.authorizationHeader,
-									},
-								}}
-								style={{
-									alignSelf: 'center',
-									height: size.height,
-									width: size.width,
-									maxWidth: width,
-								}}
-								onLoad={(event) => onImageLoaded(event, index)}
-							/>
-						</View>
-					)
-				}}
-				pagingEnabled
-				initialNumToRender={10}
-				maxToRenderPerBatch={10}
-				horizontal
-				initialScrollIndex={currentPage - 1}
-				// https://stackoverflow.com/questions/53059609/flat-list-scrolltoindex-should-be-used-in-conjunction-with-getitemlayout-or-on
-				onScrollToIndexFailed={(info) => {
-					const wait = new Promise((resolve) => setTimeout(resolve, 500))
-					wait.then(() => {
-						flatList.current?.scrollToIndex({ index: info.index, animated: true })
-					})
-				}}
-			/>
-		</View>
+		<ImageBasedReader
+			serverId={serverId}
+			initialPage={currentPage}
+			book={book}
+			pageURL={(page: number) => getPageURL(readingOrder![page - 1]?.href || '')}
+			requestHeaders={requestHeaders}
+			resetTimer={reset}
+			onPageChanged={progressionURL ? onPageChanged : undefined}
+			isOPDS
+		/>
 	)
 }

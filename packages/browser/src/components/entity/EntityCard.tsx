@@ -1,8 +1,12 @@
 import { cn, ProgressBar, Text } from '@stump/components'
 import { Book } from 'lucide-react'
 import { type ComponentPropsWithoutRef, useState } from 'react'
-import { Link, To } from 'react-router-dom'
+import { To } from 'react-router-dom'
 
+import { Link } from '@/context'
+import { usePreferences } from '@/hooks/usePreferences'
+
+import { getDensityTextSize, useGridSizeStore } from '../container/useGridSize'
 import { EntityImage } from './EntityImage'
 
 type ContainerProps = ComponentPropsWithoutRef<'div'> & {
@@ -59,6 +63,9 @@ export default function EntityCard({
 	...props
 }: Props) {
 	const [isImageFailed, setIsImageFailed] = useState(false)
+	const {
+		preferences: { thumbnailRatio },
+	} = usePreferences()
 
 	const Container = href ? Link : Div
 	const containerProps = {
@@ -76,6 +83,8 @@ export default function EntityCard({
 
 	const isFullWidth = typeof fullWidth === 'function' ? fullWidth(isImageFailed) : fullWidth
 
+	const gridDensity = useGridSizeStore((store) => store.density)
+
 	/**
 	 * Renders the title of the card. If the title is a string, it will be truncated to 2 lines
 	 *
@@ -84,7 +93,10 @@ export default function EntityCard({
 	const renderTitle = () => {
 		if (typeof title === 'string') {
 			return (
-				<Text size="sm" className="line-clamp-2 h-[40px] min-w-0 whitespace-normal">
+				<Text
+					size={getDensityTextSize(gridDensity)}
+					className="min-w-0 line-clamp-2 h-[40px] whitespace-normal"
+				>
 					{title}
 				</Text>
 			)
@@ -99,7 +111,16 @@ export default function EntityCard({
 	 */
 	const renderProgress = () => {
 		if (progress != null) {
-			return <ProgressBar value={progress} variant="primary-dark" size="sm" className="!-mt-1" />
+			return (
+				<ProgressBar
+					value={progress}
+					max={100}
+					variant="primary-dark"
+					size="sm"
+					className="-mt-1!"
+					rounded="none"
+				/>
+			)
 		}
 
 		return null
@@ -112,7 +133,7 @@ export default function EntityCard({
 	const renderFooter = () => {
 		if (title || subtitle) {
 			return (
-				<div className="flex flex-1 flex-col space-y-2 px-1.5 pb-1">
+				<div className="space-y-2 px-1.5 pb-1 flex flex-1 flex-col">
 					{renderTitle()}
 					{subtitle}
 				</div>
@@ -135,12 +156,13 @@ export default function EntityCard({
 						console.error('Failed to load image:', e)
 						setIsImageFailed(true)
 					}}
+					data-testid="entity-card-image"
 				/>
 			)
 		} else {
 			return (
 				<div className="flex h-full w-full items-center justify-center bg-sidebar">
-					<Book className="h-16 w-16 text-foreground-muted" />
+					<Book className="h-16 w-16 absolute text-foreground-muted" />
 				</div>
 			)
 		}
@@ -150,19 +172,20 @@ export default function EntityCard({
 		<Container
 			{...containerProps}
 			className={cn(
-				'relative flex flex-1 flex-col space-y-1 overflow-hidden rounded-lg border-[1.5px] border-edge bg-background/80 transition-colors duration-100',
+				'space-y-1 rounded-lg relative flex flex-1 flex-col overflow-hidden border-[1.5px] border-edge bg-background/80 transition-colors duration-100',
 				{ 'cursor-pointer hover:border-edge-brand dark:hover:border-edge-brand': hasClickAction },
 				{ 'max-w-[16rem]': isCover },
 				{
-					'w-[10rem] sm:w-[10.666rem] md:w-[12rem]': !isFullWidth,
+					'w-40 sm:w-[10.666rem] md:w-48': !isFullWidth,
 				},
 				className,
 			)}
 		>
 			<div
-				className={cn('aspect-[2/3] h-full w-full p-0', {
-					'w-[10rem] sm:w-[10.666rem] md:w-[12rem]': !isFullWidth,
+				className={cn('p-0 h-full w-full', {
+					'w-40 sm:w-[10.666rem] md:w-48': !isFullWidth,
 				})}
+				style={{ aspectRatio: thumbnailRatio }}
 			>
 				{renderImage()}
 			</div>

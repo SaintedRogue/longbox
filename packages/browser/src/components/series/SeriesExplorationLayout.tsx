@@ -1,24 +1,29 @@
 import { IconButton, ToolTip } from '@stump/components'
+import { InterfaceLayout } from '@stump/graphql'
 import { LayoutGrid, Table } from 'lucide-react'
+import { useShallow } from 'zustand/react/shallow'
 
 import { useSeriesLayout } from '@/stores/layout'
 
 export default function SeriesExplorationLayout() {
-	const { layout, setLayout } = useSeriesLayout((state) => ({
-		layout: state.layout,
-		setLayout: state.setLayout,
-	}))
+	const { layout, setLayout } = useSeriesLayout(
+		'global',
+		useShallow((state) => ({
+			layout: state.layout,
+			setLayout: state.setLayout,
+		})),
+	)
 
 	return (
-		<div className="flex shrink-0 items-center gap-1">
+		<div className="gap-1 flex shrink-0 items-center">
 			<ToolTip content="Grid" size="sm">
 				<IconButton
 					variant="ghost"
 					size="xs"
 					className="hover:bg-background-surface-hover"
 					pressEffect={false}
-					onClick={() => setLayout('GRID')}
-					disabled={layout === 'GRID'}
+					onClick={() => setLayout(InterfaceLayout.Grid)}
+					disabled={layout === InterfaceLayout.Grid}
 				>
 					<LayoutGrid className="h-4 w-4" />
 				</IconButton>
@@ -30,8 +35,8 @@ export default function SeriesExplorationLayout() {
 					size="xs"
 					className="hover:bg-background-surface-hover"
 					pressEffect={false}
-					onClick={() => setLayout('TABLE')}
-					disabled={layout === 'TABLE'}
+					onClick={() => setLayout(InterfaceLayout.Table)}
+					disabled={layout === InterfaceLayout.Table}
 				>
 					<Table className="h-4 w-4" />
 				</IconButton>

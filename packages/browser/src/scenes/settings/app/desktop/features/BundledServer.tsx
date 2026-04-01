@@ -1,24 +1,24 @@
+import { WideSwitch } from '@stump/components'
 import { useLocaleContext } from '@stump/i18n'
 import { useCallback } from 'react'
 
-import PreferenceToggle from '@/scenes/settings/PreferenceToggle'
 import { useTauriStore } from '@/stores'
 
 export default function BundledServer() {
 	const { t } = useLocaleContext()
-	const { run_bundled_server, setRunBundledServer } = useTauriStore()
+	const { runBundledServer, setRunBundledServer } = useTauriStore()
 
 	const handleChange = useCallback(
-		() => setRunBundledServer(!run_bundled_server),
-		[run_bundled_server, setRunBundledServer],
+		() => setRunBundledServer(!runBundledServer),
+		[runBundledServer, setRunBundledServer],
 	)
 
 	return (
-		<PreferenceToggle
+		<WideSwitch
 			label={t(getKey('label'))}
 			description={t(getKey('description'))}
-			isChecked={run_bundled_server}
-			onToggle={handleChange}
+			checked={runBundledServer}
+			onCheckedChange={handleChange}
 		/>
 	)
 }

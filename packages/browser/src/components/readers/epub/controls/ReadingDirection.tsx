@@ -1,15 +1,22 @@
-import { useEpubReader } from '@stump/client'
 import { Label, NativeSelect } from '@stump/components'
+import { ReadingDirection as ReadingDirectionGQL } from '@stump/graphql'
+
+import { useBookPreferences } from '@/scenes/book/reader/useBookPreferences'
+
+import { useEpubReaderContext } from '../context'
 
 export default function ReadingDirection() {
-	const { readingDirection, setReadingDirection } = useEpubReader((store) => ({
-		readingDirection: store.preferences.readingDirection,
-		setReadingDirection: store.setReadingDirection,
-	}))
+	const {
+		readerMeta: { bookEntity: book },
+	} = useEpubReaderContext()
+	const {
+		bookPreferences: { readingDirection },
+		setBookPreferences,
+	} = useBookPreferences({ book })
 
 	const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-		if (e.target.value === 'ltr' || e.target.value === 'rtl') {
-			setReadingDirection(e.target.value)
+		if (e.target.value === 'LTR' || e.target.value === 'RTL') {
+			setBookPreferences({ readingDirection: e.target.value as ReadingDirectionGQL })
 		} else {
 			console.warn(`Invalid reading direction: ${e.target.value}`)
 		}

@@ -1,11 +1,10 @@
-import { useLogsQuery } from '@stump/client'
+import { useGraphQL } from '@stump/client'
 import { Card, Heading, Text, ToolTip } from '@stump/components'
+import { graphql, LogModelOrdering, OrderDirection, PersistedLogsQuery } from '@stump/graphql'
 import { useLocaleContext } from '@stump/i18n'
-import { Log } from '@stump/sdk'
+import { keepPreviousData } from '@tanstack/react-query'
 import { createColumnHelper, SortingState } from '@tanstack/react-table'
-import dayjs from 'dayjs'
-import duration from 'dayjs/plugin/duration'
-import relativeTime from 'dayjs/plugin/relativeTime'
+import { intlFormat, isBefore } from 'date-fns'
 import { CircleSlash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
@@ -14,31 +13,156 @@ import { Table } from '@/components/table'
 
 import LogLevelBadge from './LogLevelBadge'
 
-dayjs.extend(duration)
-dayjs.extend(relativeTime)
+const query = graphql(`
+	query PersistedLogs(
+		$filter: LogFilterInput!
+		$pagination: Pagination!
+		$orderBy: [LogModelOrderBy!]!
+	) {
+		logs(filter: $filter, pagination: $pagination, orderBy: $orderBy) {
+			nodes {
+				id
+				timestamp
+				level
+				message
+				jobId
+				context
+			}
+			pageInfo {
+				__typename
+				... on OffsetPaginationInfo {
+					totalPages
+					currentPage
+					pageSize
+					pageOffset
+					pageOffset
+					zeroBased
+				}
+			}
+		}
+	}
+`)
 
-const DEBUG = import.meta.env.DEV
+export type PersistedLog = PersistedLogsQuery['logs']['nodes'][number]
+
+export default function PersistedLogsTable() {
+	const { t } = useLocaleContext()
+
+	const [search] = useSearchParams()
+	const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 })
+	const [sortState, setSortState] = useState<SortingState>([])
+	const [jobId] = useState(() => search.get('jobId'))
+
+	const firstSort = useMemo(
+		() =>
+			sortState[0] ?? {
+				desc: true,
+				id: LogModelOrdering.Timestamp,
+			},
+		[sortState],
+	)
+
+	const { data, isLoading } = useGraphQL(
+		query,
+		['logs', firstSort, pagination],
+		{
+			filter: {
+				jobId: jobId
+					? {
+							eq: jobId,
+						}
+					: undefined,
+			},
+			pagination: {
+				offset: {
+					page: pagination.pageIndex + 1, // Offset is 1-based
+					pageSize: pagination.pageSize,
+				},
+			},
+			orderBy: [
+				{
+					field: firstSort.id as LogModelOrdering,
+					direction: firstSort.desc ? OrderDirection.Desc : OrderDirection.Asc,
+				},
+			],
+		},
+		{
+			placeholderData: keepPreviousData,
+		},
+	)
+
+	const logs = data?.logs.nodes ?? []
+	const pageInfo = data?.logs.pageInfo
+
+	if (!!pageInfo && pageInfo.__typename !== 'OffsetPaginationInfo') {
+		throw new Error('Invalid pagination type, expected OffsetPaginationInfo')
+	}
+
+	return (
+		<Card>
+			<Table
+				sortable
+				columns={baseColumns}
+				options={{
+					manualPagination: true,
+					manualSorting: true,
+					onPaginationChange: setPagination,
+					onSortingChange: setSortState,
+					pageCount: pageInfo?.totalPages,
+					state: {
+						pagination,
+						sorting: sortState,
+					},
+				}}
+				data={logs}
+				fullWidth
+				emptyRenderer={() =>
+					isLoading ? null : (
+						<div className="gap-2 flex min-h-[150px] flex-col items-center justify-center">
+							<CircleSlash2 className="h-10 w-10 pb-2 pt-1 text-foreground-muted" />
+							<Heading size="sm">{t(`${LOCALE_BASE}.emptyHeading`)}</Heading>
+							<Text size="sm" variant="muted">
+								{t(`${LOCALE_BASE}.emptySubtitle`)}
+							</Text>
+						</div>
+					)
+				}
+				isZeroBasedPagination
+			/>
+		</Card>
+	)
+}
+
 const LOCALE_BASE = 'settingsScene.server/logs.sections.persistedLogs.table'
 
-const columnHelper = createColumnHelper<Log>()
+const columnHelper = createColumnHelper<PersistedLog>()
 const baseColumns = [
 	columnHelper.accessor('timestamp', {
+		id: LogModelOrdering.Timestamp,
 		cell: ({
 			row: {
 				original: { timestamp },
 			},
 		}) => (
 			<Text size="sm" variant="muted">
-				{dayjs(timestamp).format('YYYY-MM-DD HH:mm:ss')}
+				{intlFormat(new Date(timestamp), {
+					year: 'numeric',
+					month: '2-digit',
+					day: '2-digit',
+					hour: '2-digit',
+					minute: '2-digit',
+					second: '2-digit',
+				})}
 			</Text>
 		),
 		enableSorting: true,
 		header: 'Time',
 		sortingFn: ({ original: a }, { original: b }) => {
-			return dayjs(a.timestamp).isBefore(b.timestamp) ? -1 : 1
+			return isBefore(new Date(a.timestamp), new Date(b.timestamp)) ? -1 : 1
 		},
 	}),
 	columnHelper.accessor('level', {
+		id: LogModelOrdering.Level,
 		cell: ({
 			row: {
 				original: { level },
@@ -53,6 +177,7 @@ const baseColumns = [
 		},
 	}),
 	columnHelper.accessor('message', {
+		id: LogModelOrdering.Message,
 		cell: ({
 			row: {
 				original: { message },
@@ -61,16 +186,17 @@ const baseColumns = [
 		header: 'Message',
 		size: 300,
 	}),
-	columnHelper.accessor('job_id', {
+	columnHelper.accessor('jobId', {
+		id: LogModelOrdering.JobId,
 		cell: ({
 			row: {
-				original: { job_id },
+				original: { jobId },
 			},
 		}) =>
-			job_id ? (
-				<ToolTip content={<span className="font-mono">{job_id}</span>}>
+			jobId ? (
+				<ToolTip content={<span className="font-mono">{jobId}</span>}>
 					<Text size="xs" variant="muted" className="font-mono">
-						{job_id.slice(0, 5)}..{job_id.slice(-5)}
+						{jobId.slice(0, 5)}..{jobId.slice(-5)}
 					</Text>
 				</ToolTip>
 			) : null,
@@ -78,67 +204,3 @@ const baseColumns = [
 		size: 150,
 	}),
 ]
-
-export default function PersistedLogsTable() {
-	const { t } = useLocaleContext()
-
-	const [search] = useSearchParams()
-	const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 })
-	const [sortState, setSortState] = useState<SortingState>([])
-	const [jobId] = useState(() => search.get('job_id'))
-
-	const firstSort = useMemo(
-		() =>
-			sortState[0] ?? {
-				desc: true,
-				id: 'timestamp',
-			},
-		[sortState],
-	)
-	const { logs, pageData } = useLogsQuery({
-		page: pagination.pageIndex,
-		page_size: pagination.pageSize,
-		params: {
-			direction: firstSort.desc ? 'desc' : 'asc',
-			job_id: jobId,
-			order_by: firstSort.id,
-		},
-	})
-	const pageCount = pageData?.total_pages ?? 1
-
-	return (
-		<Card className="bg-background-surface p-1">
-			<Table
-				sortable
-				columns={baseColumns}
-				options={{
-					debugColumns: DEBUG,
-					debugHeaders: DEBUG,
-					debugTable: DEBUG,
-					manualPagination: true,
-					manualSorting: true,
-					onPaginationChange: setPagination,
-					onSortingChange: setSortState,
-					pageCount,
-					state: {
-						pagination,
-						sorting: sortState,
-					},
-				}}
-				data={logs}
-				fullWidth
-				// TODO(aaron): loader
-				emptyRenderer={() => (
-					<div className="flex min-h-[150px] flex-col items-center justify-center gap-2">
-						<CircleSlash2 className="h-10 w-10 pb-2 pt-1 text-foreground-muted" />
-						<Heading size="sm">{t(`${LOCALE_BASE}.emptyHeading`)}</Heading>
-						<Text size="sm" variant="muted">
-							{t(`${LOCALE_BASE}.emptySubtitle`)}
-						</Text>
-					</div>
-				)}
-				isZeroBasedPagination
-			/>
-		</Card>
-	)
-}

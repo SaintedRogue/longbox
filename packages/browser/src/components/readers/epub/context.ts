@@ -1,5 +1,7 @@
-import { Bookmark, EpubContent, Media } from '@stump/sdk'
+import { Bookmark } from '@stump/graphql'
 import { createContext, useContext } from 'react'
+
+import { ImageReaderBookRef } from '@/components/readers/imageBased/context'
 
 import { noop } from '../../../utils/misc'
 
@@ -8,6 +10,8 @@ export type EpubReaderChapterMeta = {
 	name?: string
 	/** The chapter's position in the book. */
 	position?: number
+	/** The chapter's index in the spine */
+	sectionSpineIndex?: number
 	/** The chapter's total number of pages. */
 	totalPages?: number
 	/**
@@ -21,14 +25,22 @@ export type EpubReaderChapterMeta = {
 	cfiRange: [string | undefined, string | undefined]
 }
 
+export interface EpubContent {
+	label: string
+	content: string
+	children: EpubContent[]
+	play_order: number
+}
+
 export type EpubReaderBookMeta = {
 	chapter: EpubReaderChapterMeta
 	toc: EpubContent[]
+	sectionLengths: { [key: number]: number }
 	bookmarks: Record<string, Bookmark>
 }
 
 export type EpubReaderMeta = {
-	bookEntity: Media
+	bookEntity: ImageReaderBookRef
 	bookMeta: EpubReaderBookMeta | null
 	progress: number | null
 }
@@ -43,6 +55,7 @@ export type EpubReaderControls = {
 	onLinkClick: (href: string) => void
 	onPaginateForward: () => void
 	onPaginateBackward: () => void
+	jumpToSection: (section: number) => void
 	getCfiPreviewText: (cfi: string) => Promise<string | null>
 	searchEntireBook: (query: string) => Promise<SpineSearchResult[]>
 	onGoToCfi: (cfi: string) => void
@@ -73,13 +86,14 @@ export const EpubReaderContext = createContext<EpubReaderContextProps>({
 		onMouseLeaveControls: noop,
 		onPaginateBackward: noop,
 		onPaginateForward: noop,
+		jumpToSection: noop,
 		searchEntireBook: async () => [],
 		setFullscreen: noop,
 		setVisible: noop,
 		visible: false,
 	},
 	readerMeta: {
-		bookEntity: {} as Media,
+		bookEntity: {} as ImageReaderBookRef,
 		bookMeta: null,
 		progress: null,
 	},

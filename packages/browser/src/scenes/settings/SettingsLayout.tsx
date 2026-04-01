@@ -2,6 +2,7 @@ import { cn, cx } from '@stump/components'
 import { Suspense } from 'react'
 import { Navigate, Outlet } from 'react-router-dom'
 import { useMediaMatch } from 'rooks'
+import { useShallow } from 'zustand/react/shallow'
 
 import { Container } from '@/components/container'
 import { usePreferences } from '@/hooks'
@@ -13,24 +14,26 @@ import SettingsSideBar from './SettingsSideBar'
 export default function SettingsLayout() {
 	const isMobile = useMediaMatch('(max-width: 768px)')
 
-	const { user } = useUserStore((store) => ({
-		user: store.user,
-	}))
+	const { user } = useUserStore(
+		useShallow((store) => ({
+			user: store.user,
+		})),
+	)
 	const {
 		preferences: {
-			enable_double_sidebar,
-			primary_navigation_mode,
-			layout_max_width_px,
-			enable_hide_scrollbar,
+			enableDoubleSidebar,
+			primaryNavigationMode,
+			layoutMaxWidthPx,
+			enableHideScrollbar,
 		},
 	} = usePreferences()
 
 	if (!user) {
-		return <Navigate to={`/login?redirect=${encodeURIComponent(window.location.pathname)}`} />
+		return <Navigate to={`/auth?redirect=${encodeURIComponent(window.location.pathname)}`} />
 	}
 
-	const displaySideBar = !!enable_double_sidebar && !isMobile
-	const preferTopBar = primary_navigation_mode === 'TOPBAR'
+	const displaySideBar = !!enableDoubleSidebar && !isMobile
+	const preferTopBar = primaryNavigationMode === 'TOPBAR'
 
 	// 1. if we are on mobile, we always render it
 	// 2. if not displaySideBar, we always render it
@@ -41,16 +44,16 @@ export default function SettingsLayout() {
 		<div
 			// The overflow on the parent is intentional, as it allows the native scrollbar to be fully
 			// to the right, instead of on the potentially restricted width of the child container
-			className={cn('flex h-full w-full flex-col overflow-y-auto md:flex-row', {
-				'scrollbar-hide': enable_hide_scrollbar,
+			className={cn('md:flex-row flex h-full w-full flex-col overflow-y-auto', {
+				'scrollbar-hide': enableHideScrollbar,
 			})}
 		>
 			<div
-				className={cn('flex w-full flex-col md:flex-row', {
-					'mx-auto': preferTopBar && !!layout_max_width_px,
+				className={cn('md:flex-row flex w-full flex-col', {
+					'mx-auto': preferTopBar && !!layoutMaxWidthPx,
 				})}
 				style={{
-					maxWidth: preferTopBar ? layout_max_width_px || undefined : undefined,
+					maxWidth: preferTopBar ? layoutMaxWidthPx || undefined : undefined,
 				}}
 			>
 				{displaySideBar && <SettingsSideBar />}

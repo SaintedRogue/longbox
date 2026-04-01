@@ -1,19 +1,22 @@
-import type { LayoutMode } from '@stump/sdk'
+import { InterfaceLayout } from '@stump/graphql'
 import { useEffect, useMemo, useState } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 
 import { useUserStore } from '@/stores'
 
 export function useLayoutMode() {
-	const { userPreferences } = useUserStore((state) => ({
-		userPreferences: state.userPreferences,
-	}))
-
-	const preferredLayoutMode = useMemo(
-		() => userPreferences?.preferred_layout_mode as LayoutMode | undefined,
-		[userPreferences?.preferred_layout_mode],
+	const { userPreferences } = useUserStore(
+		useShallow((state) => ({
+			userPreferences: state.userPreferences,
+		})),
 	)
 
-	const [localLayout, setLocalLayout] = useState<LayoutMode>(() => preferredLayoutMode || 'GRID')
+	const preferredLayoutMode = useMemo(
+		() => userPreferences?.preferredLayoutMode,
+		[userPreferences?.preferredLayoutMode],
+	)
+
+	const [localLayout, setLocalLayout] = useState(() => preferredLayoutMode || InterfaceLayout.Grid)
 
 	useEffect(() => {
 		if (preferredLayoutMode) {

@@ -1,6 +1,7 @@
 import {
 	Accordion,
 	Alert,
+	AlertDescription,
 	Button,
 	Drawer,
 	IconButton,
@@ -32,7 +33,7 @@ export default function FilterBottomDrawer() {
 				</Drawer.Trigger>
 			</ToolTip>
 			<Drawer.Content>
-				<div className="mx-auto w-full max-w-2xl">
+				<div className="max-w-2xl mx-auto w-full">
 					<Drawer.Header>
 						<Drawer.Title>{t(withLocaleKey('heading'))}</Drawer.Title>
 						<Drawer.Description>{t(withLocaleKey('description'))}</Drawer.Description>
@@ -40,8 +41,8 @@ export default function FilterBottomDrawer() {
 				</div>
 
 				<div className="max-h-[70vh] w-full overflow-y-auto">
-					<div className="mx-auto w-full max-w-2xl">
-						<div className="flex flex-col gap-y-6 p-4 pb-0">
+					<div className="max-w-2xl mx-auto w-full">
+						<div className="gap-y-6 p-4 pb-0 flex flex-col">
 							<Accordion type="single" collapsible>
 								<Accordion.Item value="raw_filters" className="border-none">
 									<Accordion.Trigger noUnderline asLabel>
@@ -58,16 +59,17 @@ export default function FilterBottomDrawer() {
 								</Accordion.Item>
 							</Accordion>
 
-							<Alert level="warning" icon={Construction} rounded="sm">
-								<Alert.Content>
+							<Alert variant="warning">
+								<Construction />
+								<AlertDescription>
 									<span>This functionality is not yet implemented</span>
-								</Alert.Content>
+								</AlertDescription>
 							</Alert>
 						</div>
 					</div>
 				</div>
 
-				<div className="mx-auto w-full max-w-2xl">
+				<div className="max-w-2xl mx-auto w-full">
 					<Drawer.Footer className="w-full flex-row">
 						<Button className="w-full">{t(withLocaleKey('buttons.save'))}</Button>
 						<Drawer.Close asChild>

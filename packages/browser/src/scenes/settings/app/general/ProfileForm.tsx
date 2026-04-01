@@ -1,35 +1,35 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useUpdateUser } from '@stump/client'
+import { useGraphQLMutation, useUploadConfig } from '@stump/client'
 import { Button, Form, Input, Text } from '@stump/components'
+import { graphql, UserPermission } from '@stump/graphql'
 import { useLocaleContext } from '@stump/i18n'
-import { isUrl } from '@stump/sdk'
-import { useForm } from 'react-hook-form'
-import { toast } from 'react-hot-toast'
+import { useForm, useWatch } from 'react-hook-form'
+import { toast } from 'sonner'
 import { z } from 'zod'
 
+import { useAppContext } from '@/context'
 import { useUser } from '@/stores'
 
 import AvatarPicker from './AvatarPicker'
 
 // TODO(testing): extract schema and test components individually
 
+const mutation = graphql(`
+	mutation UpdateUserProfileForm($input: UpdateUserInput!) {
+		updateViewer(input: $input) {
+			id
+			username
+		}
+	}
+`)
+
 export default function ProfileForm() {
 	const { t } = useLocaleContext()
-	const { updateAsync } = useUpdateUser()
-
 	const { user, setUser } = useUser()
+	const { checkPermission } = useAppContext()
+	const { uploadConfig } = useUploadConfig({ enabled: checkPermission(UserPermission.UploadFile) })
 
 	const schema = z.object({
-		avatarUrl: z
-			.string()
-			.optional()
-			.nullable()
-			.refine(
-				(url) => !url || isUrl(url),
-				() => ({
-					message: t('settingsScene.app/account.sections.account.validation.invalidUrl'),
-				}),
-			),
 		name: z.string().optional(),
 		password: z.string().optional(),
 		username: z.string().min(1, {
@@ -40,58 +40,60 @@ export default function ProfileForm() {
 
 	const form = useForm<Schema>({
 		defaultValues: {
-			avatarUrl: user!.avatar_url,
 			username: user!.username,
 		},
 		mode: 'onSubmit',
 		resolver: zodResolver(schema),
 	})
 
-	const [avatarUrl, newUsername, newPassword] = form.watch(['avatarUrl', 'username', 'password'], {
-		avatarUrl: user?.avatar_url,
-		username: user?.username,
+	const [newUsername, newPassword] = useWatch({
+		control: form.control,
+		name: ['username', 'password'],
+		defaultValue: {
+			username: user?.username,
+		},
 	})
 
 	const isChangingPassword = !!newPassword
-	const hasChanges =
-		avatarUrl !== user?.avatar_url || newUsername !== user?.username || isChangingPassword
+	const hasChanges = newUsername !== user?.username || isChangingPassword
 
-	const handleImageChange = (url?: string) => {
-		form.setValue('avatarUrl', url, { shouldValidate: true })
-	}
+	const { mutate } = useGraphQLMutation(mutation, {
+		onSuccess: ({ updateViewer: updatedUser }) => {
+			if (!user) return
+			const mergedUser = {
+				...user,
+				...updatedUser,
+			}
+			setUser(mergedUser)
+			form.reset({
+				avatarUrl: user.avatarUrl,
+				...mergedUser,
+			})
+		},
+		onError: (error) => {
+			console.error(error)
+			toast.error(t('settingsScene.app/account.sections.account.errors.updateFailed'))
+		},
+	})
 
 	const handleSubmit = async (values: Schema) => {
 		if (!hasChanges || !user) return
 
-		try {
-			await updateAsync(
-				{
-					...user,
-					age_restriction: user.age_restriction || null,
-					avatar_url: values.avatarUrl || null,
-					password: values.password || null,
-					username: values.username,
-				},
-				{
-					onSuccess: (user) => {
-						setUser(user)
-						form.reset({
-							avatarUrl: user.avatar_url,
-							...user,
-						})
-					},
-				},
-			)
-		} catch (error) {
-			console.error(error)
-			toast.error(t('settingsScene.app/account.sections.account.errors.updateFailed'))
-		}
+		mutate({
+			input: {
+				username: values.username,
+				password: values.password || undefined, // undefined -> no change, null or "" -> no password :(
+				permissions: user.permissions,
+				ageRestriction: user.ageRestriction || null,
+				maxSessionsAllowed: user.maxSessionsAllowed,
+			},
+		})
 	}
 
 	return (
 		<Form form={form} onSubmit={handleSubmit}>
-			<div className="flex w-full flex-col-reverse space-y-8 space-y-reverse md:max-w-2xl md:flex-row md:justify-between md:space-y-0">
-				<div className="flex flex-grow flex-col gap-6">
+			<div className="space-y-8 md:max-w-2xl md:flex-row md:justify-between md:space-y-0 flex w-full flex-col-reverse space-y-reverse">
+				<div className="gap-6 flex grow flex-col">
 					<Input
 						variant="primary"
 						className="w-full"
@@ -110,8 +112,13 @@ export default function ProfileForm() {
 						{...form.register('password')}
 					/>
 
-					<div className="flex w-full flex-col items-center gap-4 md:flex-row">
-						<Button variant="primary" type="submit" className="w-full md:w-[unset]">
+					<div className="gap-4 md:flex-row flex w-full flex-col items-center">
+						<Button
+							variant="primary"
+							type="submit"
+							className="md:w-[unset] w-full"
+							disabled={!hasChanges}
+						>
 							{t('settingsScene.app/account.sections.account.buttons.confirm')}
 						</Button>
 
@@ -123,12 +130,7 @@ export default function ProfileForm() {
 					</div>
 				</div>
 
-				<input className="hidden" {...form.register('avatarUrl')} />
-				<AvatarPicker
-					imageUrl={avatarUrl}
-					fallback={user?.username}
-					onImageChange={handleImageChange}
-				/>
+				{uploadConfig?.enabled && <AvatarPicker />}
 			</div>
 		</Form>
 	)

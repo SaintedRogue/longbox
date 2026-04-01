@@ -1,20 +1,28 @@
-import { Media } from '@stump/sdk'
+import { FragmentType } from '@stump/graphql'
 import { OnChangeFn, SortingState } from '@tanstack/react-table'
 import { useCallback, useMemo } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 
 import { orderingToTableSort, tableSortToOrdering, useFilterContext } from '@/components/filters'
 import { EntityTable, EntityTableProps } from '@/components/table'
 import { useBooksLayout } from '@/stores/layout'
 
+import { BookCardFragment } from '../BookCard'
 import { buildBookColumns } from '.'
 import { defaultColumns } from './columns'
 
-type Props = Omit<EntityTableProps<Media>, 'columns'>
+type Props = Omit<EntityTableProps<FragmentType<typeof BookCardFragment>>, 'columns'> & {
+	layoutKey?: string
+}
 
-export default function BookTable(props: Props) {
-	const configuration = useBooksLayout((state) => ({
-		columns: state.columns,
-	}))
+// Note: I needed global for book search page
+export default function BookTable({ layoutKey = 'global', ...props }: Props) {
+	const configuration = useBooksLayout(
+		layoutKey,
+		useShallow((state) => ({
+			columns: state.columns,
+		})),
+	)
 	const { ordering, setOrdering } = useFilterContext()
 
 	const columns = useMemo(

@@ -1,11 +1,13 @@
 import { Avatar, Card, cn, Popover, Text } from '@stump/components'
-import { Bell, Settings } from 'lucide-react'
+import { Bell, Server, Settings } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import AutoSizer from 'react-virtualized-auto-sizer'
 
+import { usePaths } from '@/paths'
+import { useAppStore } from '@/stores'
+
 import { useAppContext } from '../context'
-import paths from '../paths'
 import SignOut from './navigation/sidebar/SignOut'
 
 type Props = {
@@ -17,7 +19,10 @@ export default function UserMenu({ variant = 'sidebar' }: Props) {
 
 	const { user } = useAppContext()
 
-	const avatarUrl = user.avatar_url || undefined
+	const platform = useAppStore((store) => store.platform)
+	const paths = usePaths()
+
+	const avatarUrl = user.avatarUrl || undefined
 	const fallback = user.username.slice(0, 2).toUpperCase()
 	const isSidebar = variant === 'sidebar'
 
@@ -28,8 +33,8 @@ export default function UserMenu({ variant = 'sidebar' }: Props) {
 					<Popover.Trigger asChild>
 						<Card
 							className={cn(
-								'flex h-[2.35rem] w-full cursor-pointer items-center border-transparent border-opacity-80 px-1 transition-all duration-150 hover:border-opacity-100',
-								{ 'border-edge-subtle border-opacity-100': isOpen },
+								'border-opacity-80 px-1 hover:border-opacity-100 flex h-[2.35rem] w-full cursor-pointer items-center border-transparent transition-all duration-150',
+								{ 'border-opacity-100 border-edge-subtle': isOpen },
 								{ 'border-edge-subtle': isSidebar },
 								{ 'justify-center rounded-full hover:border-edge-subtle': !isSidebar },
 							)}
@@ -42,7 +47,7 @@ export default function UserMenu({ variant = 'sidebar' }: Props) {
 								className="h-6 w-6"
 							/>
 							{isSidebar && (
-								<Text className="ml-2 line-clamp-1 select-none text-ellipsis" size="sm">
+								<Text className="ml-2 line-clamp-1 text-ellipsis select-none" size="sm">
 									{user.username}
 								</Text>
 							)}
@@ -50,7 +55,7 @@ export default function UserMenu({ variant = 'sidebar' }: Props) {
 					</Popover.Trigger>
 
 					<Popover.Content
-						className="flex flex-col divide-y divide-edge overflow-hidden p-0 shadow-sm"
+						className="p-0 shadow-sm flex flex-col divide-y divide-edge overflow-hidden"
 						align={isSidebar ? 'start' : 'end'}
 						style={{ width: isSidebar ? width : 'auto' }}
 					>
@@ -70,7 +75,7 @@ export default function UserMenu({ variant = 'sidebar' }: Props) {
 
 							<Link
 								className={linkClasses(isSidebar)}
-								to={paths.settings('app/general')}
+								to={paths.settings()}
 								onClick={() => setIsOpen(false)}
 							>
 								<Settings className="mr-1.5 h-4 w-4" />
@@ -79,6 +84,13 @@ export default function UserMenu({ variant = 'sidebar' }: Props) {
 						</div>
 
 						<div className="w-full">
+							{platform !== 'browser' && (
+								<Link className={linkClasses(isSidebar)} to="/" onClick={() => setIsOpen(false)}>
+									<Server className="mr-1.5 h-4 w-4" />
+									Switch server
+								</Link>
+							)}
+
 							<SignOut />
 						</div>
 					</Popover.Content>

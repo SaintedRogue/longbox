@@ -3,13 +3,14 @@ import { useLocaleContext } from '@stump/i18n'
 
 import DeleteLibraryThumbnails from './DeleteLibraryThumbnails'
 import LibraryThumbnailSelector from './LibraryThumbnailSelector'
+import ProcessLibraryThumbnails from './ProcessLibraryThumbnails'
 import RegenerateThumbnails from './RegenerateThumbnails'
 
 export default function ThumbnailManagementSection() {
 	const { t } = useLocaleContext()
 
 	return (
-		<div className="flex flex-grow flex-col gap-6">
+		<div className="gap-6 flex grow flex-col">
 			<div>
 				<Heading size="sm">{t(getKey('heading'))}</Heading>
 				<Text size="sm" variant="muted">
@@ -19,6 +20,7 @@ export default function ThumbnailManagementSection() {
 
 			<LibraryThumbnailSelector />
 			<RegenerateThumbnails />
+			<ProcessLibraryThumbnails />
 			<DeleteLibraryThumbnails />
 		</div>
 	)

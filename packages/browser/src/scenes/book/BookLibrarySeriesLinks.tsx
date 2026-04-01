@@ -1,67 +1,57 @@
-import { useSeriesByID } from '@stump/client'
-import { cx, Link, Text } from '@stump/components'
-import { Series } from '@stump/sdk'
-import { Fragment } from 'react'
+import { useSDK, useSuspenseGraphQL } from '@stump/client'
+import { Badge, Link, Text } from '@stump/components'
+import { graphql } from '@stump/graphql'
 
 import paths from '../../paths'
-import SeriesLibraryLink from '../series/SeriesLibraryLink'
+
+const seriesQuery = graphql(`
+	query BookLibrarySeriesLinks($id: ID!) {
+		seriesById(id: $id) {
+			id
+			resolvedName
+			library {
+				id
+				name
+			}
+		}
+	}
+`)
 
 type Props = {
-	libraryId?: string
-	series?: Series | null
-	seriesId: string
-	linkSegments?: {
-		to?: string
-		label: string
-		noShrink?: boolean
-	}[]
+	seriesId?: string
 }
 
-export default function BookLibrarySeriesLinks({
-	libraryId,
-	seriesId,
-	series,
-	linkSegments,
-}: Props) {
-	const { series: fetchedSeries } = useSeriesByID(seriesId, { enabled: !!series })
+export default function BookLibrarySeriesLinks({ seriesId }: Props) {
+	const { sdk } = useSDK()
+	const {
+		data: { seriesById: series },
+	} = useSuspenseGraphQL(seriesQuery, sdk.cacheKey('seriesLinks', [seriesId]), {
+		id: seriesId || '',
+	})
 
-	const resolvedSeries = series || fetchedSeries
-	const resolvedLibraryId = libraryId || resolvedSeries?.library_id
-
-	const renderSeriesLink = () => {
-		if (!resolvedSeries) {
-			return null
-		}
-
-		return (
-			<>
-				<span className="mx-2 text-foreground-muted">/</span>
-				<Link to={paths.seriesOverview(resolvedSeries.id)} className="line-clamp-1">
-					{resolvedSeries.name}
-				</Link>
-			</>
-		)
-	}
+	const library = series?.library
 
 	return (
-		<div className="flex items-center text-sm md:text-base">
-			{resolvedLibraryId && <SeriesLibraryLink id={resolvedLibraryId} />}
-			{renderSeriesLink()}
-			{linkSegments?.map((segment) => {
-				const Component = segment.to ? Link : Text
-
-				return (
-					<Fragment key={segment.label}>
-						<span className="mx-2 text-foreground-muted">/</span>
-						<Component
-							className={cx('line-clamp-1', { 'shrink-0': segment.noShrink })}
-							{...(segment.to ? { to: segment.to } : {})}
-						>
-							{segment.label}
-						</Component>
-					</Fragment>
-				)
-			})}
+		<div className="gap-1.5 flex items-center">
+			{library && (
+				<Link to={paths.librarySeries(library.id)} underline={false}>
+					<Badge variant="default" size="xs" rounded="full" className="cursor-pointer">
+						{library.name}
+					</Badge>
+				</Link>
+			)}
+			{series && (
+				<>
+					<Text size="xs" variant="muted">
+						/
+					</Text>
+					<Link to={paths.seriesOverview(series.id)} underline={false}>
+						<Badge variant="primary" size="xs" rounded="full" className="cursor-pointer">
+							{series.resolvedName}
+						</Badge>
+					</Link>
+				</>
+			)}
 		</div>
 	)
 }

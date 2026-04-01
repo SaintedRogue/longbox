@@ -1,12 +1,10 @@
-import { useSDK } from '@stump/client'
 import { AspectRatio, Button, Card, DatePicker, Heading, Input, Text } from '@stump/components'
-import { Media } from '@stump/sdk'
+import { BookCardFragment } from '@stump/graphql'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useFormContext } from 'react-hook-form'
 
 import BookSearchOverlay from '@/components/book/BookSearchOverlay'
 import { EntityImage } from '@/components/entity'
-import { formatBookName } from '@/utils/format'
 
 import { defaultBook, Schema } from './CreateOrAddToScheduleForm'
 
@@ -17,8 +15,7 @@ type Props = {
 // FIXME(clubs): this component is a MESS and desperately needs a rewrite
 
 export default function AddBookCard({ index }: Props) {
-	const { sdk } = useSDK()
-	const [selectedBook, setSelectedBook] = useState<Media | null>(null)
+	const [selectedBook, setSelectedBook] = useState<BookCardFragment | null>(null)
 
 	const form = useFormContext<Schema>()
 
@@ -49,7 +46,7 @@ export default function AddBookCard({ index }: Props) {
 	}, [isEntityBook, selectedBook, form, index])
 
 	const handleSelectBook = useCallback(
-		(book: Media) => {
+		(book: BookCardFragment) => {
 			form.setValue(`books.${index}.book.id`, book.id)
 			setSelectedBook(book)
 		},
@@ -59,19 +56,16 @@ export default function AddBookCard({ index }: Props) {
 	const renderBookInfo = useCallback(() => {
 		if (!selectedBook) return null
 
-		const bookName = formatBookName(selectedBook)
+		const bookName = selectedBook.resolvedName
 
 		return (
 			<div className="flex">
 				<div className="max-h-[195px] w-[125px]">
 					<AspectRatio ratio={2 / 3}>
-						<EntityImage
-							src={sdk.media.thumbnailURL(selectedBook.id)}
-							className="rounded-md object-cover"
-						/>
+						<EntityImage src={selectedBook.thumbnail.url} className="rounded-md object-cover" />
 					</AspectRatio>
 				</div>
-				<div className="ml-4 flex flex-col gap-1.5">
+				<div className="ml-4 gap-1.5 flex flex-col">
 					<Heading size="sm" className="text-sm md:text-lg">
 						{bookName}
 					</Heading>
@@ -83,7 +77,7 @@ export default function AddBookCard({ index }: Props) {
 				</div>
 			</div>
 		)
-	}, [selectedBook, sdk.media])
+	}, [selectedBook])
 
 	const renderSelectedBookOptions = useCallback(() => {
 		if (selectedBook) {
@@ -105,7 +99,7 @@ export default function AddBookCard({ index }: Props) {
 					</Text>
 				</div>
 
-				<div className="flex justify-between gap-4">
+				<div className="gap-4 flex justify-between">
 					{renderBookInfo()}
 					{renderSelectedBookOptions()}
 				</div>
@@ -126,7 +120,7 @@ export default function AddBookCard({ index }: Props) {
 					</Text>
 				</div>
 
-				<div className="flex w-full flex-col items-start gap-x-4 gap-y-4 md:flex-row md:gap-y-0">
+				<div className="gap-x-4 gap-y-4 md:flex-row md:gap-y-0 flex w-full flex-col items-start">
 					<Input
 						fullWidth
 						variant="primary"
@@ -153,7 +147,7 @@ export default function AddBookCard({ index }: Props) {
 	}
 
 	return (
-		<Card className="flex w-full flex-col gap-4 p-4">
+		<Card className="gap-4 p-4 flex w-full flex-col">
 			{renderBookPickerOption()}
 			{!isEntityBook && !isDefiningExternalBook && <LeftAlignedDivider text="OR" />}
 			{renderExternalBookOption()}
@@ -168,17 +162,17 @@ export default function AddBookCard({ index }: Props) {
 				</Text>
 			</div>
 
-			<div className="flex w-full flex-col items-start gap-x-4 gap-y-4 md:flex-row md:gap-y-0">
+			<div className="gap-x-4 gap-y-4 md:flex-row md:gap-y-0 flex w-full flex-col items-start">
 				<DatePicker
 					label="Start date"
 					minDate={new Date()}
-					onChange={(date) => form.setValue(`books.${index}.start_at`, date?.toISOString())}
+					onChange={(date) => form.setValue(`books.${index}.startAt`, date?.toISOString())}
 				/>
 
 				<DatePicker
 					label="End date"
 					minDate={new Date()}
-					onChange={(date) => form.setValue(`books.${index}.end_at`, date?.toISOString())}
+					onChange={(date) => form.setValue(`books.${index}.endAt`, date?.toISOString())}
 				/>
 			</div>
 		</Card>
@@ -187,7 +181,7 @@ export default function AddBookCard({ index }: Props) {
 
 const LeftAlignedDivider = ({ text }: { text: string }) => (
 	<div className="relative">
-		<div className="absolute inset-0 flex items-center" aria-hidden="true">
+		<div className="inset-0 absolute flex items-center" aria-hidden="true">
 			<div className="w-full border-t border-gray-75 dark:border-gray-800" />
 		</div>
 		<div className="relative flex justify-start">

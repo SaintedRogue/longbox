@@ -6,7 +6,7 @@ import { useFileExplorerContext } from '../context'
 import FileGridItem from './FileGridItem'
 
 export default function FileGrid() {
-	const { files } = useFileExplorerContext()
+	const { files, loadMore } = useFileExplorerContext()
 
 	const renderItem = (idx: number) => {
 		const file = files[idx]
@@ -18,7 +18,7 @@ export default function FileGrid() {
 	}
 
 	return (
-		<div className="flex h-full w-full flex-1 flex-grow">
+		<div className="flex h-full w-full flex-1 grow">
 			<AutoSizer>
 				{({ height, width }) => (
 					<VirtuosoGrid
@@ -29,6 +29,7 @@ export default function FileGrid() {
 						itemClassName="py-1.5"
 						itemContent={renderItem}
 						overscan={{ main: 15, reverse: 10 }}
+						endReached={loadMore}
 					/>
 				)}
 			</AutoSizer>

@@ -5,6 +5,8 @@ import { useFormContext } from 'react-hook-form'
 import { CreateOrUpdateBookClubSchema } from '@/components/bookClub/createOrUpdateForm'
 import { ReviewStepContainer } from '@/components/steppedForm'
 
+// TODO(club): Add more
+
 export default function CreateClubReview() {
 	const form = useFormContext<CreateOrUpdateBookClubSchema>()
 	const state = form.watch()
@@ -12,7 +14,7 @@ export default function CreateClubReview() {
 	const { t } = useLocaleContext()
 
 	return (
-		<div className="flex flex-col space-y-8">
+		<div className="space-y-8 flex flex-col">
 			<ReviewStepContainer
 				label={t(getStepKey(1, 'heading'))}
 				description={t(getStepKey(1, 'description'))}

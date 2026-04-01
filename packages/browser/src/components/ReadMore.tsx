@@ -1,5 +1,4 @@
-import { ScrollArea, useBoolean } from '@stump/components'
-import { Fragment } from 'react'
+import { useBoolean } from '@stump/components'
 
 import { DEBUG_ENV } from '../index.ts'
 import Markdown from './markdown/MarkdownPreview.tsx'
@@ -7,6 +6,9 @@ import Markdown from './markdown/MarkdownPreview.tsx'
 type Props = {
 	text?: string | null
 }
+
+const COLLAPSED_HEIGHT = 72
+const MAX_EXPANDED_HEIGHT = 300
 
 export default function ReadMore({ text }: Props) {
 	const [showingAll, { toggle }] = useBoolean(false)
@@ -22,18 +24,33 @@ export default function ReadMore({ text }: Props) {
 		return <Markdown>{resolvedText}</Markdown>
 	}
 
-	// TODO: I don't like how this looks...
-	const MarkdownContainer = showingAll ? ScrollArea : Fragment
-	const markdownContainerProps = showingAll ? { className: 'h-[200px]' } : {}
-
 	return (
 		<div>
-			<MarkdownContainer {...markdownContainerProps}>
-				<Markdown>{showingAll ? resolvedText : resolvedText.slice(0, 250) + '...'}</Markdown>
-			</MarkdownContainer>
-			<button onClick={toggle} className="cursor-pointer font-semibold text-foreground">
-				{showingAll ? ' Read less' : 'Read more'}
-			</button>
+			<div
+				className={showingAll ? 'overflow-y-auto' : 'overflow-hidden'}
+				style={{
+					maxHeight: showingAll ? MAX_EXPANDED_HEIGHT : COLLAPSED_HEIGHT,
+					transition: 'max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+				}}
+			>
+				<Markdown>{resolvedText}</Markdown>
+			</div>
+
+			<div
+				className="-mt-8 h-8 pointer-events-none bg-linear-to-t from-background to-transparent transition-opacity duration-150"
+				style={{ opacity: showingAll ? 0 : 1 }}
+			/>
+
+			<div className="mt-2 relative flex w-full items-center">
+				<div className="flex-1 border-t border-dashed border-edge" />
+				<button
+					onClick={toggle}
+					className="px-3 py-0.5 text-xs font-medium cursor-pointer rounded-full border border-dashed border-edge bg-background text-foreground-muted transition-colors hover:bg-background-surface hover:text-foreground"
+				>
+					{showingAll ? 'Read less' : 'Read more'}
+				</button>
+				<div className="flex-1 border-t border-dashed border-edge" />
+			</div>
 		</div>
 	)
 }

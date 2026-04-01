@@ -1,16 +1,15 @@
 import 'overlayscrollbars/overlayscrollbars.css'
 
-import dayjs from 'dayjs'
-import LocalizedFormat from 'dayjs/plugin/localizedFormat'
-
 import StumpWebClient from './App'
+import { AppRouter } from './AppRouter'
 
 // https://stackoverflow.com/questions/72114775/vite-global-is-not-defined
 window.global ||= window
 
 export const DEBUG_ENV = import.meta.env.DEV
-export const API_VERSION = import.meta.env.API_VERSION ?? 'v1'
+export const API_VERSION = import.meta.env.API_VERSION ?? 'v2'
 
-dayjs.extend(LocalizedFormat)
+export { AppRouter as StumpRouter, StumpWebClient }
 
-export { StumpWebClient }
+export { Link, useNavigate } from './context'
+export { usePaths } from './paths'

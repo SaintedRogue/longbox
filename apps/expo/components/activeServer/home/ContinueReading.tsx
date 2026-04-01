@@ -1,134 +1,104 @@
-import { useContinueReading, useSDK } from '@stump/client'
-import type { Media } from '@stump/sdk'
-import { Image } from 'expo-image'
-import { useLocalSearchParams, useRouter } from 'expo-router'
-import { useMemo } from 'react'
-import { FlatList, Pressable, View } from 'react-native'
+import { FlashList } from '@shopify/flash-list'
+import { useInfiniteSuspenseGraphQL } from '@stump/client'
+import { graphql } from '@stump/graphql'
+import { Fragment, memo, useCallback, useMemo } from 'react'
+import { View } from 'react-native'
 
-import { Heading, Progress, Text } from '~/components/ui'
-import { cn } from '~/lib/utils'
+import { BookListItem } from '~/components/book'
+import { BookListItemFragmentType } from '~/components/book/BookListItem'
+import { Heading, Text } from '~/components/ui'
+import { useListItemSize } from '~/lib/hooks'
 
-export default function ContinueReading() {
-	const { sdk } = useSDK()
-	const { media } = useContinueReading({
-		limit: 20,
-		suspense: true,
-	})
-	const { id: serverID } = useLocalSearchParams<{ id: string }>()
+import { useActiveServer } from '../context'
+import ReadingNow from './ReadingNow'
 
-	const router = useRouter()
+const query = graphql(`
+	query ContinueReading($pagination: Pagination) {
+		keepReading(pagination: $pagination) {
+			nodes {
+				id
+				...BookListItem
+				...ReadingNow
+			}
+			pageInfo {
+				__typename
+				... on OffsetPaginationInfo {
+					totalPages
+					currentPage
+					pageSize
+					pageOffset
+					zeroBased
+				}
+			}
+		}
+	}
+`)
 
-	const activeBook = useMemo(() => media.at(0), [media])
-	const activeBookProgress = useMemo(
-		() => (activeBook ? bookProgress(activeBook) : null),
-		[activeBook],
+function ContinueReading() {
+	const {
+		activeServer: { id: serverID },
+	} = useActiveServer()
+
+	const { data, fetchNextPage, hasNextPage } = useInfiniteSuspenseGraphQL(
+		query,
+		['continueReading', serverID],
+		{
+			pagination: { offset: { pageSize: 20, page: 1 } },
+		},
+	)
+	const nodes = useMemo(() => data?.pages.flatMap((page) => page.keepReading.nodes) || [], [data])
+
+	// Take the first 5 books as "currently reading"
+	const activeBooks = useMemo(() => data?.pages.at(0)?.keepReading.nodes.slice(0, 5) || [], [data])
+
+	const leftOffBooks = useMemo(
+		() => nodes.filter(({ id }) => !activeBooks.some((book) => book.id === id)),
+		[nodes, activeBooks],
 	)
 
-	const leftOffBooks = useMemo(() => media.slice(1), [media])
+	const onEndReached = useCallback(() => {
+		if (hasNextPage) {
+			fetchNextPage()
+		}
+	}, [hasNextPage, fetchNextPage])
+
+	const renderItem = useCallback(
+		({ item }: { item: BookListItemFragmentType }) => <BookListItem book={item} />,
+		[],
+	)
+
+	const { horizontalGap } = useListItemSize()
 
 	return (
-		<View className="flex flex-1 gap-8 pb-6">
-			{activeBook && (
-				<View className="flex items-start gap-4">
-					<Heading size="lg">Reading Now</Heading>
+		<Fragment
+			key={`continue-reading-section-${nodes.length ? 'at-least-one-item' : 'empty'}`} // Force re-render when switching between empty and non-empty states
+		>
+			{activeBooks.length > 0 && <ReadingNow books={activeBooks} />}
 
-					<Pressable
-						className="relative aspect-[2/3] overflow-hidden rounded-lg"
-						onPress={() => router.navigate(`/server/${serverID}/books/${activeBook.id}`)}
-					>
-						<View className="absolute inset-0 z-10 bg-black" style={{ opacity: 0.5 }} />
-						<Image
-							className="z-0"
-							source={{
-								uri: sdk.media.thumbnailURL(activeBook.id),
-								headers: {
-									Authorization: `Bearer ${sdk.token}`,
-								},
-							}}
-							contentFit="fill"
-							style={{ height: 400, width: 'auto' }}
-						/>
+			{(leftOffBooks.length > 0 || activeBooks.length === 0) && (
+				<View className="flex">
+					<Heading size="xl" className="px-4">
+						Continue Reading
+					</Heading>
 
-						<View className="absolute bottom-0 z-20 gap-2 p-2">
-							<Text
-								className="text-2xl font-bold leading-8 text-white"
-								style={{
-									textShadowOffset: { width: 2, height: 1 },
-									textShadowRadius: 2,
-									textShadowColor: 'rgba(0, 0, 0, 0.5)',
-								}}
-							>
-								{activeBook.metadata?.title || activeBook.name}
-							</Text>
-
-							{activeBookProgress && <Progress className="h-1" value={activeBookProgress} />}
-						</View>
-					</Pressable>
+					<FlashList
+						data={leftOffBooks}
+						keyExtractor={({ id }) => id}
+						renderItem={renderItem}
+						horizontal
+						contentContainerStyle={{ padding: 16 }}
+						onEndReached={onEndReached}
+						onEndReachedThreshold={0.85}
+						showsHorizontalScrollIndicator={false}
+						ItemSeparatorComponent={() => <View style={{ width: horizontalGap }} />}
+						ListEmptyComponent={
+							<Text className="px-4 text-foreground-muted">No books in progress</Text>
+						}
+					/>
 				</View>
 			)}
-
-			<View className="flex gap-4">
-				<Heading size="lg">Continue Reading</Heading>
-
-				{/* FIXME: flex-row not working */}
-				<FlatList
-					data={leftOffBooks}
-					keyExtractor={({ id }) => id}
-					renderItem={({ item: book }) => (
-						<Pressable onPress={() => router.navigate(`/server/${serverID}/books/${book.id}`)}>
-							{({ pressed }) => (
-								<View
-									key={book.id}
-									className={cn('flex items-start px-1', { 'opacity-80': pressed })}
-								>
-									<View className="aspect-[2/3] overflow-hidden rounded-lg">
-										<Image
-											className="z-0"
-											source={{
-												uri: sdk.media.thumbnailURL(book.id),
-												headers: {
-													Authorization: `Bearer ${sdk.token}`,
-												},
-											}}
-											contentFit="fill"
-											style={{ height: 150, width: 'auto' }}
-										/>
-									</View>
-
-									{/* <View className=" z-20 gap-2 p-2">
-								<Text className="text-2xl font-bold leading-8">
-									{book.metadata?.title || book.name}
-								</Text>
-							</View> */}
-								</View>
-							)}
-						</Pressable>
-					)}
-					horizontal
-					pagingEnabled
-					initialNumToRender={10}
-					maxToRenderPerBatch={10}
-				/>
-			</View>
-		</View>
+		</Fragment>
 	)
 }
 
-const bookProgress = ({ active_reading_session, finished_reading_sessions, pages }: Media) => {
-	if (!active_reading_session && !finished_reading_sessions) {
-		return null
-	} else if (active_reading_session) {
-		const { epubcfi, percentage_completed, page } = active_reading_session
-
-		if (epubcfi && percentage_completed) {
-			return Math.round(percentage_completed * 100)
-		} else if (page) {
-			const percent = Math.round((page / pages) * 100)
-			return Math.min(Math.max(percent, 0), 100) // Clamp between 0 and 100
-		}
-	} else if (finished_reading_sessions?.length) {
-		return 100
-	}
-
-	return null
-}
+export default memo(ContinueReading)

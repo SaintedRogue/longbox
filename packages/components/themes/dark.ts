@@ -51,14 +51,22 @@ export const dark = {
 			hover: '#F7AE32',
 			secondary: '#F59E0B26',
 		},
+		'on-black': {
+			DEFAULT: '#242628',
+			muted: '#242628',
+		},
 	},
 	foreground: {
 		DEFAULT: '#F5F3EF',
 		brand: '#C48259',
 		disabled: '#898D94',
 		muted: '#898D94',
-		'on-inverse': '#161719',
 		subtle: '#E9EAEB',
+		'on-inverse': '#161719',
+		'on-black': {
+			DEFAULT: '#E9EAEB',
+			muted: '#B0B3B7',
+		},
 	},
 	sidebar: {
 		DEFAULT: '#151517',
@@ -71,6 +79,24 @@ export const dark = {
 			DEFAULT: '#19191B',
 			hover: '#1E1E20',
 			secondary: '#1B1B1E',
+		},
+	},
+	scrollbar: {
+		DEFAULT: '#161719',
+		thumb: {
+			DEFAULT: 'hsla(0, 0%, 100%, 0.4)',
+			hover: 'hsla(0, 0%, 100%, 0.3)',
+		},
+	},
+	thumbnail: {
+		border: 'rgba(233, 234, 235, 0.10)',
+		placeholder: '#1F2123',
+		stack: {
+			series: '#3D3A3A',
+			library: {
+				start: '#2E2B2B',
+				end: '#3D3A3A',
+			},
 		},
 	},
 } satisfies StumpTheme

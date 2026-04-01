@@ -1,10 +1,10 @@
 import { Link, Text } from '@stump/components'
-import { Media, ReactTableColumnSort } from '@stump/sdk'
+import { Media } from '@stump/graphql'
+import { ColumnSort } from '@stump/sdk'
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
-import dayjs from 'dayjs'
+import { format, intlFormat, isValid } from 'date-fns'
 
 import paths from '@/paths'
-import { formatBookName } from '@/utils/format'
 
 import BookLinksCell from './BookLinksCell'
 import CoverImageCell from './CoverImageCell'
@@ -12,9 +12,7 @@ import CoverImageCell from './CoverImageCell'
 const columnHelper = createColumnHelper<Media>()
 
 const coverColumn = columnHelper.display({
-	cell: ({ row: { original: book } }) => (
-		<CoverImageCell id={book.id} title={formatBookName(book)} />
-	),
+	cell: ({ row: { original: book } }) => <CoverImageCell id={book.id} title={book.resolvedName} />,
 	enableGlobalFilter: true,
 	header: () => (
 		<Text size="sm" variant="muted">
@@ -22,36 +20,33 @@ const coverColumn = columnHelper.display({
 		</Text>
 	),
 	id: 'cover',
-	size: 60,
+	size: 80,
 })
 
-const nameColumn = columnHelper.accessor(
-	({ name, metadata }) => metadata?.title || name.replace(/\.[^/.]+$/, ''),
-	{
-		cell: ({
-			getValue,
-			row: {
-				original: { id },
-			},
-		}) => (
-			<Link
-				to={paths.bookOverview(id)}
-				className="line-clamp-2 text-sm text-opacity-100 no-underline hover:text-opacity-90"
-			>
-				{getValue()}
-			</Link>
-		),
-		enableGlobalFilter: true,
-		enableSorting: true,
-		header: () => (
-			<Text size="sm" variant="muted">
-				Name
-			</Text>
-		),
-		id: 'name',
-		minSize: 285,
-	},
-)
+const nameColumn = columnHelper.accessor(({ resolvedName }) => resolvedName, {
+	cell: ({
+		getValue,
+		row: {
+			original: { id },
+		},
+	}) => (
+		<Link
+			to={paths.bookOverview(id)}
+			className="text-sm line-clamp-2 no-underline hover:opacity-90"
+		>
+			{getValue()}
+		</Link>
+	),
+	enableGlobalFilter: true,
+	enableSorting: true,
+	header: () => (
+		<Text size="sm" variant="muted">
+			Name
+		</Text>
+	),
+	id: 'name',
+	minSize: 285,
+})
 
 const pagesColumn = columnHelper.accessor('pages', {
 	cell: ({ getValue }) => (
@@ -67,7 +62,7 @@ const pagesColumn = columnHelper.accessor('pages', {
 		</Text>
 	),
 	id: 'pages',
-	size: 60,
+	size: 100,
 })
 
 const publishedColumn = columnHelper.accessor(
@@ -76,11 +71,11 @@ const publishedColumn = columnHelper.accessor(
 
 		// TODO: validation
 		if (!!year && !!month && !!day) {
-			return dayjs(`${year}-${month}-${day}`).format('YYYY-MM-DD')
+			return format(new Date(year, month - 1, day), 'yyyy-MM-dd')
 		} else if (!!year && !!month) {
-			return dayjs(`${year}-${month}`).format('YYYY-MM')
+			return format(new Date(year, month - 1), 'yyyy-MM')
 		} else if (year) {
-			return dayjs(`${year}`).format('YYYY')
+			return String(year)
 		}
 
 		return ''
@@ -103,7 +98,15 @@ const publishedColumn = columnHelper.accessor(
 )
 
 const addedColumn = columnHelper.accessor(
-	({ created_at }) => dayjs(created_at).format('M/D/YYYY, HH:mm:ss'),
+	({ createdAt }) => {
+		const date = new Date(createdAt)
+		if (!isValid(date)) return ''
+		return intlFormat(date, {
+			year: 'numeric',
+			month: 'numeric',
+			day: 'numeric',
+		})
+	},
 	{
 		cell: ({ getValue }) => (
 			<Text size="sm" variant="muted">
@@ -137,7 +140,7 @@ const publisherColumn = columnHelper.accessor(({ metadata }) => metadata?.publis
 	id: 'publisher',
 })
 
-const ageRatingColumn = columnHelper.accessor(({ metadata }) => metadata?.age_rating, {
+const ageRatingColumn = columnHelper.accessor(({ metadata }) => metadata?.ageRating, {
 	cell: ({ getValue }) => (
 		<Text size="sm" variant="muted">
 			{getValue()}
@@ -153,7 +156,7 @@ const ageRatingColumn = columnHelper.accessor(({ metadata }) => metadata?.age_ra
 	id: 'age_rating',
 })
 
-const genresColumn = columnHelper.accessor(({ metadata }) => metadata?.genre?.join(', '), {
+const genresColumn = columnHelper.accessor(({ metadata }) => metadata?.genres?.join(', '), {
 	cell: ({ getValue }) => (
 		<Text size="sm" variant="muted">
 			{getValue()}
@@ -266,7 +269,7 @@ const letterersColumn = columnHelper.accessor(({ metadata }) => metadata?.letter
 	id: 'letterers',
 })
 
-const artistsColumn = columnHelper.accessor(({ metadata }) => metadata?.cover_artists?.join(', '), {
+const artistsColumn = columnHelper.accessor(({ metadata }) => metadata?.coverArtists?.join(', '), {
 	cell: ({ getValue }) => (
 		<Text size="sm" variant="muted">
 			{getValue()}
@@ -375,7 +378,7 @@ export const defaultColumns = [
  * A helper function to build the columns for the table based on the stored column selection. If
  * no columns are selected, or if the selection is empty, the default columns will be used.
  */
-export const buildColumns = (columns?: ReactTableColumnSort[]) => {
+export const buildColumns = (columns?: ColumnSort[]) => {
 	if (!columns || columns.length === 0) {
 		return defaultColumns
 	}
@@ -390,9 +393,9 @@ export const buildColumns = (columns?: ReactTableColumnSort[]) => {
 
 // TODO: make not so scuffed/verbose lol
 export const bookFuzzySearch = (book: Media, search: string): boolean => {
-	const { name, metadata } = book
+	const { resolvedName, metadata } = book
 
-	if (name.toLowerCase().includes(search.toLowerCase())) {
+	if (resolvedName.toLowerCase().includes(search.toLowerCase())) {
 		return true
 	}
 
@@ -404,11 +407,11 @@ export const bookFuzzySearch = (book: Media, search: string): boolean => {
 		return true
 	}
 
-	if (metadata?.age_rating?.toString().includes(search.toLowerCase())) {
+	if (metadata?.ageRating?.toString().includes(search.toLowerCase())) {
 		return true
 	}
 
-	if (metadata?.genre?.join(', ').toLowerCase().includes(search.toLowerCase())) {
+	if (metadata?.genres?.join(', ').toLowerCase().includes(search.toLowerCase())) {
 		return true
 	}
 
@@ -436,7 +439,7 @@ export const bookFuzzySearch = (book: Media, search: string): boolean => {
 		return true
 	}
 
-	if (metadata?.cover_artists?.join(', ').toLowerCase().includes(search.toLowerCase())) {
+	if (metadata?.coverArtists?.join(', ').toLowerCase().includes(search.toLowerCase())) {
 		return true
 	}
 

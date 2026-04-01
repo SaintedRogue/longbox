@@ -1,11 +1,10 @@
 import { Button, Heading, Text } from '@stump/components'
 import { useLocaleContext } from '@stump/i18n'
-import { RegisteredEmailDevice } from '@stump/sdk'
 import { Suspense, useState } from 'react'
 
 import { useEmailerSettingsContext } from '../context'
 import CreateOrUpdateDeviceModal from './CreateOrUpdateDeviceModal'
-import DevicesTable from './DevicesTable'
+import DevicesTable, { RegisteredEmailDevice } from './DevicesTable'
 
 export default function DevicesSection() {
 	const { t } = useLocaleContext()
@@ -17,7 +16,7 @@ export default function DevicesSection() {
 	const canCreateOrUpdate = canCreateEmailer || canEditEmailer
 
 	return (
-		<div className="flex flex-col gap-4">
+		<div className="gap-4 flex flex-col">
 			<div className="flex items-end justify-between">
 				<div>
 					<Heading size="sm">{t('settingsScene.server/email.sections.devices.title')}</Heading>

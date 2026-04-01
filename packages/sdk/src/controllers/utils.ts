@@ -2,7 +2,35 @@ import axios, { AxiosError } from 'axios'
 import qs from 'qs'
 
 import { APIError } from '../types'
-import { CursorQueryParams, PagedQueryParams } from './types'
+
+/**
+ * Resolves a relative URL against a base URL
+ */
+export const resolveUrl = (url: string, baseUrl?: string): string => {
+	// If the url is already absolute, return as-is
+	if (url.startsWith('http://') || url.startsWith('https://')) {
+		return url
+	}
+
+	// If no base url is provided, return as-is
+	if (!baseUrl) {
+		return url
+	}
+
+	try {
+		// Note: URL encodes the template strings we rely on for OPDS searches, e.g.
+		// `{?query}` becomes `%7B%3Fquery%7D`, so we decode the final URL before returning
+		return decodeURIComponent(new URL(url, baseUrl).toString())
+	} catch {
+		if (url.startsWith('/')) {
+			const match = baseUrl.match(/^(https?:\/\/[^/]+)/)
+			if (match) {
+				return `${match[1]}${url}`
+			}
+		}
+		return `${baseUrl.replace(/\/$/, '')}/${url.replace(/^\//, '')}`
+	}
+}
 
 export const createRouteURLHandler =
 	(baseURL: string) => (endpoint: string, params?: Record<string, unknown>) => {
@@ -27,9 +55,7 @@ export const createRouteURLHandler =
 
 /** Formats a string with UrlSearchParams */
 export const urlWithParams = (url: string, params?: URLSearchParams) => {
-	// NOTE: it is important to decode the params because qs.stringify will encode them
-	// EVEN WITH the encode: false option set >:(
-	const paramString = decodeURIComponent(params?.toString() || '')
+	const paramString = params?.toString() || ''
 	if (paramString?.length) {
 		return `${url}?${paramString}`
 	}
@@ -60,9 +86,7 @@ export const toUrlParams = <T extends object>(
 		return params
 	}
 
-	return new URLSearchParams(
-		qs.stringify(obj, { arrayFormat: 'brackets', encode: false, skipNulls: removeEmpty }),
-	)
+	return new URLSearchParams(qs.stringify(obj, { arrayFormat: 'brackets', skipNulls: removeEmpty }))
 }
 
 /**
@@ -73,7 +97,7 @@ export const toUrlParamsString = <T extends object>(
 	params = new URLSearchParams(),
 	options: ToUrlParamsOptions = {},
 ) => {
-	return decodeURIComponent(toUrlParams(obj, params, options).toString())
+	return toUrlParams(obj, params, options).toString()
 }
 
 type ToObjectParamsOptions = {
@@ -103,32 +127,6 @@ export const toObjectParams = <T extends object>(
 	}
 
 	return qs.parse(newParams.toString(), { ignoreQueryPrefix: true }) as T
-}
-
-export const mergeCursorParams = ({
-	cursor,
-	limit,
-	params,
-}: CursorQueryParams): URLSearchParams => {
-	const searchParams = toUrlParams(params)
-	if (cursor) {
-		searchParams.set('cursor', cursor)
-	}
-	if (limit) {
-		searchParams.set('limit', limit.toString())
-	}
-	return searchParams
-}
-
-export const mergePageParams = ({ page, page_size, params }: PagedQueryParams): URLSearchParams => {
-	const searchParams = toUrlParams(params)
-	if (page) {
-		searchParams.set('page', page.toString())
-	}
-	if (page_size) {
-		searchParams.set('page_size', page_size.toString())
-	}
-	return searchParams
 }
 
 export const isAxiosError = (error: unknown): error is AxiosError => {

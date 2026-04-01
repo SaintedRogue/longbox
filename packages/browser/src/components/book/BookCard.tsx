@@ -1,161 +1,251 @@
-import { usePrefetchMediaByID, useSDK } from '@stump/client'
-import { Text } from '@stump/components'
-import { Media } from '@stump/sdk'
+import { cn, ProgressBar, Text } from '@stump/components'
+import { FragmentType, graphql, useFragment } from '@stump/graphql'
+import { getColor, serialize, set } from 'colorjs.io/fn'
 import pluralize from 'pluralize'
-import { type ComponentPropsWithoutRef, useCallback, useMemo } from 'react'
+import { memo, useCallback, useMemo } from 'react'
 
-import paths from '@/paths'
-import { formatBookName, formatBytes } from '@/utils/format'
-import { prefetchMediaPage } from '@/utils/prefetch'
+import { Link } from '@/context'
+import { usePreferences } from '@/hooks/usePreferences'
+import { useTheme } from '@/hooks/useTheme'
+import { usePaths } from '@/paths'
+import { usePrefetchBooksAfterCursor } from '@/scenes/book/BooksAfterCursor'
+import { formatBytes } from '@/utils/format'
 
-import { EntityCard } from '../entity'
+import { ThumbnailImage } from '../thumbnail/ThumbnailImage'
+import { usePrefetchBook } from './useBookOverview'
 
-export type BookCardProps = {
-	media: Media
+export const BookCardFragment = graphql(`
+	fragment BookCard on Media {
+		id
+		resolvedName
+		extension
+		pages
+		size
+		status
+		thumbnail {
+			url
+			metadata {
+				averageColor
+				colors {
+					color
+					percentage
+				}
+				thumbhash
+			}
+			height
+			width
+		}
+		readProgress {
+			percentageCompleted
+			epubcfi
+			page
+			updatedAt
+		}
+		readHistory {
+			__typename
+			completedAt
+		}
+		createdAt
+		libraryConfig {
+			skipBookOverview
+		}
+	}
+`)
+
+type Props = {
+	fragment: FragmentType<typeof BookCardFragment>
 	readingLink?: boolean
+	onSelect?: () => void
 	fullWidth?: boolean
-	variant?: 'cover' | 'default'
-	onSelect?: (media: Media) => void
 }
 
-type EntityCardProps = ComponentPropsWithoutRef<typeof EntityCard>
-
-export default function BookCard({
-	media,
+const BookCard = memo(function BookCard({
+	fragment,
 	readingLink,
-	fullWidth,
-	variant = 'default',
 	onSelect,
-}: BookCardProps) {
-	const { sdk } = useSDK()
-	const { prefetch } = usePrefetchMediaByID(media.id)
+	fullWidth = true,
+}: Props) {
+	const data = useFragment(BookCardFragment, fragment)
+	const paths = usePaths()
 
-	const isCoverOnly = variant === 'cover'
+	const {
+		preferences: { thumbnailRatio },
+	} = usePreferences()
+	const { isDarkVariant, getColor: getThemeColor } = useTheme()
 
-	const handleHover = () => {
-		if (!readingLink) {
-			prefetch()
-		}
+	const prefetchBook = usePrefetchBook()
+	const prefetchBooksAfterCursor = usePrefetchBooksAfterCursor()
 
-		const currentPage = media.current_page || -1
-		if (currentPage > 0) {
-			prefetchMediaPage(sdk, media.id, currentPage)
-		}
-	}
+	const prefetch = useCallback(
+		() => Promise.all([prefetchBook(data.id), prefetchBooksAfterCursor(data.id)]),
+		[prefetchBook, prefetchBooksAfterCursor, data.id],
+	)
 
-	const getSubtitle = (media: Media) => {
-		if (isCoverOnly) {
+	const progress = useMemo(() => {
+		if (!data.readProgress && !data.readHistory) {
 			return null
-		}
-
-		const isMissing = media.status === 'MISSING'
-		if (isMissing) {
-			return (
-				<Text size="xs" className="uppercase text-amber-500">
-					File Missing
-				</Text>
-			)
-		}
-
-		const progressString = getProgress()
-		if (progressString != null) {
-			const isEpubProgress = !!media.current_epubcfi
-			const pagesLeft = media.pages - (media.current_page || 0)
-
-			return (
-				<div className="flex items-center justify-between">
-					<Text size="xs" variant="muted">
-						{getProgress()}%
-					</Text>
-					{!isEpubProgress && (
-						<Text size="xs" variant="muted">
-							{pagesLeft} {pluralize('page', pagesLeft)} left
-						</Text>
-					)}
-				</div>
-			)
-		}
-
-		return (
-			<div className="flex items-center justify-between">
-				<Text size="xs" variant="muted">
-					{formatBytes(media.size.valueOf())}
-				</Text>
-			</div>
-		)
-	}
-
-	const getProgress = useCallback(() => {
-		const { active_reading_session, finished_reading_sessions } = media
-
-		if (isCoverOnly || (!active_reading_session && !finished_reading_sessions)) {
-			return null
-		} else if (active_reading_session) {
-			const { epubcfi, percentage_completed, page } = active_reading_session
-
-			if (epubcfi && percentage_completed) {
-				return Math.round(percentage_completed * 100)
+		} else if (data.readProgress) {
+			const { epubcfi, percentageCompleted, page } = data.readProgress
+			if (epubcfi && percentageCompleted) {
+				return Math.round(percentageCompleted * 100)
 			} else if (page) {
-				const pages = media.pages
-
-				const percent = Math.round((page / pages) * 100)
-				return Math.min(Math.max(percent, 0), 100) // Clamp between 0 and 100
+				const percent = Math.round((page / data.pages) * 100)
+				return Math.min(Math.max(percent, 0), 100)
 			}
-		} else if (finished_reading_sessions?.length) {
+		} else if (data.readHistory?.length) {
 			return 100
 		}
 
 		return null
-	}, [isCoverOnly, media])
+	}, [data])
+
+	const placeholderData = useMemo(() => {
+		const meta = data.thumbnail.metadata
+		if (!meta) return undefined
+		return {
+			averageColor: meta.averageColor,
+			colors: meta.colors,
+			thumbhash: meta.thumbhash,
+		}
+	}, [data.thumbnail.metadata])
 
 	const href = useMemo(() => {
 		if (onSelect) {
 			return undefined
 		}
 
-		return readingLink
-			? paths.bookReader(media.id, {
-					epubcfi: media.current_epubcfi,
-					page: media.current_page || undefined,
+		const shouldSkipOverview = data.libraryConfig?.skipBookOverview === true
+
+		return readingLink || shouldSkipOverview
+			? paths.bookReader(data.id, {
+					epubcfi: data.readProgress?.epubcfi,
+					page: data.readProgress?.page ?? undefined,
 				})
-			: paths.bookOverview(media.id)
-	}, [readingLink, media.id, media.current_epubcfi, media.current_page, onSelect])
+			: paths.bookOverview(data.id)
+	}, [readingLink, data.id, onSelect, data.readProgress, data.libraryConfig, paths])
 
-	const propsOverrides = useMemo(() => {
-		let overrides = (
-			isCoverOnly
-				? {
-						className: 'flex-shrink-0 flex-auto',
-						href: undefined,
-						progress: undefined,
-						subtitle: undefined,
-						title: undefined,
-					}
-				: {}
-		) as Partial<EntityCardProps>
+	const isMissing = data.status === 'MISSING'
+	const isEbookProgress = !!data.readProgress?.epubcfi
+	const pagesLeft = data.pages - (data.readProgress?.page || 0)
+	const progressPercent = progress ?? 0
 
-		if (onSelect) {
-			overrides = {
-				...overrides,
-				onClick: () => onSelect(media),
-			}
+	const renderSubtitle = () => {
+		if (isMissing) {
+			return (
+				<Text size="xs" className="text-amber-500 uppercase">
+					File Missing
+				</Text>
+			)
 		}
 
-		return overrides
-	}, [onSelect, isCoverOnly, media])
+		if (progressPercent > 0 && progressPercent < 100) {
+			return (
+				<div className="gap-1 flex items-center justify-between">
+					<Text size="xs" variant="muted">
+						{progressPercent}%
+					</Text>
+					{!isEbookProgress && (
+						<Text size="xs" variant="muted">
+							{pagesLeft} {pluralize('page', pagesLeft)} left
+						</Text>
+					)}
+				</div>
+			)
+		} else if (progressPercent === 100) {
+			return (
+				<Text size="xs" variant="muted">
+					Completed
+				</Text>
+			)
+		}
+
+		return (
+			<Text size="xs" variant="muted">
+				{formatBytes(data.size.valueOf())}
+			</Text>
+		)
+	}
+
+	const handleClick = onSelect ? () => onSelect() : undefined
+
+	const Comp = href ? Link : 'div'
+	const props = href ? { to: href } : {}
+
+	const thumbnailAverageColor = placeholderData?.averageColor
+	const backgroundColor = useMemo(() => {
+		if (thumbnailAverageColor) {
+			const color = getColor(thumbnailAverageColor)
+			set(color, {
+				'oklch.l': isDarkVariant ? 0.35 : 0.9,
+				'oklch.c': 0.04,
+			})
+			return serialize(color, { format: 'hex' })
+		}
+		return (
+			getThemeColor('thumbnail.stack.series') ??
+			(isDarkVariant ? 'oklch(0.35 0.01 52.14)' : 'oklch(0.9 0.01 52.14)')
+		)
+	}, [thumbnailAverageColor, isDarkVariant, getThemeColor])
 
 	return (
-		<EntityCard
-			key={media.id}
-			title={formatBookName(media)}
-			href={href}
-			fullWidth={fullWidth}
-			imageUrl={sdk.media.thumbnailURL(media.id)}
-			progress={getProgress()}
-			subtitle={getSubtitle(media)}
-			onMouseEnter={handleHover}
-			isCover={isCoverOnly}
-			{...propsOverrides}
-		/>
+		// @ts-expect-error: It's okay
+		<Comp
+			{...props}
+			onClick={handleClick}
+			onMouseEnter={prefetch}
+			className={cn(
+				'group gap-1 relative flex flex-col',
+				'rounded-lg p-1 border border-transparent transition-colors duration-100',
+				'focus-visible:outline-none',
+				fullWidth ? 'w-full' : 'w-40 sm:w-[10.666rem] md:w-48 shrink-0',
+			)}
+		>
+			<div
+				className={cn(
+					'-inset-0.5 rounded-lg absolute -z-10',
+					'scale-95 opacity-0 duration-100',
+					'group-hover:scale-100 group-hover:opacity-100',
+					'group-focus-visible:scale-100 group-focus-visible:opacity-100',
+				)}
+				style={{ backgroundColor: backgroundColor }}
+			/>
+
+			<div className="relative w-full" style={{ aspectRatio: thumbnailRatio }}>
+				<ThumbnailImage
+					src={data.thumbnail.url}
+					alt={data.resolvedName}
+					size={{ width: '100%', height: '100%' }}
+					placeholderData={placeholderData}
+					lazy
+					borderAndShadowStyle={{
+						borderRadius: 8,
+						shadowColor: 'rgba(0, 0, 0, 0.15)',
+						shadowRadius: 2,
+					}}
+				/>
+			</div>
+
+			{progressPercent > 0 && (
+				<ProgressBar
+					value={progressPercent}
+					max={100}
+					variant="primary-dark"
+					size="sm"
+					className="-mt-0.5"
+				/>
+			)}
+
+			<div className="gap-0.5 px-0.5 flex h-[52px] flex-col">
+				<Text
+					size="sm"
+					className="min-w-0 font-medium leading-tight line-clamp-2 whitespace-normal"
+				>
+					{data.resolvedName}
+				</Text>
+				{renderSubtitle()}
+			</div>
+		</Comp>
 	)
-}
+})
+
+export default BookCard

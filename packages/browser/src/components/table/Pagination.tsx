@@ -1,4 +1,4 @@
-import { Button, cn, IconButton } from '@stump/components'
+import { Button, cn } from '@stump/components'
 import { ArrowLeft, ArrowRight, MoreHorizontal } from 'lucide-react'
 import { useMemo } from 'react'
 import { useWindowSize } from 'rooks'
@@ -14,6 +14,7 @@ export default function TablePagination({
 	pages,
 	currentPage,
 	onChangePage,
+	onPrefetchPage,
 }: TablePaginationProps) {
 	const { innerWidth: screenWidth } = useWindowSize()
 
@@ -35,10 +36,17 @@ export default function TablePagination({
 
 	// FIXME: Things get smushed together when there are too many pages
 	return (
-		<div className="flex items-center gap-1">
-			<IconButton disabled={currentPage <= 1} onClick={() => onChangePage(currentPage - 1)}>
+		<div className="gap-1 flex items-center">
+			<Button
+				size="icon"
+				variant="ghost"
+				disabled={currentPage <= 1}
+				onClick={() => onChangePage(currentPage - 1)}
+				onMouseEnter={onPrefetchPage ? () => onPrefetchPage(currentPage - 1) : undefined}
+				className="h-5 w-5"
+			>
 				<ArrowLeft className="h-4 w-4" />
-			</IconButton>
+			</Button>
 
 			{pageRange.map((page, i) => {
 				if (typeof page === 'number') {
@@ -48,6 +56,7 @@ export default function TablePagination({
 							isActive={page === currentPage}
 							onClick={() => onChangePage(page)}
 							page={page}
+							onPrefetch={onPrefetchPage ? () => onPrefetchPage(page) : undefined}
 						/>
 					)
 				}
@@ -60,7 +69,7 @@ export default function TablePagination({
 						totalPages={pages}
 						onPageChange={onChangePage}
 						trigger={
-							<Button>
+							<Button size="icon" className="h-5 w-5">
 								<MoreHorizontal className="h-4 w-4" />
 							</Button>
 						}
@@ -68,9 +77,16 @@ export default function TablePagination({
 				)
 			})}
 
-			<IconButton disabled={currentPage >= pages} onClick={() => onChangePage(currentPage + 1)}>
+			<Button
+				size="icon"
+				variant="ghost"
+				disabled={currentPage >= pages}
+				onClick={() => onChangePage(currentPage + 1)}
+				onMouseEnter={onPrefetchPage ? () => onPrefetchPage(currentPage + 1) : undefined}
+				className="h-5 w-5"
+			>
 				<ArrowRight className="h-4 w-4" />
-			</IconButton>
+			</Button>
 		</div>
 	)
 }
@@ -79,18 +95,20 @@ interface PaginationNumberProps {
 	page: number
 	isActive: boolean
 	onClick: () => void
+	onPrefetch?: () => void
 }
 
 // TODO: style
-function PaginationNumber({ onClick, page, isActive }: PaginationNumberProps) {
+function PaginationNumber({ onClick, page, isActive, onPrefetch }: PaginationNumberProps) {
 	return (
-		<IconButton
-			size="xs"
+		<Button
+			size="icon"
 			onClick={onClick}
 			variant="ghost"
 			className={cn('h-5 w-5', isActive ? '!text-brand' : '')}
+			onMouseEnter={onPrefetch ? onPrefetch : undefined}
 		>
 			{page}
-		</IconButton>
+		</Button>
 	)
 }

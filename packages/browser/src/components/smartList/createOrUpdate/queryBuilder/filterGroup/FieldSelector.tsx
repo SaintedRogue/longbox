@@ -114,7 +114,7 @@ export function FieldSelector({ idx }: Props) {
 		if (source) {
 			return (
 				<button
-					className="flex w-full items-center space-x-2 text-sm"
+					className="space-x-2 text-sm flex w-full items-center"
 					onClick={() => setSource(null)}
 				>
 					<ArrowLeft className="ml-2 h-4 w-4 text-foreground-muted" />
@@ -151,16 +151,18 @@ export function FieldSelector({ idx }: Props) {
 					<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
 				</Button>
 			</Popover.Trigger>
-			<Popover.Content className="mt-1 max-h-96 w-52 overflow-y-auto p-0" align="start">
+			<Popover.Content className="mt-1 max-h-96 w-52 p-0 overflow-y-auto" align="start">
 				<Command>
-					<Command.Group
-						heading={renderGroupHeader()}
-						className={cn({
-							'[&_[cmdk-group-heading]]:px-0': !!source,
-						})}
-					>
-						{renderSource()}
-					</Command.Group>
+					<Command.List>
+						<Command.Group
+							heading={renderGroupHeader()}
+							className={cn({
+								'**:[[cmdk-group-heading]]:px-0': !!source,
+							})}
+						>
+							{renderSource()}
+						</Command.Group>
+					</Command.List>
 				</Command>
 			</Popover.Content>
 		</Popover>
@@ -172,18 +174,19 @@ const sourceOptions: Record<FilterSource, { value: string }[]> = {
 		{ value: 'name' },
 		{ value: 'size' },
 		{ value: 'extension' },
-		{ value: 'created_at' },
-		{ value: 'updated_at' },
+		{ value: 'createdAt' },
+		{ value: 'updatedAt' },
 		{ value: 'status' },
 		{ value: 'path' },
 		{ value: 'pages' },
 		{ value: 'tags' },
+		{ value: 'readingStatus' },
 	],
 	book_meta: [
 		{ value: 'title' },
 		{ value: 'summary' },
 		{ value: 'notes' },
-		{ value: 'genre' },
+		{ value: 'genres' },
 		{ value: 'writers' },
 		{ value: 'pencillers' },
 		{ value: 'inkers' },
@@ -191,16 +194,20 @@ const sourceOptions: Record<FilterSource, { value: string }[]> = {
 		{ value: 'letterers' },
 		{ value: 'editors' },
 		{ value: 'publisher' },
-		{ value: 'cover_artists' },
+		{ value: 'coverArtists' },
 		{ value: 'links' },
 		{ value: 'characters' },
 		{ value: 'teams' },
+		{ value: 'ageRating' },
+		{ value: 'year' },
+		{ value: 'month' },
+		{ value: 'day' },
 	],
 	library: [{ value: 'name' }, { value: 'path' }],
 	series: [{ value: 'name' }, { value: 'path' }],
 	series_meta: [
-		{ value: 'age_rating' },
-		{ value: 'meta_type' },
+		{ value: 'ageRating' },
+		{ value: 'metaType' },
 		{ value: 'title' },
 		{ value: 'summary' },
 		{ value: 'publisher' },
@@ -209,6 +216,7 @@ const sourceOptions: Record<FilterSource, { value: string }[]> = {
 		{ value: 'booktype' },
 		{ value: 'status' },
 		{ value: 'volume' },
+		{ value: 'year' },
 	],
 }
 

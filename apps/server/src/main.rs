@@ -6,7 +6,6 @@ use stump_core::{
 
 mod config;
 mod errors;
-mod filter;
 mod http_server;
 mod middleware;
 mod routers;
@@ -19,6 +18,7 @@ fn debug_setup() {
 		env!("CARGO_MANIFEST_DIR").to_string() + "/../web/dist",
 	);
 	std::env::set_var("STUMP_PROFILE", "debug");
+	std::env::set_var("STUMP_COLORFUL_LOGS", "true");
 }
 
 #[tokio::main(flavor = "multi_thread")]
@@ -26,7 +26,6 @@ async fn main() -> Result<(), EntryError> {
 	#[cfg(debug_assertions)]
 	debug_setup();
 
-	// Get STUMP_CONFIG_DIR to bootstrap startup
 	let config_dir = bootstrap_config_dir();
 
 	let config = StumpCore::init_config(config_dir)
@@ -37,14 +36,15 @@ async fn main() -> Result<(), EntryError> {
 	if let Some(command) = cli.command {
 		Ok(handle_command(command, &cli.config.merge_stump_config(config)).await?)
 	} else {
+		let resolved_config = cli.config.merge_stump_config(config);
 		// Note: init_tracing after loading the environment so the correct verbosity
 		// level is used for logging.
-		init_tracing(&config);
+		init_tracing(&resolved_config);
 
-		if config.verbosity >= 3 {
-			tracing::trace!(?config, "App config");
+		if resolved_config.verbosity >= 3 {
+			tracing::trace!(?resolved_config, "App config");
 		}
 
-		Ok(http_server::run_http_server(config).await?)
+		Ok(http_server::run_http_server(resolved_config).await?)
 	}
 }

@@ -1,91 +1,86 @@
-import { useLoginActivityQuery } from '@stump/client'
+import { useSDK, useSuspenseGraphQL } from '@stump/client'
 import { Badge, Card, Text } from '@stump/components'
-import { LoginActivity } from '@stump/sdk'
+import { graphql, LoginActivityTableQuery } from '@stump/graphql'
+import { Api } from '@stump/sdk'
+import { QueryClient } from '@tanstack/react-query'
 import {
 	ColumnDef,
 	createColumnHelper,
 	getPaginationRowModel,
 	PaginationState,
 } from '@tanstack/react-table'
-import dayjs from 'dayjs'
+import { intlFormat } from 'date-fns'
+import { Fingerprint, Slash } from 'lucide-react'
 import { useState } from 'react'
 
 import { Table } from '@/components/table'
 
 import UsernameRow from '../user-table/UsernameRow'
 
-const columnHelper = createColumnHelper<LoginActivity>()
-
-const baseColumns = [
-	columnHelper.display({
-		cell: ({
-			row: {
-				original: { user },
-			},
-		}) => {
-			if (!user) {
-				return null
+const query = graphql(`
+	query LoginActivityTable {
+		loginActivity {
+			id
+			ipAddress
+			userAgent
+			authenticationSuccessful
+			timestamp
+			user {
+				id
+				username
+				avatarUrl
 			}
+		}
+	}
+`)
 
-			return <UsernameRow {...user} />
+export type LoginActivity = LoginActivityTableQuery['loginActivity'][number]
+
+export const prefetchLoginActivity = async (sdk: Api, client: QueryClient) =>
+	client.prefetchQuery({
+		queryKey: sdk.cacheKey('loginActivity'),
+		queryFn: async () => {
+			const data = await sdk.execute(query)
+			return data
 		},
-		header: 'User',
-		id: 'user',
-		size: 100,
-	}),
-	columnHelper.accessor('timestamp', {
-		cell: ({ row: { original: activity } }) => (
-			<Text title={dayjs(activity.timestamp).format('LLL')} className="line-clamp-1" size="sm">
-				{dayjs(activity.timestamp).format('LLL')}
-			</Text>
-		),
-		header: 'Timestamp',
-		size: 100,
-	}),
-	columnHelper.accessor('ip_address', {
-		cell: ({ row: { original: activity } }) => (
-			<Text className="line-clamp-1" size="sm">
-				{activity.ip_address}
-			</Text>
-		),
-		header: 'IP address',
-		size: 100,
-	}),
-	columnHelper.accessor('user_agent', {
-		cell: ({ row: { original: activity } }) => (
-			<Text
-				size="sm"
-				variant="muted"
-				className="line-clamp-1 max-w-sm md:max-w-xl"
-				title={activity.user_agent}
-			>
-				{activity.user_agent}
-			</Text>
-		),
-		header: 'User-agent',
-	}),
-	columnHelper.display({
-		cell: ({ row: { original: activity } }) => (
-			<Badge variant={activity.authentication_successful ? 'success' : 'error'} size="xs">
-				{activity.authentication_successful ? 'Success' : 'Failure'}
-			</Badge>
-		),
-		header: 'Auth result',
-		id: 'authentication_successful',
-	}),
-] as ColumnDef<LoginActivity>[]
+	})
 
 export default function LoginActivityTable() {
-	const { loginActivity } = useLoginActivityQuery({})
+	const { sdk } = useSDK()
+	const {
+		data: { loginActivity },
+	} = useSuspenseGraphQL(query, sdk.cacheKey('loginActivity'))
 
 	const [pagination, setPagination] = useState<PaginationState>({
 		pageIndex: 0,
 		pageSize: 10,
 	})
 
+	if (!loginActivity?.length && !pagination.pageIndex) {
+		return (
+			<Card className="p-6 flex items-center justify-center border-dashed border-edge-subtle">
+				<div className="space-y-3 flex flex-col">
+					<div className="relative flex justify-center">
+						<span className="rounded-lg p-2 flex items-center justify-center bg-background-surface">
+							<Fingerprint className="h-6 w-6 text-foreground-muted" />
+							<Slash className="h-6 w-6 absolute scale-x-[-1] transform text-foreground opacity-80" />
+						</span>
+					</div>
+
+					<div className="text-center">
+						<Text>No login activity</Text>
+						<Text size="sm" variant="muted">
+							You cleared this, didn&#39;t you?
+						</Text>
+					</div>
+				</div>
+			</Card>
+		)
+	}
+
 	// FIXME: doesn't scale well on mobile
 	return (
-		<Card className="bg-background-surface p-1">
+		<Card>
 			<Table
 				data={loginActivity || []}
 				columns={baseColumns}
@@ -106,3 +101,72 @@ export default function LoginActivityTable() {
 		</Card>
 	)
 }
+
+const columnHelper = createColumnHelper<LoginActivity>()
+
+const baseColumns = [
+	columnHelper.display({
+		cell: ({
+			row: {
+				original: { user },
+			},
+		}) => {
+			if (!user) {
+				return null
+			}
+			return <UsernameRow {...user} />
+		},
+		header: 'User',
+		id: 'user',
+		size: 100,
+	}),
+	columnHelper.accessor('timestamp', {
+		cell: ({ row: { original: activity } }) => {
+			const formatted = intlFormat(new Date(activity.timestamp), {
+				month: 'long',
+				day: 'numeric',
+				year: 'numeric',
+				hour: 'numeric',
+				minute: '2-digit',
+			})
+			return (
+				<Text title={formatted} className="line-clamp-1" size="sm">
+					{formatted}
+				</Text>
+			)
+		},
+		header: 'Timestamp',
+		size: 100,
+	}),
+	columnHelper.accessor('ipAddress', {
+		cell: ({ row: { original: activity } }) => (
+			<Text className="line-clamp-1" size="sm">
+				{activity.ipAddress}
+			</Text>
+		),
+		header: 'IP address',
+		size: 100,
+	}),
+	columnHelper.accessor('userAgent', {
+		cell: ({ row: { original: activity } }) => (
+			<Text
+				size="sm"
+				variant="muted"
+				className="max-w-sm md:max-w-xl line-clamp-1"
+				title={activity.userAgent}
+			>
+				{activity.userAgent}
+			</Text>
+		),
+		header: 'User-agent',
+	}),
+	columnHelper.display({
+		cell: ({ row: { original: activity } }) => (
+			<Badge variant={activity.authenticationSuccessful ? 'success' : 'error'} size="xs">
+				{activity.authenticationSuccessful ? 'Success' : 'Failure'}
+			</Badge>
+		),
+		header: 'Auth result',
+		id: 'authenticationSuccessful',
+	}),
+] as ColumnDef<LoginActivity>[]

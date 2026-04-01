@@ -1,9 +1,22 @@
-import { useQuery, useSDK } from '@stump/client'
+import { useSDK, useSuspenseGraphQL } from '@stump/client'
 import { Label, Text } from '@stump/components'
+import { graphql } from '@stump/graphql'
 
 import paths from '@/paths'
 
 import { EntityCard } from '../entity'
+
+const query = graphql(`
+	query LastVisitedLibrary {
+		lastVisitedLibrary {
+			id
+			name
+			thumbnail {
+				url
+			}
+		}
+	}
+`)
 
 type Props = {
 	container?: (children: React.ReactNode) => React.ReactNode
@@ -11,9 +24,9 @@ type Props = {
 
 export default function LastVisitedLibrary({ container }: Props) {
 	const { sdk } = useSDK()
-	const { data: library } = useQuery([sdk.library.keys.getLastVisited], () =>
-		sdk.library.getLastVisited(),
-	)
+	const {
+		data: { lastVisitedLibrary: library },
+	} = useSuspenseGraphQL(query, sdk.cacheKey('lastVisitedLibrary'))
 
 	if (!library) {
 		return null
@@ -21,17 +34,17 @@ export default function LastVisitedLibrary({ container }: Props) {
 
 	const renderContent = () => {
 		return (
-			<div className="flex flex-col gap-y-2">
+			<div className="gap-y-2 flex flex-col">
 				<Label className="text-sm">Last visited</Label>
 				<EntityCard
 					href={paths.librarySeries(library.id)}
-					imageUrl={sdk.library.thumbnailURL(library.id)}
+					imageUrl={library.thumbnail.url}
 					isCover
-					className="flex-auto flex-shrink-0"
+					className="flex-auto shrink-0"
 					fullWidth={(imageFailed) => !imageFailed}
 				/>
 
-				<Text className="line-clamp-1 text-sm" variant="muted">
+				<Text className="text-sm line-clamp-1" variant="muted">
 					{library.name}
 				</Text>
 			</div>

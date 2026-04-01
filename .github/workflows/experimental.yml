@@ -22,8 +22,8 @@ jobs:
     outputs:
       changes: ${{steps.filter.outputs.changes}}
     steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v2
+      - uses: actions/checkout@v6
+      - uses: dorny/paths-filter@v4
         id: filter
         with:
           base: 'experimental'
@@ -45,7 +45,7 @@ jobs:
     if: false
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
 
       - name: Setup and build docker image
         uses: ./.github/actions/build-docker
@@ -53,10 +53,8 @@ jobs:
           username: ${{ env.DOCKER_USERNAME }}
           password: ${{ env.DOCKER_PASSWORD }}
           tags: 'experimental'
+          build-channel: 'experimental'
           load: ${{ github.event_name == 'pull_request' }}
           push: ${{ github.event_name == 'push' }}
-          # tags: 'unstable'
-          # load: false
-          # push: true
           archs: 'amd64'
           discord-webhook: ${{ secrets.DISCORD_WEBHOOK }}

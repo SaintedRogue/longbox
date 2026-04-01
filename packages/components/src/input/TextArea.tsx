@@ -8,7 +8,7 @@ import { RawTextArea, RawTextAreaProps, RawTextAreaRef } from './raw'
 // TODO: error state
 export type TextAreaProps = {
 	/** The label for the input. */
-	label: string
+	label?: string
 	/** The optional description for the textarea. */
 	description?: string
 	/** The optional error message to display. */
@@ -20,8 +20,8 @@ export type TextAreaProps = {
 const TextArea = React.forwardRef<RawTextAreaRef, TextAreaProps>(
 	({ label, description, containerClassName, errorMessage, variant, isInvalid, ...props }, ref) => {
 		return (
-			<div className={cn('grid items-center gap-1.5', containerClassName)}>
-				<Label htmlFor={props.id}>{label}</Label>
+			<div className={cn('gap-1.5 grid items-center', containerClassName)}>
+				{label && <Label htmlFor={props.id}>{label}</Label>}
 				<RawTextArea
 					variant={variant}
 					ref={ref}

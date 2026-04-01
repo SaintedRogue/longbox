@@ -1,14 +1,15 @@
-import { OPDSNavigationLink } from '@stump/sdk'
+import { useSDK } from '@stump/client'
+import { OPDSNavigationLink, resolveUrl } from '@stump/sdk'
 import { useRouter } from 'expo-router'
+import { ChevronRight } from 'lucide-react-native'
 import { ComponentPropsWithoutRef } from 'react'
 import { Pressable, View } from 'react-native'
 
 import { cn } from '~/lib/utils'
 
 import { useActiveServer } from '../activeServer'
-import { icons, Text } from '../ui'
-
-const { ChevronRight } = icons
+import { Text } from '../ui'
+import { Icon } from '../ui/icon'
 
 type Props = {
 	link: OPDSNavigationLink
@@ -16,6 +17,7 @@ type Props = {
 
 export default function NavigationLink({ link }: Props) {
 	const router = useRouter()
+	const { sdk } = useSDK()
 	const {
 		activeServer: { id: serverID },
 	} = useActiveServer()
@@ -25,19 +27,21 @@ export default function NavigationLink({ link }: Props) {
 			key={link.href}
 			onPress={() =>
 				router.push({
-					pathname: `/opds/${serverID}/feed`,
-					params: { url: link.href },
+					pathname: '/opds/[id]/feed/[url]',
+					params: { id: serverID, url: resolveUrl(link.href, sdk.rootURL) },
 				})
 			}
 		>
 			{({ pressed }) => (
 				<View
-					className={cn('flex-row items-center justify-between py-2 tablet:py-3', {
-						'opacity-70': pressed,
+					className={cn('flex-row items-center justify-between p-4', {
+						'opacity-60': pressed,
 					})}
 				>
-					<Text size="lg">{link.title}</Text>
-					<ChevronRight size={20} className="text-foreground-muted" />
+					<Text size="lg" className="shrink">
+						{link.title}
+					</Text>
+					<Icon as={ChevronRight} className="h-6 w-6 shrink-0 text-foreground-muted opacity-70" />
 				</View>
 			)}
 		</Pressable>

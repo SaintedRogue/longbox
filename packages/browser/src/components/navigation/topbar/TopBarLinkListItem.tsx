@@ -8,24 +8,27 @@ type Props = {
 	isDisabled?: boolean
 	isActive?: boolean
 	className?: string
-}
+} & React.ComponentPropsWithoutRef<'a'>
+
 export default function TopBarLinkListItem({
 	to,
 	isDisabled,
 	isActive,
 	children,
 	className,
+	...props
 }: PropsWithChildren<Props>) {
 	return (
 		<NavigationMenu.Link asChild>
 			<Link
 				to={to}
 				className={cn(
-					'flex w-full select-none items-center rounded-md px-3 py-2 leading-none text-foreground-subtle no-underline outline-none transition-colors hover:bg-sidebar-surface-hover focus:bg-sidebar-surface',
+					'rounded-md px-3 py-2 flex w-full items-center leading-none text-foreground-subtle no-underline transition-colors outline-none select-none hover:bg-sidebar-surface-hover focus:bg-sidebar-surface',
 					{ 'pointer-events-none text-foreground-muted': isDisabled },
 					{ 'bg-sidebar-surface': isActive },
 					className,
 				)}
+				{...props}
 			>
 				{children}
 			</Link>

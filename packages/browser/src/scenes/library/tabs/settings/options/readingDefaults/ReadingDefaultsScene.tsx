@@ -1,12 +1,13 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Button, Form } from '@stump/components'
 import { useCallback, useEffect, useMemo } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { useDebouncedValue } from 'rooks'
 
 import {
 	buildSchema,
 	CreateOrUpdateLibrarySchema,
+	DefaultLibraryView,
 	DefaultReadingSettings,
 	formDefaults,
 } from '@/components/library/createOrUpdate'
@@ -16,7 +17,12 @@ import { useLibraryManagement } from '../../context'
 type PatchParams = Partial<
 	Pick<
 		CreateOrUpdateLibrarySchema,
-		'default_reading_dir' | 'default_reading_image_scale_fit' | 'default_reading_mode'
+		| 'defaultReadingDir'
+		| 'defaultReadingImageScaleFit'
+		| 'defaultReadingMode'
+		| 'defaultLibraryViewMode'
+		| 'hideSeriesView'
+		| 'skipBookOverview'
 	>
 >
 
@@ -26,33 +32,56 @@ export default function ReadingDefaultsScene() {
 	const handleSubmit = useCallback(
 		(params: PatchParams) => {
 			patch({
+				// @ts-expect-error: This is fine
 				config: {
 					...library.config,
 					...params,
 				},
-				scan_mode: 'NONE',
+				scanAfterPersist: false,
 			})
 		},
 		[patch, library.config],
 	)
 
+	const schema = useMemo(
+		() =>
+			buildSchema([], library).pick({
+				defaultReadingDir: true,
+				defaultReadingImageScaleFit: true,
+				defaultReadingMode: true,
+				defaultLibraryViewMode: true,
+				hideSeriesView: true,
+				skipBookOverview: true,
+			}),
+		[library],
+	)
+
 	const form = useForm<PatchParams>({
 		defaultValues: formDefaults(library),
-		resolver: zodResolver(buildSchema([], library)),
+		resolver: zodResolver(schema),
 	})
 
-	const formValues = form.watch([
-		'default_reading_dir',
-		'default_reading_image_scale_fit',
-		'default_reading_mode',
-	])
+	const formValues = useWatch({
+		control: form.control,
+		name: [
+			'defaultReadingDir',
+			'defaultReadingImageScaleFit',
+			'defaultReadingMode',
+			'defaultLibraryViewMode',
+			'hideSeriesView',
+			'skipBookOverview',
+		],
+	})
 	const didChange = useMemo(() => {
 		const config = library.config
-		const [dir, scale, mode] = formValues
+		const [dir, scale, mode, viewMode, hideSeriesView, skipBookOverview] = formValues
 		return (
-			config.default_reading_dir !== dir ||
-			config.default_reading_image_scale_fit !== scale ||
-			config.default_reading_mode !== mode
+			config.defaultReadingDir !== dir ||
+			config.defaultReadingImageScaleFit !== scale ||
+			config.defaultReadingMode !== mode ||
+			config.defaultLibraryViewMode !== viewMode ||
+			config.hideSeriesView !== hideSeriesView ||
+			config.skipBookOverview !== skipBookOverview
 		)
 	}, [formValues, library])
 	const [debouncedDidChange] = useDebouncedValue(didChange, 500)
@@ -73,6 +102,7 @@ export default function ReadingDefaultsScene() {
 			form={form}
 			onSubmit={handleSubmit}
 		>
+			<DefaultLibraryView />
 			<DefaultReadingSettings />
 
 			<div className="invisible hidden">

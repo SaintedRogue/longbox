@@ -6,8 +6,8 @@ import { useForm } from 'react-hook-form'
 import {
 	buildSchema,
 	CreateOrUpdateLibrarySchema,
-	ensureValidThumbnailConfig,
 	formDefaults,
+	intoThumbnailConfig,
 	ThumbnailConfig,
 } from '@/components/library/createOrUpdate'
 
@@ -25,20 +25,27 @@ export default function ThumbnailSettingsScene() {
 	})
 
 	const handleSubmit = useCallback(
-		({ thumbnail_config }: Pick<CreateOrUpdateLibrarySchema, 'thumbnail_config'>) => {
+		({
+			thumbnailConfig,
+			processThumbnailColorsEvenWithoutConfig,
+		}: Pick<
+			CreateOrUpdateLibrarySchema,
+			'thumbnailConfig' | 'processThumbnailColorsEvenWithoutConfig'
+		>) => {
 			patch({
 				config: {
 					...library.config,
-					thumbnail_config: ensureValidThumbnailConfig(thumbnail_config),
+					thumbnailConfig: intoThumbnailConfig(thumbnailConfig),
+					processThumbnailColorsEvenWithoutConfig,
 				},
-				scan_mode: 'NONE',
+				scanAfterPersist: false,
 			})
 		},
 		[patch, library.config],
 	)
 
 	return (
-		<div className="flex flex-col gap-12">
+		<div className="gap-12 flex flex-col">
 			<Form form={form} onSubmit={handleSubmit}>
 				<ThumbnailConfig />
 			</Form>

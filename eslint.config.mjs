@@ -1,6 +1,7 @@
 import pluginJs from '@eslint/js'
 import prettierPlugin from 'eslint-plugin-prettier/recommended'
 import pluginReact from 'eslint-plugin-react'
+import reactCompiler from 'eslint-plugin-react-compiler'
 import pluginReactHooks from 'eslint-plugin-react-hooks'
 import simpleImportSort from 'eslint-plugin-simple-import-sort'
 import keySort from 'eslint-plugin-sort-keys-fix'
@@ -9,7 +10,7 @@ import tseslint from 'typescript-eslint'
 
 export default [
 	{
-		ignores: ['**/dist/*', '**/target/**', '**/.next/**', '**/.vercel/**'],
+		ignores: ['**/dist/*', '**/dev-dist/**', '**/target/**', '**/.next/**', '**/.vercel/**', '**/emoji/data.json'],
 	},
 	{
 		files: ['**/*.{js,mjs,cjs,ts,jsx,tsx}'],
@@ -17,6 +18,7 @@ export default [
 			'simple-import-sort': simpleImportSort,
 			react: pluginReact,
 			'react-hooks': pluginReactHooks,
+			'react-compiler': reactCompiler,
 			'sort-keys-fix': keySort,
 		},
 		settings: {
@@ -37,6 +39,8 @@ export default [
 				},
 			],
 			...pluginReactHooks.configs.recommended.rules,
+			'react-hooks/set-state-in-effect': 'off',
+			'react-compiler/react-compiler': 'error',
 		},
 	},
 	{ languageOptions: { globals: globals.node } },

@@ -100,17 +100,17 @@ export default function EntityTable<Entity>({
 				}}
 			>
 				<thead>
-					<tr>
+					<tr className="divide-x divide-edge">
 						{table.getFlatHeaders().map((header) => {
 							const isSortable = header.column.getCanSort()
 							return (
 								<th
 									key={header.id}
-									className="sticky !top-0 z-[2] h-10 bg-background pl-1.5 pr-1.5 shadow-sm first:pl-4 last:pr-4"
+									className="top-0! h-10 pl-1.5 pr-1.5 shadow-sm first:pl-4 last:pr-4 sticky z-2 bg-background"
 								>
 									<div
 										className={cn('flex items-center', {
-											'cursor-pointer select-none gap-x-2': isSortable,
+											'gap-x-2 cursor-pointer select-none': isSortable,
 										})}
 										onClick={header.column.getToggleSortingHandler()}
 										style={{
@@ -132,10 +132,18 @@ export default function EntityTable<Entity>({
 
 				<tbody>
 					{rows.map((row) => (
-						<tr key={row.id} className="odd:bg-background-surface">
+						<tr key={row.id} className="divide-y divide-edge odd:bg-background-surface">
 							{row.getVisibleCells().map((cell) => (
 								<td
-									className="h-14 pl-1.5 pr-1.5 first:pl-4 last:pr-4"
+									className={cn(
+										'py-1 pl-1.5 pr-1.5',
+										{
+											// If no "cover" image is present, increase the padding. Just looked better to my eyes
+											'py-2': !columns?.some((col) => col.id === 'cover'),
+											'first:pl-4': !['cover', 'position'].includes(cell.column.id),
+										},
+										'border-r border-r-edge last:border-r-0',
+									)}
 									key={cell.id}
 									style={{
 										width: cell.column.getSize(),

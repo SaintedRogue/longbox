@@ -1,43 +1,51 @@
-import { useQuery, useSDK } from '@stump/client'
-import { Stack, useLocalSearchParams } from 'expo-router'
+import { useSDK } from '@stump/client'
+import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
+import { Stack, useGlobalSearchParams } from 'expo-router'
 import { useMemo } from 'react'
-import { SafeAreaView } from 'react-native'
+import { Platform } from 'react-native'
+
+import ChevronBackLink from '~/components/ChevronBackLink'
+import { getProgressionURL } from '~/components/opds/utils'
+import { IS_IOS_24_PLUS } from '~/lib/constants'
 
 import { PublicationContext } from './context'
 
 export default function Layout() {
-	const { url: publicationURL } = useLocalSearchParams<{ url: string }>()
+	const { url: publicationURL } = useGlobalSearchParams<{ url: string }>()
 	const { sdk } = useSDK()
 
-	const { data: publication } = useQuery(
-		[sdk.opds.keys.publication, publicationURL],
-		() => sdk.opds.publication(publicationURL),
-		{
-			suspense: true,
-		},
-	)
+	const { data: publication } = useSuspenseQuery({
+		queryKey: [sdk.opds.keys.publication, publicationURL],
+		queryFn: () => sdk.opds.publication(publicationURL),
+	})
 	const progressionURL = useMemo(
-		() =>
-			publication?.links?.find((link) => link.rel === 'http://www.cantook.com/api/progression')
-				?.href,
-		[publication],
+		() => getProgressionURL(publication?.links || [], sdk.rootURL),
+		[publication, sdk.rootURL],
 	)
-	const { data: progression } = useQuery(
-		[sdk.opds.keys.progression, progressionURL],
-		() => sdk.opds.progression(progressionURL || ''),
-		{
-			suspense: true,
-			enabled: false,
-		},
-	)
+	const { data: progression, refetch: refetchProgression } = useQuery({
+		queryKey: [sdk.opds.keys.progression, progressionURL],
+		queryFn: () => sdk.opds.progression(progressionURL || ''),
+		enabled: progressionURL != null,
+	})
 
 	if (!publication) return null
 
 	return (
-		<SafeAreaView className="flex-1 bg-background">
-			<PublicationContext.Provider value={{ publication, url: publicationURL, progression }}>
-				<Stack screenOptions={{ headerShown: false }} />
-			</PublicationContext.Provider>
-		</SafeAreaView>
+		<PublicationContext.Provider
+			value={{ publication, url: publicationURL, progression, progressionURL, refetchProgression }}
+		>
+			<Stack screenOptions={{ headerShown: false }}>
+				<Stack.Screen
+					name="index"
+					options={{
+						headerTitle: '',
+						headerShown: true,
+						headerTransparent: true,
+						headerBlurEffect: IS_IOS_24_PLUS ? undefined : 'regular',
+						headerLeft: Platform.OS === 'ios' ? () => <ChevronBackLink /> : undefined,
+					}}
+				/>
+			</Stack>
+		</PublicationContext.Provider>
 	)
 }

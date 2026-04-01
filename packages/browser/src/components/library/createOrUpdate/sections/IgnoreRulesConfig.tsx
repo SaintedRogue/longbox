@@ -12,11 +12,11 @@ import {
 import { useLocaleContext } from '@stump/i18n'
 import { AnimatePresence, motion } from 'framer-motion'
 import isValidGlob from 'is-valid-glob'
-import { Check, Edit, Lock, Trash, Unlock, X } from 'lucide-react'
+import { Check, Edit, Lock, Slash, SquareAsterisk, Trash, Unlock, X } from 'lucide-react'
 import { useCallback, useState } from 'react'
-import { useFieldArray, useFormContext } from 'react-hook-form'
+import { useFieldArray, useFormContext, useWatch } from 'react-hook-form'
 
-import { useLibraryContextSafe } from '@/scenes/library/context'
+import { useLibraryManagementSafe } from '@/scenes/library/tabs/settings/context'
 
 import { CreateOrUpdateLibrarySchema } from '../schema'
 
@@ -25,12 +25,12 @@ const getKey = (key: string) => `${LOCALE_KEY}.fields.ignoreRules.${key}`
 
 export default function IgnoreRulesConfig() {
 	const form = useFormContext<CreateOrUpdateLibrarySchema>()
-	const ctx = useLibraryContextSafe()
+	const ctx = useLibraryManagementSafe()
 	const {
 		fields: ignoreRules,
 		append,
 		remove,
-	} = useFieldArray({ control: form.control, name: 'ignore_rules' })
+	} = useFieldArray({ control: form.control, name: 'ignoreRules' })
 	const { t } = useLocaleContext()
 
 	const isCreatingLibrary = !ctx?.library
@@ -56,16 +56,22 @@ export default function IgnoreRulesConfig() {
 		if (!isValidGlob(newRule)) {
 			setNewRuleError(t(getKey('invalidGlob')))
 			return
-		} else {
-			setNewRuleError(undefined)
-			append({
-				glob: newRule,
-				ignore_parents: newRule.startsWith('**/'),
-				ignore_subdirs: newRule.endsWith('/**'),
-			})
-			setNewRule('')
 		}
-	}, [newRule, append, t])
+
+		const isDuplicate = ignoreRules.some((rule) => rule.glob === newRule)
+		if (isDuplicate) {
+			setNewRuleError(t(getKey('duplicateGlob')))
+			return
+		}
+
+		setNewRuleError(undefined)
+		append({
+			glob: newRule,
+			ignore_parents: newRule.startsWith('**/'),
+			ignore_subdirs: newRule.endsWith('/**'),
+		})
+		setNewRule('')
+	}, [newRule, append, t, ignoreRules])
 
 	/**
 	 * A function to render the lock/unlock button, which disables/enables editing of ignore rules
@@ -93,10 +99,17 @@ export default function IgnoreRulesConfig() {
 			return null
 		}
 
-		const existingRules = ctx.library.config.ignore_rules
-		const hasChanges = ignoreRules.some((rule) =>
-			existingRules?.every((glob) => glob !== rule.glob),
-		)
+		const existingRules = ctx.library.config.ignoreRules
+		const formRules = ignoreRules.map((rule) => rule.glob)
+
+		/**
+		 * length increased -> added at least one thing -> has changes,
+		 * length decreased -> removed at least one thing -> has changes,
+		 * same length -> check if something has been removed -> if so: has changes, if not: no changes
+		 */
+		const hasChanges =
+			existingRules?.length !== formRules.length ||
+			!existingRules.every((glob) => formRules.includes(glob))
 
 		return (
 			<div>
@@ -114,7 +127,7 @@ export default function IgnoreRulesConfig() {
 	}, [ctx, ignoreRules, t])
 
 	return (
-		<div className="flex max-w-2xl flex-grow flex-col gap-6">
+		<div className="max-w-2xl gap-6 flex grow flex-col">
 			<div className="flex items-center justify-between">
 				<div>
 					<Heading size="sm">{t(getKey('section.heading'))}</Heading>
@@ -127,13 +140,22 @@ export default function IgnoreRulesConfig() {
 			</div>
 
 			{!ignoreRules.length && (
-				<div className="flex">
-					<Card className="border-dashed p-2">
-						<Text size="sm" variant="muted">
-							{t(getKey('noRules'))}
-						</Text>
-					</Card>
-				</div>
+				<Card className="p-6 flex items-center justify-center border-dashed border-edge-subtle">
+					<div className="space-y-3 flex flex-col">
+						<div className="relative flex justify-center">
+							<span className="rounded-xl p-2 flex items-center justify-center bg-background-surface">
+								<SquareAsterisk className="h-6 w-6 text-foreground-muted" />
+								<Slash className="h-6 w-6 absolute scale-x-[-1] transform text-foreground opacity-80" />
+							</span>
+						</div>
+
+						<div className="text-center">
+							<Text size="sm" variant="muted">
+								{t(getKey('noRules'))}
+							</Text>
+						</div>
+					</div>
+				</Card>
 			)}
 
 			{!!ignoreRules.length && (
@@ -143,7 +165,6 @@ export default function IgnoreRulesConfig() {
 							key={`ignore_rule_${ignoreRule.id}`}
 							id={ignoreRule.id}
 							index={index}
-							ignoreRule={ignoreRule}
 							isReadOnly={!isEditing}
 							onRemove={() => remove(index)}
 						/>
@@ -154,13 +175,14 @@ export default function IgnoreRulesConfig() {
 			<AnimatePresence>
 				{isEditing && (
 					<motion.div
-						className="flex flex-col space-y-4"
+						// @ts-expect-error: It does have className actually?
+						className="space-y-4 flex flex-col"
 						initial={{ height: 0, opacity: 0 }}
 						animate={{ height: 'auto', opacity: 1 }}
 						exit={{ height: 0, opacity: 0 }}
 						transition={{ duration: 0.15 }}
 					>
-						<div className="flex items-center space-x-4">
+						<div className="space-x-4 flex items-center">
 							<Input
 								className="font-mono"
 								label={t(getKey('addRule.label'))}
@@ -177,7 +199,7 @@ export default function IgnoreRulesConfig() {
 							</Button>
 						</div>
 
-						<div className="flex items-center space-x-4">
+						<div className="space-x-4 flex items-center">
 							<CheckBox
 								id="ignoreParents"
 								label={t(getKey('addRule.ignoreParents.label'))}
@@ -211,19 +233,17 @@ export default function IgnoreRulesConfig() {
 type ConfiguredIgnoreRuleProps = {
 	index: number
 	id: string
-	ignoreRule: CreateOrUpdateLibrarySchema['ignore_rules'][number]
 	isReadOnly?: boolean
 	onRemove: () => void
 }
 
-const ConfiguredIgnoreRule = ({
-	ignoreRule,
-	id,
-	isReadOnly,
-	onRemove,
-	index,
-}: ConfiguredIgnoreRuleProps) => {
+const ConfiguredIgnoreRule = ({ id, isReadOnly, onRemove, index }: ConfiguredIgnoreRuleProps) => {
 	const form = useFormContext<CreateOrUpdateLibrarySchema>()
+
+	const ignoreRule = useWatch({
+		control: form.control,
+		name: `ignoreRules.${index}`,
+	})
 
 	const [isEditing, setIsEditing] = useState(false)
 	const [originalIgnoreRule] = useState(() => ignoreRule)
@@ -231,7 +251,7 @@ const ConfiguredIgnoreRule = ({
 	const { t } = useLocaleContext()
 
 	const handleCancelEdit = useCallback(() => {
-		form.setValue(`ignore_rules.${index}`, originalIgnoreRule)
+		form.setValue(`ignoreRules.${index}`, originalIgnoreRule)
 		setIsEditing(false)
 	}, [form, index, originalIgnoreRule])
 
@@ -258,7 +278,7 @@ const ConfiguredIgnoreRule = ({
 					className="font-mono"
 					placeholder="**/ignore-me/**"
 					variant="primary"
-					{...form.register(`ignore_rules.${index}.glob`)}
+					{...form.register(`ignoreRules.${index}.glob`)}
 				/>
 			)
 		else {
@@ -305,7 +325,7 @@ const ConfiguredIgnoreRule = ({
 	}
 
 	return (
-		<div className="group flex flex-col space-y-4 px-3 py-1 even:bg-background-surface/50">
+		<div className="group space-y-4 px-3 py-1 flex flex-col even:bg-background-surface/50">
 			<div
 				className={cn('flex items-center justify-between', {
 					'items-center': isEditing,
@@ -314,7 +334,7 @@ const ConfiguredIgnoreRule = ({
 				{renderGlob()}
 
 				<div
-					className={cn('transition-opacity-[opacity_0.3s] flex items-center space-x-2', {
+					className={cn('transition-opacity-[opacity_0.3s] space-x-2 flex items-center', {
 						'opacity-0 group-hover:opacity-100': !isEditing,
 					})}
 				>

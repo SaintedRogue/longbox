@@ -48,10 +48,12 @@ pub enum FileError {
 	ImageIoError(#[from] image::ImageError),
 	#[error("Failed to encode image to webp: {0}")]
 	WebpEncodeError(String),
-	#[error("An unknown error occurred: {0}")]
-	UnknownError(String),
 	#[error("Failed to read directory")]
 	DirectoryReadError,
+	#[error("Incorrect image processor for requested format")]
+	IncorrectProcessorError,
+	#[error("An unknown error occurred: {0}")]
+	UnknownError(String),
 }
 
 impl From<FileError> for CoreError {
@@ -61,34 +63,5 @@ impl From<FileError> for CoreError {
 			FileError::UnknownError(err) => CoreError::Unknown(err),
 			_ => CoreError::InternalError(error.to_string()),
 		}
-	}
-}
-
-#[derive(Error, Debug)]
-pub enum ScanError {
-	#[error("A query error occurred: {0}")]
-	QueryError(String),
-	#[error("Unsupported file: {0}")]
-	UnsupportedFile(String),
-	#[error("Failed to build globset from invalid .stumpignore file: {0}")]
-	GlobParseError(#[from] globset::Error),
-	#[error("{0}")]
-	Unknown(String),
-}
-
-impl From<FileError> for ScanError {
-	fn from(e: FileError) -> Self {
-		match e {
-			FileError::UnsupportedFileType(_) => {
-				ScanError::UnsupportedFile(e.to_string())
-			},
-			_ => ScanError::Unknown(e.to_string()),
-		}
-	}
-}
-
-impl From<prisma_client_rust::queries::QueryError> for ScanError {
-	fn from(e: prisma_client_rust::queries::QueryError) -> Self {
-		ScanError::QueryError(e.to_string())
 	}
 }

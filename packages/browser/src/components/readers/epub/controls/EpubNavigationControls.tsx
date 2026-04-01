@@ -1,10 +1,12 @@
-import { useEpubReader } from '@stump/client'
 import { cx } from '@stump/components'
+import { ReadingDirection, ReadingMode } from '@stump/graphql'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useCallback } from 'react'
 import { useSwipeable } from 'react-swipeable'
 
-import { useEpubReaderControls } from '../context'
+import { useBookPreferences } from '@/scenes/book/reader/useBookPreferences'
+
+import { useEpubReaderContext, useEpubReaderControls } from '../context'
 import ControlButton from './ControlButton'
 
 type Props = {
@@ -12,13 +14,16 @@ type Props = {
 }
 
 export default function EpubNavigationControls({ children }: Props) {
+	const {
+		readerMeta: { bookEntity: book },
+	} = useEpubReaderContext()
 	const { visible, onPaginateBackward, onPaginateForward, setVisible } = useEpubReaderControls()
+	const {
+		bookPreferences: { readingDirection, readingMode },
+	} = useBookPreferences({ book })
 
-	const { readingDirection } = useEpubReader((state) => ({
-		readingDirection: state.preferences.readingDirection,
-	}))
-
-	const invertControls = readingDirection === 'rtl'
+	const invertControls = readingDirection === ReadingDirection.Rtl
+	const isVerticalScrolling = readingMode === ReadingMode.ContinuousVertical
 
 	/**
 	 * A callback to navigate backward in the book, wrt the natural reading
@@ -56,25 +61,36 @@ export default function EpubNavigationControls({ children }: Props) {
 	 * Note that the swipe handler function semantics are inverted wrt the reading direction.
 	 */
 	const swipeHandlers = useSwipeable({
-		onSwipedLeft: onForwardNavigation,
-		onSwipedRight: onBackwardNavigation,
+		onSwipedLeft: readingMode === ReadingMode.ContinuousVertical ? undefined : onForwardNavigation,
+		onSwipedRight:
+			readingMode === ReadingMode.ContinuousVertical ? undefined : onBackwardNavigation,
+		onSwipedUp: readingMode === ReadingMode.ContinuousVertical ? onForwardNavigation : undefined,
+		onSwipedDown: readingMode === ReadingMode.ContinuousVertical ? onBackwardNavigation : undefined,
 		preventScrollOnSwipe: true,
 	})
 
 	return (
-		<div className="relative flex h-full w-full flex-1 items-center gap-1" aria-hidden="true">
-			<div className="fixed left-2 z-[100] hidden h-1/2 w-12 items-center md:flex">
+		<div className="gap-1 relative flex h-full w-full flex-1 items-center" aria-hidden="true">
+			<div
+				className={cx('left-2 w-12 md:flex fixed z-100 hidden h-1/2 items-center', {
+					hidden: isVerticalScrolling,
+				})}
+			>
 				<ControlButton className={cx({ hidden: !visible })} onClick={onBackwardNavigation}>
 					<ChevronLeft className="h-5 w-5" />
 				</ControlButton>
 			</div>
 			<div
-				className="fixed bottom-10 left-0 right-0 top-10 z-[99] md:hidden"
+				className="bottom-10 left-0 right-0 top-10 md:hidden fixed z-99"
 				{...swipeHandlers}
 				onClick={() => setVisible(false)}
 			/>
 			{children}
-			<div className="fixed right-2 z-[100] hidden h-1/2 w-12 items-center justify-end md:flex">
+			<div
+				className={cx('right-2 w-12 md:flex fixed z-100 hidden h-1/2 items-center justify-end', {
+					hidden: isVerticalScrolling,
+				})}
+			>
 				<ControlButton className={cx({ hidden: !visible })} onClick={onForwardNavigation}>
 					<ChevronRight className="h-5 w-5" />
 				</ControlButton>

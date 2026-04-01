@@ -1,81 +1,58 @@
 import { ButtonOrLink } from '@stump/components'
-import { Media } from '@stump/sdk'
+import { BookCardFragment } from '@stump/graphql'
 import { useMemo } from 'react'
 
-import paths from '../../paths'
-import { EBOOK_EXTENSION } from '../../utils/patterns'
+import { usePaths } from '@/paths'
+import { EBOOK_EXTENSION } from '@/utils/patterns'
 
 type Props = {
-	book?: Media
+	book: BookCardFragment
 }
 
 export default function BookReaderLink({ book }: Props) {
-	const currentPage = book?.current_page ?? -1
+	const paths = usePaths()
 
-	/**
-	 * A boolean used to control the rendering of the 'Read again' prompt. A book
-	 * is considered to be read again if:
-	 *
-	 * - It has been completed AND the current page is the last page
-	 * - It has been completed AND is an epub AND there is no current epubcfi
-	 */
-	const isReadAgain = useMemo(() => {
-		if (!book) return false
+	const isReadAgain = useMemo(() => isReadAgainPrompt(book), [book])
 
-		return isReadAgainPrompt(book)
-	}, [book])
-
-	const epubcfi = book?.current_epubcfi
+	const epubcfi = book?.readProgress?.epubcfi
+	const currentPage = book.readProgress?.page ?? -1
 	const title = useMemo(() => {
 		if (isReadAgain) {
 			return 'Read again'
 		} else if (currentPage > 0 || !!epubcfi) {
 			return 'Continue reading'
 		} else {
-			return 'Start reading'
+			return 'Read'
 		}
 	}, [isReadAgain, currentPage, epubcfi])
 
-	/**
-	 * The URL to use for the read link. If the book is an epub, the epubcfi is used
-	 * to open the book at the correct location. Otherwise, the page number is used.
-	 *
-	 * If the book is completed, the read link will omit the epubcfi or page number
-	 */
 	const readUrl = useMemo(() => {
-		if (!book) return undefined
+		const { id, readProgress, extension } = book
+		const { epubcfi, page } = readProgress || {}
 
-		const { current_epubcfi, extension, id, current_page } = book
-
-		if (current_epubcfi || extension.match(EBOOK_EXTENSION)) {
+		if (epubcfi || extension.match(EBOOK_EXTENSION)) {
 			return paths.bookReader(id, {
-				epubcfi: isReadAgain ? undefined : current_epubcfi,
+				epubcfi: isReadAgain ? undefined : epubcfi,
 				isEpub: true,
 			})
 		} else {
-			return paths.bookReader(id, { page: isReadAgain ? 1 : current_page || 1 })
+			return paths.bookReader(id, { page: isReadAgain ? 1 : page || 1 })
 		}
-	}, [book, isReadAgain])
-
-	if (!book) {
-		return null
-	}
+	}, [book, isReadAgain, paths])
 
 	return (
-		<div className="flex w-full md:w-auto">
-			<ButtonOrLink variant="primary" href={readUrl} title={title} className="w-full md:w-auto">
-				{title}
-			</ButtonOrLink>
-		</div>
+		<ButtonOrLink className="w-full" variant="primary" href={readUrl} title={title} rounded="lg">
+			{title}
+		</ButtonOrLink>
 	)
 }
 
-export const isReadAgainPrompt = (book: Media) => {
-	const { is_completed, current_page, pages, current_epubcfi, extension } = book
+export const isReadAgainPrompt = (
+	book: Pick<BookCardFragment, 'pages' | 'readProgress' | 'readHistory' | 'extension'>,
+) => {
+	const { readProgress, readHistory } = book
 
-	const isEpub = extension.match(EBOOK_EXTENSION)
-	const epubCompleted = isEpub && !current_epubcfi && is_completed
-	const otherCompleted = !isEpub && current_page === pages && is_completed
+	const isHistoricallyCompleted = readHistory?.some((h) => h.completedAt) ?? false
 
-	return epubCompleted || otherCompleted
+	return isHistoricallyCompleted && !readProgress
 }

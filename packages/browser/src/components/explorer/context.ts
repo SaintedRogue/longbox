@@ -1,4 +1,5 @@
-import { DirectoryListingFile, UploadConfig } from '@stump/sdk'
+import { UseDirectoryListingFile } from '@stump/client'
+import { UploadConfig } from '@stump/graphql'
 import { createContext, useContext } from 'react'
 
 export type ExplorerLayout = 'grid' | 'table'
@@ -14,8 +15,10 @@ export type IExplorerContext = {
 	setLayout: (layout: ExplorerLayout) => void
 	currentPath: string | null
 	rootPath: string
-	files: DirectoryListingFile[]
-	onSelect: (item: DirectoryListingFile) => void
+	files: UseDirectoryListingFile[]
+	canLoadMore: boolean
+	loadMore: () => void
+	onSelect: (item: UseDirectoryListingFile) => void
 	canGoBack: boolean
 	canGoForward: boolean
 	goForward: () => void

@@ -1,0 +1,2418 @@
+{
+	"underConstruction": {
+		"heading": "Esto es incómodo",
+		"message": "Has tropezado con una página que todavía está en desarrollo. Me encantaría mostrártela, pero aún no está lista.",
+		"homeLink": "Ir a inicio",
+		"githubLink": "Ver el problema de GitHub"
+	},
+	"authScene": {
+		"claimHeading": "Inicialice su servidor",
+		"claimText": "Este servidor Stump no está inicializado. Usa el formulario de abajo para crear tu cuenta. Una vez creada, tendrás acceso completo a todas las funciones del servidor.",
+		"form": {
+			"validation": {
+				"missingUsername": "Se requiere un nombre de usuario",
+				"missingPassword": "Se requiere la contraseña",
+				"usernameAlreadyExists": "Este nombre de usuario ya existe"
+			},
+			"labels": {
+				"username": "Nombre de usuario",
+				"password": "Contraseña"
+			},
+			"buttons": {
+				"createAccount": "Crear cuenta",
+				"login": "Iniciar sesión",
+				"loginWithOidc": "Iniciar sesión con OIDC",
+				"createAccountWithOidc": "Crear una cuenta con OIDC"
+			}
+		},
+		"toasts": {
+			"loggingIn": "Iniciando sesión...",
+			"loggedIn": "¡Bienvenido de nuevo!",
+			"loggedInFirstTime": "¡Bienvenido!",
+			"registering": "Registrando...",
+			"registered": "¡Registrado!",
+			"loginFailed": "Error de inicio de sesión. Por favor, inténtelo de nuevo",
+			"registrationFailed": "Registro fallido. Por favor, inténtelo de nuevo"
+		}
+	},
+	"adminLibrarySidebar": {
+		"libraryConfiguration": {
+			"heading": "Configuración de la biblioteca",
+			"subtitleCreating": "A continuación se mostrará una vista previa de su nueva biblioteca",
+			"subtitleEditing": "A continuación se mostrará una vista previa de las ediciones de su biblioteca"
+		}
+	},
+	"bookOverviewScene": {
+		"fileInformation": {
+			"heading": "Información del archivo",
+			"labels": {
+				"fileSize": "Tamaño del archivo",
+				"fileType": "Tipo de archivo",
+				"fileLocation": "Ubicación del archivo",
+				"fileChecksum": "Suma de verificación (Checksum)"
+			}
+		},
+		"emailBook": {
+			"heading": "Enviar libro",
+			"description": "Enviar este libro a un dispositivo o una dirección de correo electrónico",
+			"form": {
+				"email": {
+					"label": "Correo electrónico",
+					"placeholder": "Dirección de correo electrónico",
+					"description": "Una dirección de correo electrónico a la que enviar el libro. Haga clic en añadir para finalizar cada entrada"
+				},
+				"devices": {
+					"label": "Dispositivos",
+					"placeholder": "Selecciona dispositivos",
+					"noFilterMatch": "Ningún dispositivo coincide con el filtro"
+				}
+			}
+		},
+		"nextInSeries": "Siguiente en la serie"
+	},
+	"createOrUpdateBookClubForm": {
+		"fields": {
+			"name": {
+				"label": "Nombre",
+				"placeholder": "Mi club de libros",
+				"description": "El nombre de tu club de libros"
+			},
+			"description": {
+				"label": "Descripción",
+				"placeholder": "Un club de fans de 'Nuestra bandera significa muerte'. Leemos ficción pirata  a nuestro antojo",
+				"description": "Una breve descripción opcional de tu club de libros"
+			},
+			"is_private": {
+				"label": "Club privado",
+				"description": "Si está habilitado, solo los usuarios que invites podrán unirse a tu club de libros"
+			},
+			"member_role_spec": {
+				"heading": "Asignación de rol personalizado",
+				"subtitle": [
+					"Puedes crear nombres personalizados para los roles en tu club de libros. Para más información, consulta el",
+					"documentación"
+				],
+				"member": {
+					"label": "Miembro",
+					"placeholder": "Miembro",
+					"description": "El nombre del rol por defecto de tu club de libros"
+				},
+				"moderator": {
+					"label": "Moderador",
+					"placeholder": "Moderador",
+					"description": "El nombre del rol de moderador para tu club de libros"
+				},
+				"admin": {
+					"label": "Administrador",
+					"placeholder": "Administrador",
+					"description": "El nombre del rol de administrador para tu club de libros"
+				},
+				"creator": {
+					"label": "Creador",
+					"placeholder": "Creador",
+					"description": "El nombre del rol de creador de tu club de libros. ¡Este eres tú!"
+				}
+			},
+			"membershipOptions": {
+				"displayName": {
+					"label": "Nombre a mostrar",
+					"placeholder": "oromei",
+					"description": "Un nombre opcional a mostrar para tu membresía en el club de libros. Si está configurado, toma precedencia sobre tu nombre de usuario"
+				},
+				"hideProgress": {
+					"label": "Ocultar progreso",
+					"description": "Si se encuentra habilitado, tu progreso de lectura se ocultará para otros miembros del club de libros"
+				}
+			}
+		},
+		"validation": {
+			"missingName": "El nombre es requerido",
+			"alreadyTaken": "ya está en uso"
+		}
+	},
+	"createBookClubScene": {
+		"heading": "Crear nuevo club de libros",
+		"subtitle": "Puedes crear un club de libros privado para unos pocos, o crearlo público para que cualquiera en el servidor se pueda unir",
+		"form": {
+			"stepLabel": "Paso",
+			"steps": [
+				{
+					"label": "Fundamentos",
+					"heading": "Información básica",
+					"description": "Los detalles del club, incluyendo su nombre y descripción"
+				},
+				{
+					"label": "Roles",
+					"heading": "Roles",
+					"description": "Personalizar los roles en tu club de libros"
+				},
+				{
+					"label": "Membresía",
+					"heading": "Preferencias de Membresía",
+					"description": "Opciones adicionales para tu club de libros"
+				},
+				{
+					"label": "Revisión",
+					"heading": "Revisión",
+					"description": "Revisa la configuración de tu club de libros antes de crearlo"
+				}
+			],
+			"review": {
+				"yes": "Si",
+				"no": "No",
+				"none": "Ninguno",
+				"labels": {
+					"name": "Nombre",
+					"description": "Descripción"
+				}
+			},
+			"submit": "Crear Club de Libros"
+		}
+	},
+	"bookClubSettingsScene": {
+		"sidebar": {
+			"basics": "Fundamentos",
+			"members": {
+				"members": "Miembros",
+				"roles": "Roles",
+				"label": "Membresía"
+			},
+			"scheduling": {
+				"scheduler": "Planificador",
+				"options": "Opciones",
+				"label": "Planificación"
+			},
+			"danger-zone": {
+				"delete": "Borrado",
+				"label": "Zona de peligro"
+			}
+		},
+		"basics": {
+			"title": "Información básica",
+			"description": "Los detalles de este club de libros, incluyendo su nombre y descripción",
+			"form": {
+				"submit": "Update club"
+			}
+		},
+		"members": {
+			"title": "Miembros",
+			"description": "Administrar los miembros de este club de libros",
+			"sections": {}
+		},
+		"roles": {
+			"title": "Roles",
+			"description": "Personalizar los roles en este club de libros",
+			"sections": {
+				"roleMappings": {
+					"heading": "Asignación de roles existentes",
+					"description": "Las asignaciones de roles actuales para este club de libros"
+				}
+			}
+		},
+		"scheduling/scheduler": {
+			"title": "Planificador",
+			"description": "Crear y administrar las lecturas planificadas para este club de libros"
+		},
+		"scheduling/options": {
+			"title": "Opciones",
+			"description": "Opciones adicionales para la planificación de este club de libros"
+		},
+		"danger-zone/delete": {
+			"title": "Acciones de borrado",
+			"description": "Borrar permanentemente este club de libros y todos sus contenidos o ciertos recursos",
+			"sections": {
+				"deleteClub": {
+					"heading": "Borrar club",
+					"description": [
+						"Borrar permanente este club de libros y todos sus contenidos",
+						"Esta acción no se puede revertir"
+					],
+					"trigger": "Borrar club"
+				}
+			}
+		}
+	},
+	"createOrUpdateLibraryForm": {
+		"fields": {
+			"name": {
+				"label": "Nombre",
+				"description": "Un nombre amigable para tu biblioteca",
+				"placeholder": "Mi biblioteca"
+			},
+			"path": {
+				"label": "Ruta",
+				"description": "La ruta para la biblioteca tal y como existe en tu servidor",
+				"placeholder": "/ruta/a/biblioteca"
+			},
+			"description": {
+				"label": "Descripción",
+				"description": "Una descripción breve para tu biblioteca",
+				"placeholder": "Una biblioteca de todos mis libros favoritos"
+			},
+			"tags": {
+				"label": "Etiquetas",
+				"description": "Utilizado para categorizar tu biblioteca o imponer reglas de acceso"
+			},
+			"defaultLibraryView": {
+				"label": "Vista por defecto de la biblioteca",
+				"description": "Configurar cuál pestaña se muestra por defecto al abrir esta biblioteca",
+				"hideSeriesView": {
+					"label": "Ocultar pestaña de series",
+					"description": "Ocultar la pestaña de series de la navegación de la biblioteca"
+				},
+				"skipBookOverview": {
+					"label": "Skip book overview",
+					"description": "Open the reader directly when selecting books in this library"
+				},
+				"options": {
+					"series": {
+						"label": "Series",
+						"description": "Mostrar por defecto la pestaña de series"
+					},
+					"books": {
+						"label": "Libros",
+						"description": "Mostrar por defecto la pestaña de libros"
+					}
+				}
+			},
+			"readingSettings": {
+				"section": {
+					"heading": "Opciones de lectura",
+					"description": "Opciones predeterminadas del lector a utilizar en libros"
+				},
+				"imageScaling": {
+					"label": "Ajuste de tamaño de imagen",
+					"description": "Como el lector basado en imágenes ajusta el tamaño de las imágenes a la página"
+				},
+				"readingMode": {
+					"label": "Lector predeterminado",
+					"description": "El lector predeterminado a utilizar para libros basados en imágenes"
+				},
+				"readingDirection": {
+					"label": "Dirección de lectura",
+					"description": "Hacia cuál dirección progresa el lector a través de las páginas"
+				}
+			},
+			"thumbnailConfig": {
+				"section": {
+					"heading": {
+						"create": "Configuración de vista en miniatura",
+						"update": "Generación"
+					},
+					"description": "Mejora los tiempos de carga mientras navegas tu biblioteca al generar vistas en miniatura para tus libros",
+					"disabled": "No se requiere una configuración adicional cuando la generación de vistas en miniatura se encuentra desactivada"
+				},
+				"enableSwitch": {
+					"label": "Activado",
+					"description": "Generar vistas en miniatura para esta biblioteca"
+				},
+				"resizeMethod": {
+					"label": "Método de redimensionado",
+					"options": {
+						"scaleEvenlyByFactor": "Escalar uniformemente",
+						"exact": "Tamaño exacto",
+						"scaleDimension": "Escalado automático",
+						"none": "Ninguno"
+					}
+				},
+				"scaleEvenlyByFactor": {
+					"description": "Escala de la vista en miniatura por un factor del tamaño original. Por ejemplo, 0.65 resultará en una vista en miniatura que es 65% del tamaño original",
+					"factor": {
+						"label": "Factor de escala"
+					}
+				},
+				"exact": {
+					"description": "Redimensionar la vista en miniatura a un tamaño exacto en píxeles",
+					"width": {
+						"label": "Ancho"
+					},
+					"height": {
+						"label": "Height"
+					}
+				},
+				"scaleDimension": {
+					"label": "Auto Scaled",
+					"description": "Establecer el ancho o alto de las vistas en miniatura y escalar automáticamente el otro para mantener la relación de aspecto original",
+					"dimension": {
+						"label": "Dimensión",
+						"options": {
+							"width": "Ancho",
+							"height": "Alto"
+						}
+					},
+					"size": {
+						"label": "Tamaño"
+					}
+				},
+				"format": {
+					"label": "Formato de imagen",
+					"description": "El formato de las imágenes de vista en miniatura generadas"
+				},
+				"quality": {
+					"label": "Calidad",
+					"description": "La calidad de las imágenes de vista en miniatura generadas, entre 1 y 100"
+				}
+			},
+			"ignoreRules": {
+				"section": {
+					"heading": "Ignorar reglas",
+					"description": "Definir patrones de glob para ignorar ciertos archivos o directorios durante un escaneo"
+				},
+				"noRules": "No se han configurado reglas para ignorar",
+				"save": "Guardar cambios",
+				"addRule": {
+					"label": "Nueva regla",
+					"description": "Patrones de glob para ignorar archivos o directorios",
+					"addButton": "Añadir regla",
+					"ignoreParents": {
+						"title": "Ignorar todos los directorios padre",
+						"label": "Ignorar padres"
+					},
+					"ignoreSubdirs": {
+						"title": "Ignorar todos los subdirectorios",
+						"label": "Ignorar subdirectorios"
+					}
+				},
+				"invalidGlob": "Patrón de glob inválido",
+				"duplicateGlob": "Duplicado de una regla existente",
+				"lockConfig": {
+					"lock": "Bloquear configuración",
+					"unlock": "Desbloquear configuración"
+				},
+				"editRule": "Editar regla",
+				"deleteRule": "Borrar regla",
+				"cancelEdit": "Cancelar edición",
+				"confirmEdit": "Confirmar edición"
+			},
+			"convertOptions": {
+				"section": {
+					"heading": "Conversión de archivo",
+					"description": "Stump es capaz de convertir ciertos formatos de archivo a otros más compatibles"
+				},
+				"rarToZip": {
+					"label": "Convertir RAR a ZIP",
+					"description": "Convertir archivos RAR/CBR a archivos ZIP/CBZ durante un escaneo"
+				},
+				"deleteRarAfter": {
+					"label": "Eliminar RAR después de la conversión",
+					"description": "Eliminar el archivo RAR/CBR original después de la conversión. Esto es irreversible"
+				}
+			},
+			"scannerFeatures": {
+				"section": {
+					"heading": "Procesamiento opcional",
+					"description": "Funciones adicionales de procesamiento para el escáner",
+					"disclaimer": "Estas funciones incluyen lecturas adicionales de archivos que pueden ralentizar el proceso de escaneo"
+				},
+				"processMetadata": {
+					"label": "Procesar metadatos",
+					"description": "Extraer cualquier metadato de los archivos de la biblioteca y almacenar los resultados en la base de datos"
+				},
+				"watch": {
+					"label": "Monitorear",
+					"description": "Monitorear cambios en el directorio de la biblioteca y actualizar la base de datos respectivamente"
+				},
+				"generateFileHashes": {
+					"label": "Generar hash de archivos",
+					"description": "Generar un hash para cada archivo en la biblioteca para detectar duplicados"
+				},
+				"koreaderHashes": {
+					"label": "Hash compatible con KoReader",
+					"description": "Genera hash que KoReader pueda interpretar"
+				}
+			},
+			"libraryPattern": {
+				"section": {
+					"heading": "Organización",
+					"description": "Identificar cuál patrón coincide de manera cercana la organización de tu biblioteca",
+					"docs": [
+						"¿No estás seguro de qué elegir? Haz clic",
+						"aquí",
+						"para más información.",
+						"No puedes cambiar esta configuración más tarde"
+					],
+					"disabled": "No puedes cambiar esta configuración"
+				},
+				"options": {
+					"label": "Patrón de biblioteca",
+					"description": "La opción que determina como Stump organizará tu biblioteca",
+					"collectionPriority": {
+						"label": "Priorizar colección",
+						"description": "Cada carpeta en el nivel superior de la raíz de la biblioteca es una sola serie"
+					},
+					"seriesPriority": {
+						"label": "Priorizar serie",
+						"description": "Cada carpeta en cualquier nivel recursivamente es una sola serie"
+					}
+				}
+			}
+		},
+		"scan": {
+			"label": {
+				"create": "Escanear tras la creación",
+				"update": "Escanear tras actualizaciones"
+			},
+			"description": "Indexar los archivos de la biblioteca para llenar la base de datos"
+		}
+	},
+	"createLibraryScene": {
+		"heading": "Crear nueva biblioteca",
+		"subtitle": "Las bibliotecas se utilizan para agrupar tus libros. Si deseas refrescar como estas funcionan, revisa el",
+		"subtitleLink": "documentación relevante",
+		"form": {
+			"stepLabel": "Etapa",
+			"steps": [
+				{
+					"label": "Información",
+					"heading": "Información básica",
+					"description": "Los detalles de esta biblioteca, incluyendo su nombre, ruta y descripción"
+				},
+				{
+					"label": "Escaneo",
+					"heading": "Escaneando",
+					"description": "Opciones de como Stump escanea esta biblioteca"
+				},
+				{
+					"label": "Miniaturas",
+					"heading": "Miniaturas",
+					"description": "Opciones para habilitar y determinar como Stump genera las vistas en miniatura para esta biblioteca"
+				},
+				{
+					"label": "Revisión",
+					"heading": "Revisión",
+					"description": "Revisa tus configuraciones de la biblioteca antes de crearla"
+				}
+			],
+			"review": {
+				"yes": "Si",
+				"no": " No",
+				"none": "Nada",
+				"labels": {
+					"generateThumbnails": "Generar miniaturas",
+					"processThumbnailColors": "Procesar colores de las vistas en miniatura",
+					"mode": "Modalidad",
+					"format": "Formato",
+					"quality": "Calidad",
+					"name": "Nombre",
+					"path": "Ruta",
+					"description": "Descripción",
+					"tags": "Etiquetas",
+					"pattern": "Patrón",
+					"ignoreRules": "Reglas de exclusión",
+					"convertRar": "Convertir RAR/CBR",
+					"deleteConversions": "Eliminar archivos convertidos",
+					"watch": "Monitorear cambios en el directorio",
+					"processMetadata": "Procesar metadatos",
+					"generateFileHashes": "Generar hash de archivos",
+					"generateKoreaderHashes": "Generar hashes para KoReader",
+					"scaleEvenlyByFactor": "Escalar uniformemente",
+					"exact": "Tamaño exacto",
+					"scaleDimension": "Tamaño explícito"
+				}
+			},
+			"buttons": {
+				"confirm": "Crear biblioteca"
+			}
+		}
+	},
+	"fileExplorer": {
+		"uploadModal": {
+			"title": {
+				"books": "Subir libros",
+				"series": "Subir series"
+			},
+			"description": {
+				"books": "Añadir libros directamente a la ruta actual en el explorador de archivos",
+				"series": "Añadir una serie directamente a la ruta actual en el explorador de archivos"
+			},
+			"seriesDisclaimer": [
+				"Debe ser un ",
+				"archivo zip",
+				"que contiene la carpeta que debe ser la serie, con todos los libros dentro"
+			],
+			"dropzone": {
+				"books": "Arrastra y suelta los libros aquí",
+				"series": "Arrastra y suelta un archivo zip aquí",
+				"alt": "O haga clic para buscar libros en su computadora"
+			},
+			"addedFiles": "Archivos agregados"
+		}
+	},
+	"librarySettingsScene": {
+		"heading": "Gestionar biblioteca",
+		"subtitle": "Administra tu biblioteca aquí. Si deseas refrescar estas opciones, revisa el",
+		"subtitleLink": "documentación importante",
+		"sidebar": {
+			"basics": "Basics",
+			"options": {
+				"general": "General",
+				"reading": "Leyendo",
+				"scanning": "Escaneando",
+				"thumbnails": "Vistas en miniatura",
+				"ignore-rules": "Ignorar reglas",
+				"analysis": "Análisis",
+				"label": "Opciones"
+			},
+			"danger-zone": {
+				"access-control": "Control de acceso",
+				"delete": "Borrado",
+				"label": "Zona de peligro"
+			}
+		},
+		"basics": {
+			"title": "Información básica",
+			"description": "Los detalles de esta biblioteca, incluyendo su nombre, ruta y descripción",
+			"form": {
+				"submit": "Actualizar biblioteca"
+			}
+		},
+		"options/reading": {
+			"title": "Leyendo",
+			"description": "Opciones predeterminadas para utilizar en esta biblioteca. Cualquier libro puede sobreescribir estas opciones"
+		},
+		"options/scanning": {
+			"title": "Escaneando",
+			"description": "Opciones relacionadas a como Stump escanea esta biblioteca",
+			"sections": {
+				"configureScan": {
+					"heading": "Configurar escaneo",
+					"description": "Un escaneo con opciones adicionales para un control más preciso",
+					"form": {
+						"alert": "These will override corresponding library-wide settings",
+						"options": {
+							"forceRebuild": {
+								"label": "Force rebuild",
+								"description": "Rebuild every book in the library on disk",
+								"alert": "This will rebuild every book in the library from scratch, including metadata and hashes"
+							},
+							"custom": {
+								"label": "Custom",
+								"description": "Customize the scan configuration",
+								"validation": {
+									"noSelection": "At least one option must be enabled"
+								}
+							},
+							"rebuildMeta": {
+								"label": "Rebuild metadata",
+								"description": "Rebuild metadata for books in the library"
+							},
+							"regenHashes": {
+								"label": "Regenerate hashes",
+								"description": "Recreate hashes for books in the library"
+							}
+						}
+					}
+				},
+				"defaultScan": {
+					"heading": "Default scan",
+					"description": "A standard scan to index your library for new content"
+				},
+				"history": {
+					"heading": "Scan history",
+					"description": "The history of all scans recorded for this library",
+					"empty": "There are no scans recorded for this library",
+					"runScan": "Run scan",
+					"inspect": "See details",
+					"inspector": {
+						"title": "Scan record",
+						"description": "A detailed view of this scan record",
+						"fields": {
+							"library": "Library",
+							"date": "Date",
+							"config": "Config",
+							"jobOutput": "Job output",
+							"logs": "Logs"
+						},
+						"logsPresent": "Logs were persisted for this job",
+						"seeLogs": "See logs"
+					},
+					"table": {
+						"columns": {
+							"timestamp": "Scanned at",
+							"config": "Config"
+						},
+						"default": "Default",
+						"custom": "Custom"
+					},
+					"clearHistory": "Delete scan history"
+				}
+			}
+		},
+		"options/thumbnails": {
+			"title": "Thumbnails",
+			"description": "Settings and management options for thumbnails in this library",
+			"sections": {
+				"management": {
+					"heading": "Management",
+					"description": "Manage the existing thumbnails for this library",
+					"thumbnailSelector": {},
+					"deleteThumbnails": {}
+				}
+			}
+		},
+		"options/analysis": {
+			"title": "Analysis",
+			"description": "Analyze the contents of this library to identify potential issues or improvements",
+			"sections": {
+				"analyzeBooks": {
+					"heading": "Analyze books",
+					"description": "Analyze the books in this library to attach additional metadata in the database, such as page dimensions for image-based books",
+					"disclaimerTitle": "This process is resource-intensive",
+					"disclaimer": "This process is resource-intensive and may take a while to complete. In the future, it will be more configurable",
+					"analyzeButton": "Analyze books"
+				},
+				"missingFiles": {
+					"heading": "Missing files",
+					"description": "Files that are referenced in the database but cannot be located on disk",
+					"noMissingFiles": "There are no missing files in this library"
+				},
+				"duplicateFiles": {
+					"heading": "Duplicate files",
+					"description": "Files that are potentially duplicated on disk",
+					"noDuplicateFiles": "There are no duplicate files detected for this library"
+				}
+			}
+		},
+		"danger-zone/access-control": {
+			"title": "Access Control",
+			"description": "Control who can access the content in this library",
+			"sections": {
+				"libraryExclusions": {
+					"heading": "Exclude users",
+					"description": "Prevent certain users from accessing this library or its contents",
+					"noUsersTitle": "No users to exclude",
+					"noUsers": "There are no other registered users to exclude from this library",
+					"updated": "Exclusions updated",
+					"failure": "Failed to update exclusions"
+				}
+			}
+		},
+		"danger-zone/delete": {
+			"title": "Deletion Actions",
+			"description": "Permanently delete this library and all of its contents or certain resources",
+			"sections": {
+				"cleanLibrary": {
+					"heading": "Clean library",
+					"description": "Remove all media and series that cannot be located on disk",
+					"disclaimerTitle": "No files will be deleted",
+					"disclaimer": "While this action will not delete any files, it will permanently delete all records relating to media and series which have a missing status",
+					"confirmation": {
+						"label": "Clean library",
+						"text": "Are you sure you want to clean this library?"
+					},
+					"emptyText": "There was nothing to clean"
+				},
+				"deleteLibrary": {
+					"heading": "Delete library",
+					"description": [
+						"Permanently delete this library and all its contents.",
+						"This action cannot be undone"
+					]
+				}
+			}
+		}
+	},
+	"errorScene": {
+		"heading": "¡Ups, ha ocurrido un error!",
+		"message": "Se ha producido un error:",
+		"buttons": {
+			"report": "Informar de un fallo",
+			"copy": "Copiar detalles del error",
+			"goHome": "Ir a la página de inicio"
+		}
+	},
+	"homeScene": {
+		"onDeck": {
+			"title": "Your next read",
+			"emptyState": {
+				"heading": "No books on deck",
+				"message": "Your next recommended books will show up here"
+			}
+		},
+		"continueReading": {
+			"title": "Continue reading",
+			"emptyState": {
+				"heading": "Nothing to show",
+				"message": "Any in-progress books you start will show up here"
+			}
+		},
+		"recentlyAddedSeries": {
+			"title": "Recently added series",
+			"emptyState": {
+				"heading": "No hay series para mostrar",
+				"message": "Cualquier serie que añadas a tus bibliotecas aparecerá aquí"
+			}
+		},
+		"recentlyAddedBooks": {
+			"title": "Recently added books",
+			"emptyState": {
+				"heading": "Nothing to show",
+				"message": "Any recent books you add will show up here"
+			}
+		}
+	},
+	"metadataEditor": {
+		"labels": {
+			"ageRating": "Age rating",
+			"characters": "Characters",
+			"colorists": "Colorists",
+			"coverArtists": "Cover artists",
+			"day": "Day",
+			"editors": "Editors",
+			"format": "Format",
+			"identifierAmazon": "Amazon ID",
+			"identifierCalibre": "Calibre ID",
+			"identifierGoogle": "Google ID",
+			"identifierIsbn": "ISBN",
+			"identifierMobiAsin": "Mobi ASIN",
+			"identifierUuid": "Book UUID",
+			"genres": "Genres",
+			"inkers": "Inkers",
+			"language": "Language",
+			"letterers": "Letterers",
+			"links": "Links",
+			"month": "Month",
+			"notes": "Notes",
+			"number": "Number",
+			"pageCount": "Pages",
+			"pencillers": "Pencillers",
+			"publisher": "Publisher",
+			"series": "Series",
+			"seriesGroup": "Series group",
+			"storyArc": "Story arc",
+			"storyArcNumber": "Story arc number",
+			"summary": "Summary",
+			"teams": "Teams",
+			"title": "Title",
+			"titleSort": "Title sort",
+			"volume": "Volume",
+			"writers": "Writers",
+			"year": "Year",
+			"metaType": "Type",
+			"imprint": "Imprint",
+			"comicid": "Comic ID",
+			"booktype": "Book type",
+			"status": "Status",
+			"totalIssues": "Total issues",
+			"publicationRun": "Publication run",
+			"comicImage": "Comic image",
+			"descriptionFormatted": "Description (formatted)"
+		},
+		"addFields": {
+			"description": "Add each addition on its own line"
+		}
+	},
+	"seriesOverviewScene": {
+		"buttons": {
+			"continueReading": "Continuar leyendo",
+			"downloadSeries": "Descargar serie"
+		}
+	},
+	"createOrUpdateSmartListForm": {
+		"validation": {
+			"nameTooShort": "Name must be at least 2 characters",
+			"nameTaken": "Cannot use this name"
+		},
+		"fields": {
+			"name": {
+				"label": "Name",
+				"placeholder": "My smart list",
+				"description": "Must be unique, but can be changed later"
+			},
+			"description": {
+				"label": "Description",
+				"placeholder": "A very intelligent list",
+				"description": "An optional description of your smart list"
+			},
+			"visibility": {
+				"label": "Visibility",
+				"options": {
+					"public": {
+						"label": "Public",
+						"description": "Accessible to all users on the server"
+					},
+					"shared": {
+						"label": "Shared",
+						"description": "Specific users can access this smart list",
+						"createDisclaimer": "You can select who this list is shared with after creation"
+					},
+					"private": {
+						"label": "Private",
+						"description": "Only you can access this smart list"
+					}
+				}
+			},
+			"queryBuilder": {
+				"uiPerformance": "This feature is missing performance optimizations on the UI and may be slow with filters which produce large result sets. This will be improved in the future",
+				"rootJoiner": {
+					"and": {
+						"label": "AND",
+						"description": "All filter groups must be true for a book to be matched"
+					},
+					"or": {
+						"label": "OR",
+						"description": "At least one filter group must be true for a book to be matched"
+					}
+				},
+				"groupJoiner": {
+					"and": {
+						"label": "AND",
+						"description": "All must be true"
+					},
+					"or": {
+						"label": "OR",
+						"description": "At least one must be true"
+					},
+					"not": {
+						"label": "NOT",
+						"description": "None can be true"
+					}
+				},
+				"grouping": {
+					"label": "Group by",
+					"description": "How the books in this smart list should be grouped",
+					"options": {
+						"by_books": {
+							"label": "None"
+						},
+						"by_series": {
+							"label": "Series"
+						},
+						"by_library": {
+							"label": "Library"
+						}
+					}
+				},
+				"filters": {
+					"emptyState": "Add a group to get started",
+					"actions": {
+						"addFilter": "Add filter",
+						"addGroup": "Add group",
+						"deleteFilter": "Delete filter",
+						"deleteGroup": "Delete group"
+					},
+					"is": "is",
+					"fieldSelect": {
+						"placeholder": "Attribute",
+						"source": {
+							"label": "Source",
+							"back": "Back",
+							"book": {
+								"label": "Book",
+								"attributes": {
+									"name": "Filename",
+									"size": "Size",
+									"extension": "Extension",
+									"status": "Status",
+									"path": "Path",
+									"pages": "Pages",
+									"tags": "Tags",
+									"createdAt": "Created at",
+									"updatedAt": "Updated at"
+								}
+							},
+							"book_meta": {
+								"label": "Book Meta",
+								"attributes": {
+									"title": "Title",
+									"summary": "Summary",
+									"notes": "Notes",
+									"writers": "Writers",
+									"pencillers": "Pencillers",
+									"inkers": "Inkers",
+									"letterers": "Letterers",
+									"editors": "Editors",
+									"publisher": "Publisher",
+									"colorists": "Colorist",
+									"links": "Links",
+									"characters": "Characters",
+									"teams": "Teams",
+									"genres": "Genre",
+									"coverArtists": "Cover artists",
+									"ageRating": "Age rating",
+									"year": "Year",
+									"month": "Month",
+									"day": "Day"
+								}
+							},
+							"series": {
+								"label": "Series",
+								"attributes": {
+									"name": "Name",
+									"path": "Path"
+								}
+							},
+							"series_meta": {
+								"label": "Series Meta",
+								"attributes": {
+									"title": "Title",
+									"summary": "Summary",
+									"publisher": "Publisher",
+									"imprint": "Imprint",
+									"comicid": "Comic ID",
+									"booktype": "Book type",
+									"status": "Status",
+									"volume": "Volume",
+									"metaType": "Type",
+									"ageRating": "Age rating",
+									"year": "Start year"
+								}
+							},
+							"library": {
+								"label": "Library",
+								"attributes": {
+									"name": "Name",
+									"path": "Path"
+								}
+							}
+						}
+					},
+					"basicValue": {
+						"placeholder": "Value",
+						"date": "Date"
+					},
+					"rangeValue": {
+						"from": {
+							"date": "From date",
+							"number": "From"
+						},
+						"to": {
+							"date": "To date",
+							"number": "To"
+						},
+						"inclusive": "Inclusive"
+					},
+					"listValue": {
+						"placeholder": "Add values",
+						"emptyState": "No values to display"
+					}
+				}
+			}
+		}
+	},
+	"createSmartListScene": {
+		"heading": "Create smart list",
+		"subtitle": "On-the-fly list creation based on a set of filters",
+		"form": {
+			"stepLabel": "Step",
+			"steps": [
+				{
+					"label": "Basics",
+					"heading": "Basic Information",
+					"description": "The details of this smart list, including its name, description, and visibility"
+				},
+				{
+					"label": "Filters",
+					"heading": "Filters",
+					"description": "The filters to apply to this smart list"
+				},
+				{
+					"label": "Review",
+					"heading": "Review",
+					"description": "Review your smart list settings before creating it"
+				}
+			],
+			"review": {
+				"yes": "Yes",
+				"no": "No",
+				"none": "None",
+				"labels": {
+					"name": "Name",
+					"description": "Description",
+					"visibility": "Visibility",
+					"grouping": "Group by"
+				}
+			},
+			"buttons": {
+				"confirm": "Create list"
+			}
+		}
+	},
+	"createOrUpdateApiKey": {
+		"validation": {
+			"futureDate": "Expiration date must be in the future"
+		},
+		"fields": {
+			"name": {
+				"label": "Name",
+				"placeholder": "Koreader Sync"
+			},
+			"expiration": {
+				"label": "Expiration",
+				"placeholder": "Never"
+			},
+			"expiresAt": {
+				"label": "Expires at",
+				"placeholder": "Never"
+			},
+			"permissions": {
+				"inherit": {
+					"label": "Inherit permissions",
+					"description": "The same permissions as your account"
+				},
+				"explicit": {
+					"label": "Explicit permissions",
+					"description": "Choose the permissions this key should have"
+				}
+			}
+		},
+		"inheritDisclaimer": "This API key will inherit your full permissions, which means it can do anything you can do. Be careful with this setting"
+	},
+	"userSmartListsScene": {
+		"heading": "Listas inteligentes",
+		"subtitle": "Tus búsquedas y filtros favoritos guardados para un fácil acceso",
+		"searchPlaceholder": "Filtrar listas inteligentes",
+		"buttons": {
+			"createSmartList": "Crear lista inteligente"
+		},
+		"list": {
+			"emptyState": {
+				"heading": "No hay listas inteligentes para mostrar",
+				"noListsMessage": "Crear una lista inteligente para empezar",
+				"noMatchesMessage": "Intente cambiando los términos de búsqueda"
+			},
+			"card": {
+				"meta": {
+					"figures": {
+						"books": "libro",
+						"series": "serie",
+						"library": "biblioteca"
+					},
+					"matches": "Coincidencias"
+				}
+			}
+		}
+	},
+	"smartListSettingsScene": {
+		"sidebar": {
+			"basics": "Basics",
+			"configuration": {
+				"label": "Configuration",
+				"access": "Access",
+				"filters": "Filters"
+			},
+			"danger-zone": {
+				"delete": "Deletion",
+				"label": "Danger Zone"
+			}
+		},
+		"basics": {
+			"title": "Basic Information",
+			"description": "The details of this smart list, including its name and description"
+		},
+		"access": {
+			"title": "Access",
+			"description": "Control who can access this smart list",
+			"sections": {
+				"visibility": {
+					"confirmation": {
+						"public": "This will make the list visible to everyone",
+						"private": "This will change the list to be private, hiding it from anyone who previously had access",
+						"shared": "You will need to share the list with specific users to give them access",
+						"fallback": "Are you sure you want to change the visibility of this list?"
+					}
+				},
+				"accessManager": {
+					"disclaimer": "Sharing is not ready yet. Please check back later!"
+				}
+			}
+		},
+		"filters": {
+			"title": "Filter Builder",
+			"description": "Manage the filters which construct this smart list"
+		},
+		"danger-zone/delete": {
+			"title": "Deletion Actions",
+			"description": "Permanently delete this smart list and all of its contents or certain resources",
+			"sections": {
+				"deleteList": {
+					"heading": "Delete list",
+					"description": [
+						"Permanently delete this smart list and all its contents.",
+						"This action cannot be undone"
+					],
+					"confirmation": {
+						"title": "Delete list",
+						"description": "Are you sure you want to delete this smart list?",
+						"confirm": "Delete list"
+					}
+				}
+			}
+		}
+	},
+	"userSmartListScene": {
+		"navigation": {
+			"items": "Ítems",
+			"settings": "Ajustes"
+		},
+		"layout": {
+			"missingIdError": "Esta escena requiere un ID en la URL",
+			"smartListNotFound": "Lista inteligente no encontrada",
+			"viewCreateError": "No se pudo crear la vista",
+			"viewSaveError": "No se pudo guardar la vista"
+		},
+		"header": {
+			"backLink": "Listas"
+		},
+		"itemsScene": {
+			"smartListNotFound": "Lista inteligente no encontrada",
+			"actionHeader": {
+				"viewSelector": {
+					"customView": "Vista personalizada",
+					"defaultView": "Vista por defecto",
+					"noViewsSaved": "No hay vistas guardadas",
+					"selectView": "Seleccione una vista guardada"
+				},
+				"filterDrawer": {
+					"heading": "Filtros de lista inteligente",
+					"description": "Cambiar los filtros para esta sesión de visualización",
+					"rawData": {
+						"heading": "Datos de filtro sin procesar",
+						"description": "Así es como Stump procesará los filtros"
+					},
+					"buttons": {
+						"save": "Guardar",
+						"cancel": "Cancelar"
+					}
+				},
+				"search": {
+					"placeholder": "Filtro Rápido"
+				},
+				"viewManager": {
+					"updateSelected": "Actualización seleccionada",
+					"deleteSelected": "Delete view",
+					"create": "Crear nueva vista",
+					"modal": {
+						"heading": {
+							"create": "Crear vista",
+							"update": "Actualizar vista"
+						},
+						"description": {
+							"create": "Crear una nueva vista para esta lista inteligente",
+							"update": "Actualizar vista"
+						},
+						"createForm": {
+							"name": {
+								"label": "Nombre",
+								"placeholder": "Mi vista",
+								"description": "Un nombre único para esta vista"
+							}
+						},
+						"updateForm": {
+							"name": {
+								"label": "Nombre",
+								"placeholder": "Mi vista",
+								"description": "El nombre actualizado para esta vista, si se desea"
+							}
+						}
+					},
+					"deleteModal": {
+						"title": "Delete view",
+						"description": "Are you sure you want to delete this view?"
+					}
+				}
+			}
+		}
+	},
+	"settingsScene": {
+		"navigation": {
+			"general": "General",
+			"logs": "Registros",
+			"server": "Servidor",
+			"jobs": "Trabajos y Configuración",
+			"users": "Gestión de Usuarios",
+			"desktop": "Escritorio"
+		},
+		"sidebar": {
+			"personal": {
+				"account": "Account",
+				"appearance": "Preferences",
+				"api keys": "API keys",
+				"reader": "Reader",
+				"desktop": "Desktop",
+				"label": "Personal"
+			},
+			"management": {
+				"general": "General",
+				"logs": "Registros",
+				"users": "Usuarios",
+				"jobs": "Tareas",
+				"access": "Acceso",
+				"email": "Correo electrónico",
+				"notifications": "Notificaciones",
+				"label": "Servidor"
+			}
+		},
+		"app/account": {
+			"helmet": "Configuración de la cuenta",
+			"title": "Configuración de la cuenta",
+			"description": "Configuración relacionada con tu cuenta",
+			"sections": {
+				"account": {
+					"validation": {
+						"invalidUrl": "Por favor, introduce una URL válida",
+						"missingUsername": "Nombre de usuario obligatorio"
+					},
+					"labels": {
+						"username": "Nombre de usuario",
+						"password": "Contraseña",
+						"activeChangesPrompt": "Tienes cambios sin guardar"
+					},
+					"errors": {
+						"updateFailed": "Se ha producido un error en el servidor al actualizar tu perfil. Por favor, inténtalo de nuevo."
+					},
+					"avatarPicker": {
+						"label": "Avatar",
+						"heading": "Upload avatar",
+						"subtitle": "You can upload any image to use as your avatar for social features in Stump",
+						"dropzone": "Drop an image or click to select",
+						"changeImage": "Change Image",
+						"removeImage": "Remove Image",
+						"removeSelection": "Remove uploaded image",
+						"uploadFailed": "Failed to upload avatar",
+						"removeFailed": "Failed to remove avatar"
+					},
+					"buttons": {
+						"confirm": "Guardar cambios"
+					}
+				},
+				"locale": {
+					"localeSelector": {
+						"label": "Idioma"
+					},
+					"heading": "Idioma y localización",
+					"subtitle": [
+						"Stump soporta varios idiomas, establece tus preferencias a continuación. Por favor, considera ayudar a mejorar la calidad de",
+						"las traducciones de Stump",
+						"si puedes!"
+					]
+				}
+			}
+		},
+		"app/preferences": {
+			"helmet": "Apariencia",
+			"title": "Apariencia",
+			"description": "Personaliza la apariencia de la aplicación",
+			"sections": {
+				"themeAndAppearance": {
+					"label": "Theme and appearance",
+					"description": "The basic look and feel options for Stump"
+				},
+				"themeSelect": {
+					"label": "Tema",
+					"description": [
+						"If you're interested in creating your own custom theme, check out the",
+						"documentation"
+					],
+					"options": {
+						"system": "System",
+						"light": "Claro",
+						"dark": "Oscuro",
+						"bronze": "Claro Bronce",
+						"ocean": "Ocean",
+						"autumn": "Autumn",
+						"cosmic": "Cosmic",
+						"pumpkin": "Pumpkin",
+						"matrix": "Matrix"
+					}
+				},
+				"gradientToggle": {
+					"label": "Enable gradients",
+					"description": "Some themes optionally support gradients for a more dynamic look"
+				},
+				"fontSelect": {
+					"label": "Font",
+					"description": "Customize the font used in the application"
+				},
+				"thumbnailRatioSelect": {
+					"label": "Thumbnail Ratio",
+					"description": "The aspect ratio to use for thumbnails"
+				},
+				"thumbnailPlaceholder": {
+					"label": "Thumbnail placeholder",
+					"description": "The style to use for thumbnail placeholders",
+					"options": {
+						"grayscale": "Grayscale",
+						"averageColor": "Average color",
+						"colorful": "Colorful",
+						"thumbhash": "Thumbhash"
+					}
+				},
+				"layoutAndArrangement": {
+					"label": "Layout and arrangement",
+					"description": "Customize how Stump displays information and organizes content"
+				},
+				"primaryNavigation": {
+					"label": "Primary navigation",
+					"description": "Choose between a minimal sidebar or a topbar navigation",
+					"options": {
+						"sidebar": "Sidebar",
+						"topbar": "Topbar"
+					},
+					"disclaimer": "* Settings for the unselected option will be disabled or hidden"
+				},
+				"doubleSidebar": {
+					"label": "Settings sidebar",
+					"description": "Enables the sidebar navigation for the settings pages. If you frequently use a smaller screen, you may want to disable this."
+				},
+				"replacePrimarySidebar": {
+					"label": "Replace primary sidebar",
+					"description": "Any instance of a secondary sidebar will replace the primary sidebar instead of being displayed next to it",
+					"tooltips": {
+						"doubleSidebar": "This setting requires the settings sidebar to be enabled",
+						"topbar": "This setting is not currently supported when the primary navigation is set to top bar"
+					}
+				},
+				"navigationArrangement": {
+					"label": "Navigation arrangement",
+					"description": {
+						"sidebar": "Arrange and customize the navigation items in the sidebar",
+						"topbar": "Arrange and customize the navigation items in the topbar"
+					},
+					"isLocked": "Arrangement is locked",
+					"lock": "Lock arrangement",
+					"unlock": "Unlock arrangement",
+					"options": {
+						"HOME": "Home",
+						"EXPLORE": "Explore",
+						"LIBRARIES": "Libraries",
+						"BOOK_CLUBS": "Book clubs",
+						"SMART_LISTS": "Smart lists"
+					},
+					"entityOptions": {
+						"createAction": {
+							"label": "Show create action",
+							"help": "Show the create action in the navigation"
+						},
+						"linkToAll": {
+							"label": "See all link",
+							"help": "A link to a page dedicated to viewing all items of this type"
+						}
+					}
+				},
+				"displaySpacing": {
+					"label": "Display spacing",
+					"description": "Adjusts the overall spacing between elements throughout the app",
+					"options": {
+						"default": "Default",
+						"compact": "Compact"
+					},
+					"disclaimer": "* Compact display mode is not implemented yet"
+				},
+				"maxWidthPreference": {
+					"label": "Adjusted width",
+					"description": "Stump applies a max-width to the viewport. This setting allows you to adjust or remove this limit",
+					"tooltip": "This setting is not currently supported when the primary navigation is set to sidebar"
+				},
+				"additionalPreferences": {
+					"label": "Additional preferences",
+					"description": "Customize the appearance and behavior of Stump with these additional settings"
+				},
+				"showThumbnailsInHeader": {
+					"label": "Show thumbnails in headers",
+					"description": "If you prefer to see thumbnails more often, this setting will show them in more places",
+					"tooltips": {
+						"enabled": "This setting will show thumbnails in more places",
+						"disabled": "This setting will not show thumbnails in more places"
+					}
+				},
+				"hideScrollbarToggle": {
+					"label": "Hide scrollbar",
+					"description": "Some pages simply look better without a scrollbar, this setting will hide it when possible",
+					"tooltips": {
+						"enabled": "This setting will hide the scrollbar on some pages",
+						"disabled": "This setting will show the scrollbar on some pages"
+					}
+				},
+				"enableAlphabetFiltering": {
+					"label": "Alphabet filtering",
+					"description": "Show an alphabet filter when applicable"
+				},
+				"enableFancyAnimations": {
+					"label": "Fancy animations",
+					"description": "A broad opt-in for fancier animations throughout the app"
+				},
+				"queryIndicatorToggle": {
+					"label": "Background fetch indicator",
+					"description": "Show a loading indicator whenever a query is running in the background"
+				},
+				"liveRefetchToggle": {
+					"label": "Live refetch",
+					"description": "Refetch queries on the fly to hydrate the UI with new data as it comes in. This can be resource intensive"
+				},
+				"enableJobOverlayToggle": {
+					"label": "Job overlay",
+					"description": "Show a floating overlay while a job is running"
+				}
+			}
+		},
+		"app/apiKeys": {
+			"helmet": "API keys",
+			"title": "API keys",
+			"description": "Manage your generated Stump API keys",
+			"shared": {
+				"fields": {
+					"name": "Name",
+					"expiration": "Expiration",
+					"last_used": "Last used",
+					"created": "Created",
+					"permissions": "Permissions",
+					"inherited": "Inherited",
+					"explicit": "Explicit"
+				}
+			},
+			"sections": {
+				"inspector": {
+					"heading": "API key",
+					"description": "A detailed view of this key",
+					"unrestrictedKey": {
+						"heading": "Unrestricted key",
+						"description": "Since you are the server owner, this key has unrestricted access when configured to inherit permissions. Please be careful."
+					}
+				},
+				"createKey": {
+					"modal": {
+						"trigger": "Create API key",
+						"heading": {
+							"creating": "Create API key",
+							"created": "Created key"
+						},
+						"description": {
+							"creating": "API keys are long-lived credentials that can be used to authenticate with the API",
+							"created": "Your new API key has been created. Save the secret somewhere safe, as it will not be shown again"
+						},
+						"inheritDisclaimer": "This API key will inherit your full permissions, which means it can do anything you can do. Be careful with this setting",
+						"createdKey": "Created key",
+						"savedConfirm": "I saved my key",
+						"submit": "Create key"
+					}
+				},
+				"table": {
+					"title": "Your keys",
+					"description": "These are the API keys you have created",
+					"actionMenu": {
+						"inspect": "Inspect",
+						"delete": "Delete"
+					},
+					"empty": {
+						"title": "You haven't created any keys yet",
+						"action": "Create an API key to get started"
+					},
+					"noExpiration": "No expiration set"
+				}
+			}
+		},
+		"app/reader": {
+			"helmet": "Configuración del lector",
+			"title": "Configuración del lector",
+			"description": "Opciones predeterminadas para los lectores de Stump. Estas solo están vinculadas a tu dispositivo actual",
+			"sections": {
+				"universal": {
+					"sections": {
+						"readingDirection": {
+							"label": "Reading direction",
+							"description": "The direction in which the reader will progress through pages"
+						}
+					}
+				},
+				"imageBasedBooks": {
+					"label": "Libros basados en imágenes",
+					"description": "Cómics, mangas y otros libros basados en imágenes",
+					"sections": {
+						"preloadAheadCount": {
+							"label": "Preload ahead count",
+							"description": "The number of pages to preload ahead of the current page"
+						},
+						"preloadBehindCount": {
+							"label": "Preload behind count",
+							"description": "The number of pages to preload behind the current page"
+						}
+					}
+				},
+				"textBasedBooks": {
+					"label": "Ebook reader",
+					"description": "Default settings for text-based books",
+					"sections": {
+						"fontSize": {
+							"label": "Font size",
+							"description": "The size of the font used in the reader"
+						},
+						"fontFamily": {
+							"label": "Font family",
+							"description": "The font used in the reader"
+						},
+						"lineHeight": {
+							"label": "Line height",
+							"description": "The height of the lines in the reader"
+						}
+					}
+				},
+				"data": {
+					"sections": {
+						"clearStore": {
+							"label": "Clear preferences",
+							"description": "Reset all individual book settings that override the defaults",
+							"button": "Clear preferences"
+						}
+					}
+				}
+			}
+		},
+		"app/desktop": {
+			"helmet": "Ajustes de escritorio",
+			"title": "Ajustes de escritorio",
+			"description": "Ajustes relacionados con la aplicación de escritorio Stump",
+			"sections": {
+				"configuredServers": {
+					"label": "Configured servers",
+					"description": "The list of Stump servers you can connect to",
+					"getStarted": "Add a server to get started",
+					"unreachableServer": {
+						"tooltip": "Server unreachable"
+					},
+					"activeServer": {
+						"tooltip": "Current server"
+					},
+					"addOrEditServer": {
+						"validation": {
+							"nameExists": "A server with this name already exists",
+							"nameForbidden": "This name is reserved",
+							"urlExists": "A server with this URL already exists"
+						},
+						"fields": {
+							"name": {
+								"label": "Name",
+								"description": "A friendly name to identify this server",
+								"placeholder": "My server"
+							},
+							"uri": {
+								"label": "URI",
+								"description": "The URL of the Stump server",
+								"placeholder": "https://stump.example.com"
+							}
+						}
+					},
+					"addServer": {
+						"trigger": "Add server",
+						"title": "Add a new server",
+						"description": "Add a new Stump server to the desktop application",
+						"confirm": "Add server"
+					},
+					"editServer": {
+						"tooltip": "Edit server",
+						"title": "Edit server",
+						"description": "Edit the details of this server",
+						"confirm": "Save changes"
+					},
+					"deleteServer": {
+						"tooltip": "Delete server",
+						"confirmation": {
+							"title": "Delete this server",
+							"description": "This will remove the server from the desktop application",
+							"disclaimerActiveServer": "This server is currently active. You will be logged out",
+							"disclaimerLastServer": "This is the last configured server. You will be logged out and have to reconfigure any servers in the initialization process",
+							"confirm": "Delete server"
+						}
+					},
+					"switchToServer": {
+						"tooltip": "Switch to server",
+						"confirmation": {
+							"title": "Switch to this server",
+							"description": "This will log you out of your current server",
+							"confirm": "Switch to server",
+							"server": "Server",
+							"uri": "URL"
+						}
+					},
+					"resetConfiguration": {
+						"label": "Delete all servers",
+						"description": [
+							"Delete all configured servers from the desktop application",
+							"This action cannot be undone"
+						],
+						"confirmation": {
+							"trigger": "Delete all servers",
+							"title": "Delete all servers",
+							"description": "This will remove all servers from the desktop application",
+							"disclaimer": "You will be logged out and have to reconfigure any servers in the initialization process",
+							"confirm": "Delete all servers"
+						}
+					},
+					"resetTokens": {
+						"label": "Clear authentication",
+						"description": [
+							"Elimina todos los tokens de acceso almacenados de forma segura para tus servidores",
+							"You will have to re-authenticate with each server"
+						],
+						"confirmation": {
+							"trigger": "Clear authentication",
+							"title": "Clear authentication",
+							"description": "This will remove all securely-stored access tokens for your servers",
+							"confirm": "Clear authentication"
+						}
+					}
+				},
+				"optionalFeatures": {
+					"label": "Optional features",
+					"description": "Manage the optional features unique to the desktop application",
+					"bundledServer": {
+						"label": "Bundled server",
+						"description": "Run the bundled server in the background while the desktop application is running (requires restart)"
+					},
+					"discordPresence": {
+						"label": "Discord Presence",
+						"description": "Display your Stump activity in Discord using Discord Rich Presence",
+						"reconnect": "Reconnect to Discord"
+					}
+				}
+			}
+		},
+		"server/general": {
+			"helmet": "Ajustes generales del servidor",
+			"title": "Ajustes generales",
+			"description": "Ajustes generales relacionados con tu instancia de servidor Stump",
+			"sections": {
+				"updateAvailable": {
+					"message": "Tu servidor no está actualizado. ¡Por favor, actualiza a la última versión!"
+				},
+				"serverInfo": {
+					"title": "Información del servidor",
+					"description": "Detalles básicos sobre tu instancia de Stump",
+					"build": {
+						"label": "Build",
+						"description": "Details about the version and build",
+						"version": {
+							"semver": "Versión",
+							"commitHash": "Commit exacto",
+							"date": "Fecha de compilación"
+						}
+					},
+					"nonStableChannel": {
+						"title": "You are running a non-stable build of Stump",
+						"description": [
+							"It looks like you are running the",
+							"build channel"
+						]
+					}
+				},
+				"helpfulLinks": {
+					"title": "Helpful links",
+					"description": "Links to resources that may be helpful for managing your Stump server instance",
+					"links": {
+						"documentation": "Documentation",
+						"changelog": "Changelog"
+					}
+				},
+				"serverPublicUrl": {
+					"label": "URL pública",
+					"description": "La URL desde la que tu servidor es accesible fuera de tu red, si procede. Esto habilitará los enlaces de invitación y otras características"
+				},
+				"customEmojis": {
+					"title": "Custom emojis",
+					"description": "Upload and manage custom image emojis for your server",
+					"dropzone": "Drop an image or click to select",
+					"input": {
+						"label": "Emoji name",
+						"placeholder": "e.g. party_parrot"
+					},
+					"deleteModal": {
+						"title": "Delete emoji",
+						"description": "Are you sure you want to delete this emoji?"
+					},
+					"noCustomEmojis": "No custom emojis have been added yet",
+					"invalidName": "Please enter a valid name for your emoji",
+					"uploadError": "Failed to upload emoji",
+					"uploadSuccess": "Emoji uploaded",
+					"renameSuccess": "Emoji renamed",
+					"renameError": "Failed to rename emoji",
+					"deleteSuccess": "Emoji deleted",
+					"deleteError": "Failed to delete emoji"
+				}
+			}
+		},
+		"server/logs": {
+			"helmet": "Registros",
+			"title": "Registros",
+			"description": "Los registros generados por tu instancia de Stump",
+			"sections": {
+				"persistedLogs": {
+					"title": "Persisted logs",
+					"description": "These logs have been manually persisted to the database, typically associated with a specific job or event",
+					"table": {
+						"columns": {
+							"level": "Nivel",
+							"message": "Mensaje",
+							"timestamp": "Timestamp"
+						},
+						"emptyHeading": "No hay registros para mostrar",
+						"emptySubtitle": "Your server is either very healthy or very unhealthy"
+					},
+					"deleteLogs": {
+						"title": "Delete logs",
+						"description": "Permanently delete all persisted logs from the database",
+						"disclaimer": "This action cannot be undone",
+						"confirm": "Delete logs"
+					}
+				},
+				"liveLogs": {
+					"title": "Live logs feed",
+					"description": "Streamed directly from your Stump server instance in real-time"
+				}
+			}
+		},
+		"server/jobs": {
+			"helmet": "Tareas",
+			"title": "Tareas",
+			"description": "Tareas de fondo que se ejecutan en su instancia de Stump",
+			"sections": {
+				"scheduling": {
+					"title": "Programación",
+					"description": "Algunas tareas pueden ser programadas. Los cambios a esta configuración surtirán efecto después de reiniciar el servidor",
+					"disclaimer": "The job scheduler is really basic and will be improved in the future. Please reach out for feedback or suggestions!",
+					"createOrUpdateConfig": {
+						"fields": {
+							"intervalSecs": {
+								"label": "Interval",
+								"description": "How often the job should run (in seconds)",
+								"placeholder": "e.g. \"86400\" for once a day"
+							},
+							"intervalPreset": {
+								"label": "Preset",
+								"options": {
+									"everySixHours": "Every 6 hours",
+									"everyTwelveHours": "Every 12 hours",
+									"oncePerDay": "Once a day",
+									"oncePerWeek": "Once a week",
+									"oncePerMonth": "Once a month"
+								}
+							},
+							"includedLibraryIds": {
+								"label": "Included libraries",
+								"description": "Choose which libraries are included"
+							}
+						},
+						"restartRequired": "Changes to this configuration will take effect after a server restart"
+					}
+				},
+				"history": {
+					"title": "Historial",
+					"description": "Un registro de trabajos que se han ejecutado en su instancia de servidor Stump",
+					"table": {
+						"columns": {
+							"name": "Tipo",
+							"description": "Descripción",
+							"status": "Estado",
+							"createdAt": "Iniciado en",
+							"elapsed": "Transcurrido",
+							"tasks": "Tareas"
+						},
+						"emptyHeading": "No hay tareas para mostrar",
+						"emptySubtitle": "You can't have a job if you don't have a job",
+						"deleteAllMessage": "El historial de tareas y las estadísticas pueden ser eliminadas de la base de datos en cualquier momento. Esta acción no se puede deshacer"
+					},
+					"deleteJobHistory": {
+						"title": "Delete job history",
+						"description": "Permanently delete all job history from the database",
+						"confirmText": "Are you sure you want to delete all job history?",
+						"confirm": "Delete",
+						"emptyState": "No jobs to clear"
+					}
+				}
+			}
+		},
+		"server/users": {
+			"helmet": "Gestión de usuarios",
+			"title": "Usuarios",
+			"description": "Administrar los usuarios en este servidor",
+			"createUser": {
+				"helmet": "Crear usuario",
+				"title": "Crear usuario",
+				"description": "Crear un nuevo usuario en este servidor"
+			},
+			"updateUser": {
+				"helmet": "Actualizar usuario",
+				"title": "Actualizar usuario",
+				"description": "Actualizar los detalles de este usuario"
+			},
+			"createOrUpdateForm": {
+				"accessControl": {
+					"heading": "Control de acceso y restricciones",
+					"subtitle": [
+						"Configure cualquier restricción que desee aplicar a este usuario. Para obtener más información sobre el control de acceso, consulte",
+						"documentación"
+					],
+					"ageRestriction": {
+						"label": "Restricción de edad",
+						"description": "Restringe al usuario el acceso al contenido por encima del umbral de edad establecido",
+						"placeholder": "13",
+						"enforceUnset": {
+							"label": "Forzar en no establecido",
+							"description": "Si está habilitado, se restringirá a los usuarios el acceso a contenido sin valoración de edad disponible"
+						}
+					},
+					"tagRestriction": {
+						"label": "Restricciones por etiqueta",
+						"description": "Restringe al usuario acceder al contenido con las etiquetas seleccionadas",
+						"placeholder": "Adulto, Gore"
+					}
+				},
+				"permissions": {
+					"heading": "Permisos",
+					"subtitle": [
+						"Selecciona los permisos que quieres conceder a este usuario. Para más información sobre lo que hace cada permiso, consulta la ",
+						"documentación"
+					],
+					"bookclub": {
+						"label": "Clubs de lectura",
+						"read": {
+							"label": "Access book club features",
+							"description": "Permite al usuario acceder a las funciones de los clubs de lectura, incluyendo ver y unirse a los clubs de lectura"
+						},
+						"create": {
+							"label": "Crear clubs de lectura",
+							"description": "Permite al usuario crear nuevos clubs de lectura"
+						}
+					},
+					"feature": {
+						"label": "Feature Opt-In",
+						"api_keys": {
+							"label": "API keys",
+							"description": "Allow the user to manage their own API keys"
+						},
+						"koreader_sync": {
+							"label": "KoReader sync",
+							"description": "Allow the user to access the KoReader sync integration"
+						}
+					},
+					"file": {
+						"label": "File Management",
+						"explorer": {
+							"label": "File Explorer",
+							"description": "Permite al usuario acceder al explorador de archivos. No se admite restricción de contenido cuando se concede esta función"
+						},
+						"download": {
+							"label": "Descargar ficheros",
+							"description": "Permitir al usuario descargar ficheros del servidor"
+						},
+						"upload": {
+							"label": "Subir ficheros",
+							"description": "Allows the user to upload files to the server"
+						}
+					},
+					"emailer": {
+						"label": "Emailers",
+						"read": {
+							"label": "Access emailers",
+							"description": "Allows the user to view the configured emailers"
+						},
+						"create": {
+							"label": "Create emailers",
+							"description": "Allows the user to create new emailers"
+						},
+						"manage": {
+							"label": "Manage emailers",
+							"description": "Allows the user to manage existing emailers"
+						}
+					},
+					"email": {
+						"label": "Emailing",
+						"send": {
+							"label": "Send emails",
+							"description": "Allows the user to send emails from the server to any configured aliases"
+						},
+						"arbitrary_send": {
+							"label": "Send arbitrary emails",
+							"description": "Allows the user to send emails from the server to any email address"
+						}
+					},
+					"library": {
+						"label": "Library Management",
+						"create": {
+							"label": "Create libraries",
+							"description": "Allows the user to create new libraries.\nIncludes permissions to edit and scan"
+						},
+						"scan": {
+							"label": "Escanear bibliotecas",
+							"description": "Allows the user to initiate scans for existing libraries"
+						},
+						"edit": {
+							"label": "Editar bibliotecas",
+							"description": "Allows the user to edit basic details for existing libraries"
+						},
+						"manage": {
+							"label": "Manage libraries",
+							"description": "Allows the user to manage advanced settings for existing libraries.\nIncludes permissions to edit and scan"
+						},
+						"delete": {
+							"label": "Delete libraries",
+							"description": "Allows the user to delete existing libraries.\nIncludes permissions to edit, manage, and scan"
+						}
+					},
+					"server": {
+						"label": "Server Management",
+						"manage": {
+							"label": "Manage server",
+							"description": "Allows the user to manage the server.\nIncludes *many* other permissions"
+						}
+					},
+					"user": {
+						"label": "User Management",
+						"read": {
+							"label": "Read users",
+							"description": "Allows the user to query other users on the server. This is required for some other features, e.g. excluding users from accessing a library"
+						},
+						"manage": {
+							"label": "Manage users",
+							"description": "Allows the user to manage other users on the server.\nIncludes permissions to create and update"
+						}
+					},
+					"smartlist": {
+						"label": "Listas inteligentes",
+						"read": {
+							"label": "Access smart list feature",
+							"description": "Allows the user to access smart lists features"
+						}
+					}
+				},
+				"validation": {
+					"ageRestrictionTooLow": "Age restriction cannot be less than 0",
+					"missingUsername": "Username is required",
+					"missingPassword": "Password is required",
+					"usernameAlreadyExists": "Username already exists"
+				},
+				"createSubmitButton": "Create user",
+				"updateSubmitButton": "Update user"
+			},
+			"loginActivity": {
+				"deleteConfirmation": {
+					"title": "Delete activity",
+					"description": "All records of login activity will be permanently deleted from the database",
+					"confirm": "Delete"
+				}
+			}
+		},
+		"server/email": {
+			"helmet": "Email settings",
+			"title": "Email",
+			"description": "Settings related to configuring an SMTP emailer for your Stump server instance",
+			"sections": {
+				"emailers": {
+					"title": "SMTP emailers",
+					"description": "The clients you have configured for sending emails from your Stump server instance",
+					"singleInstanceDisclaimer": "Aunque Stump soporta múltiples configuraciones de SMTP en el backend, solo una pueda ser configurada en la interfaz de usuario. Esto se mejorará en el futuro",
+					"list": {
+						"emptyHeading": "No SMTP emailers configured",
+						"primaryEmailer": "Primary emailer",
+						"sendHistory": {
+							"heading": "Send history",
+							"description": "A record of emails sent from this emailer",
+							"table": {
+								"columns": {
+									"to": "To",
+									"subject": "Subject",
+									"status": "Status",
+									"createdAt": "Sent at"
+								}
+							},
+							"emptyHeading": "No history",
+							"emptySubtitle": "The history of this emailer is empty. It has either not been used or the history has been cleared"
+						}
+					}
+				},
+				"devices": {
+					"title": "Email devices",
+					"description": "The device aliases you have configured for receiving emails from your Stump server instance",
+					"addDevice": "Add device alias",
+					"addOrUpdateDevice": {
+						"title": {
+							"create": "Create device alias",
+							"update": "Update device alias"
+						},
+						"name": {
+							"label": "Name",
+							"description": "A friendly name to uniquely identify this device alias"
+						},
+						"email": {
+							"label": "Email",
+							"description": "The email address this alias will be associated with"
+						},
+						"forbidden": {
+							"label": "Forbidden",
+							"description": "When enabled, no user may send emails to the address associated with this alias"
+						},
+						"submit": {
+							"create": "Create device alias",
+							"update": "Update device alias"
+						}
+					},
+					"table": {
+						"emptyHeading": "No devices registered",
+						"emptySubtitle": "Create a new device alias for future use"
+					}
+				}
+			},
+			"createOrUpdateForm": {
+				"name": {
+					"label": "Name",
+					"description": "A friendly name to uniquely identify this emailer"
+				},
+				"smtpSettings": {
+					"heading": "SMTP settings",
+					"description": "The SMTP-specific settings for this emailer"
+				},
+				"smtpProvider": {
+					"label": "SMTP provider preset",
+					"description": "The provider of the SMTP server. This is used to prefill some common settings, but doesn't capture all providers"
+				},
+				"smtpHost": {
+					"label": "SMTP host",
+					"description": "The hostname of the SMTP server"
+				},
+				"smtpPort": {
+					"label": "SMTP port",
+					"description": "The port of the SMTP server"
+				},
+				"tlsEnabled": {
+					"label": "TLS enabled",
+					"description": "If enabled, the connection to the SMTP server will be encrypted"
+				},
+				"username": {
+					"label": "Username",
+					"description": "The username for authenticating with the SMTP server. This is typically the email address"
+				},
+				"password": {
+					"label": "Password",
+					"description": "The password for authenticating with the SMTP server. If you're using Gmail, you may need to generate an app-specific password"
+				},
+				"senderSettings": {
+					"heading": "Sender settings",
+					"description": "The settings for the sender of the email"
+				},
+				"senderDisplayName": {
+					"label": "Sender display name",
+					"description": "The name that will be displayed to recipients"
+				},
+				"senderEmail": {
+					"label": "Sender email address",
+					"description": "The email address that will be displayed to recipients"
+				},
+				"additionalSettings": {
+					"heading": "Additional settings",
+					"description": "Additional settings for the emailer"
+				},
+				"maxAttachmentSize": {
+					"label": "Max attachment size",
+					"description": "The maximum size, in bytes, that an attachment can be"
+				},
+				"submit": {
+					"create": "Create emailer",
+					"update": "Update emailer"
+				},
+				"testEmailer": {
+					"button": "Send test email",
+					"recipientLabel": "Test recipient",
+					"recipientDescription": "An email address to send the test email to",
+					"success": "Test email sent successfully",
+					"error": {
+						"title": "Failed to send test email",
+						"description": "Check your SMTP settings and try again"
+					}
+				}
+			},
+			"createEmailer": {
+				"helmet": "Create emailer",
+				"title": "Create emailer",
+				"description": "Create a new SMTP emailer for your Stump server instance"
+			},
+			"updateEmailer": {
+				"helmet": "Update emailer",
+				"title": "Update emailer",
+				"description": "Update the details of this SMTP emailer"
+			}
+		}
+	},
+	"jobOverlay": {
+		"backupHeading": "Trabajo en progreso"
+	},
+	"libraryStats": {
+		"seriesCount": "Series totales",
+		"bookCount": "Libros totales",
+		"diskUsage": "Uso de disco"
+	},
+	"noLibraries": {
+		"heading": "Nada que ver aquí",
+		"messagePrefix": "No puedes ver lo que no tienes",
+		"message": {
+			"create": "Crea una biblioteca para empezar",
+			"wait": "Once libraries are created, they'll be displayed here"
+		},
+		"links": {
+			"create": "Crear biblioteca",
+			"settings": "Go to settings"
+		}
+	},
+	"pagination": {
+		"buttons": {
+			"next": "Siguiente",
+			"previous": "Anterior"
+		},
+		"popover": {
+			"heading": "Ir a la página",
+			"buttons": {
+				"confirm": "Ir",
+				"cancel": "Cancelar"
+			}
+		}
+	},
+	"signOutModal": {
+		"title": "Cerrar sesión",
+		"message": "¿Está seguro de que desea cerrar sesión?",
+		"buttons": {
+			"cancel": "Cancelar",
+			"signOut": "Cerrar sesión"
+		}
+	},
+	"sidebar": {
+		"buttons": {
+			"home": "Inicio",
+			"libraries": "Bibliotecas",
+			"books": "Explorar",
+			"bookClubs": "Clubes de libros",
+			"createLibrary": "Crear biblioteca",
+			"noLibraries": "Sin bibliotecas",
+			"createBookClub": "Crear club de libros",
+			"noBookClubs": "No hay clubs de lectura",
+			"settings": "Ajustes",
+			"themeToggle": "Alternar Tema",
+			"goForward": "Ir Adelante",
+			"goBack": "Ir Atrás",
+			"smartlists": "Listas inteligentes",
+			"noSmartlists": "Sin listas inteligentes",
+			"createSmartlist": "Crear lista inteligente",
+			"seeAll": "Ver todo"
+		},
+		"libraryOptions": {
+			"scanLibrary": "Escanear",
+			"fileExplorer": "Archivos",
+			"manageLibrary": "Administrar",
+			"deleteLibrary": "Eliminar"
+		},
+		"versionInformation": {
+			"heading": "Información de la Versión",
+			"semVer": "Versión semántica",
+			"commitHash": "Hash de Confirmación",
+			"buildDate": "Fecha de Construcción"
+		}
+	},
+	"search": {
+		"placeholder": "Buscar"
+	},
+	"serverSOS": {
+		"heading": "Servidor no disponible",
+		"desktop": {
+			"message": "Ocurrió un error de red que sugiere que su servidor Stump no está disponible en este momento. Por favor, asegúrese de que se esté ejecutando y sea accesible desde este dispositivo.\nSi su URL del servidor ha cambiado, puede actualizarla utilizando el formulario a continuación"
+		},
+		"web": {
+			"message": "Se ha producido un error de red que sugiere que su servidor Stump no está disponible actualmente. Por favor, asegúrate de que se está ejecutando y de que es accesible desde este dispositivo"
+		},
+		"reconnected": "¡Reconectado al servidor! Redirigiendo...",
+		"reconnectionFailed": "¡Algo salió mal!"
+	},
+	"serverStatusOverlay": {
+		"heading": "El servidor no está conectado",
+		"message": [
+			"Por favor, verifique su conexión a internet",
+			"Haga clic aquí",
+			"para cambiar su URL del servidor"
+		]
+	},
+	"slidingList": {
+		"empty": "No hay elementos para mostrar",
+		"buttons": {
+			"next": "Ir adelante",
+			"previous": "Ir atrás"
+		}
+	},
+	"tagSelect": {
+		"placeholder": "Seleccionar o crear etiqueta",
+		"placeholderNoTags": "No hay etiquetas disponibles"
+	},
+	"thumbnailDropdown": {
+		"label": "Select thumbnail",
+		"options": {
+			"selectFromBooks": "Seleccionar desde los libros",
+			"uploadImage": "Subir una imagen"
+		},
+		"uploadImage": {
+			"emptyState": "Una vista previa de tu imagen aparecerá aquí",
+			"prompt": "Suelta la imagen aquí o haz clic para seleccionar",
+			"remove": "Quitar imagen"
+		}
+	},
+	"common": {
+		"add": "Agregar",
+		"cancel": "Cancelar",
+		"clear": "Clear",
+		"confirm": "Confirmar",
+		"delete": "Delete",
+		"enter": "Enter",
+		"save": "Guardar",
+		"send": "Enviar",
+		"saveChanges": "Guardar cambios",
+		"noChanges": "Sin cambios",
+		"create": "Crear",
+		"edit": "Editar",
+		"update": "Actualizar",
+		"upload": "Subir",
+		"uploading": "Subiendo",
+		"uploadingEllipsis": "Uploading...",
+		"unimplemented": "¡Esta funcionalidad aún no está implementada! Vuelve a intentarlo más tarde",
+		"limitedFunctionality": "Esto aún no está completamente implementado y falta algunas características. Vuelve más tarde",
+		"logIn": "Iniciar sesión",
+		"login": "Inicio de sesión",
+		"seeError": "Ver error",
+		"remove": "Eliminar",
+		"goBack": "Volver",
+		"goToServers": "Ir a los servidores",
+		"notReady": "Esta función no está lista",
+		"notUsedYet": "Sin uso",
+		"never": "Nunca",
+		"scan": "Scan",
+		"somethingWentWrong": "Something went wrong",
+		"fileUpload": {
+			"someRejected": "Some files were rejected. Please check the file types and try again",
+			"tooManyFiles": "You have selected too many files",
+			"noValidFiles": "No valid files were selected"
+		}
+	},
+	"userPermissions": {
+		"ACCESS_API_KEYS": {
+			"label": "API keys",
+			"description": "Allows the user to manage their own API keys"
+		},
+		"ACCESS_BOOK_CLUB": {
+			"label": "Book Clubs",
+			"description": "Allows the user to access book club features, including viewing and joining book clubs"
+		},
+		"ACCESS_KOREADER_SYNC": {
+			"label": "KoReader sync",
+			"description": "Allows the user to access the KoReader sync integration"
+		},
+		"ACCESS_SMART_LIST": {
+			"label": "Smart Lists",
+			"description": "Allows the user to access smart list features, including creating and managing smart lists"
+		},
+		"CREATE_BOOK_CLUB": {
+			"label": "Create book clubs",
+			"description": "Allows the user to create new book clubs"
+		},
+		"CREATE_LIBRARY": {
+			"label": "Create libraries",
+			"description": "Allows the user to create new libraries"
+		},
+		"CREATE_NOTIFIER": {
+			"label": "Create notifiers",
+			"description": "Allows the user to create new notification systems"
+		},
+		"DELETE_LIBRARY": {
+			"label": "Delete libraries",
+			"description": "Allows the user to delete existing libraries"
+		},
+		"DELETE_NOTIFIER": {
+			"label": "Delete notifiers",
+			"description": "Allows the user to delete notification systems"
+		},
+		"DOWNLOAD_FILE": {
+			"label": "Download files",
+			"description": "Allows the user to download files from the server"
+		},
+		"EDIT_LIBRARY": {
+			"label": "Edit libraries",
+			"description": "Allows the user to modify existing libraries"
+		},
+		"EMAILER_CREATE": {
+			"label": "Create emailer",
+			"description": "Allows the user to create email configuration"
+		},
+		"EMAILER_MANAGE": {
+			"label": "Manage emailer",
+			"description": "Allows the user to manage email configuration and settings"
+		},
+		"EMAILER_READ": {
+			"label": "Read emailer",
+			"description": "Allows the user to view email configuration"
+		},
+		"EMAIL_ARBITRARY_SEND": {
+			"label": "Send arbitrary emails",
+			"description": "Allows the user to send custom emails to any address"
+		},
+		"EMAIL_SEND": {
+			"label": "Send emails",
+			"description": "Allows the user to send emails through the system"
+		},
+		"FILE_EXPLORER": {
+			"label": "File explorer",
+			"description": "Allows the user to browse and explore the server filesystem"
+		},
+		"MANAGE_LIBRARY": {
+			"label": "Manage libraries",
+			"description": "Allows the user to manage library settings and configuration"
+		},
+		"MANAGE_NOTIFIER": {
+			"label": "Manage notifiers",
+			"description": "Allows the user to manage notification system settings"
+		},
+		"MANAGE_SERVER": {
+			"label": "Manage server",
+			"description": "Allows the user to manage server configuration and settings"
+		},
+		"MANAGE_USERS": {
+			"label": "Manage users",
+			"description": "Allows the user to create, edit, and delete user accounts"
+		},
+		"READ_JOBS": {
+			"label": "Read jobs",
+			"description": "Allows the user to view system jobs and their status"
+		},
+		"READ_NOTIFIER": {
+			"label": "Read notifiers",
+			"description": "Allows the user to view notification system configuration"
+		},
+		"READ_PERSISTED_LOGS": {
+			"label": "Read persisted logs",
+			"description": "Allows the user to view stored system logs"
+		},
+		"READ_SYSTEM_LOGS": {
+			"label": "Read system logs",
+			"description": "Allows the user to view real-time system logs"
+		},
+		"READ_USERS": {
+			"label": "Read users",
+			"description": "Allows the user to view user account information"
+		},
+		"SCAN_LIBRARY": {
+			"label": "Scan libraries",
+			"description": "Allows the user to trigger library scans to discover new content"
+		},
+		"UPLOAD_FILE": {
+			"label": "Upload files",
+			"description": "Allows the user to upload files to the server"
+		},
+		"MANAGE_JOBS": {
+			"label": "Manage jobs",
+			"description": "Allows the user to manage any queued jobs"
+		},
+		"EDIT_METADATA": {
+			"label": "Edit metadata",
+			"description": "Allows the user to edit metadata for books and series"
+		},
+		"WRITE_BACK_METADATA": {
+			"label": "Write back metadata",
+			"description": "Allows the user to write metadata changes back to the source files"
+		},
+		"EDIT_THUMBNAILS": {
+			"label": "Edit thumbnails",
+			"description": "Allows the user to edit thumbnails for books and series"
+		}
+	}
+}

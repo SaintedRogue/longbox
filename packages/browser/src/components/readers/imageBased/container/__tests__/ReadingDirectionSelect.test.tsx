@@ -1,37 +1,7 @@
-import { Media } from '@stump/sdk'
+import { ReadingDirection } from '@stump/graphql'
 import { fireEvent, render } from '@testing-library/react'
-import { DeepPartial } from 'react-hook-form'
 
-import { useBookPreferences } from '@/scenes/book/reader/useBookPreferences'
-
-import { IImageBaseReaderContext, useImageBaseReaderContext } from '../../context'
 import ReadingDirectionSelect from '../ReadingDirectionSelect'
-
-jest.mock('@/scenes/book/reader/useBookPreferences', () => ({
-	useBookPreferences: jest.fn(),
-}))
-const setBookPreferences = jest.fn()
-const createBookPreferences = (
-	overrides: DeepPartial<ReturnType<typeof useBookPreferences>> = {},
-): ReturnType<typeof useBookPreferences> =>
-	({
-		bookPreferences: { readingDirection: 'ltr' },
-		setBookPreferences,
-		...overrides,
-	}) as ReturnType<typeof useBookPreferences>
-
-jest.mock('../../context', () => ({
-	...jest.requireActual('../../context'),
-	useImageBaseReaderContext: jest.fn(),
-}))
-
-const createReaderContext = (
-	overrides: DeepPartial<IImageBaseReaderContext> = {},
-): IImageBaseReaderContext =>
-	({
-		book: {} as Media,
-		...overrides,
-	}) as IImageBaseReaderContext
 
 describe('ReadingDirectionSelect', () => {
 	const originalWarn = console.warn
@@ -42,31 +12,33 @@ describe('ReadingDirectionSelect', () => {
 		console.warn = originalWarn
 	})
 
-	beforeEach(() => {
-		jest.clearAllMocks()
-
-		jest.mocked(useBookPreferences).mockReturnValue(createBookPreferences())
-		jest.mocked(useImageBaseReaderContext).mockReturnValue(createReaderContext())
-	})
-
 	it('should render', () => {
-		expect(render(<ReadingDirectionSelect />).container).not.toBeEmptyDOMElement()
+		expect(
+			render(<ReadingDirectionSelect direction={ReadingDirection.Ltr} onChange={jest.fn()} />)
+				.container,
+		).not.toBeEmptyDOMElement()
 	})
 
 	it('should properly update the reading direction', () => {
-		const { getByLabelText } = render(<ReadingDirectionSelect />)
+		const onChange = jest.fn()
+		const { getByLabelText } = render(
+			<ReadingDirectionSelect direction={ReadingDirection.Ltr} onChange={onChange} />,
+		)
 
-		fireEvent.change(getByLabelText('Reading direction'), { target: { value: 'rtl' } })
-		expect(setBookPreferences).toHaveBeenCalledWith({ readingDirection: 'rtl' })
+		fireEvent.change(getByLabelText('Reading direction'), { target: { value: 'RTL' } })
+		expect(onChange).toHaveBeenCalledWith(ReadingDirection.Rtl)
 
-		fireEvent.change(getByLabelText('Reading direction'), { target: { value: 'ltr' } })
-		expect(setBookPreferences).toHaveBeenCalledWith({ readingDirection: 'ltr' })
+		fireEvent.change(getByLabelText('Reading direction'), { target: { value: 'LTR' } })
+		expect(onChange).toHaveBeenCalledWith(ReadingDirection.Ltr)
 	})
 
 	it('should not allow invalid reading directions', () => {
-		const { getByLabelText } = render(<ReadingDirectionSelect />)
+		const onChange = jest.fn()
+		const { getByLabelText } = render(
+			<ReadingDirectionSelect direction={ReadingDirection.Ltr} onChange={onChange} />,
+		)
 
 		fireEvent.change(getByLabelText('Reading direction'), { target: { value: 'invalid' } })
-		expect(setBookPreferences).not.toHaveBeenCalled()
+		expect(onChange).not.toHaveBeenCalled()
 	})
 })

@@ -48,28 +48,28 @@ export default function FilterToolBar({
 	isRefetching,
 	isDisabled,
 }: Props) {
-	const { filters, setFilter, removeFilter } = useFilterContext()
+	const { search, setSearch, removeSearch } = useFilterContext()
 
 	const renderFilter = !!entity && !isDisabled
 	const renderOrderBy = !!orderBy && !!entity && !isDisabled
 
 	return (
-		<header className="flex max-w-full flex-col gap-2 px-4">
-			<div className="flex flex-col items-center gap-2 md:flex-row">
+		<header className="gap-2 px-4 flex max-w-full flex-col">
+			<div className="gap-2 md:flex-row flex flex-col items-center">
 				<Search
-					initialValue={filters?.search as string}
+					initialValue={search || ''}
 					placeholder={searchPlaceholder}
 					onChange={(value) => {
 						if (value) {
-							setFilter('search', value)
+							setSearch(value)
 						} else {
-							removeFilter('search')
+							removeSearch()
 						}
 					}}
 					isLoading={isRefetching}
 					isDisabled={isDisabled}
 				/>
-				<div className="flex w-full shrink-0 gap-2 md:w-auto">
+				<div className="gap-2 md:w-auto flex w-full shrink-0">
 					{renderOrderBy && <OrderBy entity={entity} />}
 					{renderFilter && <FilterSlideOver prompt={filterSlideOverPrompt} formVariant={entity} />}
 				</div>

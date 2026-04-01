@@ -1,10 +1,12 @@
 import { Button, cn, Command, Popover } from '@stump/components'
 import { ChevronsUpDown } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useFieldArray, useFormContext } from 'react-hook-form'
+import { useFieldArray, useFormContext, useWatch } from 'react-hook-form'
 import { match } from 'ts-pattern'
 
 import {
+	ConceptualOperation,
+	isConceptualField,
 	isDateField,
 	isNumberField,
 	isStringField,
@@ -34,10 +36,11 @@ export default function OperatorSelect({ idx }: Props) {
 		name: `filters.groups.${groupIdx}.filters`,
 	})
 
-	const fieldDef = useMemo(
-		() => form.watch(`filters.groups.${groupIdx}.filters.${idx}`) || ({} as FieldDef),
-		[form, groupIdx, idx],
-	)
+	const fieldDef = useWatch({
+		control: form.control,
+		name: `filters.groups.${groupIdx}.filters.${idx}`,
+		defaultValue: {} as FieldDef,
+	})
 
 	const updateField = useCallback(
 		(params: Partial<FieldDef>, close = true) => {
@@ -52,26 +55,31 @@ export default function OperatorSelect({ idx }: Props) {
 		() =>
 			match(fieldDef.field)
 				.when(
+					(field) => isConceptualField(field),
+					() => ['is', 'isNot', 'isAnyOf', 'isNoneOf'] as ConceptualOperation[],
+				)
+				.when(
 					(field) => isStringField(field),
-					() => ['contains', 'excludes', 'not', 'equals'] as StringOperation[],
+					() => ['contains', 'excludes', 'neq', 'eq'] as StringOperation[],
 				)
 				.when(
 					(field) => isNumberField(field) || isDateField(field),
-					() => ['gt', 'gte', 'lt', 'lte', 'not', 'equals', 'range'] as NumberOperation[],
+					() => ['gt', 'gte', 'lt', 'lte', 'neq', 'eq', 'range'] as NumberOperation[],
 				)
-				.otherwise(() => ['not', 'equals'] as Operation[]),
+				.otherwise(() => ['neq', 'eq'] as Operation[]),
 		[fieldDef],
 	)
 
 	const selectGroups = useMemo(() => {
 		const arrayGroup = operatorGroups.list
+		const isConceptual = isConceptualField(fieldDef.field)
 
 		return [
 			{
-				label: 'Equality',
+				label: isConceptual ? 'Match' : 'Equality',
 				operators: operators,
 			},
-			...(!isDateField(fieldDef.field)
+			...(!isDateField(fieldDef.field) && !isConceptual
 				? [
 						{
 							label: 'List',
@@ -109,27 +117,29 @@ export default function OperatorSelect({ idx }: Props) {
 				</Button>
 			</Popover.Trigger>
 
-			<Popover.Content className="mt-1 max-h-96 w-52 overflow-y-auto p-0" align="start">
+			<Popover.Content className="mt-1 max-h-96 w-52 p-0 overflow-y-auto" align="start">
 				<Command>
-					{selectGroups.map(({ label, operators }) => (
-						<Command.Group
-							key={label}
-							heading={<span className="text-foreground-muted">{label}</span>}
-						>
-							{operators.map((operator) => (
-								<Command.Item
-									key={operator}
-									onSelect={() => updateField({ operation: operator })}
-									className={cn('transition-all duration-75', {
-										'text-brand': operator === fieldDef.operation,
-									})}
-									value={operator}
-								>
-									{operatorMap[operator]}
-								</Command.Item>
-							))}
-						</Command.Group>
-					))}
+					<Command.List>
+						{selectGroups.map(({ label, operators }) => (
+							<Command.Group
+								key={label}
+								heading={<span className="text-foreground-muted">{label}</span>}
+							>
+								{operators.map((operator) => (
+									<Command.Item
+										key={operator}
+										onSelect={() => updateField({ operation: operator })}
+										className={cn('transition-all duration-75', {
+											'text-brand': operator === fieldDef.operation,
+										})}
+										value={operator}
+									>
+										{operatorMap[operator]}
+									</Command.Item>
+								))}
+							</Command.Group>
+						))}
+					</Command.List>
 				</Command>
 			</Popover.Content>
 		</Popover>
@@ -137,21 +147,25 @@ export default function OperatorSelect({ idx }: Props) {
 }
 
 const operatorGroups = {
-	list: ['any', 'none'] satisfies ListOperation[],
-	number: ['gt', 'gte', 'lt', 'lte', 'not', 'equals', 'range'] satisfies NumberOperation[],
-	string: ['contains', 'excludes', 'not', 'equals'] satisfies StringOperation[],
+	list: ['anyOf', 'noneOf'] satisfies ListOperation[],
+	number: ['gt', 'gte', 'lt', 'lte', 'neq', 'eq', 'range'] satisfies NumberOperation[],
+	string: ['contains', 'excludes', 'neq', 'eq'] satisfies StringOperation[],
 }
 
 const operatorMap: Record<Operation, string> = {
-	any: 'any in list',
+	anyOf: 'any in list',
 	contains: 'contains string',
-	equals: 'equal to',
+	eq: 'equal to',
 	excludes: 'excludes string',
+	is: 'is',
+	isNot: 'is not',
+	isAnyOf: 'is any of',
+	isNoneOf: 'is none of',
 	gt: 'greater than',
 	gte: 'greater than or equal to',
 	lt: 'less than',
 	lte: 'less than or equal to',
-	none: 'none in list',
-	not: 'not equal to',
+	noneOf: 'none in list',
+	neq: 'not equal to',
 	range: 'in range',
 }

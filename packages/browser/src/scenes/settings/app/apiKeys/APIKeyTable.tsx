@@ -1,15 +1,14 @@
-import { useQuery, useSDK } from '@stump/client'
+import { useSDK, useSuspenseGraphQL } from '@stump/client'
 import { Badge, Card, cn, Text } from '@stump/components'
+import { ApiKeyTableQuery, graphql } from '@stump/graphql'
 import { useLocaleContext } from '@stump/i18n'
-import { APIKey } from '@stump/sdk'
 import {
 	createColumnHelper,
 	flexRender,
 	getCoreRowModel,
 	useReactTable,
 } from '@tanstack/react-table'
-import dayjs from 'dayjs'
-import relativeTime from 'dayjs/plugin/relativeTime'
+import { formatDistanceToNow, intlFormat, isValid, parseISO } from 'date-fns'
 import { KeyRound, Slash } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
@@ -19,13 +18,33 @@ import APIKeyActionMenu from './APIKeyActionMenu'
 import APIKeyInspector from './APIKeyInspector'
 import DeleteAPIKeyConfirmModal from './DeleteAPIKeyConfirmModal'
 
-dayjs.extend(relativeTime)
+const query = graphql(`
+	query APIKeyTable {
+		apiKeys {
+			id
+			name
+			permissions {
+				__typename
+				... on UserPermissionStruct {
+					value
+				}
+			}
+			lastUsedAt
+			expiresAt
+			createdAt
+		}
+	}
+`)
+
+export type APIKey = ApiKeyTableQuery['apiKeys'][number]
 
 export default function APIKeyTable() {
 	const { sdk } = useSDK()
-	const { data: apiKeys } = useQuery([sdk.apiKey.keys.get], () => sdk.apiKey.get(), {
-		suspense: true,
-	})
+
+	const {
+		data: { apiKeys },
+	} = useSuspenseGraphQL(query, sdk.cacheKey('apiKeys'))
+
 	const { t } = useLocaleContext()
 
 	const [deletingKey, setDeletingKey] = useState<APIKey | null>(null)
@@ -57,54 +76,84 @@ export default function APIKeyTable() {
 						<Badge
 							variant="primary"
 							size="sm"
-							className={cn(
-								'flex items-center justify-between space-x-1 pl-2 pr-1',
-
-								{ 'pr-2': permissions === 'inherit' },
-							)}
+							className={cn('space-x-1 pl-2 pr-1 flex items-center justify-between', {
+								'pr-2': permissions.__typename === 'InheritPermissionStruct',
+							})}
 						>
-							<span>{t(getFieldKey(permissions === 'inherit' ? 'inherited' : 'explicit'))}</span>
-							{permissions !== 'inherit' && (
-								<span className="flex h-5 w-5 items-center justify-center rounded-md bg-fill-brand-secondary">
-									{permissions.length}
+							<span>
+								{t(
+									getFieldKey(
+										permissions.__typename === 'InheritPermissionStruct' ? 'inherited' : 'explicit',
+									),
+								)}
+							</span>
+							{permissions.__typename !== 'InheritPermissionStruct' && (
+								<span className="h-5 w-5 rounded-md flex items-center justify-center bg-fill-brand-secondary">
+									{permissions.value.length}
 								</span>
 							)}
 						</Badge>
 					</div>
 				),
 			}),
-			columnHelper.accessor('last_used_at', {
+			columnHelper.accessor('lastUsedAt', {
 				header: () => (
 					<Text size="sm" variant="secondary">
 						{t(getFieldKey('last_used'))}
 					</Text>
 				),
 				cell: ({ getValue }) => {
-					const parsed = dayjs(getValue())
+					const value = getValue()
+					const parsed = value ? parseISO(value) : null
+					const valid = parsed && isValid(parsed)
 					return (
 						<Text
 							size="sm"
-							title={parsed.isValid() ? parsed.format('LLL') : t('common.notUsedYet')}
+							title={
+								valid
+									? intlFormat(parsed, {
+											month: 'long',
+											day: 'numeric',
+											year: 'numeric',
+											hour: 'numeric',
+											minute: '2-digit',
+										})
+									: t('common.notUsedYet')
+							}
 						>
-							{parsed.isValid() ? parsed.fromNow() : t('common.never')}
+							{valid ? formatDistanceToNow(parsed, { addSuffix: true }) : t('common.never')}
 						</Text>
 					)
 				},
 			}),
-			columnHelper.accessor('expires_at', {
+			columnHelper.accessor('expiresAt', {
 				header: () => (
 					<Text size="sm" variant="secondary">
 						{t(getFieldKey('expiration'))}
 					</Text>
 				),
 				cell: ({ getValue }) => {
-					const parsed = dayjs(getValue())
+					const value = getValue()
+					const parsed = value ? parseISO(value) : null
+					const valid = parsed && isValid(parsed)
 					return (
 						<Text
 							size="sm"
-							title={parsed.isValid() ? parsed.format('LLL') : t(getKey('noExpiration'))}
+							title={
+								valid
+									? intlFormat(parsed, {
+											month: 'long',
+											day: 'numeric',
+											year: 'numeric',
+											hour: 'numeric',
+											minute: '2-digit',
+										})
+									: t(getKey('noExpiration'))
+							}
 						>
-							{parsed.isValid() ? parsed.format('LL') : 'Never'}
+							{valid
+								? intlFormat(parsed, { month: 'long', day: 'numeric', year: 'numeric' })
+								: 'Never'}
 						</Text>
 					)
 				},
@@ -138,12 +187,12 @@ export default function APIKeyTable() {
 
 	if (!apiKeys?.length) {
 		return (
-			<Card className="flex items-center justify-center border-dashed border-edge-subtle p-6">
-				<div className="flex flex-col space-y-3">
+			<Card className="p-6 flex items-center justify-center border-dashed border-edge-subtle">
+				<div className="space-y-3 flex flex-col">
 					<div className="relative flex justify-center">
-						<span className="flex items-center justify-center rounded-lg bg-background-surface p-2">
+						<span className="rounded-lg p-2 flex items-center justify-center bg-background-surface">
 							<KeyRound className="h-6 w-6 text-foreground-muted" />
-							<Slash className="absolute h-6 w-6 scale-x-[-1] transform text-foreground opacity-80" />
+							<Slash className="h-6 w-6 absolute scale-x-[-1] transform text-foreground opacity-80" />
 						</span>
 					</div>
 
@@ -176,7 +225,7 @@ export default function APIKeyTable() {
 								return (
 									<th
 										key={header.id}
-										className="sticky !top-0 z-[2] h-10 bg-background-surface/50 px-2 shadow-sm"
+										className="top-0! h-10 px-2 shadow-sm sticky z-2 bg-background-surface/50"
 										style={getCommonPinningStyles(header.column)}
 									>
 										<div
@@ -199,7 +248,7 @@ export default function APIKeyTable() {
 							<tr key={row.id} className="">
 								{row.getVisibleCells().map((cell) => (
 									<td
-										className="h-14 bg-background px-2 last:px-0"
+										className="h-14 px-2 last:px-0 bg-background"
 										key={cell.id}
 										style={{
 											width: cell.column.getSize(),

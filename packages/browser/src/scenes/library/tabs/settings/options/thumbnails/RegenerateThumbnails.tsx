@@ -1,20 +1,31 @@
-import { useMutation, useSDK } from '@stump/client'
+import { useGraphQLMutation } from '@stump/client'
 import { Button, DropdownMenu, Label, Text } from '@stump/components'
+import { graphql } from '@stump/graphql'
 import { AlertTriangle, ChevronDown, ImagePlus } from 'lucide-react'
+import { useCallback } from 'react'
 
 import { useLibraryContext } from '@/scenes/library/context'
 
+const mutation = graphql(`
+	mutation RegenerateThumbnails($id: ID!, $forceRegenerate: Boolean!) {
+		generateLibraryThumbnails(id: $id, forceRegenerate: $forceRegenerate)
+	}
+`)
+
 export default function RegenerateThumbnails() {
-	const { sdk } = useSDK()
 	const { library } = useLibraryContext()
-	const { mutate } = useMutation([sdk.library.generateThumbnails, library.id], (force: boolean) =>
-		sdk.library.generateThumbnails(library.id, { force_regenerate: force }),
+
+	const { mutate } = useGraphQLMutation(mutation)
+
+	const regenerate = useCallback(
+		(force: boolean) => mutate({ id: library.id, forceRegenerate: force }),
+		[mutate, library.id],
 	)
 
 	const iconStyle = 'mr-2 h-4 w-4'
 
 	return (
-		<div className="flex flex-col gap-4">
+		<div className="gap-4 flex flex-col">
 			<div>
 				<Label>Regenerate thumbnails</Label>
 				<Text size="sm" variant="muted">
@@ -36,12 +47,12 @@ export default function RegenerateThumbnails() {
 								{
 									label: 'Create missing only',
 									leftIcon: <ImagePlus className={iconStyle} />,
-									onClick: () => mutate(false),
+									onClick: () => regenerate(false),
 								},
 								{
 									label: 'Force recreate all',
 									leftIcon: <AlertTriangle className={iconStyle} />,
-									onClick: () => mutate(true),
+									onClick: () => regenerate(true),
 								},
 							],
 						},

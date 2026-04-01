@@ -1,22 +1,4 @@
-export {
-	type CursorQueryCursorOptions,
-	type CursorQueryOptions,
-	type InfiniteQueryOptions,
-	type MutationOptions,
-	type PageQueryFunction,
-	type PageQueryOptions,
-	queryClient,
-	QueryClientProvider,
-	type QueryOptions,
-	useCursorQuery,
-	type UseCursorQueryFunction,
-	useInfiniteQuery,
-	useIsFetching,
-	useMutation,
-	usePageQuery,
-	useQueries,
-	useQuery,
-} from './client'
+export * from './client'
 export * from './context'
 export * from './desktop'
 export * from './hooks'
@@ -25,4 +7,5 @@ export { StumpClientContextProvider } from './provider'
 export * from './queries'
 export * from './sdk'
 export * from './stores'
+export * from './thumbnail'
 export * from './utils'

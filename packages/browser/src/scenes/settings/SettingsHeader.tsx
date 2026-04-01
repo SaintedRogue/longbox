@@ -4,9 +4,10 @@ import { useMemo } from 'react'
 import { useLocation } from 'react-router'
 
 import { useSceneContainer } from '@/components/container'
+import { useRouterContext } from '@/context'
 
-import { routeGroups } from './routes'
 import SettingsNavigation from './SettingsNavigation'
+import { useSettingsRoutes } from './useSettingsRoutes'
 
 type Props = {
 	renderNavigation?: boolean
@@ -19,17 +20,21 @@ type Props = {
 export default function SettingsHeader({ renderNavigation }: Props) {
 	const { t } = useLocaleContext()
 	const { maxWidth } = useSceneContainer()
+	const { basePath } = useRouterContext()
+
 	const location = useLocation()
+
+	const { groups } = useSettingsRoutes()
 
 	/**
 	 * The active route based on the current location
 	 */
 	const activeRouteGroup = useMemo(
 		() =>
-			routeGroups
+			groups
 				.flatMap((group) => group.items)
-				.find((page) => location.pathname.startsWith(page.to)),
-		[location.pathname],
+				.find((page) => location.pathname.startsWith(`${basePath}${page.to}`)),
+		[location.pathname, groups, basePath],
 	)
 
 	/**
@@ -42,12 +47,14 @@ export default function SettingsHeader({ renderNavigation }: Props) {
 			return null
 		}
 
+		const trimmedPath = location.pathname.replace(`${basePath}/`, '')
+
 		const matchedSubItemKey = activeRouteGroup.subItems?.find((subItem) =>
-			subItem.matcher(location.pathname),
+			subItem.matcher(trimmedPath),
 		)?.localeKey
 
 		return matchedSubItemKey || activeRouteGroup?.localeKey
-	}, [activeRouteGroup, location.pathname])
+	}, [activeRouteGroup, location.pathname, basePath])
 
 	const backlink = useMemo(() => {
 		const matchedSubItem = activeRouteGroup?.subItems?.find((subItem) =>
@@ -70,7 +77,7 @@ export default function SettingsHeader({ renderNavigation }: Props) {
 		<header
 			className={cx(
 				'px-4 pt-4',
-				{ 'flex flex-col gap-y-8': renderNavigation },
+				{ 'gap-y-8 flex flex-col': renderNavigation },
 				{ 'mx-auto': !!maxWidth },
 			)}
 			style={{ maxWidth }}
@@ -78,8 +85,11 @@ export default function SettingsHeader({ renderNavigation }: Props) {
 			{renderNavigation && <SettingsNavigation />}
 			<div className="text-foreground-muted">
 				{backlink && (
-					<span className="flex items-center gap-x-1 text-xs text-foreground-muted">
-						<Link to={backlink.to} className="text-foreground-muted no-underline hover:underline">
+					<span className="gap-x-1 text-xs flex items-center text-foreground-muted">
+						<Link
+							to={`${basePath}${backlink.to}`}
+							className="text-foreground-muted no-underline hover:underline"
+						>
 							{t(`settingsScene.${backlink.localeKey}`) ?? 'Back'}
 						</Link>
 						{' /'}

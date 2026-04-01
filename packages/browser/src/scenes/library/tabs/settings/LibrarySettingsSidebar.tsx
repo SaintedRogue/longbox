@@ -6,7 +6,7 @@ import { useLocation, useNavigate } from 'react-router'
 import { usePreferences } from '@/hooks/usePreferences'
 import { formatRouteKey, useRouteGroups } from '@/hooks/useRouteGroups'
 import { useTheme } from '@/hooks/useTheme'
-import paths from '@/paths'
+import { usePaths } from '@/paths'
 import { SideBarLinkButton } from '@/scenes/settings'
 
 import { useLibraryContext } from '../../context'
@@ -15,11 +15,12 @@ import { routeGroups } from './routes'
 export default function LibrarySettingsSidebar() {
 	const location = useLocation()
 	const navigate = useNavigate()
+	const paths = usePaths()
 
 	const { library } = useLibraryContext()
 	const { t } = useLocaleContext()
 	const {
-		preferences: { enable_replace_primary_sidebar, primary_navigation_mode },
+		preferences: { enableReplacePrimarySidebar, primaryNavigationMode },
 	} = usePreferences()
 	const { shouldUseGradient } = useTheme()
 	const { groups } = useRouteGroups({ routeGroups })
@@ -27,29 +28,29 @@ export default function LibrarySettingsSidebar() {
 	return (
 		<div
 			className={cn(
-				'relative flex h-full w-48 shrink-0 flex-col border-edge bg-background px-2 py-4 text-foreground-subtle',
-				primary_navigation_mode === 'TOPBAR'
-					? 'fixed top-12 z-50 h-screen border-x'
-					: 'fixed top-0 z-50 h-screen border-r',
+				'w-48 px-2 py-4 relative flex h-full shrink-0 flex-col border-edge bg-background text-foreground-subtle',
+				primaryNavigationMode === 'TOPBAR'
+					? 'top-12 fixed z-50 h-screen border-x'
+					: 'top-0 fixed z-50 h-screen border-r',
 				{
-					'bg-gradient-to-l from-background-gradient-from to-background-gradient-to':
+					'from-background-gradient-from to-background-gradient-to bg-linear-to-l':
 						shouldUseGradient,
 				},
 			)}
 		>
-			<div className="flex h-full flex-grow flex-col gap-4">
-				<div className="flex items-center space-x-2">
+			<div className="gap-4 flex h-full grow flex-col">
+				<div className="space-x-2 flex items-center">
 					<ButtonOrLink
 						href={paths.libraryBooks(library.id)}
 						variant="ghost"
-						className="h-[unset] w-[unset] shrink-0 border border-transparent p-1 text-foreground hover:border-edge-subtle/50 hover:bg-sidebar-surface/70"
+						className="p-1 h-[unset] w-[unset] shrink-0 border border-transparent text-foreground hover:border-edge-subtle/50 hover:bg-sidebar-surface/70"
 						size="sm"
 					>
 						<ArrowLeft className="h-4 w-4 transform" />
 					</ButtonOrLink>
 
 					{/* TODO: handle wrapping... */}
-					<Label className="line-clamp-1 py-1">{library.name}</Label>
+					<Label className="py-1 line-clamp-1">{library.name}</Label>
 				</div>
 
 				{groups
@@ -68,7 +69,7 @@ export default function LibrarySettingsSidebar() {
 							<div key={groupLabel}>
 								{groupLabel && <Label>{groupLabel}</Label>}
 								<ul
-									className={cn('flex flex-col gap-y-0.5 text-sm', {
+									className={cn('gap-y-0.5 text-sm flex flex-col', {
 										'pt-2': groupLabel,
 									})}
 								>
@@ -92,12 +93,12 @@ export default function LibrarySettingsSidebar() {
 					.filter(Boolean)}
 				<div className="flex-1" />
 
-				{enable_replace_primary_sidebar && (
+				{enableReplacePrimarySidebar && (
 					<div className="shrink-0">
 						<IconButton
 							title="Go home"
 							variant="ghost"
-							className="border border-transparent p-1.5 text-foreground hover:border-edge-subtle/50 hover:bg-sidebar-surface/70"
+							className="p-1.5 border border-transparent text-foreground hover:border-edge-subtle/50 hover:bg-sidebar-surface/70"
 							onClick={() => navigate(paths.home())}
 						>
 							<Home className="h-4 w-4 -scale-x-[1] transform" />

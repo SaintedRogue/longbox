@@ -33,6 +33,12 @@ type SecondaryVariant = {
 	secondary: string
 } & DefaultVariant
 
+type OnBlackVariant = {
+	'on-black': {
+		muted: string
+	} & DefaultVariant
+}
+
 export const colorVariant = ['info', 'success', 'warning', 'danger', 'brand'] as const
 
 type Border = Record<(typeof colorVariant)[number], string> & {
@@ -102,7 +108,8 @@ type Foreground = {
 	 */
 	'on-inverse': string
 } & DefaultVariant &
-	DisabledVariant
+	DisabledVariant &
+	OnBlackVariant
 
 // TODO: add secondary fill variant
 /**
@@ -110,7 +117,34 @@ type Foreground = {
  * follows the standard color variants of 'info', 'success', 'warning', 'danger', and 'brand'
  */
 type Color = Record<(typeof colorVariant)[number], SecondaryVariant & HoverVariant> &
-	DisabledVariant
+	DisabledVariant &
+	OnBlackVariant
+
+/**
+ * A type for enforcing the structure of a colour used for the scrollbar (used by Wekbit browsers only)
+ */
+type Scrollbar = {
+	thumb: DefaultVariant & HoverVariant
+} & DefaultVariant
+
+// TODO: Consider each theme more carefully. I did very minimal effort for each one
+/**
+ * A type for the thumbnail-specific colors
+ */
+type Thumbnail = {
+	border: string
+	placeholder: string
+	stack: {
+		series: string
+		// Note: Not an array like expo because tw-colors doesn't like it.
+		// This will be irrelevant once I upgrade to v4 tailwind since tw-colors
+		// isn't needed anymore. Also, it isn't even used on web yet so
+		library: {
+			start: string
+			end: string
+		}
+	}
+}
 
 /**
  * The primary type which represents the color tokens for the Stump UI. These are translated for use as
@@ -122,4 +156,6 @@ export type StumpTheme = {
 	foreground: Foreground
 	edge: Border
 	fill: Color
+	scrollbar: Scrollbar
+	thumbnail: Thumbnail
 }

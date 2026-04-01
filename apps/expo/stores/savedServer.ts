@@ -1,20 +1,29 @@
-import AsyncStorage from '@react-native-async-storage/async-storage'
+import { queryClient } from '@stump/client'
 import { uuid } from 'expo-modules-core'
 import * as SecureStore from 'expo-secure-store'
 import { useCallback } from 'react'
 import { z } from 'zod'
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
+import { useShallow } from 'zustand/react/shallow'
+
+import { useCacheStore } from './cache'
+import { ZustandMMKVStorage } from './store'
 
 type ServerID = string
-type SupportedServer = 'stump' | 'opds'
+export type ServerKind = 'stump' | 'opds' | 'opds-legacy'
 
 export type SavedServer = {
 	id: ServerID
 	name: string
 	url: string
-	kind: SupportedServer // TODO: support showing stump as opds, too
+	kind: ServerKind
 	stumpOPDS?: boolean
+	defaultServer?: boolean
+}
+
+export type SavedServerWithConfig = SavedServer & {
+	config: ServerConfig | null
 }
 
 const auth = z
@@ -25,8 +34,7 @@ const auth = z
 		z.object({
 			basic: z.object({
 				username: z.string(),
-				// TODO: NO, don't do this. Don't store a plain password lol
-				password: z.string(),
+				password: z.string(), // Encrypted with expo-secure-store, so should be OK
 			}),
 		}),
 	])
@@ -34,20 +42,16 @@ const auth = z
 
 const serverConfig = z.object({
 	customHeaders: z.record(z.string()).optional(),
-	auth,
+	auth: auth.optional(),
 })
 export type ServerConfig = z.infer<typeof serverConfig>
 
-const managedToken = z
-	.object({
-		token: z.string(),
-		expiresAt: z.string(),
-	})
-	.transform((data) => ({
-		...data,
-		expiresAt: new Date(data.expiresAt),
-	}))
-type ManagedToken = z.infer<typeof managedToken>
+const managedToken = z.object({
+	accessToken: z.string(),
+	refreshToken: z.string().nullish(),
+	expiresAt: z.string(),
+})
+export type ManagedToken = z.infer<typeof managedToken>
 
 const SAVED_TOKEN_PREFIX = 'stump-mobile-saved-tokens-' as const
 const SAVED_CONFIG_PREFIX = 'stump-mobile-saved-configs-' as const
@@ -57,24 +61,37 @@ const formatPrefix = (prefix: 'token' | 'config', id: ServerID) =>
 type SavedServerStore = {
 	servers: SavedServer[]
 	addServer: (server: SavedServer) => void
+	editServer: (id: ServerID, server: SavedServer) => void
 	removeServer: (id: ServerID) => void
-	defaultServer?: SavedServer
-	setDefaultServer: (server: SavedServer) => void
+	setDefaultServer: (serverID?: string) => void
+	showStumpServers: boolean
+	setShowStumpServers: (show: boolean) => void
 }
 
-const useSavedServerStore = create<SavedServerStore>()(
+export const useSavedServerStore = create<SavedServerStore>()(
 	persist(
 		(set) => ({
 			servers: [] as SavedServer[],
 			addServer: (server: SavedServer) => set((state) => ({ servers: [...state.servers, server] })),
 			removeServer: (id: ServerID) =>
 				set((state) => ({ servers: state.servers.filter((server) => server.id !== id) })),
-			defaultServer: undefined,
-			setDefaultServer: (server: SavedServer) => set({ defaultServer: server }),
+			setDefaultServer: (serverID?: string) =>
+				set((state) => ({
+					servers: state.servers.map((server) => ({
+						...server,
+						defaultServer: server.id === serverID,
+					})),
+				})),
+			editServer: (id: ServerID, server: SavedServer) =>
+				set((state) => ({
+					servers: state.servers.map((s) => (s.id === id ? server : s)),
+				})),
+			showStumpServers: true,
+			setShowStumpServers: (show) => set({ showStumpServers: show }),
 		}),
 		{
 			name: 'stump-mobile-saved-servers-store',
-			storage: createJSONStorage(() => AsyncStorage),
+			storage: createJSONStorage(() => ZustandMMKVStorage),
 			version: 1,
 		},
 	),
@@ -88,33 +105,158 @@ export type CreateServer = {
 // NOTE: for debugging, uncomment to clear saved tokens each render basically
 // SecureStore.deleteItemAsync('stump-mobile-saved-tokens-dev')
 
+// TODO: I added these fn exports but I am sure they can share 90% if not all logic
+// of the ones inside useSavedServers below. I am too lazy right now so just copy pasta
+
+/**
+ * Get the saved server config for a given server ID.
+ * Note: This should be used where it is awkward to use useSavedServers(),
+ * e.g. outside react lifecycle
+ */
+export const getServerConfig = async (id: ServerID) => {
+	const config = await SecureStore.getItemAsync(formatPrefix('config', id))
+	return config ? serverConfig.parse(JSON.parse(config)) : null
+}
+
+const deleteServerToken = async (id: ServerID) => {
+	await SecureStore.deleteItemAsync(formatPrefix('token', id))
+	useCacheStore.getState().removeSDK(id)
+	queryClient.removeQueries({ predicate: ({ queryKey }) => queryKey.includes(id) })
+}
+
+/**
+ * Get a non-expired JWT for a server. This is **not** an API key or long-lived token.
+ * Note: This should be used where it is awkward to use useSavedServers(),
+ * e.g. outside react lifecycle.
+ *
+ * @param id The ID of the server to get the token for
+ * @returns A JWT if the token is valid, otherwise null
+ */
+export const getServerToken = async (id: ServerID) => {
+	const record = await SecureStore.getItemAsync(formatPrefix('token', id))
+
+	const token = record ? managedToken.safeParse(JSON.parse(record))?.data : null
+
+	if (record && !token) {
+		console.warn('Malformed token record detected')
+		await deleteServerToken(id)
+		return null
+	}
+
+	if (!token) return null
+
+	if (new Date(token.expiresAt) < new Date()) {
+		await deleteServerToken(id)
+		return null
+	}
+
+	return token
+}
+
+/**
+ * Save a JWT for a server. This is **not** an API key or long-lived token, and should
+ * only be used for Stump servers.
+ * Note: This should be used where it is awkward to use useSavedServers(),
+ * e.g. outside react lifecycle
+ *
+ * @param id The ID of the server to save the token for
+ * @param token The token to save
+ */
+export const saveServerToken = async (id: ServerID, token: ManagedToken) => {
+	await SecureStore.setItemAsync(formatPrefix('token', id), JSON.stringify(token))
+}
+
 // TODO: safety in parsing
+/**
+ * An RPC-like hook for interacting with saved servers and their encrypted tokens/configs.
+ */
 export const useSavedServers = () => {
-	const { savedServers, addServer, removeServer, setDefaultServer } = useSavedServerStore(
-		(state) => ({
-			savedServers: state.servers,
+	const {
+		servers,
+		addServer,
+		editServer,
+		removeServer,
+		setDefaultServer,
+		showStumpServers,
+		setShowStumpServers,
+	} = useSavedServerStore(
+		useShallow((state) => ({
+			servers: state.servers,
 			addServer: state.addServer,
+			editServer: state.editServer,
 			removeServer: state.removeServer,
 			setDefaultServer: state.setDefaultServer,
-		}),
+			showStumpServers: state.showStumpServers,
+			setShowStumpServers: state.setShowStumpServers,
+		})),
 	)
 
+	const removeInstanceFromCache = useCacheStore((state) => state.removeSDK)
+
+	const getServerConfig = async (id: ServerID) => {
+		const config = await SecureStore.getItemAsync(formatPrefix('config', id))
+		return config ? serverConfig.parse(JSON.parse(config)) : null
+	}
+
+	const createServerConfig = useCallback(async (id: ServerID, config: ServerConfig) => {
+		await SecureStore.setItemAsync(formatPrefix('config', id), JSON.stringify(config))
+		return config
+	}, [])
+
+	/**
+	 * Create a new server and optionally save its config.
+	 */
 	const createServer = useCallback(
 		async ({ config, ...server }: CreateServer) => {
 			const id = uuid.v4()
 			const serverMeta = { ...server, id }
 			addServer(serverMeta)
 			if (server.defaultServer) {
-				setDefaultServer(serverMeta)
+				// Ensure only one default server
+				setDefaultServer(serverMeta.id)
 			}
 			if (config) {
 				await createServerConfig(id, config)
 			}
 			return serverMeta
 		},
-		[addServer, setDefaultServer],
+		[addServer, setDefaultServer, createServerConfig],
 	)
 
+	/**
+	 * Update a server's metadata and optionally its config
+	 *
+	 * @param id The ID of the server to update
+	 */
+	const updateServer = useCallback(
+		async (id: ServerID, { config, ...server }: CreateServer) => {
+			const serverMeta = { ...server, id }
+			editServer(id, serverMeta)
+
+			if (server.defaultServer) {
+				// Ensure only one default server
+				setDefaultServer(serverMeta.id)
+			}
+
+			if (config) {
+				await createServerConfig(id, config)
+			} else {
+				// If no config is provided, remove any existing config
+				await SecureStore.deleteItemAsync(formatPrefix('config', id)).catch(() => {
+					// Ignore errors
+				})
+			}
+
+			return serverMeta
+		},
+		[setDefaultServer, editServer, createServerConfig],
+	)
+
+	/**
+	 * Delete a server and any associated data (config, token) from storage.
+	 *
+	 * @param id The ID of the server to delete
+	 */
 	const deleteServer = useCallback(
 		async (id: ServerID) => {
 			await SecureStore.deleteItemAsync(formatPrefix('config', id))
@@ -124,41 +266,79 @@ export const useSavedServers = () => {
 		[removeServer],
 	)
 
-	const getServerConfig = async (id: ServerID) => {
-		const config = await SecureStore.getItemAsync(formatPrefix('config', id))
-		return config ? serverConfig.parse(JSON.parse(config)) : null
-	}
-
-	const createServerConfig = async (id: ServerID, config: ServerConfig) => {
-		await SecureStore.setItemAsync(formatPrefix('config', id), JSON.stringify(config))
-		return config
-	}
-
+	/**
+	 * Get a non-expired JWT for a server. This is **not** an API key or long-lived token.
+	 *
+	 * @param id The ID of the server to get the token for
+	 * @returns A JWT if the token is valid, otherwise null
+	 */
 	const getServerToken = async (id: ServerID) => {
 		const record = await SecureStore.getItemAsync(formatPrefix('token', id))
 
-		const token = record ? managedToken.parse(JSON.parse(record)) : null
+		const token = record ? managedToken.safeParse(JSON.parse(record))?.data : null
+
+		if (record && !token) {
+			console.warn('Malformed token record detected')
+			await deleteServerToken(id)
+		}
+
 		if (!token) return null
 
-		if (token.expiresAt < new Date()) {
+		if (new Date(token.expiresAt) < new Date()) {
 			await deleteServerToken(id)
-			return null
+			// We delete the token in storage but still return it so the caller can
+			// handle the refresh
 		}
 
 		return token
 	}
 
+	/**
+	 * Save a JWT for a server. This is **not** an API key or long-lived token, and should
+	 * only be used for Stump servers.
+	 *
+	 * @param id The ID of the server to save the token for
+	 * @param token The token to save
+	 */
 	const saveServerToken = async (id: ServerID, token: ManagedToken) => {
 		await SecureStore.setItemAsync(formatPrefix('token', id), JSON.stringify(token))
 	}
 
+	/**
+	 * Delete a saved JWT for a server. This will be called whenever an expired token is
+	 * attempted to be used.
+	 *
+	 * @param id The ID of the server to delete the token
+	 */
 	const deleteServerToken = async (id: ServerID) => {
 		await SecureStore.deleteItemAsync(formatPrefix('token', id))
+		removeInstanceFromCache(id)
+		queryClient.removeQueries({ predicate: ({ queryKey }) => queryKey.includes(id) })
 	}
 
+	/**
+	 * Set whether or not to show stump servers in the list of saved servers
+	 */
+	const setStumpEnabled = useCallback(
+		(enabled: boolean) => {
+			const defaultServer = servers.find((server) => server.defaultServer)
+			if (!enabled && defaultServer?.kind === 'stump') {
+				// If we're disabling stump servers, and the default server is a stump server, we need to unset it
+				setDefaultServer()
+			}
+			setShowStumpServers(enabled)
+		},
+		[servers, setDefaultServer, setShowStumpServers],
+	)
+
 	return {
-		savedServers,
+		savedServers: showStumpServers
+			? servers
+			: servers.filter((server) => server.kind !== 'stump' || server.stumpOPDS),
+		stumpEnabled: showStumpServers,
+		setStumpEnabled,
 		createServer,
+		updateServer,
 		deleteServer,
 		getServerConfig,
 		createServerConfig,
@@ -167,4 +347,9 @@ export const useSavedServers = () => {
 		deleteServerToken,
 		setDefaultServer,
 	}
+}
+
+export const useIsOboardingState = () => {
+	const savedServers = useSavedServerStore((state) => state.servers)
+	return savedServers.length === 0
 }

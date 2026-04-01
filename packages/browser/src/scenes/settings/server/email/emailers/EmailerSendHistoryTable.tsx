@@ -1,5 +1,5 @@
 import { cn, IconButton, Text, ToolTip } from '@stump/components'
-import { EmailerSendRecord } from '@stump/sdk'
+import { EmailerSendHistoryQuery } from '@stump/graphql'
 import {
 	createColumnHelper,
 	ExpandedState,
@@ -7,7 +7,7 @@ import {
 	SortDirection,
 	useReactTable,
 } from '@tanstack/react-table'
-import dayjs from 'dayjs'
+import { intlFormat } from 'date-fns'
 import { ChevronDown, Copy } from 'lucide-react'
 import { Fragment, useState } from 'react'
 
@@ -15,9 +15,14 @@ import { getTableModels, SortIcon } from '@/components/table'
 
 import EmailerSendRecordAttachmentTable from './EmailerSendRecordAttachmentTable'
 
+export type EmailerSendRecord = NonNullable<
+	EmailerSendHistoryQuery['emailerById']
+>['sendHistory'][number]
+
 type Props = {
 	records: EmailerSendRecord[]
 }
+
 export default function EmailerSendHistoryTable({ records }: Props) {
 	const [expanded, setExpanded] = useState<ExpandedState>({})
 
@@ -34,14 +39,14 @@ export default function EmailerSendHistoryTable({ records }: Props) {
 	const { rows } = table.getRowModel()
 
 	return (
-		<div className="mx-auto w-full max-w-2xl px-1">
+		<div className="max-w-2xl px-1 mx-auto w-full">
 			<table className="w-full">
 				<thead>
 					<tr>
 						{table.getFlatHeaders().map((header) => (
 							<th key={header.id} className="h-10 first:pl-4 last:pr-4">
 								<div
-									className={cn('flex items-center gap-x-2', {
+									className={cn('gap-x-2 flex items-center', {
 										'cursor-pointer select-none': header.column.getCanSort(),
 									})}
 									onClick={header.column.getToggleSortingHandler()}
@@ -68,7 +73,7 @@ export default function EmailerSendHistoryTable({ records }: Props) {
 								<tr key={row.id + 'expanded'}>
 									<td colSpan={columns.length}>
 										<EmailerSendRecordAttachmentTable
-											attachments={row.original.attachment_meta || []}
+											attachments={row.original.attachmentMeta || []}
 										/>
 									</td>
 								</tr>
@@ -83,38 +88,48 @@ export default function EmailerSendHistoryTable({ records }: Props) {
 
 const columnHelper = createColumnHelper<EmailerSendRecord>()
 const columns = [
-	columnHelper.accessor('sent_at', {
-		cell: ({ getValue }) => <Text size="sm">{dayjs(getValue()).format('LLL')}</Text>,
+	columnHelper.accessor('sentAt', {
+		cell: ({ getValue }) => (
+			<Text size="sm">
+				{intlFormat(new Date(getValue()), {
+					month: 'long',
+					day: 'numeric',
+					year: 'numeric',
+					hour: 'numeric',
+					minute: '2-digit',
+				})}
+			</Text>
+		),
 		header: () => (
 			<Text size="sm" className="text-left" variant="muted">
 				Sent at
 			</Text>
 		),
-		id: 'sent_at',
+		id: 'sentAt',
 	}),
-	columnHelper.accessor('recipient_email', {
+	columnHelper.accessor('recipientEmail', {
 		cell: ({ getValue }) => <Text size="sm">{getValue()}</Text>,
 		header: () => (
 			<Text size="sm" className="text-left" variant="muted">
 				Recipient
 			</Text>
 		),
-		id: 'recipient_email',
+		id: 'recipientEmail',
 	}),
 	columnHelper.display({
 		cell: ({
 			row: {
-				original: { sent_by, sent_by_user_id },
+				original: { sentBy, sentByUserId },
 			},
 		}) => {
-			if (sent_by) {
-				return <Text size="sm">{sent_by.username}</Text>
-			} else if (sent_by_user_id) {
+			if (sentBy) {
+				return <Text size="sm">{sentBy.username}</Text>
+			} else if (sentByUserId) {
 				return (
-					<div className="flex items-center space-x-2">
-						<ToolTip content={sent_by_user_id} align="start" size="sm">
+					<div className="space-x-2 flex items-center">
+						<ToolTip content={sentByUserId} align="start" size="sm">
 							<Text size="sm">
-								{sent_by_user_id.slice(0, 5)}..{sent_by_user_id.slice(-5)}
+								{sentByUserId.slice(0, 5)}..{sentByUserId.slice(-5)}
 							</Text>
 						</ToolTip>
 
@@ -139,17 +154,17 @@ const columns = [
 	columnHelper.display({
 		cell: ({ row }) => {
 			const {
-				original: { attachment_meta },
+				original: { attachmentMeta },
 			} = row
 
-			if (!attachment_meta) {
+			if (!attachmentMeta) {
 				return <Text size="sm">None</Text>
 			}
 
 			const isAlreadyExpanded = row.getIsExpanded()
 			return (
 				<div
-					className="flex cursor-pointer items-center space-x-2"
+					className="space-x-2 flex cursor-pointer items-center"
 					onClick={row.getToggleExpandedHandler()}
 				>
 					<Text size="sm">{isAlreadyExpanded ? 'Hide' : 'Show'}</Text>

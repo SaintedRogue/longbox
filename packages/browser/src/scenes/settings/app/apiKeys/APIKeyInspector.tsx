@@ -1,11 +1,12 @@
 import { Badge, Label, Sheet, Text } from '@stump/components'
 import { useLocaleContext } from '@stump/i18n'
-import { APIKey } from '@stump/sdk'
-import dayjs from 'dayjs'
+import { intlFormat, isValid, parseISO } from 'date-fns'
 import { KeyRound, Sparkles } from 'lucide-react'
 
 import { useAppContext } from '@/context'
 import { useCurrentOrPrevious } from '@/hooks/useCurrentOrPrevious'
+
+import { APIKey } from './APIKeyTable'
 
 type Props = {
 	apiKey: APIKey | null
@@ -18,23 +19,37 @@ export default function APIKeyInspector({ apiKey, onClose }: Props) {
 
 	const displayedData = useCurrentOrPrevious(apiKey)
 
-	const expiration = dayjs(displayedData?.expires_at)
-	const lastUsedAt = dayjs(displayedData?.last_used_at)
-	const createdAt = dayjs(displayedData?.created_at)
-	const isAllPermissions = user.is_server_owner && displayedData?.permissions === 'inherit'
+	const formatDate = (dateStr?: string | null) => {
+		if (!dateStr) return null
+		const date = typeof dateStr === 'string' ? parseISO(dateStr) : new Date(dateStr)
+		if (!isValid(date)) return null
+		return intlFormat(date, {
+			month: 'long',
+			day: 'numeric',
+			year: 'numeric',
+			hour: 'numeric',
+			minute: '2-digit',
+		})
+	}
+
+	const expirationFormatted = formatDate(displayedData?.expiresAt)
+	const lastUsedAtFormatted = formatDate(displayedData?.lastUsedAt)
+	const createdAtFormatted = formatDate(displayedData?.createdAt)
+	const isAllPermissions =
+		user.isServerOwner && displayedData?.permissions.__typename === 'InheritPermissionStruct'
 
 	const renderPermissions = () => {
 		if (isAllPermissions) {
 			return (
 				<div
-					className="mx-4 my-2 flex flex-col space-y-1.5 rounded-lg bg-fill-warning-secondary p-[3px]"
+					className="mx-4 my-2 space-y-1.5 rounded-lg flex flex-col bg-fill-warning-secondary p-[3px]"
 					data-testid="unrestricted-meta"
 				>
-					<div className="flex items-center px-2.5 py-0.5 text-fill-warning">
+					<div className="px-2.5 py-0.5 flex items-center text-fill-warning">
 						<Sparkles className="mr-2 h-4 w-4" />
 						<span className="font-medium">{t(getKey('unrestrictedKey.heading'))}</span>
 					</div>
-					<div className="rounded-lg bg-fill-warning-secondary p-2.5">
+					<div className="rounded-lg p-2.5 bg-fill-warning-secondary">
 						<Text size="sm" className="text-fill-warning">
 							{t(getKey('unrestrictedKey.description'))}
 						</Text>
@@ -44,19 +59,21 @@ export default function APIKeyInspector({ apiKey, onClose }: Props) {
 		}
 
 		const permissions =
-			displayedData?.permissions === 'inherit' ? user.permissions : displayedData?.permissions || []
+			displayedData?.permissions.__typename === 'InheritPermissionStruct'
+				? user.permissions || []
+				: displayedData?.permissions.value || []
 
 		return (
 			<div
-				className="mx-4 my-2 flex flex-col space-y-1.5 rounded-lg bg-background-surface p-[3px]"
+				className="mx-4 my-2 space-y-1.5 rounded-lg flex flex-col bg-background-surface p-[3px]"
 				data-testid="permissions-meta"
 			>
-				<div className="flex items-center px-2.5 py-0.5 text-foreground-subtle/80">
+				<div className="px-2.5 py-0.5 flex items-center text-foreground-subtle/80">
 					<KeyRound className="mr-2 h-4 w-4" />
 					<span className="font-medium">{t(getSharedKey('fields.permissions'))}</span>
 				</div>
-				<div className="rounded-lg bg-background-surface-secondary p-2.5">
-					<div className="flex flex-wrap gap-2">
+				<div className="rounded-lg p-2.5 bg-background-surface-secondary">
+					<div className="gap-2 flex flex-wrap">
 						{permissions.map((perm) => (
 							<Badge
 								key={perm}
@@ -91,22 +108,18 @@ export default function APIKeyInspector({ apiKey, onClose }: Props) {
 
 				<div className="px-4 py-2" data-testid="expire-meta">
 					<Label className="text-foreground-muted">{t(getSharedKey('fields.expiration'))}</Label>
-					<Text size="sm">
-						{expiration.isValid() ? expiration.format('LLL') : t('common.never')}
-					</Text>
+					<Text size="sm">{expirationFormatted ?? t('common.never')}</Text>
 				</div>
 
-				<div className="my-2 bg-background-surface px-4 py-2" data-testid="last_used-meta">
+				<div className="my-2 px-4 py-2 bg-background-surface" data-testid="last_used-meta">
 					<Label className="text-foreground-muted">{t(getSharedKey('fields.last_used'))}</Label>
-					<Text size="sm">
-						{lastUsedAt.isValid() ? lastUsedAt.format('LLL') : t('common.never')}
-					</Text>
+					<Text size="sm">{lastUsedAtFormatted ?? t('common.never')}</Text>
 				</div>
 
-				{createdAt.isValid() && (
+				{createdAtFormatted && (
 					<div className="px-4 py-2" data-testid="created-meta">
 						<Label className="text-foreground-muted">{t(getSharedKey('fields.created'))}</Label>
-						<Text size="sm">{createdAt.format('LLL')}</Text>
+						<Text size="sm">{createdAtFormatted}</Text>
 					</div>
 				)}
 			</div>

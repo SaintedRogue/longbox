@@ -1,17 +1,37 @@
-import { ChevronRight } from 'lucide-react-native'
-import { View } from 'react-native'
+import { Server } from 'lucide-react-native'
 
-import { Text } from '~/components/ui'
+import { Picker } from '~/components/ui/picker/picker'
+import { useSavedServers } from '~/stores'
 
 import AppSettingsRow from '../AppSettingsRow'
 
 export default function DefaultServer() {
+	const { savedServers, setDefaultServer } = useSavedServers()
+
+	const defaultServer = savedServers.find((server) => server.defaultServer)
+
 	return (
-		<AppSettingsRow icon="Server" title="Default server">
-			<View className="flex flex-row items-center gap-2">
-				<Text className="text-foreground-muted">Localhost</Text>
-				<ChevronRight size={20} className="text-foreground-muted" />
-			</View>
+		<AppSettingsRow icon={Server} title="Default server">
+			<Picker
+				value={defaultServer?.id || 'none'}
+				options={[
+					{
+						label: 'None',
+						value: 'none',
+					},
+					...savedServers.map((server) => ({
+						label: server.name,
+						value: server.id,
+					})),
+				]}
+				onValueChange={(value) => {
+					if (value === 'none') {
+						setDefaultServer(undefined)
+					} else {
+						setDefaultServer(value)
+					}
+				}}
+			/>
 		</AppSettingsRow>
 	)
 }

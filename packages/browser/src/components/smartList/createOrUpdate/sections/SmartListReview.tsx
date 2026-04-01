@@ -1,6 +1,6 @@
 import { Label, Text } from '@stump/components'
 import { useLocaleContext } from '@stump/i18n'
-import { useFormContext } from 'react-hook-form'
+import { useFormContext, useWatch } from 'react-hook-form'
 
 import { ReviewStepContainer } from '@/components/steppedForm'
 
@@ -9,12 +9,12 @@ import FilterConfigJSON from './FilterConfigJSON'
 
 export default function SmartListReview() {
 	const form = useFormContext<SmartListFormSchema>()
-	const state = form.watch()
+	const state = useWatch({ control: form.control })
 
 	const { t } = useLocaleContext()
 
 	return (
-		<div className="flex flex-col space-y-8">
+		<div className="space-y-8 flex flex-col">
 			<ReviewStepContainer
 				label={t(getStepKey(1, 'heading'))}
 				description={t(getStepKey(1, 'description'))}
@@ -54,7 +54,7 @@ export default function SmartListReview() {
 			</ReviewStepContainer>
 
 			<div className="grid grid-cols-9">
-				<div className="col-span-9 md:col-span-6">
+				<div className="md:col-span-6 col-span-9">
 					<FilterConfigJSON />
 				</div>
 			</div>

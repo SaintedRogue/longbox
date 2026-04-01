@@ -1,0 +1,48 @@
+[package]
+name = "graphql"
+edition = "2021"
+version.workspace = true
+
+[[bin]]
+name = "graphql-gen"
+path = "bin/main.rs"
+
+[dependencies]
+alphanumeric-sort.workspace = true
+async-graphql.workspace = true
+async-stream.workspace = true
+axum.workspace = true
+base64.workspace = true
+chrono.workspace = true
+clap.workspace = true
+epub.workspace = true
+heck.workspace = true
+filter-gen = { path = "../macros/filter-gen" }
+futures-util.workspace = true
+infer.workspace = true
+itertools.workspace = true
+linemux = { git = "https://github.com/jmagnuson/linemux.git", rev = "acaafc602afac5d7a9cd3e087dafc937cac1e364" }
+models = { path = "../models" }
+num-traits.workspace = true
+email = { path = "../email" }
+sea-orm.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_with.workspace = true
+slugify.workspace = true
+strum.workspace = true
+stump_core = { path = "../../core" }
+tokio.workspace = true
+tower-sessions.workspace = true
+tracing.workspace = true
+zip.workspace = true
+bcrypt.workspace = true
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.58.0", features = ["Win32_Storage_FileSystem", "Win32_Foundation"] }
+
+[dev-dependencies]
+maplit.workspace = true
+tempfile.workspace = true
+pretty_assertions.workspace = true
+async-graphql-axum.workspace = true

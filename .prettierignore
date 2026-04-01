@@ -4,6 +4,7 @@ generated.ts
 node_modules
 target
 dist
+dev-dist
 build
 .next
 .expo
@@ -16,3 +17,10 @@ CHANGELOG.md
 # Tauri generated files
 /src-tauri/capabilities/*.json
 /src-tauri/gen/*.json
+
+apps/expo/assets/*.json
+
+packages/graphql/src/client/*.ts
+
+apps/expo/drizzle/*
+apps/expo/components/emoji/data.json

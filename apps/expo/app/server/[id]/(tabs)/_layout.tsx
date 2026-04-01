@@ -1,84 +1,166 @@
-import FontAwesome from '@expo/vector-icons/FontAwesome'
-import { useAuthQuery, useSDK } from '@stump/client'
-import { Tabs, useRouter } from 'expo-router'
-import { View } from 'react-native'
-import { Pressable } from 'react-native-gesture-handler'
+import { useAuthQuery, useClientContext, useSDK } from '@stump/client'
+import { UserPermission } from '@stump/graphql'
+import { isAxiosError } from 'axios'
+import { Tabs } from 'expo-router'
+import { Icon, Label, NativeTabs } from 'expo-router/unstable-native-tabs'
+import { Home, Search, SquareLibrary, Users } from 'lucide-react-native'
+import { useEffect } from 'react'
+import { Platform } from 'react-native'
 
-import { icons } from '~/components/ui'
+import { useStumpServer } from '~/components/activeServer'
+import { ServerErrorBoundary } from '~/components/error'
+import { Icon as JSIcon } from '~/components/ui'
+import { useColors } from '~/lib/constants'
+import { useAutoSyncActiveServer } from '~/lib/hooks'
 import { cn } from '~/lib/utils'
-import { useUserStore } from '~/stores'
-
-const { Unplug, Plus } = icons
+import { usePreferencesStore, useUserStore } from '~/stores'
 
 export default function TabLayout() {
 	const { sdk } = useSDK()
 
-	const router = useRouter()
+	const colors = useColors()
+	const accentColor = usePreferencesStore((state) => state.accentColor)
+	const animationEnabled = usePreferencesStore((state) => !state.reduceAnimations)
 	const setUser = useUserStore((state) => state.setUser)
+	const autoSyncEnabled = usePreferencesStore((state) => state.autoSyncLocalData)
+	const bookClubsEnabled = usePreferencesStore((state) => state.bookClubsEnabled)
 
-	const { user } = useAuthQuery({
-		enabled: !!sdk.token,
-		onSuccess: setUser,
+	useAutoSyncActiveServer({
+		enabled: !!sdk.token && autoSyncEnabled,
 	})
+
+	const { onUnauthenticatedResponse } = useClientContext()
+
+	const { checkPermission } = useStumpServer()
+
+	const { user, error } = useAuthQuery({
+		enabled: !!sdk.token,
+		throwOnError: false,
+	})
+
+	useEffect(() => {
+		setUser(user)
+	}, [user, setUser])
+
+	useEffect(() => {
+		if (isAxiosError(error)) {
+			if (error.response?.status === 401) {
+				onUnauthenticatedResponse?.()
+			} else if (error.response?.status === 405) {
+				// This can happen if the client is "newer" than the server and is trying to use an endpoint that doesn't exist.
+				// We should probably inform the user that they need to update their server.
+				// For now, throw to trigger the error boundary
+				throw new Error('Incompatible server', { cause: error })
+			}
+		} else if (error?.message === 'Malformed response received from server') {
+			throw new Error('Incompatible server', { cause: error })
+		}
+	}, [error, onUnauthenticatedResponse])
+
+	const showClubs = bookClubsEnabled && checkPermission(UserPermission.AccessBookClub)
 
 	if (!sdk.token || !user) {
 		return null
 	}
 
-	return (
-		<Tabs screenOptions={{ tabBarActiveTintColor: 'white' }}>
-			<Tabs.Screen
-				name="index"
-				options={{
-					title: 'Home',
-					tabBarIcon: ({ color }) => <FontAwesome size={20} name="home" color={color} />,
-					headerLeft: () => (
-						<Pressable onPress={() => router.dismissAll()}>
-							{({ pressed }) => (
-								<View
-									className={cn(
-										'aspect-square flex-1 items-start justify-center px-2',
-										pressed && 'opacity-70',
-									)}
-								>
-									<Unplug size={20} className="text-foreground-muted" />
-								</View>
-							)}
-						</Pressable>
-					),
-				}}
-			/>
+	return Platform.select({
+		ios: (
+			<NativeTabs
+				tintColor={accentColor || colors.fill.brand.DEFAULT}
+				minimizeBehavior="onScrollDown"
+			>
+				<NativeTabs.Trigger name="index">
+					<Label>Home</Label>
+					<Icon
+						sf={{ default: 'house', selected: 'house.fill' }}
+						drawable="custom_android_drawable"
+					/>
+				</NativeTabs.Trigger>
+				<NativeTabs.Trigger name="browse">
+					<Label>Browse</Label>
+					<Icon sf="books.vertical.fill" drawable="custom_android_drawable" />
+				</NativeTabs.Trigger>
+				{showClubs && (
+					<NativeTabs.Trigger name="clubs">
+						<Label>Clubs</Label>
+						<Icon sf="square.grid.2x2.fill" drawable="custom_android_drawable" />
+					</NativeTabs.Trigger>
+				)}
+				<NativeTabs.Trigger name="search" role="search">
+					<Label>Search</Label>
+					<Icon sf="magnifyingglass" drawable="custom_android_drawable" />
+				</NativeTabs.Trigger>
+			</NativeTabs>
+		),
 
-			<Tabs.Screen
-				name="browse"
-				options={{
-					title: 'Browse',
-					tabBarIcon: ({ color }) => <FontAwesome size={20} name="book" color={color} />,
-					headerRight: () => (
-						<Pressable>
-							{({ pressed }) => (
-								<View
-									className={cn(
-										'aspect-square flex-1 items-start justify-center pt-0.5',
-										pressed && 'opacity-70',
-									)}
-								>
-									<Plus size={20} className="text-foreground-muted" />
-								</View>
-							)}
-						</Pressable>
-					),
+		android: (
+			<Tabs
+				screenOptions={{
+					tabBarActiveTintColor: colors.foreground.DEFAULT,
+					animation: animationEnabled ? undefined : 'none',
 				}}
-			/>
+			>
+				<Tabs.Screen
+					name="index"
+					options={{
+						title: 'Home',
+						tabBarIcon: ({ focused }) => (
+							<JSIcon
+								as={Home}
+								className={cn('h-6 w-6 text-foreground-muted', { 'text-foreground': focused })}
+							/>
+						),
+						headerShown: false,
+					}}
+				/>
 
-			<Tabs.Screen
-				name="search"
-				options={{
-					headerShown: false,
-					title: 'Search',
-					tabBarIcon: ({ color }) => <FontAwesome size={20} name="search" color={color} />,
-				}}
-			/>
-		</Tabs>
-	)
+				<Tabs.Screen
+					name="browse"
+					options={{
+						title: 'Browse',
+						tabBarIcon: ({ focused }) => (
+							<JSIcon
+								as={SquareLibrary}
+								className={cn('h-6 w-6 text-foreground-muted', { 'text-foreground': focused })}
+							/>
+						),
+						headerShown: false,
+					}}
+				/>
+
+				<Tabs.Screen
+					name="clubs"
+					options={{
+						title: 'Clubs',
+						href: showClubs ? undefined : null,
+						tabBarIcon: ({ focused }) => (
+							<JSIcon
+								as={Users}
+								className={cn('h-6 w-6 text-foreground-muted', { 'text-foreground': focused })}
+							/>
+						),
+						headerShown: false,
+					}}
+				/>
+
+				<Tabs.Screen
+					name="search"
+					options={{
+						headerShown: false,
+						title: 'Search',
+						tabBarIcon: ({ focused }) => (
+							<JSIcon
+								as={Search}
+								className={cn('h-6 w-6 text-foreground-muted', { 'text-foreground': focused })}
+							/>
+						),
+					}}
+				/>
+			</Tabs>
+		),
+	})
+}
+
+export function ErrorBoundary({ error, retry }: { error: Error; retry: () => Promise<void> }) {
+	return <ServerErrorBoundary error={error} onRetry={() => retry()} />
 }

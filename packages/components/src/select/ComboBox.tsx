@@ -1,5 +1,13 @@
 import { Check, ChevronsUpDown } from 'lucide-react'
-import { Fragment, MutableRefObject, RefCallback, useRef, useState } from 'react'
+import {
+	Fragment,
+	MutableRefObject,
+	RefCallback,
+	useCallback,
+	useEffect,
+	useRef,
+	useState,
+} from 'react'
 
 import { Button } from '../button'
 import { Command } from '../command'
@@ -12,6 +20,7 @@ import { cn } from '../utils'
 export type ComboBoxOption = {
 	label: string
 	value: string
+	fontClassName?: string
 }
 
 type SingleSelectComboBoxProps = {
@@ -50,6 +59,7 @@ export type ComboBoxProps = {
 	filterable?: boolean
 	filterPlaceholder?: string
 	filterEmptyMessage?: string
+	formatValue?: (value: string | string[] | undefined, options: ComboBoxOption[]) => string
 } & (SingleSelectComboBoxProps | MultiSelectComboBoxProps)
 
 type MutableRefList<T> = Array<RefCallback<T> | MutableRefObject<T> | undefined | null>
@@ -80,6 +90,7 @@ export function ComboBox({
 	disabled,
 	onChange,
 	onAddOption,
+	formatValue,
 	size = 'default',
 	triggerClassName,
 	triggerRef: triggerRefProps,
@@ -95,32 +106,49 @@ export function ComboBox({
 	const [open, setOpen] = useState(false)
 	const [filter, setFilter] = useState('')
 
-	const handleChange = (selected: string) => {
-		if (isMultiSelect) {
-			if (value?.includes(selected)) {
-				onChange?.(value.filter((item) => item !== selected))
-			} else if (value) {
-				onChange?.([...value, selected])
+	const handleChange = useCallback(
+		(selected: string) => {
+			// Note: cmdk lowercases the value passed to onSelect
+			const originalOption = options.find(
+				(option) => option.value.toLowerCase() === selected.toLowerCase(),
+			)
+			const originalValue = originalOption?.value ?? selected
+
+			if (isMultiSelect) {
+				const existingIndex = value?.findIndex(
+					(item) => item.toLowerCase() === selected.toLowerCase(),
+				)
+				if (existingIndex !== undefined && existingIndex >= 0) {
+					onChange?.(value!.filter((_, index) => index !== existingIndex))
+				} else if (value) {
+					onChange?.([...value, originalValue])
+				} else {
+					onChange?.([originalValue])
+				}
+				// FIXME: I don't know why I have to do this, something is triggering the popover to close...
+				setTimeout(() => setOpen(true))
 			} else {
-				onChange?.([selected])
+				onChange?.(originalValue)
+				setOpen(false)
 			}
-			// FIXME: I don't know why I have to do this, something is triggering the popover to close...
-			setTimeout(() => setOpen(true))
-		} else {
-			onChange?.(selected)
-			setOpen(false)
-		}
-	}
+		},
+		[isMultiSelect, value, onChange, options],
+	)
 
 	const renderSelected = () => {
-		if (!value) {
+		if (!value || (Array.isArray(value) && value.length === 0)) {
 			return placeholder
 		}
 
+		if (formatValue) {
+			return formatValue(value, options)
+		}
+
 		if (isMultiSelect) {
+			const adjustedValue = Array.isArray(value) ? value : [value]
 			return (
-				value
-					?.map((selected) => {
+				adjustedValue
+					.map((selected) => {
 						const option = options.find((option) => option.value === selected)
 						return option?.label
 					})
@@ -134,9 +162,9 @@ export function ComboBox({
 	const renderEmptyState = () => {
 		if (onAddOption && filter) {
 			return (
-				<div className="overflow-hidden px-4">
+				<div className="px-4 overflow-hidden">
 					<Button
-						className="h-[unset] shrink-0 text-ellipsis text-wrap break-all text-brand"
+						className="text-brand h-[unset] shrink-0 text-wrap break-all text-ellipsis"
 						onClick={() => {
 							onAddOption({ label: filter, value: filter })
 							handleChange(filter)
@@ -158,6 +186,7 @@ export function ComboBox({
 		...((label || description) && { className: 'flex flex-col gap-2' }),
 	}
 
+	/* eslint-disable react-hooks/refs */
 	const contentStyle = {
 		...(size === 'full'
 			? {
@@ -166,9 +195,26 @@ export function ComboBox({
 			: {}),
 		...(wrapperStyle || {}),
 	}
+	/* eslint-enable react-hooks/refs */
 
 	const topDescription = description && descriptionPosition === 'top'
 	const bottomDescription = description && descriptionPosition === 'bottom'
+
+	/**
+	 * An effect to ensure that the value is always an array when `isMultiSelect` is true. This
+	 * can happen if the user provides their own URL filtering and doesn't properly use bracket
+	 * notation for the value
+	 */
+	useEffect(() => {
+		if (!isMultiSelect || value == null) return
+
+		if (!Array.isArray(value)) {
+			const target = options.find((option) => option.value === value || option.label === value)
+			if (target) {
+				onChange?.([target.value])
+			}
+		}
+	}, [isMultiSelect, value, onChange, options])
 
 	return (
 		<Container {...containerProps}>
@@ -190,6 +236,7 @@ export function ComboBox({
 							{ [SIZE_VARIANTS[size || 'default']]: !!size },
 							{ 'text-foreground-muted': !hasSelectedSomething },
 							triggerClassName,
+							options.find((option) => option.value === value)?.fontClassName,
 						)}
 					>
 						{renderSelected()}
@@ -200,9 +247,10 @@ export function ComboBox({
 				<Popover.Content
 					className={cn(
 						{ [SIZE_VARIANTS[size || 'default']]: !!size },
-						'z-[1000] mt-1 max-h-96 overflow-y-auto p-0',
+						'mt-1 max-h-96 p-0 z-1000 overflow-y-auto',
 						wrapperClassName,
 					)}
+					// eslint-disable-next-line react-hooks/refs
 					style={contentStyle}
 					portal={false}
 				>
@@ -219,15 +267,22 @@ export function ComboBox({
 						)}
 						<Command.Group>
 							{options.map((option) => {
-								const isSelected = value?.includes(option.value) || false
+								const isSelected = isMultiSelect
+									? value?.includes(option.value)
+									: value === option.value
 
 								return (
 									<Command.Item
 										key={option.value}
 										// Note: For some reason, this transforms the `value` to lowercase...
 										onSelect={handleChange}
-										className={cn('transition-all duration-75', { 'text-brand': isSelected })}
+										className={cn(
+											'transition-all duration-75',
+											{ 'text-brand': isSelected },
+											option.fontClassName,
+										)}
 										value={option.value}
+										keywords={[option.label]}
 									>
 										<Check
 											className={cn(

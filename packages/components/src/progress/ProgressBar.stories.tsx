@@ -14,7 +14,7 @@ type DemoProps = ComponentProps<typeof ProgressBar> & {
 	speed?: number
 }
 const Demo = (args: DemoProps) => {
-	const interval = useRef<NodeJS.Timeout>()
+	const interval = useRef<NodeJS.Timeout>(undefined)
 	const [value, setValue] = useState(args.value || 0)
 
 	useEffect(() => {
@@ -43,11 +43,11 @@ const Demo = (args: DemoProps) => {
 }
 
 export const Default: Story = {
-	render: () => <Demo value={10} />,
+	render: () => <Demo value={10} size={'lg'} rounded={'default'} variant={'default'} />,
 }
 
 export const Animated: Story = {
-	render: () => <Demo animated speed={75} />,
+	render: () => <Demo animated speed={75} size={'lg'} rounded={'default'} variant={'default'} />,
 }
 
 export default StoryMeta

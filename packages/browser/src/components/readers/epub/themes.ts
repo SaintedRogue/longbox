@@ -1,3 +1,5 @@
+import { SupportedFont } from '@stump/graphql'
+
 export interface EpubTheme {
 	[tag: string]: object
 }
@@ -6,10 +8,10 @@ export interface EpubTheme {
 // blockquote: {p: {color: '...'}}
 
 // Note: Not React CSS, has to be true CSS fields. E.g. font-size not fontSize.
-export const stumpDark: EpubTheme = {
+export const darkVariantText: EpubTheme = {
 	a: { color: '#4299E1' },
 	blockquote: { color: 'rgb(168 172 176) !important' },
-	body: { background: '#161719 !important', color: '#E8EDF4' },
+	body: { color: '#E8EDF4' },
 	h1: { color: '#E8EDF4' },
 	h2: { color: '#E8EDF4' },
 	h3: { color: '#E8EDF4' },
@@ -18,4 +20,29 @@ export const stumpDark: EpubTheme = {
 	p: { color: '#E8EDF4 !important', 'font-size': 'unset' },
 	span: { color: '#E8EDF4' },
 	ul: { color: '#E8EDF4' },
+}
+
+export const toFamilyName = (font: SupportedFont) => {
+	switch (font) {
+		case SupportedFont.Inter:
+			return 'Inter'
+		case SupportedFont.OpenDyslexic:
+			return 'OpenDyslexic'
+		case SupportedFont.AtkinsonHyperlegibleNext:
+			return 'Atkinson Hyperlegible Next'
+		case SupportedFont.Charis:
+			return 'Charis'
+		case SupportedFont.Literata:
+			return 'Literata'
+		case SupportedFont.Bitter:
+			return 'Bitter'
+		case SupportedFont.LibreBaskerville:
+			return 'Libre Baskerville'
+		case SupportedFont.Nunito:
+			return 'Nunito'
+		case SupportedFont.HinaMincho:
+			return 'Hina Mincho'
+		default:
+			return font
+	}
 }

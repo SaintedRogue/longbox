@@ -1,22 +1,22 @@
-import { Tag } from '@stump/sdk'
+import { Tag } from '@stump/graphql'
 
 import TagComponent from './Tag'
 
 export const DEBUG_TAGS: Tag[] = [
 	{
-		id: '1',
+		id: 1,
 		name: 'Action',
 	},
 	{
-		id: '2',
+		id: 2,
 		name: 'Adventure',
 	},
 	{
-		id: '3',
+		id: 3,
 		name: 'Comedy',
 	},
 	{
-		id: '4',
+		id: 4,
 		name: 'Drama',
 	},
 ]
@@ -32,7 +32,7 @@ export default function TagList({ tags, baseUrl }: Props) {
 	}
 
 	return (
-		<div className="flex flex-row space-x-2">
+		<div className="space-x-2 flex flex-row">
 			{(tags ?? DEBUG_TAGS)
 				.filter((tag) => !!tag.name)
 				.map((tag) => (

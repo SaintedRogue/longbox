@@ -1,161 +1,84 @@
-import { useMediaByIdQuery } from '@stump/client'
-import { Badge, ButtonOrLink, Heading, Spacer, Text } from '@stump/components'
-import dayjs from 'dayjs'
+import { Heading } from '@stump/components'
+import { useFragment, UserPermission } from '@stump/graphql'
 import sortBy from 'lodash/sortBy'
 import { Suspense, useEffect, useMemo } from 'react'
 import { Helmet } from 'react-helmet'
 import { useParams } from 'react-router'
-import { useMediaMatch } from 'rooks'
 
-import MediaCard from '@/components/book/BookCard'
+import { useBookOverview } from '@/components/book'
+import { BookCardFragment } from '@/components/book/BookCard'
+import { MediaMetadataEditor } from '@/components/book/metadata'
 import { SceneContainer } from '@/components/container'
-import LinkBadge from '@/components/LinkBadge'
-import ReadMore from '@/components/ReadMore'
-import TagList from '@/components/tags/TagList'
-import { formatBookName } from '@/utils/format'
+import { ProminentThumbnailImage } from '@/components/thumbnail'
+import { useAppContext } from '@/context'
 
-import { useAppContext } from '../../context'
-import paths from '../../paths'
-import { PDF_EXTENSION } from '../../utils/patterns'
-import BookCompletionToggleButton from './BookCompletionToggleButton'
+import BookActionMenu from './BookActionMenu'
 import BookFileInformation from './BookFileInformation'
-import BookLibrarySeriesLinks from './BookLibrarySeriesLinks'
-import BookReaderDropdown from './BookReaderDropdown'
+import BookOverviewSceneHeader from './BookOverviewSceneHeader'
+import BookReaderLink from './BookReaderLink'
 import BooksAfterCursor from './BooksAfterCursor'
-import DownloadMediaButton from './DownloadMediaButton'
-import EmailBookDropdown from './EmailBookDropdown'
 
-// TODO: redesign page!!
-// TODO: with metadata being collected now, there is a lot more information to display:
-// - publish date
-// - publisher
-// - pencillers, authors, etc
-// - links
-// - featured characters
 export default function BookOverviewScene() {
-	const { checkPermission, isServerOwner } = useAppContext()
-
-	const canDownload = useMemo(() => checkPermission('file:download'), [checkPermission])
-	const canManage = useMemo(() => checkPermission('library:manage'), [checkPermission])
-
-	const isAtLeastTablet = useMediaMatch('(min-width: 640px)')
-
 	const { id } = useParams()
-	if (!id) {
-		throw new Error('Book id is required for this route.')
+	const {
+		data: { mediaById: media },
+	} = useBookOverview(id || '')
+	const { checkPermission } = useAppContext()
+
+	if (!media) {
+		throw new Error('Book not found')
 	}
 
-	const { media, isLoading, remove } = useMediaByIdQuery(id)
+	const fragmentData = useFragment(BookCardFragment, media)
+
+	const completedAt = useMemo(
+		() =>
+			sortBy(media.readHistory, ({ completedAt }) => new Date(completedAt).getTime()).at(-1)
+				?.completedAt,
+		[media.readHistory],
+	)
 
 	useEffect(() => {
-		return () => {
-			remove()
-		}
-	}, [remove])
-
-	if (isLoading) {
-		return null
-	} else if (!media) {
-		throw new Error('Media not found')
-	}
-
-	const renderHeader = () => {
-		return (
-			<div className="flex flex-col items-center text-center tablet:items-start tablet:text-left">
-				<Heading size="sm">{formatBookName(media)}</Heading>
-
-				<BookLibrarySeriesLinks
-					libraryId={media.series?.library_id}
-					seriesId={media.series_id}
-					series={media.series}
-				/>
-
-				<TagList tags={media.tags || null} baseUrl={paths.bookSearch()} />
-			</div>
-		)
-	}
-
-	const completedAt = sortBy(media.finished_reading_sessions, ({ completed_at }) =>
-		dayjs(completed_at).toDate(),
-	).at(-1)?.completed_at
-	const genres = media.metadata?.genre?.filter((g) => !!g) ?? []
-	const links = media.metadata?.links?.filter((l) => !!l) ?? []
+		const el =
+			document.querySelector('[data-artificial-scroll="true"]') || document.getElementById('main')
+		el?.scrollTo({ top: 0, behavior: 'smooth' })
+	}, [id])
 
 	return (
-		<SceneContainer>
+		<SceneContainer className="gap-4">
 			<Suspense>
 				<Helmet>
-					<title>Stump | {formatBookName(media)}</title>
+					<title>Stump | {media.resolvedName}</title>
 				</Helmet>
 
-				<div className="flex h-full w-full flex-col gap-4">
-					<div className="flex flex-col items-center gap-3 tablet:mb-2 tablet:flex-row tablet:items-start">
-						<MediaCard media={media} readingLink variant="cover" />
-						<div className="flex h-full w-full flex-col gap-2 tablet:gap-4">
-							{renderHeader()}
-							{completedAt && (
-								<Text size="xs" variant="muted">
-									Completed on {dayjs(completedAt).format('LLL')}
-								</Text>
-							)}
-							{isAtLeastTablet && <ReadMore text={media.metadata?.summary} />}
-							{!isAtLeastTablet && <Spacer />}
-
-							<div className="flex w-full flex-col gap-2 md:flex-row md:items-center">
-								<BookReaderDropdown book={media} />
-								<BookCompletionToggleButton book={media} />
-								{media.extension?.match(PDF_EXTENSION) && (
-									<ButtonOrLink
-										variant="outline"
-										href={paths.bookReader(media.id, { isPdf: true, isStreaming: false })}
-										title="Read with the native PDF viewer"
-										className="w-full md:w-auto"
-									>
-										Read with the native PDF viewer
-									</ButtonOrLink>
-								)}
-								{canManage && (
-									<ButtonOrLink variant="subtle" href={paths.bookManagement(media.id)}>
-										Manage
-									</ButtonOrLink>
-								)}
-								{canDownload && <DownloadMediaButton media={media} />}
-								<EmailBookDropdown mediaId={media.id} />
+				<div className="gap-4 flex h-full w-full flex-col">
+					<div className="gap-3 tablet:mb-2 flex flex-col items-center tablet:flex-row tablet:items-start">
+						<div className="max-w-sm gap-3 sm:max-w-[200px] flex w-full shrink-0 flex-col items-center">
+							<ProminentThumbnailImage
+								src={fragmentData.thumbnail.url}
+								alt={media.resolvedName}
+								placeholderData={fragmentData.thumbnail.metadata}
+							/>
+							<div className="gap-2 flex w-full flex-col">
+								<BookReaderLink book={fragmentData} />
+								<BookActionMenu book={fragmentData} />
 							</div>
-
-							{!isAtLeastTablet && !!media.metadata?.summary && (
-								<div>
-									<Heading size="xs" className="mb-0.5">
-										Summary
-									</Heading>
-									<ReadMore text={media.metadata?.summary} />
-								</div>
-							)}
 						</div>
+
+						<BookOverviewSceneHeader media={media} book={fragmentData} completedAt={completedAt} />
 					</div>
 
-					{!!genres.length && (
-						<div className="flex flex-row space-x-2">
-							{genres.map((genre) => (
-								<Badge key={genre} variant="primary">
-									{genre}
-								</Badge>
-							))}
-						</div>
-					)}
+					<BooksAfterCursor cursor={media.id} />
 
-					{!!links.length && (
-						<div className="flex flex-row space-x-2">
-							{links.map((link) => (
-								<LinkBadge key={link} href={link} />
-							))}
-						</div>
-					)}
-
-					{isServerOwner && <BookFileInformation media={media} />}
-					<BooksAfterCursor cursor={media} />
+					<div className="gap-y-2 flex flex-col">
+						<Heading size="sm">Metadata</Heading>
+						<MediaMetadataEditor mediaId={media.id} data={media.metadata} />
+					</div>
 				</div>
 			</Suspense>
+
+			{/*Note: There is no permission specific to file info but I am just taking a loose assumption here*/}
+			{checkPermission(UserPermission.ManageLibrary) && <BookFileInformation fragment={media} />}
 		</SceneContainer>
 	)
 }

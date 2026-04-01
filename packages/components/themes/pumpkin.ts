@@ -47,6 +47,10 @@ export const pumpkin: StumpTheme = {
 		// DEFAULT: '#DE9887',
 		// muted: '#883926',
 		// subtle: '#F84D11',
+		'on-black': {
+			DEFAULT: '#F0C4AE',
+			muted: '#E7A17F',
+		},
 	},
 	sidebar: {
 		DEFAULT: '#090909',
@@ -59,6 +63,24 @@ export const pumpkin: StumpTheme = {
 			DEFAULT: '#131313',
 			hover: '#161616',
 			secondary: '#00000040',
+		},
+	},
+	scrollbar: {
+		DEFAULT: '#0C0C0C',
+		thumb: {
+			DEFAULT: 'hsla(0, 0%, 100%, 0.4)',
+			hover: 'hsla(0, 0%, 100%, 0.3)',
+		},
+	},
+	thumbnail: {
+		border: 'rgba(233, 234, 235, 0.10)',
+		placeholder: '#131313',
+		stack: {
+			series: '#FF6600',
+			library: {
+				start: '#481E14',
+				end: '#631C03',
+			},
 		},
 	},
 }

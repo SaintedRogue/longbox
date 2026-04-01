@@ -1,24 +1,98 @@
-import { useSDK } from '@stump/client'
-import { Button, Dialog } from '@stump/components'
-import { Media, Series } from '@stump/sdk'
-import { useEffect, useState } from 'react'
-import toast from 'react-hot-toast'
+import { useGraphQLMutation, useSDK } from '@stump/client'
+import { Button, Dialog, PickSelect } from '@stump/components'
+import {
+	FragmentType,
+	graphql,
+	SeriesThumbnailSelectorUpdateMutation,
+	useFragment,
+} from '@stump/graphql'
+import { Suspense, useCallback, useEffect, useState } from 'react'
+import { toast } from 'sonner'
 
 import { EntityCard } from '@/components/entity'
 import EditThumbnailDropdown from '@/components/thumbnail/EditThumbnailDropdown'
 
 import BookPageGrid from '../../../book/settings/BookPageGrid'
-import SeriesBookGrid from './SeriesBookGrid'
+import SeriesBookGrid, { SelectedBook } from './SeriesBookGrid'
+
+export const SeriesThumbnailSelectorFragment = graphql(`
+	fragment SeriesThumbnailSelector on Series {
+		id
+		thumbnail {
+			url
+		}
+	}
+`)
+
+const updateMutation = graphql(`
+	mutation SeriesThumbnailSelectorUpdate($id: ID!, $input: UpdateThumbnailInput!) {
+		updateSeriesThumbnail(id: $id, input: $input) {
+			id
+			thumbnail {
+				url
+			}
+		}
+	}
+`)
+
+const uploadMutation = graphql(`
+	mutation SeriesThumbnailSelectorUpload($id: ID!, $file: Upload!) {
+		uploadSeriesThumbnail(id: $id, file: $file) {
+			id
+			thumbnail {
+				url
+			}
+		}
+	}
+`)
+
+type OnSuccessData = PickSelect<SeriesThumbnailSelectorUpdateMutation, 'updateSeriesThumbnail'>
 
 type Props = {
-	series: Series
+	fragment: FragmentType<typeof SeriesThumbnailSelectorFragment>
 }
-// TODO: this looks doody, but it's a start
-export default function SeriesThumbnailSelector({ series }: Props) {
+
+// TODO: This entire UI looks like absolute shit IMO. I find the management pages that
+// aren't quite large enough to have their own sidebar navigation to be a bit awkward
+// to think through. That said, I would REALLY like to land on something that doesn't
+// make me cringe when looking at it
+
+// TODO: All the above still BUT let's just kill the thumb selector here and add a menu
+// in the header thumb on hover that lets you change if you have permissions
+
+export default function SeriesThumbnailSelector({ fragment }: Props) {
+	const series = useFragment(SeriesThumbnailSelectorFragment, fragment)
+
 	const { sdk } = useSDK()
-	const [selectedBook, setSelectedBook] = useState<Media>()
+	const [selectedBook, setSelectedBook] = useState<SelectedBook>()
 	const [page, setPage] = useState<number>()
 	const [isOpen, setIsOpen] = useState(false)
+
+	const onSuccess = useCallback(
+		({ thumbnail: { url } }: OnSuccessData) =>
+			sdk.axios.get(url, {
+				headers: {
+					'Cache-Control': 'no-cache',
+					Pragma: 'no-cache',
+					Expires: '0',
+				},
+			}),
+		[sdk],
+	)
+
+	const { mutateAsync: patchThumbnail, isPending: isPatchingThumbnail } = useGraphQLMutation(
+		updateMutation,
+		{
+			onSuccess: (data) => onSuccess(data.updateSeriesThumbnail),
+		},
+	)
+
+	const { mutateAsync: uploadThumbnail, isPending: isUploadingThumbnail } = useGraphQLMutation(
+		uploadMutation,
+		{
+			onSuccess: (data) => onSuccess(data.uploadSeriesThumbnail),
+		},
+	)
 
 	const handleOpenChange = (nowOpen: boolean) => {
 		if (!nowOpen) {
@@ -33,29 +107,30 @@ export default function SeriesThumbnailSelector({ series }: Props) {
 		setIsOpen(false)
 	}
 
-	const handleUploadImage = async (file: File) => {
-		try {
-			await sdk.series.uploadThumbnail(series.id, file)
-			setIsOpen(false)
-		} catch (error) {
-			console.error(error)
-			toast.error('Failed to upload image')
-		}
-	}
+	const handleUploadImage = useCallback(
+		async (file: File) => {
+			try {
+				await uploadThumbnail({ file, id: series.id })
+				setIsOpen(false)
+			} catch (error) {
+				console.error(error)
+				toast.error('Failed to upload image')
+			}
+		},
+		[series.id, uploadThumbnail],
+	)
 
-	const handleConfirm = async () => {
-		if (!selectedBook || !page) return
+	const handleConfirm = useCallback(async () => {
+		if (!selectedBook || page == null) return
 
 		try {
-			await sdk.series.patchThumbnail(series.id, { media_id: selectedBook.id, page })
-			// TODO: The browser is caching the image, so we need to force remove it and ensure
-			// the new one is loaded instead
+			await patchThumbnail({ id: series.id, input: { mediaId: selectedBook.id, page } })
 			setIsOpen(false)
 		} catch (error) {
 			console.error(error)
 			toast.error('Failed to update thumbnail')
 		}
-	}
+	}, [patchThumbnail, page, selectedBook, series.id])
 
 	const renderContent = () => {
 		if (selectedBook) {
@@ -83,18 +158,16 @@ export default function SeriesThumbnailSelector({ series }: Props) {
 		<div className="relative">
 			<EntityCard
 				imageUrl={
-					selectedBook && page
-						? sdk.media.bookPageURL(selectedBook.id, page)
-						: sdk.series.thumbnailURL(series.id)
+					selectedBook && page ? sdk.media.bookPageURL(selectedBook.id, page) : series.thumbnail.url
 				}
 				isCover
-				className="flex-auto flex-shrink-0"
+				className="flex-auto shrink-0"
 				fullWidth={(imageFailed) => !imageFailed}
 			/>
 
 			<Dialog open={isOpen} onOpenChange={handleOpenChange}>
 				<Dialog.Trigger asChild>
-					<span className="absolute bottom-2 left-2 block">
+					<span className="bottom-2 left-2 absolute block">
 						<EditThumbnailDropdown
 							onChooseSelector={() => setIsOpen(true)}
 							onUploadImage={handleUploadImage}
@@ -124,13 +197,18 @@ export default function SeriesThumbnailSelector({ series }: Props) {
 						<Dialog.Close onClick={() => setIsOpen(false)} />
 					</Dialog.Header>
 
-					{renderContent()}
+					<Suspense>{renderContent()}</Suspense>
 
 					<Dialog.Footer>
 						<Button variant="default" onClick={handleCancel}>
 							Cancel
 						</Button>
-						<Button variant="primary" onClick={handleConfirm} disabled={!selectedBook || !page}>
+						<Button
+							variant="primary"
+							onClick={handleConfirm}
+							disabled={!selectedBook || !page}
+							isLoading={isPatchingThumbnail || isUploadingThumbnail}
+						>
 							Confirm selection
 						</Button>
 					</Dialog.Footer>

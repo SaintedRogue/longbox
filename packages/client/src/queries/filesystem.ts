@@ -1,58 +1,108 @@
-import { AxiosError } from 'axios'
+import {
+	DirectoryListingInput,
+	DirectoryListingQuery,
+	extractErrorMessage,
+	graphql,
+} from '@stump/graphql'
+import { useQueryClient } from '@tanstack/react-query'
+import { isAxiosError } from 'axios'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
-import { queryClient, useQuery } from '../client'
+import { PREFETCH_STALE_TIME } from '../client'
+import { useGraphQL, useInfiniteGraphQL } from '../hooks'
 import { useSDK } from '../sdk'
 
-type PrefetchFileParams = {
+const query = graphql(`
+	query DirectoryListing($input: DirectoryListingInput!, $pagination: Pagination!) {
+		listDirectory(input: $input, pagination: $pagination) {
+			nodes {
+				parent
+				files {
+					name
+					path
+					isDirectory
+					media {
+						id
+						resolvedName
+						thumbnail {
+							url
+						}
+						extension
+					}
+				}
+			}
+			pageInfo {
+				__typename
+				... on OffsetPaginationInfo {
+					currentPage
+					totalPages
+					pageSize
+					pageOffset
+					zeroBased
+				}
+			}
+		}
+	}
+`)
+
+export type UseDirectoryListingFile = DirectoryListingQuery['listDirectory']['nodes'][0]['files'][0]
+
+type PrefetchFilesParams = {
 	path: string
+	ignoreParams?: Omit<DirectoryListingInput, 'path'>
 	fetchConfig?: boolean
 }
 
-export const usePrefetchFiles = ({ path, fetchConfig }: PrefetchFileParams) => {
+export const usePrefetchFiles = () => {
 	const { sdk } = useSDK()
 
+	const client = useQueryClient()
 	const prefetch = useCallback(
-		() =>
+		({ path, ignoreParams = { ignoreHidden: true }, fetchConfig }: PrefetchFilesParams) =>
 			Promise.all([
-				queryClient.prefetchQuery([sdk.filesystem.keys.listDirectory, path], () =>
-					sdk.filesystem.listDirectory(),
-				),
+				client.prefetchInfiniteQuery({
+					queryKey: ['listDirectory', path, ignoreParams, 1],
+					initialPageParam: {
+						offset: {
+							page: 1,
+							pageSize: 100,
+						},
+					},
+					queryFn: ({ pageParam }) =>
+						sdk.execute(query, {
+							input: {
+								path,
+								...ignoreParams,
+							},
+							pagination: pageParam,
+						}),
+					staleTime: PREFETCH_STALE_TIME,
+				}),
 				...(fetchConfig
-					? [queryClient.prefetchQuery([sdk.upload.keys.config], () => sdk.upload.config())]
+					? [
+							client.prefetchQuery({
+								queryKey: ['uploadConfig'],
+								queryFn: () => sdk.execute(uploadConfigQuery),
+								staleTime: PREFETCH_STALE_TIME,
+							}),
+						]
 					: []),
 			]),
-		[sdk, path, fetchConfig],
+		[client, sdk],
 	)
 
-	return { prefetch }
-}
-
-export const usePrefetchLibraryFiles = ({ path, fetchConfig }: PrefetchFileParams) => {
-	const { sdk } = useSDK()
-
-	const prefetch = useCallback(
-		() =>
-			Promise.all([
-				queryClient.prefetchQuery([sdk.filesystem.keys.listDirectory, path], () =>
-					sdk.filesystem.listDirectory(),
-				),
-				...(fetchConfig
-					? [queryClient.prefetchQuery([sdk.upload.keys.config], () => sdk.upload.config())]
-					: []),
-			]),
-		[sdk, path, fetchConfig],
-	)
-
-	return { prefetch }
+	return prefetch
 }
 
 export type DirectoryListingQueryParams = {
-	enabled: boolean
 	/**
 	 * The initial path to query for. If not provided, the root directory will be queried for.
 	 */
 	initialPath?: string
+	/**
+	 * Additional parameters to pass to the directory listing query.
+	 */
+	ignoreParams?: Omit<DirectoryListingInput, 'path'>
 	/**
 	 * The minimum path that can be queried for. This is useful for enforcing no access to parent
 	 * directories relative to the enforcedRoot.
@@ -74,30 +124,55 @@ export type DirectoryListingQueryParams = {
 }
 
 export function useDirectoryListing({
-	enabled,
 	initialPath,
+	ignoreParams = { ignoreHidden: true },
 	enforcedRoot,
 	page = 1,
 	onGoForward,
 	onGoBack,
 }: DirectoryListingQueryParams) {
-	const { sdk } = useSDK()
 	const [currentPath, setCurrentPath] = useState(initialPath || null)
 	const [history, setHistory] = useState(currentPath ? [currentPath] : [])
 	const [currentIndex, setCurrentIndex] = useState(0)
 
-	const { isLoading, error, data, refetch } = useQuery(
-		[sdk.filesystem.keys.listDirectory, currentPath, page],
-		async () => sdk.filesystem.listDirectory({ page, path: currentPath }),
+	const [initialPage, setInitialPage] = useState(() => page)
+
+	const { isLoading, error, data, refetch, ...rest } = useInfiniteGraphQL(
+		query,
+		['listDirectory', currentPath, ignoreParams, initialPage],
 		{
-			// Do not run query until `enabled` aka modal is opened.
-			enabled,
-			keepPreviousData: true,
-			suspense: false,
+			input: {
+				path: currentPath,
+				...ignoreParams,
+			},
+			pagination: {
+				offset: {
+					page: initialPage,
+					pageSize: 100,
+				},
+			},
 		},
 	)
 
-	const directoryListing = data?.data
+	/**
+	 * Whenever the current path changes, reset the initial page to 1. This is because
+	 * we are using a somewhat complex pagination state that is shared between different
+	 * directories. For example, if I scroll 4 pages deep into one directory, then switch
+	 * to another directory, the new directory should start at page 1.
+	 */
+	useEffect(() => {
+		setInitialPage(1)
+	}, [currentPath])
+
+	const directoryListing = data?.pages
+		.flatMap((page) => page.listDirectory.nodes)
+		.reduce(
+			(acc, curr) => ({
+				files: [...acc.files, ...curr.files],
+				parent: curr.parent,
+			}),
+			{ files: [], parent: null },
+		)
 	const parent = directoryListing?.parent
 
 	useEffect(() => {
@@ -112,6 +187,9 @@ export function useDirectoryListing({
 					return curr
 				}
 			})
+		} else {
+			setCurrentPath(null)
+			setHistory([])
 		}
 	}, [initialPath])
 
@@ -223,23 +301,32 @@ export function useDirectoryListing({
 	}, [history, currentIndex, onGoForward])
 
 	const errorMessage = useMemo(() => {
-		const err = error as AxiosError
+		if (!error) return null
 
-		if (err?.response?.data) {
-			if (err.response.status === 404) {
-				return 'Directory not found'
-			} else {
-				return err.response.data as string
-			}
+		if (!isAxiosError(error)) {
+			console.error('An unknown error occurred', error)
+			return extractErrorMessage(error)
 		}
 
 		return null
 	}, [error])
 
+	useEffect(() => {
+		if (!isAxiosError(error)) return
+		if (error.response?.status === 403) {
+			const parent = currentPath?.split('/').slice(0, -1).join('/') || null
+			if (parent) {
+				onGoBack?.(parent)
+				setCurrentPath(parent)
+				setCurrentIndex((prev) => Math.max(prev - 1, 0))
+			}
+		}
+	}, [error, currentPath, onGoBack, setCurrentPath, setCurrentIndex])
+
 	return {
 		canGoBack,
 		canGoForward,
-		directories: directoryListing?.files.filter((f) => f.is_directory) ?? [],
+		directories: directoryListing?.files.filter((f) => f.isDirectory) ?? [],
 		entries: directoryListing?.files ?? [],
 		error,
 		errorMessage,
@@ -251,22 +338,27 @@ export function useDirectoryListing({
 		path: currentPath,
 		refetch,
 		setPath,
+		canLoadMore: rest.hasNextPage || false,
+		loadMore: rest.fetchNextPage,
 	}
 }
+
+const uploadConfigQuery = graphql(`
+	query UploadConfig {
+		uploadConfig {
+			enabled
+			maxFileUploadSize
+		}
+	}
+`)
 
 type UploadConfigQueryParams = {
 	enabled?: boolean
 }
-export const useUploadConfig = ({ enabled }: UploadConfigQueryParams) => {
-	const { sdk } = useSDK()
-	const { data: uploadConfig, ...restRet } = useQuery(
-		[sdk.upload.keys.config],
-		() => sdk.upload.config(),
-		{
-			suspense: true,
-			enabled,
-		},
-	)
 
-	return { uploadConfig, ...restRet }
+export const useUploadConfig = ({ enabled }: UploadConfigQueryParams) => {
+	const { data, ...restRet } = useGraphQL(uploadConfigQuery, ['uploadConfig'], undefined, {
+		enabled,
+	})
+	return { uploadConfig: data?.uploadConfig, ...restRet }
 }

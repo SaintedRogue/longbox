@@ -1,9 +1,9 @@
-import { useEmailDevicesQuery } from '@stump/client'
-import { Badge, Card, Heading, Text } from '@stump/components'
+import { useSDK, useSuspenseGraphQL } from '@stump/client'
+import { Badge, Card, Text } from '@stump/components'
+import { EmailDevicesTableQuery, graphql } from '@stump/graphql'
 import { useLocaleContext } from '@stump/i18n'
-import { RegisteredEmailDevice } from '@stump/sdk'
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
-import { CircleSlash2 } from 'lucide-react'
+import { Slash, Smartphone } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
 import { Table } from '@/components/table'
@@ -11,6 +11,105 @@ import { Table } from '@/components/table'
 import { useEmailerSettingsContext } from '../context'
 import DeleteDeviceConfirmation from './DeleteDeviceConfirmation'
 import DeviceActionMenu from './DeviceActionMenu'
+
+const query = graphql(`
+	query EmailDevicesTable {
+		emailDevices {
+			id
+			name
+			email
+			forbidden
+		}
+	}
+`)
+
+export type RegisteredEmailDevice = EmailDevicesTableQuery['emailDevices'][number]
+
+type Props = {
+	onSelectForUpdate: (device: RegisteredEmailDevice | null) => void
+}
+
+export default function DevicesTable({ onSelectForUpdate }: Props) {
+	const { t } = useLocaleContext()
+	const { canEditEmailer } = useEmailerSettingsContext()
+	const { sdk } = useSDK()
+
+	const {
+		data: { emailDevices: devices },
+	} = useSuspenseGraphQL(query, sdk.cacheKey('emailDevices'))
+
+	const [deletingDevice, setDeletingDevice] = useState<RegisteredEmailDevice | null>(null)
+
+	const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 })
+
+	const columns = useMemo(
+		() => [
+			...baseColumns,
+			columnHelper.display({
+				cell: ({ row: { original: device } }) =>
+					canEditEmailer ? (
+						<DeviceActionMenu
+							onEdit={() => onSelectForUpdate(device)}
+							onDelete={() => setDeletingDevice(device)}
+						/>
+					) : null,
+				id: 'actions',
+				size: 0,
+			}),
+		],
+		[onSelectForUpdate, canEditEmailer],
+	)
+
+	if (!devices?.length) {
+		return (
+			<Card className="p-6 flex items-center justify-center border-dashed border-edge-subtle">
+				<div className="space-y-3 flex flex-col">
+					<div className="relative flex justify-center">
+						<span className="rounded-lg p-2 flex items-center justify-center bg-background-surface">
+							<Smartphone className="h-6 w-6 text-foreground-muted" />
+							<Slash className="h-6 w-6 absolute scale-x-[-1] transform text-foreground opacity-80" />
+						</span>
+					</div>
+
+					<div className="text-center">
+						<Text>{t(`${LOCALE_BASE}.emptyHeading`)}</Text>
+						<Text size="sm" variant="muted">
+							{t(`${LOCALE_BASE}.emptySubtitle`)}
+						</Text>
+					</div>
+				</div>
+			</Card>
+		)
+	}
+
+	return (
+		<>
+			{canEditEmailer && (
+				<DeleteDeviceConfirmation device={deletingDevice} onClose={() => setDeletingDevice(null)} />
+			)}
+
+			<Card>
+				<Table
+					sortable
+					columns={columns}
+					options={{
+						onPaginationChange: setPagination,
+						state: {
+							columnPinning: canEditEmailer ? { right: ['actions'] } : undefined,
+							pagination,
+						},
+					}}
+					data={devices}
+					fullWidth
+					isZeroBasedPagination
+					cellClassName="bg-background"
+				/>
+			</Card>
+		</>
+	)
+}
+
+const LOCALE_BASE = 'settingsScene.server/email.sections.devices.table'
 
 const columnHelper = createColumnHelper<RegisteredEmailDevice>()
 const baseColumns = [
@@ -48,74 +147,3 @@ const baseColumns = [
 		id: 'status',
 	}),
 ] as ColumnDef<RegisteredEmailDevice>[]
-
-type Props = {
-	onSelectForUpdate: (device: RegisteredEmailDevice | null) => void
-}
-
-export default function DevicesTable({ onSelectForUpdate }: Props) {
-	const { t } = useLocaleContext()
-	const { canEditEmailer } = useEmailerSettingsContext()
-	const { devices } = useEmailDevicesQuery()
-
-	const [deletingDevice, setDeletingDevice] = useState<RegisteredEmailDevice | null>(null)
-
-	const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 })
-
-	const columns = useMemo(
-		() => [
-			...baseColumns,
-			columnHelper.display({
-				cell: ({ row: { original: device } }) =>
-					canEditEmailer ? (
-						<DeviceActionMenu
-							onEdit={() => onSelectForUpdate(device)}
-							onDelete={() => setDeletingDevice(device)}
-						/>
-					) : null,
-				id: 'actions',
-				size: 0,
-			}),
-		],
-		[onSelectForUpdate, canEditEmailer],
-	)
-
-	return (
-		<>
-			{canEditEmailer && (
-				<DeleteDeviceConfirmation device={deletingDevice} onClose={() => setDeletingDevice(null)} />
-			)}
-
-			<Card className="bg-background-surface p-1">
-				<Table
-					sortable
-					columns={columns}
-					options={{
-						onPaginationChange: setPagination,
-						state: {
-							columnPinning: canEditEmailer ? { right: ['actions'] } : undefined,
-							pagination,
-						},
-					}}
-					data={devices}
-					fullWidth
-					emptyRenderer={() => (
-						<div className="flex min-h-[150px] flex-col items-center justify-center gap-2">
-							<CircleSlash2 className="h-10 w-10 pb-2 pt-1 text-foreground-muted" />
-							<div className="text-center">
-								<Heading size="sm">{t(`${LOCALE_BASE}.emptyHeading`)}</Heading>
-								<Text size="sm" variant="muted">
-									{t(`${LOCALE_BASE}.emptySubtitle`)}
-								</Text>
-							</div>
-						</div>
-					)}
-					isZeroBasedPagination
-					cellClassName="bg-background-surface"
-				/>
-			</Card>
-		</>
-	)
-}
-
-const LOCALE_BASE = 'settingsScene.server/email.sections.devices.table'

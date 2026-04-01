@@ -1,8 +1,8 @@
 import { invalidateQueries, useSDK } from '@stump/client'
 import { Avatar, cn, NavigationMenu } from '@stump/components'
 import { Bell, LogOut } from 'lucide-react'
-import toast from 'react-hot-toast'
 import { useNavigate } from 'react-router'
+import { toast } from 'sonner'
 
 import { useAppContext } from '@/context'
 import paths from '@/paths'
@@ -21,7 +21,7 @@ export default function UserMenu() {
 	const logout = async () => {
 		try {
 			await sdk.auth.logout()
-			await invalidateQueries({ keys: [sdk.server.keys.claimedStatus] })
+			await invalidateQueries({ keys: [sdk.cacheKeys.claimStatus] })
 			setUser(null)
 			navigate('/auth')
 		} catch (error) {
@@ -44,26 +44,26 @@ export default function UserMenu() {
 		<NavigationMenu.Item>
 			<NavigationMenu.Trigger className={classes} showChevron={false}>
 				<Avatar
-					src={user.avatar_url || undefined}
+					src={user.avatarUrl || undefined}
 					fallback={user.username.slice(0, 2).toUpperCase()}
 					fallbackWrapperClassName="text-xs select-none"
 					rounded="lg"
 					className="h-6 w-6"
 				/>
 			</NavigationMenu.Trigger>
-			<NavigationMenu.Content className="left-auto right-0">
-				<ul className="flex flex-col text-sm md:w-48">
+			<NavigationMenu.Content className="right-0 left-auto">
+				<ul className="text-sm md:w-48 flex flex-col">
 					<TopBarLinkListItem
-						className="rounded-none py-3"
+						className="py-3 rounded-none"
 						to={paths.notifications()}
 						isActive={location.pathname.startsWith(paths.notifications())}
 						isDisabled
 					>
 						<Bell className="mr-2 h-4 w-4 shrink-0" />
-						<span className="ml-1 line-clamp-1 font-medium">Notifications</span>
+						<span className="ml-1 font-medium line-clamp-1">Notifications</span>
 					</TopBarLinkListItem>
 
-					<TopBarButtonItem className="rounded-none py-3" onClick={logout}>
+					<TopBarButtonItem className="py-3 rounded-none" onClick={logout}>
 						<LogOut className="mr-2 h-4 w-4 shrink-0" />
 						Logout
 					</TopBarButtonItem>

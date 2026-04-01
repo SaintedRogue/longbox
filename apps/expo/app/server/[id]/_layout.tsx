@@ -1,16 +1,26 @@
-import { SDKContext, StumpClientContextProvider } from '@stump/client'
-import { Api, CreatedToken } from '@stump/sdk'
-import { Redirect, Stack, useLocalSearchParams, useRouter } from 'expo-router'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { queryClient, SDKContext, StumpClientContextProvider } from '@stump/client'
+import { UserPermission } from '@stump/graphql'
+import { Api, AuthUser, LoginResponse } from '@stump/sdk'
+import { isAxiosError } from 'axios'
+import { Redirect, Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { match, P } from 'ts-pattern'
 
-import { ActiveServerContext } from '~/components/activeServer'
+import { ActiveServerContext, StumpServerContext } from '~/components/activeServer'
+import { PermissionEnforcerOptions } from '~/components/activeServer/context'
+import { ServerConnectFailed, ServerErrorBoundary } from '~/components/error'
 import ServerAuthDialog from '~/components/ServerAuthDialog'
-import { useSavedServers } from '~/stores'
+import { FullScreenLoader } from '~/components/ui'
+import { authSDKInstance } from '~/lib/sdk/auth'
+import { usePreferencesStore, useSavedServers } from '~/stores'
+import { useCacheStore } from '~/stores/cache'
 
 export default function Screen() {
 	const router = useRouter()
+	const animationEnabled = usePreferencesStore((state) => !state.reduceAnimations)
 
-	const { savedServers, getServerToken, saveServerToken, deleteServerToken } = useSavedServers()
+	const { savedServers, getServerToken, saveServerToken, deleteServerToken, getServerConfig } =
+		useSavedServers()
 	const { id: serverID } = useLocalSearchParams<{ id: string }>()
 
 	const activeServer = useMemo(
@@ -18,67 +28,239 @@ export default function Screen() {
 		[serverID, savedServers],
 	)
 
-	const [sdk, setSDK] = useState<Api | null>(null)
+	const cachedInstance = useRef(useCacheStore((state) => state.sdks[serverID || '']))
+	const addInstanceToCache = useCacheStore((state) => state.addSDK)
+	const removeInstanceFromCache = useCacheStore((state) => state.removeSDK)
+
+	const [sdk, setSDK] = useState<Api | null>(() => cachedInstance.current || null)
+	const [isInitiallyConnecting, setIsInitiallyConnecting] = useState(() => !cachedInstance.current)
+	const [isAutoAuthenticating, setIsAutoAuthenticating] = useState(false)
 	const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false)
+	const [user, setUser] = useState<AuthUser | null>(null)
+	const [fatalError, setFatalError] = useState<Error | null>(null)
+
+	const isServerAccessible = useRef(true)
 
 	useEffect(() => {
 		if (!activeServer) return
+		if (isAutoAuthenticating || !isServerAccessible.current) return
 
 		const configureSDK = async () => {
+			setIsInitiallyConnecting(false)
+
 			const { id, url } = activeServer
-			const existingToken = await getServerToken(id)
-			const instance = new Api({ baseURL: url, authMethod: 'token' })
-			if (!existingToken) {
-				setIsAuthDialogOpen(true)
-			} else {
-				instance.token = existingToken.token
+			const storedToken = await getServerToken(id)
+			const serverConfig = await getServerConfig(id)
+
+			const authMethod = match(serverConfig?.auth)
+				.with({ bearer: P.string }, () => 'api-key' as const)
+				.otherwise(() => 'token' as const)
+
+			const instance = new Api({
+				baseURL: url,
+				authMethod,
+				customHeaders: serverConfig?.customHeaders,
+			})
+			instance.tokens = storedToken || undefined
+			const existingToken = await instance.getOrRefreshTokens()
+
+			try {
+				const authedInstance = await authSDKInstance(instance, {
+					config: serverConfig,
+					existingToken,
+					saveToken: async (token, forUser) => {
+						if (token) {
+							await saveServerToken(activeServer?.id || 'dev', token)
+						}
+						setUser(forUser)
+					},
+					onAttemptingAutoAuth: (attempting) => {
+						setIsAutoAuthenticating(attempting)
+					},
+				})
+
+				if (!authedInstance) {
+					setIsAuthDialogOpen(true)
+				}
+
+				setSDK(authedInstance || instance)
+				if (authedInstance) {
+					addInstanceToCache(activeServer.id, authedInstance)
+				}
+			} catch (error) {
+				const axiosError = isAxiosError(error) ? error : null
+				const isNetworkError = axiosError?.code === 'ERR_NETWORK'
+
+				if (isNetworkError) {
+					isServerAccessible.current = false
+				} else {
+					setIsAuthDialogOpen(true)
+					setSDK(instance)
+				}
 			}
-			setSDK(instance)
 		}
 
 		if (!sdk && !isAuthDialogOpen) {
 			configureSDK()
 		}
-	}, [activeServer, sdk, getServerToken, isAuthDialogOpen])
+	}, [
+		activeServer,
+		sdk,
+		getServerToken,
+		isAuthDialogOpen,
+		getServerConfig,
+		saveServerToken,
+		addInstanceToCache,
+		isAutoAuthenticating,
+	])
+
+	useEffect(
+		() => {
+			if (user || !sdk || !sdk.isAuthed) return
+
+			const fetchUser = async () => {
+				try {
+					const user = await sdk.auth.me()
+					setUser(user)
+				} catch (error) {
+					if (isNetworkError(error)) {
+						isServerAccessible.current = false
+						removeInstanceFromCache(activeServer?.id || 'unknown')
+					}
+				}
+			}
+
+			fetchUser()
+		},
+		// eslint-disable-next-line react-compiler/react-compiler
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+		[sdk, user],
+	)
+
+	const onResetState = useCallback(() => {
+		isServerAccessible.current = true
+		setIsInitiallyConnecting(true)
+		setSDK(null)
+		setUser(null)
+		setIsAuthDialogOpen(false)
+		setIsAutoAuthenticating(false)
+	}, [])
+
+	/**
+	 * At a glace this is a little hard to parse, but what we're doing here is setting up an
+	 * effect to run each time this screen is focused which, on cleanup, resets the state if
+	 * the server was not accessible. This ensures that we actually retry the connection
+	 * when the user comes back, since expo-router doesn't seem to unmount/remount the layout
+	 */
+	useFocusEffect(
+		useCallback(() => {
+			return () => {
+				if (!isServerAccessible.current) {
+					queryClient.removeQueries({ predicate: ({ queryKey }) => queryKey.includes(serverID) })
+					onResetState()
+				}
+				isServerAccessible.current = true
+			}
+		}, [serverID, onResetState]),
+	)
 
 	const handleAuthDialogClose = useCallback(
-		(token?: CreatedToken) => {
-			if (token && activeServer) {
-				const { access_token, expires_at } = token
+		(loginResp?: LoginResponse) => {
+			if (loginResp && 'forUser' in loginResp && activeServer) {
+				const { forUser, ...token } = loginResp
 				const instance = new Api({
 					baseURL: activeServer.url,
 					authMethod: 'token',
 				})
-				instance.token = access_token
+				instance.tokens = token
 				setSDK(instance)
-				saveServerToken(activeServer?.id || 'dev', {
-					expiresAt: new Date(expires_at),
-					token: access_token,
-				})
-				setIsAuthDialogOpen(false)
-			} else {
+				saveServerToken(activeServer?.id || 'dev', token)
+				setUser(forUser)
+				addInstanceToCache(activeServer.id, instance)
+			} else if (!loginResp && !sdk?.isAuthed) {
 				router.dismissAll()
 			}
 		},
-		[activeServer, router, saveServerToken],
+		[activeServer, router, saveServerToken, addInstanceToCache, sdk],
 	)
 
+	// TODO: attempt reauth automatically when able
+
 	const onAuthError = useCallback(async () => {
-		// Get rid of the token
+		// If the active server is using an API key, we can't re-auth automatically and
+		// so we should set an error state to bubble up to the boundary during render
 		if (activeServer) {
-			await deleteServerToken(activeServer.id)
+			const serverConfig = await getServerConfig(activeServer.id)
+			if (serverConfig?.auth && 'bearer' in serverConfig.auth) {
+				setFatalError(
+					new Error(
+						'An auth-related error was encountered while using an API key. Please check that your key is still valid',
+					),
+				)
+				return
+			} else {
+				// Otherwise, just get rid of the token
+				await deleteServerToken(activeServer.id)
+			}
 		}
+
 		// We need to retrigger the auth dialog, so we'll let the effect handle it
 		setIsAuthDialogOpen(false)
 		setSDK(null)
-	}, [activeServer, deleteServerToken])
+		setUser(null)
+	}, [activeServer, deleteServerToken, getServerConfig])
+
+	const onServerConnectionError = useCallback(
+		(connected: boolean) => {
+			queryClient.removeQueries({ predicate: ({ queryKey }) => queryKey.includes(serverID) })
+			isServerAccessible.current = connected
+			setSDK(null)
+			setUser(null)
+		},
+		[serverID],
+	)
+
+	const checkPermission = useCallback(
+		(permission: UserPermission) =>
+			user?.isServerOwner || user?.permissions.includes(permission) || false,
+		[user],
+	)
+
+	const enforcePermission = useCallback(
+		(permission: UserPermission, { onFailure }: PermissionEnforcerOptions = {}) => {
+			if (!checkPermission(permission)) {
+				onFailure?.()
+			}
+		},
+		[checkPermission],
+	)
+
+	// TODO: Maybe a conditional useFocusEffect to redirect to fix the issue someone reported
+	// wrt the not auto-navigating to active server on initial load?
 
 	if (!activeServer) {
+		// @ts-expect-error: It's fine
 		return <Redirect href="/" />
 	}
 
-	if (!sdk) {
+	if (fatalError) {
+		throw fatalError
+	}
+
+	if (!isServerAccessible.current) {
+		return <ServerConnectFailed onRetry={onResetState} />
+	}
+
+	if (isInitiallyConnecting) {
 		return null
+	}
+
+	if (isAutoAuthenticating) {
+		return <FullScreenLoader label="Authenticating..." />
+	}
+
+	if (!sdk) {
+		return <FullScreenLoader label="Connecting..." />
 	}
 
 	return (
@@ -87,12 +269,38 @@ export default function Screen() {
 				activeServer: activeServer,
 			}}
 		>
-			<StumpClientContextProvider onUnauthenticatedResponse={onAuthError}>
-				<SDKContext.Provider value={{ sdk }}>
-					<ServerAuthDialog isOpen={isAuthDialogOpen} onClose={handleAuthDialogClose} />
-					<Stack screenOptions={{ headerShown: false }} />
-				</SDKContext.Provider>
-			</StumpClientContextProvider>
+			<StumpServerContext.Provider
+				value={{
+					user,
+					isServerOwner: user?.isServerOwner || false,
+					checkPermission,
+					enforcePermission,
+				}}
+			>
+				<StumpClientContextProvider
+					onUnauthenticatedResponse={onAuthError}
+					onConnectionWithServerChanged={onServerConnectionError}
+				>
+					<SDKContext.Provider value={{ sdk, setSDK }}>
+						<ServerAuthDialog isOpen={isAuthDialogOpen} onClose={handleAuthDialogClose} />
+						<Stack
+							screenOptions={{
+								headerShown: false,
+								animation: animationEnabled ? 'default' : 'none',
+							}}
+						/>
+					</SDKContext.Provider>
+				</StumpClientContextProvider>
+			</StumpServerContext.Provider>
 		</ActiveServerContext.Provider>
 	)
+}
+
+const isNetworkError = (error: unknown) => {
+	const axiosError = isAxiosError(error) ? error : null
+	return axiosError?.code === 'ERR_NETWORK'
+}
+
+export function ErrorBoundary({ error, retry }: { error: Error; retry: () => Promise<void> }) {
+	return <ServerErrorBoundary error={error} onRetry={() => retry()} />
 }

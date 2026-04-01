@@ -1,6 +1,6 @@
 import { Input, Label, RadioGroup } from '@stump/components'
 import { useState } from 'react'
-import { useFormContext } from 'react-hook-form'
+import { useFormContext, useWatch } from 'react-hook-form'
 
 type Props = {
 	variant?: 'media' | 'series'
@@ -14,13 +14,13 @@ type Props = {
 export default function AgeRatingFilter({ variant = 'media' }: Props) {
 	const form = useFormContext<{
 		metadata: {
-			age_rating: number | null
+			ageRating: number | null
 		}
 	}>()
 	const [localAgeRating, setLocalAgeRating] = useState<number | null>(8)
 
 	const handleChange = (ageRating: number | null) => {
-		form.setValue('metadata.age_rating', ageRating)
+		form.setValue('metadata.ageRating', ageRating)
 	}
 
 	const handleSelection = (option: 'custom' | 'any-age') => {
@@ -31,8 +31,8 @@ export default function AgeRatingFilter({ variant = 'media' }: Props) {
 		}
 	}
 
-	const selection = form.watch('metadata.age_rating')
-	const { onChange, ...register } = form.register('metadata.age_rating', {
+	const selection = useWatch({ control: form.control, name: 'metadata.ageRating' })
+	const { onChange, ...register } = form.register('metadata.ageRating', {
 		max: 18,
 		min: 0,
 		valueAsNumber: true,
@@ -61,7 +61,7 @@ export default function AgeRatingFilter({ variant = 'media' }: Props) {
 					value="custom"
 					innerContainerClassName="flex-col sm:items-start sm:justify-start gap-1.5"
 				>
-					<fieldset className="flex items-start justify-end gap-2" disabled={selection === null}>
+					<fieldset className="gap-2 flex items-start justify-end" disabled={selection === null}>
 						<Input
 							type="number"
 							placeholder={localAgeRating?.toString() ?? '8'}
@@ -71,7 +71,7 @@ export default function AgeRatingFilter({ variant = 'media' }: Props) {
 							}}
 							{...(selection !== null
 								? {
-										errorMessage: form.formState.errors.metadata?.age_rating?.message as string,
+										errorMessage: form.formState.errors.metadata?.ageRating?.message as string,
 									}
 								: {})}
 						/>

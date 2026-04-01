@@ -1,30 +1,15 @@
-import { queryClient, useSDK } from '@stump/client'
 import { ConfirmationModal, Text, useBoolean } from '@stump/components'
 import { LogOut } from 'lucide-react'
-import toast from 'react-hot-toast'
-import { useNavigate } from 'react-router-dom'
 
-import { useUserStore } from '@/stores'
+import { useAppContext } from '@/context'
 
 export default function SignOut() {
-	const { sdk } = useSDK()
+	const { logout } = useAppContext()
 	const [isOpen, { on, off }] = useBoolean()
 
-	const setUser = useUserStore((store) => store.setUser)
-	const navigate = useNavigate()
-
 	async function handleLogout() {
-		toast
-			.promise(sdk.auth.logout(), {
-				error: 'There was an error logging you out. Please try again.',
-				loading: null,
-				success: 'You have been logged out. Redirecting...',
-			})
-			.then(() => {
-				queryClient.clear()
-				setUser(null)
-				navigate('/auth')
-			})
+		off()
+		logout()
 	}
 
 	return (
@@ -38,7 +23,7 @@ export default function SignOut() {
 			onConfirm={handleLogout}
 			trigger={
 				<button
-					className="flex h-[2.35rem] w-full items-center gap-1.5 bg-sidebar-overlay bg-opacity-50 px-2 text-foreground-subtle outline-none transition-colors duration-150 hover:bg-sidebar-overlay-hover"
+					className="gap-1.5 px-2 flex h-[2.35rem] w-full items-center bg-sidebar-overlay/50 text-foreground-subtle transition-colors duration-150 outline-none hover:bg-sidebar-overlay-hover"
 					onClick={on}
 				>
 					<LogOut className="h-4 w-4" />

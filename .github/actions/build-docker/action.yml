@@ -17,6 +17,10 @@ inputs:
   tags:
     description: 'List of tags to assigned to the image'
     default: 'nightly'
+  build-channel:
+    description: 'Build channel identifier (e.g., nightly, unstable, experimental)'
+    required: false
+    default: ''
   archs:
     description: 'List of platforms to build'
     required: true
@@ -77,9 +81,15 @@ runs:
         sudo apt-get install -y podman buildah
       shell: bash
 
-    - name: Remove existing images
+    - name: Remove existing images and manifests
       run: |
-        podman rmi ${{ env.LOCAL_IMAGES }} || true
+        podman images --format "{{.Repository}}:{{.Tag}}" \
+          | grep "^localhost/stump:" \
+          | xargs -r podman rmi --force 2>/dev/null || true
+
+        for tag in ${{ env.FORMATTED_TAGS }}; do
+          buildah manifest rm "stump:$tag" 2>/dev/null || true
+        done
       shell: bash
 
     - name: Run buildah build
@@ -91,7 +101,7 @@ runs:
         archs: ${{ inputs.archs }}
         build-args: |
           GIT_REV=${{ env.GIT_REV }}
-          RUN_PRISMA_GENERATE=false
+          BUILD_CHANNEL=${{ inputs.build-channel }}
         containerfiles: |
           ./docker/Dockerfile
 

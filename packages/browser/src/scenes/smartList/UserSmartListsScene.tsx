@@ -1,4 +1,4 @@
-import { useSmartListsQuery } from '@stump/client'
+import { useGraphQL, useSDK } from '@stump/client'
 import {
 	ButtonOrLink,
 	Heading,
@@ -8,6 +8,7 @@ import {
 	Text,
 	usePreviousIsDifferent,
 } from '@stump/components'
+import { graphql, SmartListsInput } from '@stump/graphql'
 import { useLocaleContext } from '@stump/i18n'
 import { Search } from 'lucide-react'
 import pluralize from 'pluralize'
@@ -25,6 +26,22 @@ import SmartListCard from './SmartListCard'
 
 const LOCALE_BASE_KEY = `userSmartListsScene`
 const withLocaleKey = (key: string) => `${LOCALE_BASE_KEY}.${key}`
+
+const query = graphql(`
+	query SmartListsWithSearch($input: SmartListsInput!) {
+		smartLists(input: $input) {
+			id
+			creatorId
+			description
+			defaultGrouping
+			filters
+			joiner
+			name
+			visibility
+			...SmartListCard
+		}
+	}
+`)
 
 export default function UserSmartListsScene() {
 	const { t } = useLocaleContext()
@@ -50,10 +67,15 @@ export default function UserSmartListsScene() {
 		}
 	}, [debouncedValue, setSearch, shouldUpdate])
 
-	const { lists, isLoading, isRefetching } = useSmartListsQuery({
-		params: {
+	const { sdk } = useSDK()
+	const {
+		data: { smartLists: lists } = {},
+		isLoading,
+		isRefetching,
+	} = useGraphQL(query, [sdk.cacheKeys.smartLists, search], {
+		input: {
 			search,
-		},
+		} as SmartListsInput,
 	})
 
 	if (isLoading) {
@@ -80,10 +102,10 @@ export default function UserSmartListsScene() {
 
 		// TODO: prolly don't scrollarea on mobile... just scroll on the page
 		return (
-			<ScrollArea className="w-full pr-3 md:w-2/3 lg:max-w-xl">
-				<div className="flex-col space-y-2">
+			<ScrollArea className="pr-3 md:w-2/3 lg:max-w-xl w-full">
+				<div className="space-y-2 flex-col">
 					{smartLists.map((list) => (
-						<SmartListCard key={list.id} list={list} />
+						<SmartListCard key={list.id} data={list} />
 					))}
 				</div>
 			</ScrollArea>
@@ -94,7 +116,7 @@ export default function UserSmartListsScene() {
 	// TODO: can't decide if I like the border-b
 	return (
 		<>
-			<header className="flex h-32 w-full flex-col justify-center gap-y-2 border-b border-edge px-4">
+			<header className="h-32 gap-y-2 px-4 flex w-full flex-col justify-center border-b border-edge">
 				<div>
 					<Heading size="lg" bold>
 						Smart lists
@@ -108,8 +130,8 @@ export default function UserSmartListsScene() {
 			</header>
 
 			<SceneContainer className="relative h-full overflow-hidden">
-				<div className="sticky top-0 z-10 min-h-10 bg-background py-2 backdrop-blur-sm">
-					<div className="flex w-full flex-row items-center justify-between gap-x-2 pr-3 md:w-2/3 lg:max-w-xl">
+				<div className="top-0 min-h-10 py-2 backdrop-blur-sm sticky z-10 bg-background">
+					<div className="gap-x-2 pr-3 md:w-2/3 lg:max-w-xl flex w-full flex-row items-center justify-between">
 						<Input
 							placeholder={t(withLocaleKey('searchPlaceholder'))}
 							variant="primary"

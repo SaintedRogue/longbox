@@ -9,15 +9,15 @@ type Props = {
 
 export default function ContentContainer({ children, className }: Props) {
 	const {
-		preferences: { primary_navigation_mode },
+		preferences: { primaryNavigationMode },
 	} = usePreferences()
 
 	return (
 		<div
 			className={cn(
-				'mt-6 flex flex-col gap-8 pb-16 md:gap-12 md:pb-4',
+				'mt-6 gap-8 pb-16 md:gap-12 md:pb-4 flex flex-col',
 				{
-					'max-w-4xl': primary_navigation_mode === 'SIDEBAR',
+					'max-w-4xl': primaryNavigationMode === 'SIDEBAR',
 				},
 				className,
 			)}

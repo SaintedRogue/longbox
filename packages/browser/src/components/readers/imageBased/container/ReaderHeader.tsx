@@ -1,36 +1,42 @@
 import { Link, Text } from '@stump/components'
 import { motion } from 'framer-motion'
-import { ArrowLeft } from 'lucide-react'
-import { useMemo } from 'react'
+import { ArrowLeft, Fullscreen, Shrink } from 'lucide-react'
+import { useFullscreen } from 'rooks'
 
-import paths from '@/paths'
+import { usePaths } from '@/paths'
 import { useBookPreferences } from '@/scenes/book/reader/useBookPreferences'
 
 import { useImageBaseReaderContext } from '../context'
-import LayoutMenu from './LayoutMenu'
+import ControlButton from './ControlButton'
+import SettingsDialog from './SettingsDialog'
+import TimerMenu from './TimerMenu'
 
 export default function ReaderHeader() {
 	const { book } = useImageBaseReaderContext()
 	const {
 		settings: { showToolBar },
 	} = useBookPreferences({ book })
+	const paths = usePaths()
 
-	const { id, name, metadata } = book
+	const { id, resolvedName } = book
 
-	const title = useMemo(() => metadata?.title || name, [metadata, name])
+	const { isFullscreenAvailable, isFullscreenEnabled, toggleFullscreen } = useFullscreen()
+
+	const FullScreenIcon = isFullscreenEnabled ? Shrink : Fullscreen
 
 	return (
 		<motion.nav
-			className="fixed left-0 top-0 z-[100] flex h-12 w-full items-center bg-sidebar/95 px-4 text-foreground"
+			// @ts-expect-error: It does have className?
+			className="left-0 top-0 h-12 px-4 fixed z-100 flex w-full items-center text-foreground"
 			initial={false}
 			animate={showToolBar ? 'visible' : 'hidden'}
 			variants={transition}
 			transition={{ duration: 0.2, ease: 'easeInOut' }}
 		>
 			<div className="flex w-full items-center justify-between">
-				<div className="flex items-center space-x-4">
+				<div className="space-x-4 flex items-center">
 					<Link
-						className="flex items-center"
+						className="flex items-center text-foreground-on-black hover:text-foreground-on-black/80"
 						title="Go to media overview"
 						to={paths.bookOverview(id)}
 					>
@@ -38,10 +44,18 @@ export default function ReaderHeader() {
 					</Link>
 				</div>
 
-				<Text>{title}</Text>
+				<Text className="text-foreground-on-black">{resolvedName}</Text>
 
-				<div className="flex items-center space-x-2">
-					<LayoutMenu />
+				<div className="space-x-2 flex items-center">
+					{isFullscreenAvailable && (
+						<ControlButton onClick={toggleFullscreen}>
+							<FullScreenIcon className="h-4 w-4" />
+						</ControlButton>
+					)}
+
+					<TimerMenu />
+
+					<SettingsDialog />
 				</div>
 			</div>
 		</motion.nav>

@@ -1,193 +1,463 @@
+import { FlashList } from '@shopify/flash-list'
 import { useSDK } from '@stump/client'
-import { Image } from 'expo-image'
-import { useRouter } from 'expo-router'
-import { Pressable, View } from 'react-native'
-import { ScrollView } from 'react-native-gesture-handler'
+import { OPDSLink, OPDSProgression, resolveUrl } from '@stump/sdk'
+import { formatDistanceToNow, intlFormat } from 'date-fns'
+import { useNavigation, useRouter } from 'expo-router'
+import { Loader2 } from 'lucide-react-native'
+import { useCallback, useEffect, useLayoutEffect, useMemo } from 'react'
+import { Platform, View } from 'react-native'
+import Animated from 'react-native-reanimated'
+import TImage from 'react-native-turbo-image'
 
 import { useActiveServer } from '~/components/activeServer'
-import { Button, Heading, icons, Text } from '~/components/ui'
+import {
+	DescriptionSection,
+	IdentifiersSheet,
+	useOverviewAnimations,
+} from '~/components/book/overview'
+import { ThumbnailImage } from '~/components/image'
+import {
+	CreditsSection,
+	PublicationMenu,
+	RelatedPublicationItem,
+	useRelatedPublications,
+} from '~/components/opds'
+import FeedSelfURL from '~/components/opds/FeedSelfURL'
+import {
+	extensionFromMime,
+	getAcquisitionLink,
+	getDateField,
+	getFirstLink,
+	getFirstSubsectionLink,
+	getLanguages,
+	getLinkableMetadataArrayField,
+	getNumberField,
+	getPublicationThumbnailURL,
+	getStringField,
+} from '~/components/opds/utils'
+import MetadataBadgeSection from '~/components/overview/MetadataBadgeSection'
+import { Button, Card, Heading, Icon, Text } from '~/components/ui'
+import { formatSeriesPosition } from '~/lib/bookUtils'
+import {
+	useIsOPDSBookDownloading,
+	useIsOPDSPublicationDownloaded,
+	useOPDSDownload,
+} from '~/lib/hooks'
 import { cn } from '~/lib/utils'
+import { usePreferencesStore } from '~/stores'
 
 import { usePublicationContext } from './context'
-import { getDateField, getNumberField } from './utils'
-
-const { Info, Slash, BookCopy } = icons
 
 export default function Screen() {
 	const { sdk } = useSDK()
 	const {
-		activeServer: { id: serverID },
+		activeServer: { id: serverID, kind },
 	} = useActiveServer()
-	const {
-		publication: { metadata, images, readingOrder, links },
-		url,
-	} = usePublicationContext()
+	const { publication, url, progression } = usePublicationContext()
+	const { metadata, images, readingOrder, links, resources } = publication
 	const { title, identifier, belongsTo } = metadata || {}
 
-	const router = useRouter()
+	const isStumpOPDS = kind === 'stump'
 
-	const thumbnailURL = images?.at(0)?.href
+	const router = useRouter()
+	const thumbnailRatio = usePreferencesStore((state) => state.thumbnailRatio)
+
+	const isDownloaded = useIsOPDSPublicationDownloaded(url, metadata, serverID)
+
+	const navigation = useNavigation()
+	useLayoutEffect(() => {
+		navigation.setOptions({
+			title: title || 'Publication',
+			headerRight: () => <PublicationMenu publicationUrl={url} metadata={metadata} />,
+		})
+	}, [navigation, url, title, metadata])
+
+	const firstPageURL = readingOrder?.[0]?.href
+		? resolveUrl(readingOrder[0].href, sdk.rootURL)
+		: undefined
+
+	useEffect(() => {
+		if (firstPageURL) {
+			TImage.prefetch([
+				{
+					uri: firstPageURL,
+					headers: {
+						...sdk.customHeaders,
+						Authorization: sdk.authorizationHeader || '',
+					},
+				},
+			])
+		}
+	}, [sdk, firstPageURL])
+
+	const { downloadBook } = useOPDSDownload({ serverId: serverID })
+
+	const acquisitionLink = getAcquisitionLink(links)
+	const downloadURL = acquisitionLink?.href
+	const downloadExtension = extensionFromMime(acquisitionLink?.type)
+	const canDownload = !!downloadURL && !!downloadExtension
+
+	const isDownloading = useIsOPDSBookDownloading(downloadURL || url)
+
+	const onDownloadBook = useCallback(async () => {
+		if (isDownloaded || !canDownload || isDownloading) return
+
+		return await downloadBook({
+			publicationUrl: url,
+			publication,
+		})
+	}, [isDownloaded, downloadBook, url, publication, canDownload, isDownloading])
+
+	const thumbnailURL = getPublicationThumbnailURL(
+		{
+			images,
+			readingOrder,
+			resources,
+		},
+		sdk.rootURL,
+	)
 
 	const numberOfPages = getNumberField(metadata, 'numberOfPages') ?? readingOrder?.length
 	const modified = getDateField(metadata, 'modified')
+	const published = getDateField(metadata, 'published')
+	const description = getStringField(metadata, 'description')
+	const subtitle = getStringField(metadata, 'subtitle')
+	const publisher = getLinkableMetadataArrayField(metadata, 'publisher')
+		.map((entry) => entry.label)
+		.join(', ')
+	const language = getLanguages(metadata).join(', ') || null
+	const readingDirection = getStringField(metadata, 'readingDirection')
+	const volume = getNumberField(metadata, 'volume')
+	const issue = getNumberField(metadata, 'issue')
+	const subjects = getLinkableMetadataArrayField(metadata, 'subject')
 
-	const hasInformation = !!numberOfPages || !!modified
-	const seriesURL = belongsTo?.series?.links?.find((link) => link.rel === 'self')?.href
+	const belongsToSeries = useMemo(
+		() => (Array.isArray(belongsTo?.series) ? belongsTo.series[0] : belongsTo?.series),
+		[belongsTo],
+	)
+	const seriesPosition = formatSeriesPosition(belongsToSeries?.position ?? null, 0, {
+		seriesName: belongsToSeries?.name ?? null,
+	})
+	const seriesText = seriesPosition ?? belongsToSeries?.name
+	const belongsToCollection = Array.isArray(belongsTo?.collection)
+		? belongsTo.collection[0]
+		: belongsTo?.collection
 
-	const downloadURL = links?.find((link) => link.rel === 'http://opds-spec.org/acquisition')?.href
+	const toResolvedURL = useCallback(
+		(href?: string | null) => (href ? resolveUrl(href, sdk.rootURL) : undefined),
+		[sdk.rootURL],
+	)
+
+	const goToFeedLink = useCallback(
+		(link?: OPDSLink | null) => {
+			if (!link?.href) return
+
+			const resolvedURL = toResolvedURL(link.href)
+			if (!resolvedURL) return
+
+			router.push({
+				pathname: '/opds/[id]/feed/[url]',
+				params: { url: resolvedURL, id: serverID },
+			})
+		},
+		[toResolvedURL, router, serverID],
+	)
+
+	const seriesLink = getFirstSubsectionLink(belongsToSeries?.links)
+	const collectionLink = getFirstSubsectionLink(belongsToCollection?.links)
+	const seriesUrl = toResolvedURL(seriesLink?.href)
+	const collectionUrl = toResolvedURL(collectionLink?.href)
+
 	const canStream = !!readingOrder && readingOrder.length > 0
 
+	const {
+		seriesPublications,
+		initialSeriesPublicationIndex,
+		fetchMoreSeriesPublications,
+		collectionPublications,
+		initialCollectionPublicationIndex,
+		fetchMoreCollectionPublications,
+		keyExtractor,
+	} = useRelatedPublications({
+		seriesUrl,
+		collectionUrl,
+		belongsTo,
+	})
+
+	const isSupportedStream = readingOrder?.every((link) => link.type?.startsWith('image/'))
+
+	const accentColor = usePreferencesStore((state) => state.accentColor)
+
+	const renderModifiedStat = (progression: OPDSProgression) => {
+		if (!progression.modified) return null
+
+		const percentageCompleted = progression.locator.locations?.totalProgression
+		const isCompleted = !!(percentageCompleted && percentageCompleted >= 1)
+
+		if (isCompleted) {
+			return <Card.Stat label="Completed" value={formatDistanceToNow(progression.modified)} />
+		} else {
+			return (
+				<Card.Stat
+					label="Last read"
+					value={formatDistanceToNow(progression.modified, { addSuffix: true })}
+				/>
+			)
+		}
+	}
+
+	const existsSomeProgression =
+		!!progression?.locator.locations?.position ||
+		!!progression?.locator.locations?.totalProgression ||
+		!!progression?.modified
+
+	const { animatedScrollRef, parallaxStyle } = useOverviewAnimations()
+
 	return (
-		<ScrollView className="flex-1 gap-5 bg-background px-6">
-			<View className="flex-1 gap-8">
-				<View className="flex items-start gap-4">
-					<Heading size="lg" className="mt-6 leading-6">
-						{title || 'Publication'}
-					</Heading>
-					<View className="aspect-[2/3] self-center overflow-hidden rounded-lg">
-						<Image
-							source={{
-								uri: thumbnailURL,
-								headers: {
-									Authorization: sdk.authorizationHeader,
-								},
-							}}
-							contentFit="fill"
-							style={{ height: 350, width: 'auto' }}
-						/>
+		<Animated.ScrollView className="flex-1 bg-background" ref={animatedScrollRef}>
+			<View className="ios:pt-safe-offset-20 pt-safe ios:pb-24 overflow-hidden pb-16">
+				<Animated.View
+					// -inset-24 is because when using a lot of blur, the sides get more transparent
+					// so we have to "zoom in" to have a clean line at the bottom rather than a gradient
+					className="absolute -inset-24 opacity-70 dark:opacity-30"
+					style={parallaxStyle}
+				>
+					<TImage
+						source={{
+							uri: thumbnailURL || '',
+							headers: {
+								...sdk.customHeaders,
+								Authorization: sdk.authorizationHeader || '',
+							},
+						}}
+						style={{ width: '100%', height: '100%' }}
+						resizeMode="cover"
+						fadeDuration={2000}
+						{...(Platform.OS === 'ios' && { indicator: { color: 'transparent' } })}
+						// android only supports up to blur={25} which doesn't look good,
+						// but if we heavily downscale first, the following looks near identical to using
+						// original res with blur={40} on ios, which is what I originally settled on
+						resize={60}
+						blur={Platform.OS === 'ios' ? 7 : 16}
+					/>
+				</Animated.View>
+
+				<View className="gap-8 px-4 tablet:px-6">
+					<ThumbnailImage
+						source={{
+							uri: thumbnailURL || '',
+							headers: {
+								...sdk.customHeaders,
+								Authorization: sdk.authorizationHeader || '',
+							},
+						}}
+						size={{ height: 235 / thumbnailRatio, width: 235 }}
+						borderAndShadowStyle={{ shadowRadius: 5 }}
+					/>
+
+					<View className="gap-2">
+						<Heading size="lg" className="text-center leading-6" numberOfLines={3}>
+							{title || 'Untitled'}
+						</Heading>
+
+						{seriesText && (
+							<Text className="text-center text-base text-foreground-muted" numberOfLines={1}>
+								{seriesText}
+							</Text>
+						)}
+					</View>
+
+					<View className="flex w-full flex-row items-center gap-2 tablet:max-w-sm tablet:self-center">
+						<Button
+							variant="brand"
+							className="flex-1"
+							roundness="full"
+							onPress={() =>
+								router.push({
+									pathname: `/opds/[id]/publication/read`,
+									params: { url, id: serverID },
+								})
+							}
+							disabled={!canStream || !isSupportedStream}
+						>
+							<Text>Stream</Text>
+						</Button>
+						{!isDownloaded && (
+							<Button
+								variant="secondary"
+								roundness="full"
+								disabled={!canDownload || isDownloading}
+								onPress={onDownloadBook}
+								className="flex-row gap-2"
+							>
+								{isDownloading && (
+									<View className="pointer-events-none animate-spin">
+										<Icon
+											className="h-5 w-5"
+											as={Loader2}
+											style={{
+												// @ts-expect-error: It's fine
+												color: accentColor,
+											}}
+										/>
+									</View>
+								)}
+								<Text>Download</Text>
+							</Button>
+						)}
+					</View>
+
+					{progression && existsSomeProgression && (
+						<Card>
+							<Card.StatGroup>
+								{progression.locator.locations?.position && (
+									<Card.Stat
+										label="Page"
+										value={progression.locator.locations.position || '1'}
+										suffix={
+											numberOfPages != null && numberOfPages > 0 ? ` / ${numberOfPages}` : undefined
+										}
+									/>
+								)}
+								{progression.locator.locations?.totalProgression != null && (
+									<Card.Stat
+										label="Completed"
+										value={`${Math.round((progression.locator.locations?.totalProgression ?? 0) * 100)}%`}
+									/>
+								)}
+								{renderModifiedStat(progression)}
+							</Card.StatGroup>
+						</Card>
+					)}
+
+					<View className="gap-2">
+						{/* Note: I gave some of the rounded children here less border radius because it looked better to my eyes */}
+						{!canDownload && !isDownloaded && (
+							<View className="squircle ios:rounded-3xl rounded-2xl bg-fill-warning-secondary p-3">
+								<Text>
+									{!downloadURL
+										? 'No download link available for this publication'
+										: `Unsupported file format: ${acquisitionLink?.type || 'unknown'}`}
+								</Text>
+							</View>
+						)}
+
+						{!canStream && (
+							<View className="squircle ios:rounded-3xl rounded-2xl bg-fill-info-secondary p-3">
+								<Text>This publication lacks a defined reading order and cannot be streamed</Text>
+							</View>
+						)}
+
+						{!isSupportedStream && (
+							<View className="squircle ios:rounded-3xl rounded-2xl bg-fill-info-secondary p-3">
+								<Text>
+									This publication contains unsupported media types and cannot be streamed yet
+								</Text>
+							</View>
+						)}
 					</View>
 				</View>
+			</View>
 
-				<View className="flex w-full flex-row items-center gap-2 tablet:max-w-sm tablet:self-center">
-					<Button
-						className="flex-1 border border-edge"
-						onPress={() =>
-							router.push({
-								pathname: `/opds/${serverID}/publication/read`,
-								params: { url },
-							})
-						}
-						disabled={!canStream}
-					>
-						<Text>Stream</Text>
-					</Button>
-					<Button variant="secondary" disabled={!downloadURL}>
-						<Text>Download</Text>
-					</Button>
-				</View>
+			<View className="squircle ios:rounded-[3rem] ios:-mt-[4.5rem] -mt-[2.5rem] gap-8 rounded-[2.5rem] bg-background px-4 py-6 tablet:px-6">
+				{!!description && <DescriptionSection description={description} />}
 
-				{!canStream && (
-					<View className="rounded-lg bg-fill-info-secondary p-3">
-						<Text>This publication lacks a defined reading order and cannot be streamed</Text>
+				<Card className={cn(!description && 'px-2')}>
+					<Card.StatGroup>
+						{!!publisher && <Card.Stat label="Publisher" value={publisher} />}
+						{volume != null && <Card.Stat label="Volume" value={volume} />}
+						{issue != null && <Card.Stat label="Issue" value={issue} />}
+						{!!numberOfPages && <Card.Stat label="Pages" value={numberOfPages} />}
+					</Card.StatGroup>
+				</Card>
+
+				<MetadataBadgeSection
+					label="Subjects"
+					items={subjects.map((subject) => ({
+						label: subject.label,
+						onPress: () => goToFeedLink(getFirstLink(subject.links)),
+					}))}
+				/>
+
+				<CreditsSection
+					metadata={metadata}
+					onPressCredit={(credit) => goToFeedLink(getFirstLink(credit.links))}
+				/>
+
+				{seriesPublications.length > 0 && (
+					<View className="gap-3">
+						<View className="ios:px-4 flex flex-row items-center justify-between px-2">
+							<Text className="text-lg font-semibold text-foreground-muted">
+								{belongsToSeries?.name || 'Series Books'}
+							</Text>
+							{seriesUrl && <FeedSelfURL url={seriesUrl} />}
+						</View>
+						<FlashList
+							data={seriesPublications}
+							renderItem={({ item }) => <RelatedPublicationItem item={item} />}
+							horizontal
+							showsHorizontalScrollIndicator={false}
+							contentContainerStyle={{ paddingHorizontal: Platform.OS === 'ios' ? 16 : 8 }}
+							initialScrollIndex={initialSeriesPublicationIndex}
+							keyExtractor={keyExtractor}
+							onEndReached={fetchMoreSeriesPublications}
+						/>
 					</View>
 				)}
 
-				<View className="flex w-full gap-2">
-					<Text className="text-lg text-foreground-muted">Information</Text>
-
-					{hasInformation && (
-						<View className="flex flex-col gap-2 rounded-lg bg-background-surface p-3">
-							{identifier && (
-								<View className="flex flex-row items-start justify-between py-1">
-									<Text className="shrink-0 text-foreground-subtle">Identifier</Text>
-									<Text className="max-w-[80%] truncate text-right">{identifier}</Text>
-								</View>
-							)}
-							{modified && (
-								<View className="flex flex-row items-start justify-between py-1">
-									<Text className="shrink-0 text-foreground-subtle">Modified</Text>
-									<Text className="max-w-[80%] truncate text-right">
-										{modified.format('MMMM DD, YYYY')}
-									</Text>
-								</View>
-							)}
-							{numberOfPages && (
-								<View className="flex flex-row items-start justify-between py-1">
-									<Text className="shrink-0 text-foreground-subtle">Number of pages</Text>
-									<Text className="max-w-[80%] truncate text-right">
-										{numberOfPages.toString()}
-									</Text>
-								</View>
-							)}
+				{collectionPublications.length > 0 && (
+					<View className="gap-3">
+						<View className="ios:px-4 flex flex-row items-center justify-between px-2">
+							<Text className="text-lg font-semibold text-foreground-muted">
+								{belongsToCollection?.name || 'Collection Books'}
+							</Text>
+							{collectionUrl && <FeedSelfURL url={collectionUrl} />}
 						</View>
+						<FlashList
+							data={collectionPublications}
+							renderItem={({ item }) => <RelatedPublicationItem item={item} />}
+							horizontal
+							showsHorizontalScrollIndicator={false}
+							contentContainerStyle={{ paddingHorizontal: Platform.OS === 'ios' ? 16 : 8 }}
+							initialScrollIndex={initialCollectionPublicationIndex}
+							keyExtractor={keyExtractor}
+							onEndReached={fetchMoreCollectionPublications}
+						/>
+					</View>
+				)}
+
+				<Card label="Details">
+					{subtitle && <Card.LongRow label="Subtitle" value={subtitle} />}
+					{language && <Card.Row label="Language" value={language} />}
+					{readingDirection && <Card.Row label="Reading direction" value={readingDirection} />}
+					{modified && (
+						<Card.Row
+							label="Modified"
+							value={intlFormat(modified, { month: 'long', day: 'numeric', year: 'numeric' })}
+						/>
 					)}
-
-					{!hasInformation && (
-						<View className="h-24 w-full items-center justify-center gap-2 rounded-lg border border-dashed border-edge p-3">
-							<View className="relative flex justify-center">
-								<View className="flex items-center justify-center rounded-lg bg-background-surface p-2">
-									<Info className="h-6 w-6 text-foreground-muted" />
-									<Slash className="absolute h-6 w-6 scale-x-[-1] transform text-foreground opacity-80" />
-								</View>
-							</View>
-
-							<Text>No information available</Text>
-						</View>
+					{published && (
+						<Card.Row
+							label="Published"
+							value={intlFormat(published, { month: 'long', day: 'numeric', year: 'numeric' })}
+						/>
 					)}
-				</View>
+				</Card>
 
-				<View className="flex w-full gap-2">
-					<Text className="text-lg text-foreground-muted">Series</Text>
-
-					{belongsTo?.series && (
-						<View className="flex flex-col gap-2 rounded-lg bg-background-surface p-3">
-							<View className="flex flex-row items-start justify-between py-1">
-								<Text className="shrink-0 text-foreground-subtle">Name</Text>
-								<Text className="max-w-[80%] truncate text-right">{belongsTo.series.name}</Text>
-							</View>
-
-							{belongsTo.series.position && (
-								<View className="flex flex-row items-start justify-between py-1">
-									<Text className="shrink-0 text-foreground-subtle">Position</Text>
-									<Text className="max-w-[80%] truncate text-right">
-										{belongsTo.series.position}
-									</Text>
-								</View>
-							)}
-
-							{seriesURL && (
-								<View className="flex flex-row items-center justify-between py-1">
-									<Text className="shrink-0 text-foreground-subtle">Feed URL</Text>
-									<Pressable
-										onPress={() =>
-											router.push({
-												pathname: `/opds/${serverID}/feed`,
-												params: { url: seriesURL },
-											})
-										}
-									>
-										{({ pressed }) => (
-											<View
-												className={cn(
-													'rounded-lg border border-edge bg-background-surface-secondary p-1 text-center',
-													{
-														'opacity-80': pressed,
-													},
-												)}
-											>
-												<Text>Go to feed</Text>
-											</View>
-										)}
-									</Pressable>
-								</View>
-							)}
-						</View>
-					)}
-
-					{!belongsTo?.series && (
-						<View className="h-24 w-full items-center justify-center gap-2 rounded-lg border border-dashed border-edge p-3">
-							<View className="relative flex justify-center">
-								<View className="flex items-center justify-center rounded-lg bg-background-surface p-2">
-									<BookCopy className="h-6 w-6 text-foreground-muted" />
-									<Slash className="absolute h-6 w-6 scale-x-[-1] transform text-foreground opacity-80" />
-								</View>
-							</View>
-
-							<Text>No series information</Text>
-						</View>
-					)}
-				</View>
+				{identifier && (
+					<IdentifiersSheet
+						identifiers={
+							isStumpOPDS
+								? {
+										stumpId: identifier,
+									}
+								: {
+										identifier,
+									}
+						}
+					/>
+				)}
 			</View>
-		</ScrollView>
+		</Animated.ScrollView>
 	)
 }

@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useSmartListsQuery } from '@stump/client'
+import { useSDK, useSuspenseGraphQL } from '@stump/client'
 import { Button, cn, Form } from '@stump/components'
+import { graphql } from '@stump/graphql'
 import { useLocaleContext } from '@stump/i18n'
 import { useCallback } from 'react'
 import { useForm } from 'react-hook-form'
@@ -19,16 +20,22 @@ type Props = {
 	isLoading?: boolean
 }
 
+const query = graphql(`
+	query CreateSmartListForm {
+		smartLists(input: { mine: true }) {
+			name
+		}
+	}
+`)
+
 export default function CreateSmartListForm({ onSubmit, isLoading }: Props) {
 	const { t } = useLocaleContext()
+	const { sdk } = useSDK()
 	const { currentStep, setStep } = useSteppedFormContext()
 
-	const { lists } = useSmartListsQuery({
-		params: {
-			mine: true,
-		},
-		suspense: true,
-	})
+	const {
+		data: { smartLists: lists },
+	} = useSuspenseGraphQL(query, [sdk.cacheKeys.smartListNames])
 
 	const form = useForm<SmartListFormSchema>({
 		defaultValues: {
@@ -62,6 +69,8 @@ export default function CreateSmartListForm({ onSubmit, isLoading }: Props) {
 
 			if (isValid) {
 				setStep(nextStep)
+			} else {
+				console.warn('Form validation failed, not changing step')
 			}
 		},
 		[form, currentStep, setStep],
@@ -78,9 +87,9 @@ export default function CreateSmartListForm({ onSubmit, isLoading }: Props) {
 						<BasicDetails />
 						<AccessSettings isCreating />
 
-						<div className="mt-6 flex w-full md:max-w-sm">
+						<div className="mt-6 md:max-w-sm flex w-full">
 							<Button
-								className="w-full md:w-auto"
+								className="md:w-auto w-full"
 								variant="primary"
 								onClick={() => handleChangeStep(2)}
 							>
@@ -94,9 +103,9 @@ export default function CreateSmartListForm({ onSubmit, isLoading }: Props) {
 					<>
 						<SmartListQueryBuilder />
 
-						<div className="mt-6 flex w-full md:max-w-sm">
+						<div className="mt-6 md:max-w-sm flex w-full">
 							<Button
-								className="w-full md:w-auto"
+								className="md:w-auto w-full"
 								variant="primary"
 								onClick={() => handleChangeStep(3)}
 							>
@@ -120,14 +129,14 @@ export default function CreateSmartListForm({ onSubmit, isLoading }: Props) {
 				{renderStep()}
 
 				<div
-					className={cn('mt-6 flex w-full md:max-w-sm', {
+					className={cn('mt-6 md:max-w-sm flex w-full', {
 						'invisible hidden': currentStep < 3,
 					})}
 				>
 					<Button
 						type="submit"
 						form="createSmartListForm"
-						className="w-full md:w-auto"
+						className="md:w-auto w-full"
 						variant="primary"
 						isLoading={isLoading}
 					>

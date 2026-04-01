@@ -1,11 +1,11 @@
-import { BookClub, BookClubMember } from '@stump/sdk'
+import { BookClubLayoutQuery, UpdateBookClubInput } from '@stump/graphql'
 import { createContext, useContext } from 'react'
 
 export type IBookClubContext = {
-	bookClub: BookClub
-	viewerMember?: BookClubMember
+	bookClub: NonNullable<BookClubLayoutQuery['bookClubBySlug']>
 	viewerIsMember: boolean
 	viewerCanManage: boolean
+	patchClub: (data: UpdateBookClubInput) => void
 }
 
 /**

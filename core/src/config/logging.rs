@@ -33,6 +33,16 @@ pub fn init_tracing(config: &StumpConfig) {
 				.expect("Error invalid tracing directive for stump_server!"),
 		)
 		.add_directive(
+			"graphql=trace"
+				.parse()
+				.expect("Error invalid tracing directive for graphql!"),
+		)
+		.add_directive(
+			"email=trace"
+				.parse()
+				.expect("Error invalid tracing directive for email!"),
+		)
+		.add_directive(
 			"tower_http=debug"
 				.parse()
 				.expect("Error invalid tracing directive for tower_http!"),
@@ -40,10 +50,18 @@ pub fn init_tracing(config: &StumpConfig) {
 
 	if config.verbosity > 2 {
 		env_filter = env_filter.add_directive(
-			"quaint::connector::metrics=debug"
+			"sqlx::query=debug"
 				.parse()
-				.expect("Failed to parse tracing directive for quaint!"),
+				.expect("Failed to parse tracing directive for sqlx!"),
 		);
+	}
+
+	if cfg!(debug_assertions) {
+		env_filter = env_filter.add_directive(
+			"sea_orm::driver::sqlx_sqlite=debug"
+				.parse()
+				.expect("Failed to parse tracing directive for sea_orm!"),
+		)
 	}
 
 	let base_layer = tracing_subscriber::registry()
@@ -62,8 +80,7 @@ pub fn init_tracing(config: &StumpConfig) {
 			.with(
 				tracing_subscriber::fmt::layer()
 					.pretty()
-					// We don't want to use ANSI codes in the file
-					.with_ansi(false)
+					.with_ansi(config.colorful_logs)
 					.with_writer(file_appender),
 			)
 			.init();
@@ -76,8 +93,7 @@ pub fn init_tracing(config: &StumpConfig) {
 			)
 			.with(
 				tracing_subscriber::fmt::layer()
-					// We don't want to use ANSI codes in the file
-					.with_ansi(false)
+					.with_ansi(config.colorful_logs)
 					.with_writer(file_appender),
 			)
 			.init();

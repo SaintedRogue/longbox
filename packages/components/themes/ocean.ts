@@ -51,6 +51,10 @@ export const ocean = {
 			hover: '#FF8C00',
 			secondary: '#F77F0026',
 		},
+		'on-black': {
+			DEFAULT: '#242628',
+			muted: '#242628',
+		},
 	},
 	foreground: {
 		DEFAULT: '#EDF2F4',
@@ -58,6 +62,10 @@ export const ocean = {
 		disabled: '#94A1AC',
 		muted: '#94A1AC',
 		'on-inverse': '#0B3D4D',
+		'on-black': {
+			DEFAULT: '#EDF2F4',
+			muted: '#B0B3B7',
+		},
 		subtle: '#D9E4EA',
 	},
 	sidebar: {
@@ -71,6 +79,24 @@ export const ocean = {
 			DEFAULT: '#12455B',
 			hover: '#14576F',
 			secondary: '#1B6B7D',
+		},
+	},
+	scrollbar: {
+		DEFAULT: '#0A3644',
+		thumb: {
+			DEFAULT: 'hsla(0, 0%, 100%, 0.4)',
+			hover: 'hsla(0, 0%, 100%, 0.3)',
+		},
+	},
+	thumbnail: {
+		border: 'rgba(233, 234, 235, 0.10)',
+		placeholder: '#165564',
+		stack: {
+			series: '#0A9396',
+			library: {
+				start: '#125A6D',
+				end: '#227E95',
+			},
 		},
 	},
 } satisfies StumpTheme

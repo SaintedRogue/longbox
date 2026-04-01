@@ -1,72 +1,54 @@
 import { Button, cn, Heading, Text, ToolTip } from '@stump/components'
 import { ChevronLeft, ChevronRight, CircleSlash2 } from 'lucide-react'
-import { forwardRef, useCallback, useMemo, useRef, useState } from 'react'
-import { ScrollerProps, Virtuoso, VirtuosoHandle } from 'react-virtuoso'
-import { useInViewRef, useMediaMatch } from 'rooks'
+import { forwardRef, useMemo } from 'react'
+import { ScrollerProps, Virtuoso } from 'react-virtuoso'
+import { useMediaMatch } from 'rooks'
 
-import { usePreferences } from '../hooks'
+import { useHorizontalScroll, usePreferences } from '../hooks'
 
 type Props = {
 	title: string
-	items: JSX.Element[]
+	items: React.ReactElement[]
 	onFetchMore: () => void
 	emptyState?: React.ReactNode
+	height?: number
+	footerHeight?: number
 }
 
-export default function HorizontalCardList_({ title, items, onFetchMore, emptyState }: Props) {
-	const virtuosoRef = useRef<VirtuosoHandle>(null)
+export default function HorizontalCardList({
+	title,
+	items,
+	onFetchMore,
+	emptyState,
+	height: heightProp,
+	footerHeight = 96,
+}: Props) {
+	const {
+		preferences: { thumbnailRatio },
+	} = usePreferences()
+
+	const { scrollerRef, canSkipBackward, canSkipForward, handleSkipBackward, handleSkipAhead } =
+		useHorizontalScroll()
 
 	const isAtLeastSmall = useMediaMatch('(min-width: 640px)')
 	const isAtLeastMedium = useMediaMatch('(min-width: 768px)')
 
-	const height = useMemo(
-		() => (!isAtLeastSmall ? 325 : !isAtLeastMedium ? 350 : 385),
-		[isAtLeastSmall, isAtLeastMedium],
-	)
+	const calculatedHeight = useMemo(() => {
+		const imageWidth = !isAtLeastSmall ? 160 : !isAtLeastMedium ? 170.656 : 192 // widths from EntityCard
+		const imageHeight = imageWidth / thumbnailRatio
 
-	const [firstCardRef, firstCardIsInView] = useInViewRef({ threshold: 0.5 })
-	const [lastCardRef, lastCardIsInView] = useInViewRef({ threshold: 0.5 })
-	const [visibleRange, setVisibleRange] = useState({
-		endIndex: 0,
-		startIndex: 0,
-	})
+		return imageHeight + footerHeight
+	}, [isAtLeastSmall, isAtLeastMedium, thumbnailRatio, footerHeight])
 
-	const { startIndex: lowerBound, endIndex: upperBound } = visibleRange
-
-	const canSkipBackward = upperBound > 0 && !firstCardIsInView
-	const canSkipForward = items.length && !lastCardIsInView
-
-	const handleSkipAhead = useCallback(
-		(skip = 5) => {
-			const nextIndex = Math.min(upperBound + skip, items.length - 1)
-			virtuosoRef.current?.scrollIntoView({
-				index: nextIndex,
-				behavior: 'smooth',
-				align: 'start',
-			})
-		},
-		[upperBound, items.length],
-	)
-
-	const handleSkipBackward = useCallback(
-		(skip = 5) => {
-			const nextIndex = Math.max(lowerBound - skip, 0)
-			virtuosoRef.current?.scrollIntoView({
-				index: nextIndex,
-				behavior: 'smooth',
-				align: 'start',
-			})
-		},
-		[lowerBound],
-	)
+	const height = heightProp ?? calculatedHeight
 
 	const renderContent = () => {
 		if (!items.length) {
 			return (
 				<div className="flex">
 					{emptyState || (
-						<div className="flex items-start justify-start space-x-3 rounded-lg border border-dashed border-edge-subtle px-4 py-4">
-							<span className="rounded-lg border border-edge bg-background-surface p-2">
+						<div className="space-x-3 rounded-lg px-4 py-4 flex items-start justify-start border border-dashed border-edge-subtle">
+							<span className="rounded-lg p-2 border border-edge bg-background-surface">
 								<CircleSlash2 className="h-8 w-8 text-foreground-muted" />
 							</span>
 							<div>
@@ -82,28 +64,16 @@ export default function HorizontalCardList_({ title, items, onFetchMore, emptySt
 		} else {
 			return (
 				<Virtuoso
-					ref={virtuosoRef}
+					scrollerRef={scrollerRef}
 					style={{ height }}
 					horizontalDirection
 					data={items}
 					components={{
 						Scroller: HorizontalScroller,
 					}}
-					itemContent={(idx, card) => (
-						<div
-							{...(idx === 0
-								? { ref: firstCardRef }
-								: idx === items.length - 1
-									? { ref: lastCardRef }
-									: {})}
-							className="px-1"
-						>
-							{card}
-						</div>
-					)}
+					itemContent={(_, card) => <div className="px-1.5">{card}</div>}
 					endReached={onFetchMore}
 					increaseViewportBy={5 * (height / 3)}
-					rangeChanged={setVisibleRange}
 					overscan={{ main: 3, reverse: 3 }}
 				/>
 			)
@@ -111,18 +81,17 @@ export default function HorizontalCardList_({ title, items, onFetchMore, emptySt
 	}
 
 	return (
-		<div className="flex flex-col space-y-2">
+		<div className="space-y-2 flex flex-col">
 			<div className="flex flex-row items-center justify-between">
 				<Heading size="sm">{title}</Heading>
 				<div className={cn('self-end', { hidden: !items.length })}>
-					<div className="flex gap-2">
+					<div className="gap-2 flex">
 						<ToolTip content="Seek backwards" isDisabled={!canSkipBackward} align="end">
 							<Button
 								variant="ghost"
 								size="icon"
 								disabled={!canSkipBackward}
-								onClick={() => handleSkipBackward()}
-								onDoubleClick={() => handleSkipBackward(20)}
+								onClick={handleSkipBackward}
 							>
 								<ChevronLeft className="h-4 w-4" />
 							</Button>
@@ -132,8 +101,7 @@ export default function HorizontalCardList_({ title, items, onFetchMore, emptySt
 								variant="ghost"
 								size="icon"
 								disabled={!canSkipForward}
-								onClick={() => handleSkipAhead()}
-								onDoubleClick={() => handleSkipAhead(20)}
+								onClick={handleSkipAhead}
 							>
 								<ChevronRight className="h-4 w-4" />
 							</Button>
@@ -150,13 +118,13 @@ export default function HorizontalCardList_({ title, items, onFetchMore, emptySt
 const HorizontalScroller = forwardRef<HTMLDivElement, ScrollerProps>(
 	({ children, ...props }, ref) => {
 		const {
-			preferences: { enable_hide_scrollbar },
+			preferences: { enableHideScrollbar },
 		} = usePreferences()
 
 		return (
 			<div
 				className={cn('flex overflow-y-hidden', {
-					'scrollbar-hide': enable_hide_scrollbar,
+					'scrollbar-hide': enableHideScrollbar,
 				})}
 				ref={ref}
 				{...props}

@@ -5,19 +5,16 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::vec;
 
-use prisma_client_rust::chrono::DateTime;
-use prisma_client_rust::chrono::{self, FixedOffset};
+use chrono::{self, DateTime, FixedOffset};
+use models::entity::{library, series};
 use urlencoding::encode;
 use xml::{writer::XmlEvent, EventWriter};
 
-use crate::db::entity::MediaMetadata;
 use crate::error::CoreResult;
 use crate::filesystem::media::get_content_types_for_pages;
 use crate::filesystem::{ContentType, FileParts, PathUtils};
-use crate::{
-	opds::v1_2::link::OpdsStreamLink,
-	prisma::{library, media, series},
-};
+use crate::opds::v1_2::link::OpdsStreamLink;
+use crate::opds::v2_0::entity::OPDSPublicationEntity;
 
 use super::{
 	link::{OpdsLink, OpdsLinkRel, OpdsLinkType},
@@ -31,6 +28,7 @@ pub struct OpdsEntry {
 	id: String,
 	updated: DateTime<FixedOffset>,
 	title: String,
+	summary: Option<String>,
 	content: Option<String>,
 	authors: Option<Vec<String>>,
 	links: Vec<OpdsLink>,
@@ -38,10 +36,12 @@ pub struct OpdsEntry {
 }
 
 impl OpdsEntry {
+	#[allow(clippy::too_many_arguments)]
 	pub fn new(
 		id: String,
 		updated: DateTime<FixedOffset>,
 		title: String,
+		summary: Option<String>,
 		content: Option<String>,
 		authors: Option<Vec<String>>,
 		links: Option<Vec<OpdsLink>>,
@@ -53,6 +53,7 @@ impl OpdsEntry {
 			id,
 			updated,
 			title,
+			summary,
 			content,
 			authors,
 			links,
@@ -67,8 +68,12 @@ impl OpdsEntry {
 		util::write_xml_element("id", self.id.as_str(), writer)?;
 		util::write_xml_element("updated", &self.updated.to_rfc3339(), writer)?;
 
+		if let Some(summary) = &self.summary {
+			util::write_xml_element("summary", summary.as_str(), writer)?;
+		}
+
 		if let Some(content) = self.get_content() {
-			util::write_xml_element("content", content.as_str(), writer)?;
+			util::write_xml_content(content.as_str(), writer)?;
 		} else {
 			writer.write(XmlEvent::start_element("content"))?;
 			writer.write(XmlEvent::end_element())?;
@@ -127,7 +132,7 @@ impl<T> OPDSEntryBuilder<T> {
 	}
 }
 
-impl IntoOPDSEntry for OPDSEntryBuilder<library::Data> {
+impl IntoOPDSEntry for OPDSEntryBuilder<library::Model> {
 	fn into_opds_entry(self) -> OpdsEntry {
 		let mut links = Vec::new();
 
@@ -141,8 +146,9 @@ impl IntoOPDSEntry for OPDSEntryBuilder<library::Data> {
 
 		OpdsEntry {
 			id: self.data.id,
-			updated: self.data.updated_at,
+			updated: self.data.updated_at.unwrap_or_default(),
 			title: self.data.name,
+			summary: None,
 			content: self.data.description,
 			authors: None,
 			links,
@@ -151,7 +157,7 @@ impl IntoOPDSEntry for OPDSEntryBuilder<library::Data> {
 	}
 }
 
-impl IntoOPDSEntry for OPDSEntryBuilder<series::Data> {
+impl IntoOPDSEntry for OPDSEntryBuilder<series::Model> {
 	fn into_opds_entry(self) -> OpdsEntry {
 		let mut links = Vec::new();
 
@@ -165,8 +171,9 @@ impl IntoOPDSEntry for OPDSEntryBuilder<series::Data> {
 
 		OpdsEntry {
 			id: self.data.id.to_string(),
-			updated: self.data.updated_at,
+			updated: self.data.updated_at.unwrap_or_default(),
 			title: self.data.name,
+			summary: None,
 			content: self.data.description,
 			authors: None,
 			links,
@@ -175,23 +182,18 @@ impl IntoOPDSEntry for OPDSEntryBuilder<series::Data> {
 	}
 }
 
-impl IntoOPDSEntry for OPDSEntryBuilder<media::Data> {
+impl IntoOPDSEntry for OPDSEntryBuilder<OPDSPublicationEntity> {
 	fn into_opds_entry(self) -> OpdsEntry {
-		let base_url = self.format_url(&format!("books/{}", self.data.id));
+		let base_url = self.format_url(&format!("books/{}", self.data.media.id));
 
-		let path_buf = PathBuf::from(self.data.path.as_str());
+		let path_buf = PathBuf::from(self.data.media.path.as_str());
 		let FileParts { file_name, .. } = path_buf.file_parts();
 		let file_name_encoded = encode(&file_name);
 
-		let active_reading_session = self
+		let (current_page, last_read_at) = self
 			.data
-			.active_user_reading_sessions()
-			.ok()
-			.and_then(|sessions| sessions.first().cloned());
-		let (current_page, last_read_at) = active_reading_session
-			.map_or((None, None), |session| {
-				(session.page, Some(session.updated_at))
-			});
+			.reading_session
+			.map_or((None, None), |session| (session.page, session.updated_at));
 
 		let target_pages = if let Some(page) = current_page {
 			vec![1, page]
@@ -200,12 +202,11 @@ impl IntoOPDSEntry for OPDSEntryBuilder<media::Data> {
 		};
 
 		let page_content_types =
-			get_content_types_for_pages(&self.data.path, target_pages).unwrap_or_else(
-				|error| {
+			get_content_types_for_pages(&self.data.media.path, target_pages)
+				.unwrap_or_else(|error| {
 					tracing::error!(error = ?error, "Failed to get content types for pages");
 					HashMap::default()
-				},
-			);
+				});
 		tracing::trace!(?page_content_types, "Got page content types");
 
 		let thumbnail_link_type = page_content_types
@@ -217,7 +218,7 @@ impl IntoOPDSEntry for OPDSEntryBuilder<media::Data> {
 			.to_owned();
 
 		let current_page_link_type = match current_page {
-			Some(page) if page < self.data.pages => page_content_types
+			Some(page) if page < self.data.media.pages => page_content_types
 				.get(&page)
 				.unwrap_or_else(|| {
 					tracing::error!("Failed to get content type for current page");
@@ -225,7 +226,7 @@ impl IntoOPDSEntry for OPDSEntryBuilder<media::Data> {
 				})
 				.to_owned(),
 			Some(page) => {
-				tracing::warn!(current_page=?page, book_pages=?self.data.pages, "Current page is out of bounds!");
+				tracing::warn!(current_page=?page, book_pages=?self.data.media.pages, "Current page is out of bounds!");
 				thumbnail_link_type
 			},
 			_ => thumbnail_link_type,
@@ -238,8 +239,8 @@ impl IntoOPDSEntry for OPDSEntryBuilder<media::Data> {
 		});
 
 		let entry_file_acquisition_link_type =
-			OpdsLinkType::from_extension(&self.data.extension).unwrap_or_else(|| {
-				tracing::error!(?self.data.extension, "Failed to convert file extension to OPDS link type");
+			OpdsLinkType::from_extension(&self.data.media.extension).unwrap_or_else(|| {
+				tracing::error!(?self.data.media.extension, "Failed to convert file extension to OPDS link type");
 				OpdsLinkType::Zip
 			});
 
@@ -252,7 +253,7 @@ impl IntoOPDSEntry for OPDSEntryBuilder<media::Data> {
 			OpdsLink::new(
 				thumbnail_opds_link_type,
 				OpdsLinkRel::Image,
-				format!("{base_url}/pages/1"),
+				format!("{base_url}/pages/0?zero_based=true"),
 			),
 			OpdsLink::new(
 				entry_file_acquisition_link_type,
@@ -262,41 +263,50 @@ impl IntoOPDSEntry for OPDSEntryBuilder<media::Data> {
 		];
 
 		let stream_link = OpdsStreamLink::new(
-			self.data.id.clone(),
-			self.data.pages.to_string(),
+			self.data.media.id.clone(),
+			self.data.media.pages.to_string(),
 			current_page_link_type.to_string(),
 			current_page.map(|page| page.to_string()),
 			last_read_at.map(|date| date.to_string()),
 		);
 
-		let mib = self.data.size as f64 / (1024.0 * 1024.0);
+		let mib = self.data.media.size as f64 / (1024.0 * 1024.0);
 
-		let metadata = self
+		let title = self
 			.data
-			.metadata()
-			.ok()
-			.flatten()
-			.map(|meta| MediaMetadata::from(meta.to_owned()));
-		let description = metadata
+			.metadata
 			.as_ref()
-			.and_then(|m| m.summary.as_ref())
-			.map(|s| s.to_owned());
+			.and_then(|m| m.title.clone())
+			.unwrap_or_else(|| self.data.media.name.clone());
+		let summary = self.data.metadata.as_ref().and_then(|m| m.summary.clone());
+		let authors = self
+			.data
+			.metadata
+			.as_ref()
+			.and_then(|m| m.writers.clone())
+			.map(|w| {
+				w.split(',')
+					.map(|s| s.trim().to_string())
+					.collect::<Vec<_>>()
+			})
+			.filter(|v| !v.is_empty());
 
-		let content = match description {
+		let content = match &summary {
 			Some(s) => Some(format!(
 				"{:.1} MiB - {}<br/><br/>{}",
-				mib, self.data.extension, s
+				mib, self.data.media.extension, s
 			)),
-			None => Some(format!("{:.1} MiB - {}", mib, self.data.extension)),
+			None => Some(format!("{:.1} MiB - {}", mib, self.data.media.extension)),
 		};
 
 		OpdsEntry {
-			id: self.data.id.to_string(),
-			title: self.data.name,
+			id: self.data.media.id.to_string(),
+			title,
 			updated: chrono::Utc::now().into(),
+			summary,
 			content,
 			links,
-			authors: None,
+			authors,
 			stream_link: Some(stream_link),
 		}
 	}
@@ -305,6 +315,8 @@ impl IntoOPDSEntry for OPDSEntryBuilder<media::Data> {
 #[cfg(test)]
 mod tests {
 	use std::str::FromStr;
+
+	use models::shared::enums::FileStatus;
 
 	use super::*;
 	use crate::opds::v1_2::tests::normalize_xml;
@@ -337,6 +349,7 @@ mod tests {
 			"urn:uuid:6409a00b-7bf2-405e-826c-3fdff0fd0734".to_string(),
 			updated,
 			"Modern Online Philately".to_string(),
+			Some("A summary of the book.".to_string()),
 			Some("The definitive reference for the web-curious philatelist.".to_string()),
 			Some(vec!["Harold McGee".to_string()]),
 			Some(links),
@@ -349,12 +362,13 @@ mod tests {
 		let result = String::from_utf8(writer.into_inner()).unwrap();
 		let expected_result = normalize_xml(
 			r#"
-			<?xml version="1.0" encoding="utf-8"?>
+			<?xml version="1.0" encoding="UTF-8"?>
 			<entry>
 				<title>Modern Online Philately</title>
 				<id>urn:uuid:6409a00b-7bf2-405e-826c-3fdff0fd0734</id>
 				<updated>2010-01-10T10:01:11+00:00</updated>
-				<content>The definitive reference for the web-curious philatelist.</content>
+				<summary>A summary of the book.</summary>
+				<content type="html">The definitive reference for the web-curious philatelist.</content>
 				<author>
 					<name>Harold McGee</name>
 				</author>
@@ -376,5 +390,36 @@ mod tests {
 		);
 
 		assert_eq!(result, expected_result);
+	}
+
+	fn library() -> library::Model {
+		library::Model {
+			id: "123".to_string(),
+			name: "A library".to_string(),
+			created_at: chrono::Utc::now().into(),
+			updated_at: Some(chrono::Utc::now().into()),
+			description: None,
+			emoji: None,
+			last_scanned_at: None,
+			config_id: 1,
+			path: String::default(),
+			status: FileStatus::Ready,
+			thumbnail_meta: None,
+			thumbnail_path: None,
+		}
+	}
+
+	#[test]
+	fn test_builder_url_format_with_api_key() {
+		let builder = OPDSEntryBuilder::new(library(), Some("api_key".to_string()));
+		let entry = builder.into_opds_entry();
+		assert_eq!(entry.links[0].href, "/opds/api_key/v1.2/libraries/123");
+	}
+
+	#[test]
+	fn test_builder_url_format_without_api_key() {
+		let builder = OPDSEntryBuilder::new(library(), None);
+		let entry = builder.into_opds_entry();
+		assert_eq!(entry.links[0].href, "/opds/v1.2/libraries/123");
 	}
 }

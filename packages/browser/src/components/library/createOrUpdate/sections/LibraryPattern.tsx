@@ -1,8 +1,8 @@
 import { Heading, Link, RadioGroup, Text } from '@stump/components'
+import { LibraryPattern } from '@stump/graphql'
 import { useLocaleContext } from '@stump/i18n'
-import { LibraryPattern } from '@stump/sdk'
 import { useCallback } from 'react'
-import { useFormContext } from 'react-hook-form'
+import { useFormContext, useWatch } from 'react-hook-form'
 
 import { useLibraryContextSafe } from '@/scenes/library/context'
 
@@ -12,14 +12,14 @@ export default function LibraryPatternRadioGroup() {
 
 	const { t } = useLocaleContext()
 
-	const libraryPattern: LibraryPattern = form.watch('library_pattern')
-	const isCollectionBasedSelected = libraryPattern === 'COLLECTION_BASED'
+	const libraryPattern = useWatch({ control: form.control, name: 'libraryPattern' })
+	const isCollectionBasedSelected = libraryPattern === LibraryPattern.CollectionBased
 	const isCreating = !ctx?.library
 
 	const handleChange = useCallback(
 		(pattern: LibraryPattern) => {
 			if (isCreating) {
-				form.setValue('library_pattern', pattern)
+				form.setValue('libraryPattern', pattern)
 			}
 		},
 		[form, isCreating],
@@ -27,7 +27,7 @@ export default function LibraryPatternRadioGroup() {
 
 	// Note: if this section ever becomes more than library pattern, restore the section locale keys
 	return (
-		<div className="flex flex-col gap-6">
+		<div className="gap-6 flex flex-col">
 			<div>
 				<Heading size="sm">{t(getOptionKey('label'))}</Heading>
 				<Text size="sm" variant="muted">
@@ -35,22 +35,23 @@ export default function LibraryPatternRadioGroup() {
 				</Text>
 			</div>
 
-			<div className="flex flex-col gap-y-4">
-				<input type="hidden" {...form.register('library_pattern')} />
+			<div className="gap-y-4 flex flex-col">
+				<input type="hidden" {...form.register('libraryPattern')} />
 
 				<RadioGroup
 					value={libraryPattern}
 					onValueChange={handleChange}
-					className="mt-1 flex flex-col sm:flex-row"
+					className="mt-1 sm:flex-row flex flex-col"
 					disabled={!isCreating}
 					title={isCreating ? undefined : t(getKey('section.disabled'))}
+					defaultValue="SERIES_BASED"
 				>
 					<RadioGroup.CardItem
 						label={t(getOptionKey('collectionPriority.label'))}
 						description={t(getOptionKey('collectionPriority.description'))}
 						innerContainerClassName="block sm:flex-col sm:items-start sm:gap-2"
 						isActive={isCollectionBasedSelected}
-						value="COLLECTION_BASED"
+						value={LibraryPattern.CollectionBased}
 						className="md:w-1/2"
 					/>
 

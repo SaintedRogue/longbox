@@ -1,3 +1,4 @@
+import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { resolve } from 'path'
 import { defineConfig } from 'vite'
@@ -23,7 +24,15 @@ export default defineConfig({
 	define: {
 		pkgJson: { name, version },
 	},
-	plugins: [react(), tsconfigPaths()],
+	plugins: [
+		tailwindcss(),
+		react({
+			babel: {
+				plugins: [['babel-plugin-react-compiler', {}]],
+			},
+		}),
+		tsconfigPaths(),
+	],
 	publicDir: '../../../packages/browser/public',
 	root: 'src',
 	server: {

@@ -1,70 +1,131 @@
-import { useLibraries, useSDK } from '@stump/client'
-import { Image } from 'expo-image'
-import { useRouter } from 'expo-router'
-import { useMemo } from 'react'
-import { Pressable, SafeAreaView, useWindowDimensions, View } from 'react-native'
-import { FlatGrid } from 'react-native-super-grid'
+import { FlashList } from '@shopify/flash-list'
+import { useInfiniteSuspenseGraphQL, useRefetch } from '@stump/client'
+import { graphql } from '@stump/graphql'
+import { useCallback, useRef } from 'react'
+import { Platform, View } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { useActiveServer } from '~/components/activeServer'
-import { Text } from '~/components/ui'
-import { cn } from '~/lib/utils'
+import { useCollectionItemSize } from '~/components/image/collection-image/useCollectionSizes'
+import { LibraryGridItem } from '~/components/library'
+import ListEmpty from '~/components/ListEmpty'
+import RefreshControl from '~/components/RefreshControl'
+import { RefreshButton, Text } from '~/components/ui'
+import { ON_END_REACHED_THRESHOLD } from '~/lib/constants'
+
+const query = graphql(`
+	query LibrariesScreen($pagination: Pagination) {
+		libraries(pagination: $pagination) {
+			nodes {
+				id
+				...LibraryGridItem
+			}
+			pageInfo {
+				__typename
+				... on CursorPaginationInfo {
+					currentCursor
+					nextCursor
+					limit
+				}
+			}
+		}
+	}
+`)
 
 export default function Screen() {
-	const { width } = useWindowDimensions()
-	const { sdk } = useSDK()
-	const { libraries } = useLibraries({ suspense: true })
 	const {
 		activeServer: { id: serverID },
 	} = useActiveServer()
-	const router = useRouter()
 
-	// iPad or other large screens can have more columns (i.e., smaller itemDimension) but most phones should have 2 columns
-	const isTablet = useMemo(() => width > 768, [width])
-	const itemDimension = useMemo(
-		() =>
-			width /
-				// 2 columns on phones
-				(isTablet ? 4 : 2) -
-			16 * 2,
-		[isTablet, width],
-	)
+	const { data, hasNextPage, fetchNextPage, refetch } = useInfiniteSuspenseGraphQL(query, [
+		'libraries',
+		serverID,
+	])
+	const { numColumns, verticalGap, paddingHorizontal } = useCollectionItemSize()
+
+	const nodes = data?.pages.flatMap((page) => page.libraries.nodes) || []
+
+	const [isRefetching, handleRefetch] = useRefetch(refetch)
+
+	const onEndReached = useCallback(() => {
+		if (hasNextPage) {
+			fetchNextPage()
+		}
+	}, [hasNextPage, fetchNextPage])
+
+	// This makes sure we do not repeat layout variants if possible:
+	//
+	// For example, there are only two layouts for libraries with 3 series,
+	// and if only the 1st and 3rd libraries have 3 series, then if we used
+	// FlashList index they would have both used the same layout variant
+	const layoutRegistry = useRef({
+		// The layout variant number (non-modulo) assigned to a library ID
+		assignments: new Map<string, number>(),
+		// Record the smallest unused layout variant number (non-modulo) for each catagory
+		counters: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+	})
+
+	const getLayoutNumber = useCallback((libraryId: string, itemCount: number) => {
+		if (itemCount < 1 || itemCount > 5) return undefined
+
+		const { assignments, counters } = layoutRegistry.current
+
+		if (assignments.has(libraryId)) {
+			return assignments.get(libraryId)!
+		}
+
+		const category = itemCount as 1 | 2 | 3 | 4 | 5
+		const layoutNumber = counters[category]
+		assignments.set(libraryId, layoutNumber)
+		counters[category]++
+
+		return layoutNumber
+	}, [])
 
 	return (
-		<SafeAreaView className="flex-1 bg-background">
-			<View className="flex-1 gap-5 p-4">
-				<Text className="text-3xl font-semibold">All libraries</Text>
-
-				<FlatGrid
-					itemDimension={itemDimension}
-					data={libraries || []}
-					renderItem={({ item: { id, name } }) => (
-						<Pressable onPress={() => router.navigate(`/server/${serverID}/libraries/${id}`)}>
-							{({ pressed }) => (
-								<View className="flex items-start gap-4">
-									<View
-										className={cn('aspect-[2/3] overflow-hidden rounded-lg', {
-											'opacity-80': pressed,
-										})}
-									>
-										<Image
-											source={{
-												uri: sdk.library.thumbnailURL(id),
-												headers: {
-													Authorization: sdk.authorizationHeader,
-												},
-											}}
-											contentFit="fill"
-											style={{ height: itemDimension * 1.5, width: itemDimension }}
-										/>
-									</View>
-
-									<Text className="text-xl font-medium leading-6">{name}</Text>
-								</View>
-							)}
-						</Pressable>
-					)}
-				/>
-			</View>
+		<SafeAreaView
+			style={{ flex: 1 }}
+			edges={['left', 'right', ...(Platform.OS === 'ios' ? [] : ['bottom' as const])]}
+		>
+			<FlashList
+				data={nodes}
+				renderItem={({ item }) => (
+					<LibraryGridItem library={item} getLayoutNumber={getLayoutNumber} />
+				)}
+				contentContainerStyle={{
+					paddingHorizontal: paddingHorizontal,
+					paddingVertical: 16,
+				}}
+				numColumns={numColumns}
+				onEndReachedThreshold={ON_END_REACHED_THRESHOLD}
+				onEndReached={onEndReached}
+				ItemSeparatorComponent={() => <View style={{ height: verticalGap }} />}
+				contentInsetAdjustmentBehavior="automatic"
+				refreshControl={
+					nodes.length > 0 ? (
+						<RefreshControl refreshing={isRefetching} onRefresh={handleRefetch} />
+					) : undefined
+				}
+				ListEmptyComponent={
+					<ListEmpty
+						title="This server is empty"
+						message="Once you've added libraries to this server, they'll show up here"
+						actions={
+							<>
+								<RefreshButton
+									className="flex-row items-center"
+									roundness="full"
+									size="lg"
+									onPress={() => handleRefetch()}
+									isRefreshing={isRefetching}
+								>
+									<Text>Refresh</Text>
+								</RefreshButton>
+							</>
+						}
+					/>
+				}
+			/>
 		</SafeAreaView>
 	)
 }

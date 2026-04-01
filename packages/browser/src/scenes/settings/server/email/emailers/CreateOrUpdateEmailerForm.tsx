@@ -10,16 +10,17 @@ import {
 	PasswordInput,
 	Text,
 } from '@stump/components'
+import { EmailerListItemFragment } from '@stump/graphql'
 import { useLocaleContext } from '@stump/i18n'
-import { SMTPEmailer } from '@stump/sdk'
 import { useCallback, useMemo } from 'react'
-import { useForm, useFormState } from 'react-hook-form'
+import { useForm, useFormState, useWatch } from 'react-hook-form'
 
 import { CreateOrUpdateEmailerSchema, createSchema, formDefaults } from './schema'
+import TestEmailerButton from './TestEmailerButton'
 import { commonHosts, getCommonHost } from './utils'
 
 type Props = {
-	emailer?: SMTPEmailer
+	emailer?: EmailerListItemFragment
 	existingNames: string[]
 	onSubmit: (values: CreateOrUpdateEmailerSchema) => void
 }
@@ -43,7 +44,10 @@ export default function CreateOrUpdateEmailerForm({ emailer, existingNames, onSu
 	})
 	const { errors } = useFormState({ control: form.control })
 
-	const [currentHost, tlsEnabled] = form.watch(['smtp_host', 'tls_enabled'])
+	const [currentHost, tlsEnabled] = useWatch({
+		control: form.control,
+		name: ['smtpHost', 'tlsEnabled'],
+	})
 
 	const presetValue = useMemo(() => getCommonHost(currentHost)?.name.toLowerCase(), [currentHost])
 
@@ -90,7 +94,7 @@ export default function CreateOrUpdateEmailerForm({ emailer, existingNames, onSu
 				ignoreFill
 			/>
 
-			<div className="flex flex-col space-y-4">
+			<div className="space-y-4 flex flex-col">
 				<div>
 					<Heading size="sm" className="font-semibold">
 						{t(`${LOCALE_BASE}.smtpSettings.heading`)}
@@ -102,7 +106,7 @@ export default function CreateOrUpdateEmailerForm({ emailer, existingNames, onSu
 				</div>
 
 				{/* FIXME: A little buggy */}
-				<div className="flex flex-col space-y-1 md:max-w-sm">
+				<div className="space-y-1 md:max-w-sm flex flex-col">
 					<Label>{t(`${LOCALE_BASE}.smtpProvider.label`)}</Label>
 					<NativeSelect
 						emptyOption={{ label: 'Custom', value: undefined }}
@@ -116,8 +120,8 @@ export default function CreateOrUpdateEmailerForm({ emailer, existingNames, onSu
 							if (value && value in commonHosts) {
 								const preset = commonHosts[value]
 								if (preset) {
-									form.setValue('smtp_host', preset.smtp_host)
-									form.setValue('smtp_port', preset.smtp_port)
+									form.setValue('smtpHost', preset.smtpHost)
+									form.setValue('smtpPort', preset.smtpPort)
 								}
 							}
 						}}
@@ -127,29 +131,29 @@ export default function CreateOrUpdateEmailerForm({ emailer, existingNames, onSu
 					</Text>
 				</div>
 
-				<div className="flex flex-col gap-4 md:flex-row md:items-start">
+				<div className="gap-4 md:flex-row md:items-start flex flex-col">
 					<Input
-						id="smtp_host"
+						id="smtpHost"
 						label={t(`${LOCALE_BASE}.smtpHost.label`)}
 						description={t(`${LOCALE_BASE}.smtpHost.description`)}
 						variant="primary"
 						fullWidth
-						{...form.register('smtp_host')}
-						errorMessage={errors.smtp_host?.message}
+						{...form.register('smtpHost')}
+						errorMessage={errors.smtpHost?.message}
 					/>
 
 					<Input
-						id="smtp_port"
+						id="smtpPort"
 						label={t(`${LOCALE_BASE}.smtpPort.label`)}
 						description={t(`${LOCALE_BASE}.smtpPort.description`)}
 						variant="primary"
 						className="max-w-[185px]"
-						{...numericRegister('smtp_port')}
-						errorMessage={errors.smtp_port?.message}
+						{...numericRegister('smtpPort')}
+						errorMessage={errors.smtpPort?.message}
 					/>
 				</div>
 
-				<div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+				<div className="gap-4 lg:flex-row lg:items-start flex flex-col">
 					<Input
 						id="username"
 						label={t(`${LOCALE_BASE}.username.label`)}
@@ -170,17 +174,17 @@ export default function CreateOrUpdateEmailerForm({ emailer, existingNames, onSu
 				</div>
 
 				<CheckBox
-					id="tls_enabled"
+					id="tlsEnabled"
 					variant="primary"
 					label={t(`${LOCALE_BASE}.tlsEnabled.label`)}
 					description={t(`${LOCALE_BASE}.tlsEnabled.description`)}
-					{...form.register('tls_enabled')}
+					{...form.register('tlsEnabled')}
 					checked={tlsEnabled}
-					onClick={() => form.setValue('tls_enabled', !tlsEnabled)}
+					onClick={() => form.setValue('tlsEnabled', !tlsEnabled)}
 				/>
 			</div>
 
-			<div className="flex flex-col space-y-4">
+			<div className="space-y-4 flex flex-col">
 				<div>
 					<Heading size="sm" className="font-semibold">
 						{t(`${LOCALE_BASE}.senderSettings.heading`)}
@@ -191,25 +195,25 @@ export default function CreateOrUpdateEmailerForm({ emailer, existingNames, onSu
 					</Text>
 				</div>
 				<Input
-					id="sender_display_name"
+					id="senderDisplayName"
 					label={t(`${LOCALE_BASE}.senderDisplayName.label`)}
 					description={t(`${LOCALE_BASE}.senderDisplayName.description`)}
 					variant="primary"
-					{...form.register('sender_display_name')}
-					errorMessage={errors.sender_display_name?.message}
+					{...form.register('senderDisplayName')}
+					errorMessage={errors.senderDisplayName?.message}
 				/>
 
 				<Input
-					id="sender_email"
+					id="senderEmail"
 					label={t(`${LOCALE_BASE}.senderEmail.label`)}
 					description={t(`${LOCALE_BASE}.senderEmail.description`)}
 					variant="primary"
-					{...form.register('sender_email')}
-					errorMessage={errors.sender_email?.message}
+					{...form.register('senderEmail')}
+					errorMessage={errors.senderEmail?.message}
 				/>
 			</div>
 
-			<div className="flex flex-col space-y-4">
+			<div className="space-y-4 flex flex-col">
 				<div>
 					<Heading size="sm" className="font-semibold">
 						{t(`${LOCALE_BASE}.additionalSettings.heading`)}
@@ -221,14 +225,16 @@ export default function CreateOrUpdateEmailerForm({ emailer, existingNames, onSu
 				</div>
 
 				<Input
-					id="max_attachment_size_bytes"
+					id="maxAttachmentSizeBytes"
 					label={t(`${LOCALE_BASE}.maxAttachmentSize.label`)}
 					description={t(`${LOCALE_BASE}.maxAttachmentSize.description`)}
 					variant="primary"
-					{...numericRegister('max_attachment_size_bytes')}
-					errorMessage={errors.max_attachment_size_bytes?.message}
+					{...numericRegister('maxAttachmentSizeBytes')}
+					errorMessage={errors.maxAttachmentSizeBytes?.message}
 				/>
 			</div>
+
+			<TestEmailerButton />
 
 			<div>
 				<Button type="submit" variant="primary">

@@ -1,23 +1,20 @@
-use std::path::PathBuf;
+use async_graphql::InputObject;
 
 use lettre::{
-	address::AddressError,
+	address::{Address, AddressError},
 	message::{
 		header::{self, ContentType},
-		Attachment, MultiPart, SinglePart,
+		Attachment, Mailbox, MultiPart, SinglePart,
 	},
-	transport::smtp::authentication::Credentials,
+	transport::smtp::authentication::{Credentials, Mechanism},
 	Message, SmtpTransport, Transport,
 };
 use serde::{Deserialize, Serialize};
-use serde_json::json;
-use specta::Type;
-use utoipa::ToSchema;
 
-use crate::{render_template, EmailError, EmailResult, EmailTemplate};
+use crate::{EmailError, EmailResult};
 
 /// The configuration for an [EmailerClient]
-#[derive(Serialize, Deserialize, ToSchema, Type)]
+#[derive(Serialize, Deserialize, InputObject)]
 pub struct EmailerClientConfig {
 	/// The email address to send from
 	pub sender_email: String,
@@ -42,7 +39,7 @@ pub struct EmailerClientConfig {
 }
 
 /// Information about an attachment to be sent in an email, including the actual content
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AttachmentPayload {
 	/// The name of the attachment
 	pub name: String,
@@ -56,17 +53,14 @@ pub struct AttachmentPayload {
 pub struct EmailerClient {
 	/// The configuration for the email client
 	config: EmailerClientConfig,
-	/// The directory where email templates are stored
-	template_dir: PathBuf,
 }
 
 impl EmailerClient {
-	/// Create a new [EmailerClient] instance with the given configuration and template directory.
+	/// Create a new [EmailerClient] instance with the given configuration.
 	///
 	/// # Example
 	/// ```no_run
 	/// use email::{EmailerClient, EmailerClientConfig};
-	/// use std::path::PathBuf;
 	///
 	/// let config = EmailerClientConfig {
 	///     sender_email: "aaron@stumpapp.dev".to_string(),
@@ -79,14 +73,27 @@ impl EmailerClient {
 	///     max_attachment_size_bytes: Some(10_000_000),
 	///     max_num_attachments: Some(5),
 	/// };
-	/// let template_dir = PathBuf::from("/templates");
-	/// let emailer = EmailerClient::new(config, template_dir);
+	/// let emailer = EmailerClient::new(config);
 	/// ```
-	pub fn new(config: EmailerClientConfig, template_dir: PathBuf) -> Self {
-		Self {
-			config,
-			template_dir,
-		}
+	pub fn new(config: EmailerClientConfig) -> Self {
+		Self { config }
+	}
+
+	/// Send a test email with a small TXT attachment to verify the SMTP configuration is working.
+	pub async fn send_test_email(&self, recipient: &str) -> EmailResult<()> {
+		self.send_attachment(
+			"Test Email from Stump",
+			recipient,
+			AttachmentPayload {
+				name: "stump-test.txt".to_string(),
+				content:
+					b"Hello from Stump! Your email configuration is working correctly."
+						.to_vec(),
+				content_type: ContentType::parse("text/plain; charset=utf-8")
+					.unwrap_or(ContentType::TEXT_PLAIN),
+			},
+		)
+		.await
 	}
 
 	/// Send an email with the given subject and attachment to the given recipient.
@@ -95,7 +102,6 @@ impl EmailerClient {
 	/// # Example
 	/// ```no_run
 	/// use email::{AttachmentPayload, EmailerClient, EmailerClientConfig};
-	/// use std::path::PathBuf;
 	/// use lettre::message::header::ContentType;
 	///
 	/// async fn test() {
@@ -110,8 +116,7 @@ impl EmailerClient {
 	///         max_attachment_size_bytes: Some(10_000_000),
 	///         max_num_attachments: Some(5),
 	///     };
-	///     let template_dir = PathBuf::from("/templates");
-	///     let emailer = EmailerClient::new(config, template_dir);
+	///     let emailer = EmailerClient::new(config);
 	///
 	///     let result = emailer.send_attachment(
 	///         "Attachment Test",
@@ -141,7 +146,6 @@ impl EmailerClient {
 	/// # Example
 	/// ```no_run
 	/// use email::{AttachmentPayload, EmailerClient, EmailerClientConfig};
-	/// use std::path::PathBuf;
 	/// use lettre::message::header::ContentType;
 	///
 	/// async fn test() {
@@ -156,8 +160,7 @@ impl EmailerClient {
 	///         max_attachment_size_bytes: Some(10_000_000),
 	///         max_num_attachments: Some(5),
 	///     };
-	///     let template_dir = PathBuf::from("/templates");
-	///     let emailer = EmailerClient::new(config, template_dir);
+	///     let emailer = EmailerClient::new(config);
 	///
 	///     let result = emailer.send_attachments(
 	///         "Attachment Test",
@@ -178,34 +181,46 @@ impl EmailerClient {
 	///     assert!(result.is_err()); // This will fail because the SMTP server is not real
 	/// }
 	/// ```
+	#[tracing::instrument(
+		skip(self, subject, payloads),
+		fields(host = %self.config.host, port = self.config.port, tls_enabled = self.config.tls_enabled,
+	))]
 	pub async fn send_attachments(
 		&self,
 		subject: &str,
 		recipient: &str,
 		payloads: Vec<AttachmentPayload>,
 	) -> EmailResult<()> {
-		let from = self
+		let address: Address = self
 			.config
 			.sender_email
 			.parse()
 			.map_err(|e: AddressError| EmailError::InvalidEmail(e.to_string()))?;
 
+		let display_name = &self.config.sender_display_name;
+		let from = Mailbox::new(
+			if display_name.is_empty() {
+				None
+			} else {
+				Some(display_name.clone())
+			},
+			address,
+		);
+
 		let to = recipient
 			.parse()
 			.map_err(|e: AddressError| EmailError::InvalidEmail(e.to_string()))?;
 
-		let html = render_template(
-			EmailTemplate::Attachment,
-			&json!({
-				"title": "Stump Attachment",
-			}),
-			self.template_dir.clone(),
-		)?;
+		let plain_text = format!(
+			"You have a new attachment from Stump!\n\n\
+			 This email contains {} attachment(s).",
+			payloads.len()
+		);
 
 		let mut multipart_builder = MultiPart::mixed().singlepart(
 			SinglePart::builder()
-				.header(header::ContentType::TEXT_HTML)
-				.body(html),
+				.header(header::ContentType::TEXT_PLAIN)
+				.body(plain_text),
 		);
 
 		for payload in payloads {
@@ -230,24 +245,35 @@ impl EmailerClient {
 
 		// Note this issue: https://github.com/lettre/lettre/issues/359
 		let transport = if self.config.tls_enabled {
-			SmtpTransport::starttls_relay(&self.config.host)
-				.unwrap()
-				.credentials(creds)
-				.build()
+			if self.config.port == 465 {
+				tracing::debug!("Using implicit TLS (relay)");
+				SmtpTransport::relay(&self.config.host)?
+					.port(self.config.port)
+					.credentials(creds)
+					.build()
+			} else {
+				tracing::debug!("Using STARTTLS (starttls_relay)");
+				SmtpTransport::starttls_relay(&self.config.host)?
+					.port(self.config.port)
+					.credentials(creds)
+					.build()
+			}
 		} else {
-			SmtpTransport::relay(&self.config.host)?
+			tracing::warn!("TLS is disabled, using dangerous SMTP transport!");
+			SmtpTransport::builder_dangerous(&self.config.host)
 				.port(self.config.port)
 				.credentials(creds)
+				.authentication(vec![Mechanism::Plain, Mechanism::Login])
 				.build()
 		};
 
 		match transport.send(&email) {
 			Ok(res) => {
-				tracing::trace!(?res, "Email with attachments was sent");
+				tracing::debug!(?res, "Email with attachments was sent successfully");
 				Ok(())
 			},
 			Err(e) => {
-				tracing::error!(error = ?e, "Failed to send email with attachments");
+				tracing::error!(error = ?e, host = %self.config.host, port = self.config.port, "Failed to send email with attachments");
 				Err(e.into())
 			},
 		}

@@ -1,4 +1,5 @@
 const { hairlineWidth } = require('nativewind/theme')
+const plugin = require('tailwindcss/plugin')
 
 /** @type {import('tailwindcss').Config} */
 module.exports = {
@@ -22,6 +23,7 @@ module.exports = {
 					},
 					// TODO: figure this out
 					tabs: 'var(--tabs)',
+					opaque: 'var(--background-opaque)',
 				},
 				edge: {
 					DEFAULT: 'var(--edge)',
@@ -65,9 +67,9 @@ module.exports = {
 					DEFAULT: 'var(--foreground)',
 					brand: 'var(--foreground-brand)',
 					disabled: 'var(--foreground-disabled)',
-
 					muted: 'var(--foreground-muted)',
 					'on-inverse': 'var(--foreground-on-inverse)',
+					'on-fill': 'var(--foreground-on-fill)',
 					subtle: 'var(--foreground-subtle)',
 				},
 			},
@@ -92,7 +94,30 @@ module.exports = {
 				'accordion-down': 'accordion-down 0.2s ease-out',
 				'accordion-up': 'accordion-up 0.2s ease-out',
 			},
+			borderCurve: {
+				continuous: 'continuous',
+				curve: 'curve',
+			},
 		},
 	},
-	plugins: [require('tailwindcss-animate')],
+	plugins: [
+		require('tailwindcss-animate'),
+		plugin(function ({ addUtilities }) {
+			addUtilities({
+				'.border-continuous': {
+					'@rn-move -rn-border-curve border-curve': 'true',
+					'-rn-border-curve': 'continuous',
+				},
+				'.border-circular': {
+					'@rn-move -rn-border-curve border-curve': 'true',
+					'-rn-border-curve': 'circular',
+				},
+				'.squircle': {
+					'@rn-move -rn-border-curve border-curve': 'true',
+					'-rn-border-curve': 'continuous',
+					overflow: 'hidden',
+				},
+			})
+		}),
+	],
 }

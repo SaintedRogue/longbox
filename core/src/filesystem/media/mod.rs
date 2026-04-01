@@ -1,12 +1,14 @@
-pub mod analyze_media_job;
+pub mod analysis;
 mod builder;
 mod format;
+mod metadata;
 mod process;
 mod utils;
 
 pub use crate::filesystem::media::epub::EpubProcessor;
-pub(crate) use builder::{MediaBuilder, SeriesBuilder};
+pub(crate) use builder::{BuiltMedia, MediaBuilder};
 pub use format::*;
+pub use metadata::*;
 pub use process::*;
 pub use utils::is_accepted_cover_name;
 
@@ -17,6 +19,13 @@ pub(crate) mod tests {
 	pub fn get_test_zip_path() -> String {
 		PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 			.join("integration-tests/data/book.zip")
+			.to_string_lossy()
+			.to_string()
+	}
+
+	pub fn get_test_complex_zip_path() -> String {
+		PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+			.join("integration-tests/data/book-complex-tree.zip")
 			.to_string_lossy()
 			.to_string()
 	}
@@ -32,6 +41,13 @@ pub(crate) mod tests {
 		let test_rar_path = get_test_rar_path();
 
 		fs::read(test_rar_path).expect("Failed to fetch test rar file")
+	}
+
+	pub fn get_test_complex_rar_path() -> String {
+		PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+			.join("integration-tests/data/book-complex-tree.rar")
+			.to_string_lossy()
+			.to_string()
 	}
 
 	pub fn get_test_epub_path() -> String {

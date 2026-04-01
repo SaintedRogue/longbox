@@ -1,37 +1,136 @@
-import { useContinueReading } from '@stump/client'
-import { Text } from '@stump/components'
+import { PREFETCH_STALE_TIME, useInfiniteSuspenseGraphQL, useSDK } from '@stump/client'
+import { Heading, ProgressBar, Text } from '@stump/components'
+import { FragmentType, graphql, useFragment } from '@stump/graphql'
 import { useLocaleContext } from '@stump/i18n'
+import { useQueryClient } from '@tanstack/react-query'
+import { formatDistanceToNow } from 'date-fns'
 import { BookMarked } from 'lucide-react'
-import { Suspense, useCallback } from 'react'
+import { memo, Suspense, useCallback, useMemo } from 'react'
+import { useMediaMatch } from 'rooks'
 
-import MediaCard from '@/components/book/BookCard'
 import HorizontalCardList from '@/components/HorizontalCardList'
+import { ThumbnailImage } from '@/components/thumbnail/ThumbnailImage'
+import { ThumbnailPlaceholderData } from '@/components/thumbnail/ThumbnailPlaceholder'
+import { Link } from '@/context'
+import { usePreferences } from '@/hooks/usePreferences'
+import { usePaths } from '@/paths'
 
-function ContinueReadingMedia() {
+const IMAGE_WIDTH_MOBILE = 200
+const IMAGE_WIDTH_TABLET = 220
+
+const ContinueReadingBookFragment = graphql(`
+	fragment ContinueReadingBook on Media {
+		id
+		resolvedName
+		pages
+		thumbnail {
+			url
+			metadata {
+				averageColor
+				colors {
+					color
+					percentage
+				}
+				thumbhash
+			}
+		}
+		readProgress {
+			percentageCompleted
+			epubcfi
+			page
+			updatedAt
+		}
+	}
+`)
+
+const query = graphql(`
+	query ContinueReadingMedia($pagination: Pagination!) {
+		keepReading(pagination: $pagination) {
+			nodes {
+				id
+				...ContinueReadingBook
+			}
+			pageInfo {
+				__typename
+				... on CursorPaginationInfo {
+					currentCursor
+					nextCursor
+					limit
+				}
+				... on OffsetPaginationInfo {
+					currentPage
+					totalPages
+					pageSize
+					pageOffset
+					zeroBased
+				}
+			}
+		}
+	}
+`)
+
+export const usePrefetchContinueReading = () => {
+	const { sdk } = useSDK()
+	const client = useQueryClient()
+	return useCallback(() => {
+		client.prefetchInfiniteQuery({
+			queryKey: sdk.cacheKey('inProgress'),
+			initialPageParam: {
+				offset: {
+					pageSize: 20,
+					page: 1,
+				},
+			},
+			queryFn: ({ pageParam }) => {
+				return sdk.execute(query, {
+					pagination: pageParam,
+				})
+			},
+			staleTime: PREFETCH_STALE_TIME,
+		})
+	}, [sdk, client])
+}
+
+export default function ContinueReadingContainer() {
+	return (
+		<Suspense>
+			<ContinueReading />
+		</Suspense>
+	)
+}
+
+function ContinueReading() {
+	const { sdk } = useSDK()
 	const { t } = useLocaleContext()
-	const { media, fetchNextPage, hasNextPage, isFetching } = useContinueReading({
-		limit: 20,
-		suspense: true,
-	})
+	const isAtLeastMedium = useMediaMatch('(min-width: 768px)')
+	const {
+		preferences: { thumbnailRatio },
+	} = usePreferences()
+	const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteSuspenseGraphQL(
+		query,
+		[sdk.cacheKeys.inProgress],
+		{
+			pagination: { offset: { pageSize: 20, page: 1 } },
+		},
+	)
 
-	const cards = media.map((media) => <MediaCard media={media} key={media.id} fullWidth={false} />)
+	const nodes = useMemo(() => data.pages.flatMap((page) => page.keepReading.nodes), [data])
+
+	const imageWidth = isAtLeastMedium ? IMAGE_WIDTH_TABLET : IMAGE_WIDTH_MOBILE
+	const listHeight = imageWidth / thumbnailRatio + 17 // +17 for scrollbar
 
 	const handleFetchMore = useCallback(() => {
-		if (!hasNextPage || isFetching) {
-			return
-		} else {
+		if (hasNextPage && !isFetchingNextPage) {
 			fetchNextPage()
 		}
-	}, [fetchNextPage, hasNextPage, isFetching])
+	}, [fetchNextPage, hasNextPage, isFetchingNextPage])
 
-	return (
-		<HorizontalCardList
-			title={t('homeScene.continueReading.title')}
-			items={cards}
-			onFetchMore={handleFetchMore}
-			emptyState={
-				<div className="flex items-start justify-start space-x-3 rounded-lg border border-dashed border-edge-subtle px-4 py-4">
-					<span className="rounded-lg border border-edge bg-background-surface p-2">
+	if (!nodes.length) {
+		return (
+			<div className="space-y-2 flex flex-col">
+				<Heading size="sm">{t('homeScene.continueReading.title')}</Heading>
+				<div className="space-x-3 rounded-lg px-4 py-4 flex items-start justify-start border border-dashed border-edge-subtle">
+					<span className="rounded-lg p-2 border border-edge bg-background-surface">
 						<BookMarked className="h-8 w-8 text-foreground-muted" />
 					</span>
 					<div>
@@ -41,15 +140,130 @@ function ContinueReadingMedia() {
 						</Text>
 					</div>
 				</div>
-			}
+			</div>
+		)
+	}
+
+	const cards = nodes.map((node) => <ContinueReadingCard key={node.id} fragment={node} />)
+
+	return (
+		<HorizontalCardList
+			title={t('homeScene.continueReading.title')}
+			items={cards}
+			height={listHeight}
+			onFetchMore={handleFetchMore}
 		/>
 	)
 }
 
-export default function ContinueReadingMediaContainer() {
-	return (
-		<Suspense>
-			<ContinueReadingMedia />
-		</Suspense>
-	)
+type ContinueReadingCardProps = {
+	fragment: FragmentType<typeof ContinueReadingBookFragment>
 }
+
+const ContinueReadingCard = memo(function ContinueReadingCard({
+	fragment,
+}: ContinueReadingCardProps) {
+	const isAtLeastMedium = useMediaMatch('(min-width: 768px)')
+	const width = isAtLeastMedium ? IMAGE_WIDTH_TABLET : IMAGE_WIDTH_MOBILE
+	const data = useFragment(ContinueReadingBookFragment, fragment)
+	const paths = usePaths()
+
+	const {
+		preferences: { thumbnailRatio },
+	} = usePreferences()
+
+	const progress = useMemo(() => {
+		if (!data.readProgress) return null
+
+		const { epubcfi, percentageCompleted, page } = data.readProgress
+		if (epubcfi && percentageCompleted) {
+			return Math.round(percentageCompleted * 100)
+		} else if (page) {
+			const percent = Math.round((page / data.pages) * 100)
+			return Math.min(Math.max(percent, 0), 100)
+		}
+
+		return null
+	}, [data.readProgress, data.pages])
+
+	const placeholderData: ThumbnailPlaceholderData | undefined = useMemo(() => {
+		const meta = data.thumbnail.metadata
+		if (!meta) return undefined
+		return {
+			averageColor: meta.averageColor,
+			colors: meta.colors,
+			thumbhash: meta.thumbhash,
+		}
+	}, [data.thumbnail.metadata])
+
+	const isEbookProgress = !!data.readProgress?.epubcfi
+	const pagesLeft = data.pages - (data.readProgress?.page || 0)
+	const progressPercent = progress ?? 0
+
+	const gradient = {
+		colors: ['transparent', 'transparent', 'rgba(0, 0, 0, 0.4)', 'rgba(0, 0, 0, 0.85)'],
+		direction: 'to bottom',
+	}
+
+	return (
+		<Link
+			to={paths.bookOverview(data.id)}
+			className="group rounded-xl relative block shrink-0 overflow-hidden transition-opacity hover:opacity-90"
+			style={{ width }}
+		>
+			<ThumbnailImage
+				src={data.thumbnail.url}
+				alt={data.resolvedName}
+				size={{ width, height: width / thumbnailRatio }}
+				placeholderData={placeholderData}
+				gradient={gradient}
+				borderAndShadowStyle={{
+					borderRadius: 12,
+					shadowColor: 'rgba(0, 0, 0, 0.2)',
+					shadowRadius: 2,
+				}}
+			/>
+
+			<div className="bottom-0 left-0 right-0 gap-2 p-2.5 pointer-events-none absolute z-30 flex flex-col">
+				<Text
+					className="text-sm font-semibold leading-tight text-white md:text-base line-clamp-2 text-wrap!"
+					style={{
+						textShadow: '1px 1px 2px rgba(0, 0, 0, 0.5)',
+					}}
+				>
+					{data.resolvedName}
+				</Text>
+
+				<div className="gap-2 flex items-center justify-between">
+					{!isEbookProgress && !!data.readProgress?.page && data.readProgress.page > 0 && (
+						<Text size="xs" className="text-gray-200 opacity-90">
+							{pagesLeft} {pagesLeft === 1 ? 'page' : 'pages'} left
+						</Text>
+					)}
+
+					{isEbookProgress && progressPercent > 0 && (
+						<Text size="xs" className="text-gray-200 opacity-90">
+							{progressPercent}%
+						</Text>
+					)}
+
+					{data.readProgress?.updatedAt && (
+						<Text size="xs" className="text-gray-200 opacity-90">
+							{formatDistanceToNow(new Date(data.readProgress.updatedAt), { addSuffix: true })}
+						</Text>
+					)}
+				</div>
+
+				{progressPercent > 0 && (
+					<ProgressBar
+						value={progressPercent}
+						max={100}
+						size="sm"
+						className="h-1 rounded-full bg-[#898d94]"
+						indicatorClassName="bg-foreground"
+					/>
+				)}
+			</div>
+		</Link>
+	)
+})

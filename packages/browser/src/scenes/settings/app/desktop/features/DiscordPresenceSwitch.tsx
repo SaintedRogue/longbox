@@ -1,20 +1,23 @@
-import { useUpdatePreferences } from '@stump/client'
 import { Button, Label, RawSwitch, Text, ToolTip } from '@stump/components'
 import { useLocaleContext } from '@stump/i18n'
 import { RefreshCcw } from 'lucide-react'
-import toast from 'react-hot-toast'
+import { toast } from 'sonner'
+import { useShallow } from 'zustand/react/shallow'
 
+import { usePreferences } from '@/hooks/usePreferences'
 import { useTauriRPC } from '@/hooks/useTauriRPC'
 import { useUserStore } from '@/stores'
 
 export default function DiscordPresenceSwitch() {
 	const { setDiscordPresence } = useTauriRPC()
 	const { t } = useLocaleContext()
-	const { userPreferences, setUserPreferences } = useUserStore((state) => ({
-		setUserPreferences: state.setUserPreferences,
-		userPreferences: state.userPreferences,
-	}))
-	const { update } = useUpdatePreferences()
+	const { userPreferences, setUserPreferences } = useUserStore(
+		useShallow((state) => ({
+			setUserPreferences: state.setUserPreferences,
+			userPreferences: state.userPreferences,
+		})),
+	)
+	const { update } = usePreferences()
 
 	/**
 	 * Toggle the Discord Rich Presence setting. When toggled on, the default presence will be set
@@ -24,12 +27,11 @@ export default function DiscordPresenceSwitch() {
 		if (userPreferences) {
 			const newPreferences = {
 				...userPreferences,
-				enable_discord_presence: !userPreferences?.enable_discord_presence,
+				enableDiscordPresence: !userPreferences?.enableDiscordPresence,
 			}
 			setUserPreferences(newPreferences)
 
 			try {
-				// @ts-expect-error: Investigate this type error when I have time TODO
 				await update(newPreferences)
 			} catch (err) {
 				console.error(err)
@@ -43,11 +45,11 @@ export default function DiscordPresenceSwitch() {
 	 */
 	const handleReconnect = () => setDiscordPresence()
 
-	const isChecked = userPreferences?.enable_discord_presence ?? false
+	const isChecked = userPreferences?.enableDiscordPresence ?? false
 
 	return (
 		<div className="flex items-center justify-between">
-			<div className="flex flex-grow flex-col gap-2 text-left">
+			<div className="gap-2 flex grow flex-col text-left">
 				<Label htmlFor="discord_presence_switch">{t(getKey('label'))}</Label>
 				<Text size="xs" variant="muted">
 					{t(getKey('description'))}
@@ -56,7 +58,7 @@ export default function DiscordPresenceSwitch() {
 
 			<div className="w-6" />
 
-			<div className="flex items-center gap-3">
+			<div className="gap-3 flex items-center">
 				<ToolTip
 					content={t(getKey('reconnect'))}
 					isDisabled={!isChecked || !handleReconnect}
