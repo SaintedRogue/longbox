@@ -19,6 +19,7 @@ mod m20260207_000000_metadata_provider_integration;
 mod m20260220_000000_user_avatar_path;
 mod m20260307_000000_library_skip_book_overview;
 mod m20260311_000000_scheduled_jobs_redesign;
+mod m20260403_224929_remove_reading_lists;
 mod m20260404_185829_add_name_indexes;
 mod m20260406_000000_add_kobo_sync_sessions;
 
@@ -48,6 +49,7 @@ impl MigratorTrait for Migrator {
 			Box::new(m20260307_000000_library_skip_book_overview::Migration),
 			Box::new(m20260404_185829_add_name_indexes::Migration),
 			Box::new(m20260406_000000_add_kobo_sync_sessions::Migration),
+			Box::new(m20260403_224929_remove_reading_lists::Migration),
 		]
 	}
 }
