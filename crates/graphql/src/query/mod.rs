@@ -18,7 +18,6 @@ pub(crate) mod media;
 mod media_metadata_overview;
 mod metadata_provider;
 mod notifier;
-pub(crate) mod reading_list;
 mod series;
 mod server_config;
 mod smart_list_view;
@@ -46,7 +45,6 @@ use media::MediaQuery;
 use media_metadata_overview::MediaMetadataOverviewQuery;
 use metadata_provider::MetadataProviderQuery;
 use notifier::NotifierQuery;
-use reading_list::ReadingListQuery;
 use series::SeriesQuery;
 use server_config::ServerConfigQuery;
 use smart_list_view::SmartListViewQuery;
@@ -98,7 +96,7 @@ struct SystemQueries(
 struct ListQueries(
 	SmartListsQuery,
 	SmartListViewQuery,
-	ReadingListQuery,
+	// ListQuery,
 	CustomEmojiQuery,
 );
 

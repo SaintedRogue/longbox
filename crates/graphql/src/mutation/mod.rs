@@ -16,7 +16,6 @@ mod media;
 mod media_metadata;
 mod metadata_provider;
 mod notifier;
-mod reading_list;
 mod scheduled_job_config;
 mod series;
 mod series_metadata;
@@ -45,7 +44,6 @@ use media::MediaMutation;
 use media_metadata::MediaMetadataMutation;
 use metadata_provider::MetadataProviderMutation;
 use notifier::NotifierMutation;
-use reading_list::ReadingListMutation;
 use scheduled_job_config::ScheduledJobConfigMutation;
 use series::SeriesMutation;
 use series_metadata::SeriesMetadataMutation;
@@ -96,7 +94,7 @@ struct SystemMutations(
 struct ListMutations(
 	SmartListMutation,
 	SmartListViewMutation,
-	ReadingListMutation,
+	// ListMutation,
 	CustomEmojiMutation,
 );
 

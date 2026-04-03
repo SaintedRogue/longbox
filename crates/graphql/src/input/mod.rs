@@ -8,7 +8,6 @@ pub mod list;
 pub mod media;
 pub mod metadata_provider;
 pub mod notifier;
-pub mod reading_list;
 pub mod scheduled_job_config;
 pub mod series;
 pub mod smart_list_view;

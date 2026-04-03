@@ -330,8 +330,6 @@ pub enum Relation {
 	MediaMetadata,
 	#[sea_orm(has_many = "super::media_tag::Entity")]
 	Tags,
-	#[sea_orm(has_many = "super::reading_list_item::Entity")]
-	ReadingListItem,
 	#[sea_orm(has_many = "super::list_media::Entity")]
 	ListMedia,
 	#[sea_orm(has_many = "super::reading_session::Entity")]
@@ -397,12 +395,6 @@ impl Related<super::media_metadata::Entity> for Entity {
 impl Related<super::media_tag::Entity> for Entity {
 	fn to() -> RelationDef {
 		Relation::Tags.def()
-	}
-}
-
-impl Related<super::reading_list_item::Entity> for Entity {
-	fn to() -> RelationDef {
-		Relation::ReadingListItem.def()
 	}
 }
 
