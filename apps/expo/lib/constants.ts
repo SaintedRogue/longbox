@@ -19,12 +19,6 @@ import { useColorScheme } from './useColorScheme'
 ColorSpace.register(sRGB)
 ColorSpace.register(OKLCH)
 
-export const ENABLE_LARGE_HEADER = Platform.select({
-	// iOS 26+ has a bug that causes freezes when using large headers
-	ios: typeof Platform.Version === 'number' ? Platform.Version < 26 : Number(Platform.Version) < 26,
-	default: true,
-})
-
 export const IS_IOS_24_PLUS = Platform.OS === 'ios' && parseInt(Platform.Version, 10) >= 24
 
 export const ON_END_REACHED_THRESHOLD = Platform.OS === 'ios' ? 0.75 : 0.6
@@ -51,6 +45,11 @@ export const STAT_COLORS = {
 }
 
 // TODO: android-specific tab bar color
+// TODO: i know i come here over and over and write more todos for reevaluating colors, but
+// once again i come here to say: more often we are leaning on the card colors (which semantically would
+// be "surface" here) which are bg-black/5 dark:bg-white/10. we can probably just actually change the theme to either
+// have surface use those for base or just crate a card color to unify things a little more.
+// i've also been thinking of dark:bg-white/[0.08] or 0.09 to make it _slightly_ darker
 
 const light = {
 	background: {
