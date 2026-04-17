@@ -933,6 +933,33 @@ export type FinishedReadingSessionModel = {
   userId: Scalars['String']['output'];
 };
 
+/**
+ * A resize option which will resize the image to fit within the given dimensions,
+ * maintaining the aspect ratio.
+ *
+ * If the image already fits within the dimensions, it will not be scaled up.
+ */
+export type FitWithinResize = {
+  __typename?: 'FitWithinResize';
+  /** The maximum height (in pixels) of the resulting image */
+  height: Scalars['Int']['output'];
+  /** The maximum width (in pixels) of the resulting image */
+  width: Scalars['Int']['output'];
+};
+
+/**
+ * A resize option which will resize the image to fit within the given dimensions,
+ * maintaining the aspect ratio.
+ *
+ * If the image already fits within the dimensions, it will not be scaled up.
+ */
+export type FitWithinResizeInput = {
+  /** The maximum height (in pixels) of the resulting image */
+  height: Scalars['Int']['input'];
+  /** The maximum width (in pixels) of the resulting image */
+  width: Scalars['Int']['input'];
+};
+
 export type ImageColor = {
   __typename?: 'ImageColor';
   color: Scalars['String']['output'];
@@ -995,13 +1022,14 @@ export type ImageRef = {
 };
 
 /** The resize options to use when generating an image */
-export type ImageResizeMethod = ExactDimensionResize | ScaleEvenlyByFactor | ScaledDimensionResize;
+export type ImageResizeMethod = ExactDimensionResize | FitWithinResize | ScaleEvenlyByFactor | ScaledDimensionResize;
 
 /** The resize options to use when generating an image */
 export type ImageResizeMethodInput =
-  { exact: ExactDimensionResizeInput; scaleDimension?: never; scaleEvenlyByFactor?: never; }
-  |  { exact?: never; scaleDimension: ScaledDimensionResizeInput; scaleEvenlyByFactor?: never; }
-  |  { exact?: never; scaleDimension?: never; scaleEvenlyByFactor: ScaleEvenlyByFactorInput; };
+  { exact: ExactDimensionResizeInput; fitWithin?: never; scaleDimension?: never; scaleEvenlyByFactor?: never; }
+  |  { exact?: never; fitWithin: FitWithinResizeInput; scaleDimension?: never; scaleEvenlyByFactor?: never; }
+  |  { exact?: never; fitWithin?: never; scaleDimension: ScaledDimensionResizeInput; scaleEvenlyByFactor?: never; }
+  |  { exact?: never; fitWithin?: never; scaleDimension?: never; scaleEvenlyByFactor: ScaleEvenlyByFactorInput; };
 
 export type InProgressBooks = {
   __typename?: 'InProgressBooks';
@@ -4273,6 +4301,8 @@ export type StumpConfig = {
   configDir: Scalars['String']['output'];
   /** An optional custom path for the database. */
   dbPath?: Maybe<Scalars['String']['output']>;
+  /** Indicates if the Kobo sync feature should be enabled. */
+  enableKoboSync: Scalars['Boolean']['output'];
   /** Indicates if the KoReader sync feature should be enabled. */
   enableKoreaderSync: Scalars['Boolean']['output'];
   /**
@@ -4569,10 +4599,10 @@ export enum UserPermission {
    * Grant access to the book club feature
    */
   AccessBookClub = 'ACCESS_BOOK_CLUB',
-  /** Grant access to the koreader sync feature */
-  AccessKoreaderSync = 'ACCESS_KOREADER_SYNC',
   /** Grant access to the kobo sync feature */
   AccessKoboSync = 'ACCESS_KOBO_SYNC',
+  /** Grant access to the koreader sync feature */
+  AccessKoreaderSync = 'ACCESS_KOREADER_SYNC',
   /** Grant access to access the smart list feature. This includes the ability to create and edit smart lists */
   AccessSmartList = 'ACCESS_SMART_LIST',
   /** Grant user access to change **their own** avatar */
@@ -6052,7 +6082,7 @@ export type LibrarySeriesGridQueryVariables = Exact<{
 
 export type LibrarySeriesGridQuery = { __typename?: 'Query', series: { __typename?: 'PaginatedSeriesResponse', nodes: Array<{ __typename?: 'Series', id: string, thumbnail: { __typename?: 'ImageRef', url: string } }>, pageInfo: { __typename: 'CursorPaginationInfo', currentCursor?: string | null, nextCursor?: string | null, limit: number } | { __typename: 'OffsetPaginationInfo' } } };
 
-export type LibrarySettingsConfigFragment = { __typename?: 'Library', config: { __typename?: 'LibraryConfig', id: number, convertRarToZip: boolean, hardDeleteConversions: boolean, defaultReadingDir: ReadingDirection, defaultReadingMode: ReadingMode, defaultReadingImageScaleFit: ReadingImageScaleFit, defaultLibraryViewMode: LibraryViewMode, hideSeriesView: boolean, skipBookOverview: boolean, generateFileHashes: boolean, generateKoreaderHashes: boolean, processMetadata: boolean, watch: boolean, libraryPattern: LibraryPattern, processThumbnailColorsEvenWithoutConfig: boolean, ignoreRules?: Array<string> | null, thumbnailConfig?: { __typename: 'ImageProcessorOptions', format: SupportedImageFormat, quality?: number | null, page?: number | null, resizeMethod?: { __typename: 'ExactDimensionResize', width: number, height: number } | { __typename: 'ScaleEvenlyByFactor', factor: any } | { __typename: 'ScaledDimensionResize', dimension: Dimension, size: number } | null } | null } } & { ' $fragmentName'?: 'LibrarySettingsConfigFragment' };
+export type LibrarySettingsConfigFragment = { __typename?: 'Library', config: { __typename?: 'LibraryConfig', id: number, convertRarToZip: boolean, hardDeleteConversions: boolean, defaultReadingDir: ReadingDirection, defaultReadingMode: ReadingMode, defaultReadingImageScaleFit: ReadingImageScaleFit, defaultLibraryViewMode: LibraryViewMode, hideSeriesView: boolean, skipBookOverview: boolean, generateFileHashes: boolean, generateKoreaderHashes: boolean, processMetadata: boolean, watch: boolean, libraryPattern: LibraryPattern, processThumbnailColorsEvenWithoutConfig: boolean, ignoreRules?: Array<string> | null, thumbnailConfig?: { __typename: 'ImageProcessorOptions', format: SupportedImageFormat, quality?: number | null, page?: number | null, resizeMethod?: { __typename: 'ExactDimensionResize', width: number, height: number } | { __typename: 'FitWithinResize' } | { __typename: 'ScaleEvenlyByFactor', factor: any } | { __typename: 'ScaledDimensionResize', dimension: Dimension, size: number } | null } | null } } & { ' $fragmentName'?: 'LibrarySettingsConfigFragment' };
 
 export type LibrarySettingsRouterEditLibraryMutationMutationVariables = Exact<{
   id: Scalars['ID']['input'];
