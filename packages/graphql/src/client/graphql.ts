@@ -2114,6 +2114,11 @@ export type Mutation = {
   setMediaTags: Media;
   /** Set the locked metadata fields for a series */
   setSeriesLockedFields: Series;
+  /**
+   * Set the tags for a series. Creates any tags that don't exist yet, links new ones,
+   * and unlinks removed ones. Returns the updated series.
+   */
+  setSeriesTags: Series;
   /** Suggest a book for the book club */
   suggestBook: BookClubBookSuggestion;
   /** Send a test email to verify the SMTP configuration is working */
@@ -2725,6 +2730,12 @@ export type MutationSetMediaTagsArgs = {
 export type MutationSetSeriesLockedFieldsArgs = {
   lockedFields: Array<MetadataField>;
   seriesId: Scalars['ID']['input'];
+};
+
+
+export type MutationSetSeriesTagsArgs = {
+  id: Scalars['ID']['input'];
+  tags: Array<Scalars['String']['input']>;
 };
 
 
@@ -6260,7 +6271,7 @@ export type SeriesSettingsSceneQueryVariables = Exact<{
 
 
 export type SeriesSettingsSceneQuery = { __typename?: 'Query', seriesById?: (
-    { __typename?: 'Series', id: string, metadata?: (
+    { __typename?: 'Series', id: string, tags: Array<{ __typename?: 'Tag', id: number, name: string }>, metadata?: (
       { __typename?: 'SeriesMetadata' }
       & { ' $fragmentRefs'?: { 'SeriesMetadataEditorFragment': SeriesMetadataEditorFragment } }
     ) | null }
@@ -6281,6 +6292,14 @@ export type SeriesSettingsSceneResetMetadataMutationVariables = Exact<{
 
 
 export type SeriesSettingsSceneResetMetadataMutation = { __typename?: 'Mutation', resetSeriesMetadata: { __typename?: 'Series', id: string } };
+
+export type SeriesTagEditorSetTagsMutationVariables = Exact<{
+  id: Scalars['ID']['input'];
+  tags: Array<Scalars['String']['input']> | Scalars['String']['input'];
+}>;
+
+
+export type SeriesTagEditorSetTagsMutation = { __typename?: 'Mutation', setSeriesTags: { __typename?: 'Series', id: string, tags: Array<{ __typename?: 'Tag', id: number, name: string }> } };
 
 export type SeriesThumbnailSelectorFragment = { __typename?: 'Series', id: string, thumbnail: { __typename?: 'ImageRef', url: string } } & { ' $fragmentName'?: 'SeriesThumbnailSelectorFragment' };
 
@@ -12168,6 +12187,10 @@ export const SeriesSettingsSceneDocument = new TypedDocumentString(`
   seriesById(id: $id) {
     id
     ...SeriesThumbnailSelector
+    tags {
+      id
+      name
+    }
     metadata {
       ...SeriesMetadataEditor
     }
@@ -12219,6 +12242,17 @@ export const SeriesSettingsSceneResetMetadataDocument = new TypedDocumentString(
   }
 }
     `) as unknown as TypedDocumentString<SeriesSettingsSceneResetMetadataMutation, SeriesSettingsSceneResetMetadataMutationVariables>;
+export const SeriesTagEditorSetTagsDocument = new TypedDocumentString(`
+    mutation SeriesTagEditorSetTags($id: ID!, $tags: [String!]!) {
+  setSeriesTags(id: $id, tags: $tags) {
+    id
+    tags {
+      id
+      name
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<SeriesTagEditorSetTagsMutation, SeriesTagEditorSetTagsMutationVariables>;
 export const SeriesThumbnailSelectorUpdateDocument = new TypedDocumentString(`
     mutation SeriesThumbnailSelectorUpdate($id: ID!, $input: UpdateThumbnailInput!) {
   updateSeriesThumbnail(id: $id, input: $input) {
