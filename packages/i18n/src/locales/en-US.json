@@ -686,10 +686,7 @@
 					"description": "Fetch metadata for the media in this library",
 					"noProviders": {
 						"title": "There are no metadata providers available",
-						"description": [
-							"You can configure metadata providers",
-							"here"
-						]
+						"description": "You can configure metadata providers in the metadata integration settings"
 					},
 					"fetchButton": "Start background fetch",
 					"fetchError": "Failed to start metadata fetch"
@@ -1440,7 +1437,8 @@
 				},
 				"thumbnailRatioSelect": {
 					"label": "Thumbnail Ratio",
-					"description": "The aspect ratio to use for thumbnails"
+					"description": "The aspect ratio to use for thumbnails",
+					"defaultSuffix": "Default"
 				},
 				"thumbnailPlaceholder": {
 					"label": "Thumbnail placeholder",
@@ -1516,7 +1514,10 @@
 				"maxWidthPreference": {
 					"label": "Adjusted width",
 					"description": "Stump applies a max-width to the viewport. This setting allows you to adjust or remove this limit",
-					"tooltip": "This setting is not currently supported when the primary navigation is set to sidebar"
+					"tooltip": "This setting is not currently supported when the primary navigation is set to sidebar",
+					"options": {
+						"noLimit": "No limit"
+					}
 				},
 				"additionalPreferences": {
 					"label": "Additional preferences",
@@ -2331,7 +2332,7 @@
 					},
 					"strategy": {
 						"label": "Merge strategy",
-						"configuration": {
+						"options": {
 							"FILL_GAPS": "Accept missing fields",
 							"FILL_AND_MERGE_LISTS": "Accept missing fields and merge lists",
 							"PREFER_EXTERNAL": "Prefer external data"
@@ -2526,6 +2527,16 @@
 		"clear": "Clear",
 		"confirm": "Confirm",
 		"delete": "Delete",
+		"deleteConfirmation": {
+			"title": "Delete {{type}}",
+			"description": "Are you sure you want to delete this {{type}}? This action cannot be undone.",
+			"confirm": "Delete {{type}}",
+			"typeToConfirm": "Type {{name}} to confirm:"
+		},
+		"experimentalDisclaimer": {
+			"title": "This feature is experimental",
+			"description": "It might be missing features, have bugs, or not work at all. Use at your own discretion and report any issues you encounter"
+		},
 		"enter": "Enter",
 		"save": "Save",
 		"send": "Send",
@@ -2572,6 +2583,10 @@
 		"ACCESS_KOREADER_SYNC": {
 			"label": "KoReader sync",
 			"description": "Allows the user to access the KoReader sync integration"
+		},
+		"ACCESS_KOBO_SYNC": {
+			"label": "Kobo sync",
+			"description": "Allows the user to access the Kobo sync integration"
 		},
 		"ACCESS_SMART_LIST": {
 			"label": "Smart Lists",

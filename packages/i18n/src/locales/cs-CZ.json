@@ -1346,8 +1346,8 @@
 				},
 				"thumbnailPlaceholder": {
 					"label": "Thumbnail placeholder",
-					"description": "The style to use for thumbnail placeholders",
-					"configuration": {
+					"description": "The type of placeholder to show for thumbnails that haven't loaded yet",
+					"options": {
 						"grayscale": "Grayscale",
 						"averageColor": "Average color",
 						"colorful": "Colorful",
@@ -1360,8 +1360,8 @@
 				},
 				"primaryNavigation": {
 					"label": "Primary navigation",
-					"description": "Choose between a minimal sidebar or a topbar navigation",
-					"configuration": {
+					"description": "The primary navigation method for the app",
+					"options": {
 						"sidebar": "Sidebar",
 						"topbar": "Topbar"
 					},
@@ -1408,8 +1408,8 @@
 				},
 				"displaySpacing": {
 					"label": "Display spacing",
-					"description": "Adjusts the overall spacing between elements throughout the app",
-					"configuration": {
+					"description": "The spacing between elements in the app",
+					"options": {
 						"default": "Default",
 						"compact": "Compact"
 					},
@@ -2320,6 +2320,12 @@
 		"clear": "Clear",
 		"confirm": "Potvrdit",
 		"delete": "Delete",
+		"deleteConfirmation": {
+			"title": "Delete {{type}}",
+			"description": "Are you sure you want to delete this {{type}}? This action cannot be undone.",
+			"confirm": "Delete {{type}}",
+			"typeToConfirm": "Type {{name}} to confirm:"
+		},
 		"enter": "Enter",
 		"save": "Uložit",
 		"send": "Odeslat",

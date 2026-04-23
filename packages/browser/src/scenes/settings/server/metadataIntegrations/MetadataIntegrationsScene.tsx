@@ -2,6 +2,7 @@ import { useLocaleContext } from '@stump/i18n'
 import { Helmet } from 'react-helmet'
 
 import { ContentContainer, SceneContainer } from '@/components/container'
+import { ExperimentalFeatureDisclaimer } from '@/components/ExperimentalFeatureDisclaimer'
 import { PendingMatchesSection } from '@/components/metadata/metadataMatching'
 
 import { ProvidersSection } from './providers'
@@ -16,6 +17,7 @@ export default function GeneralServerSettingsScene() {
 			</Helmet>
 
 			<ContentContainer>
+				<ExperimentalFeatureDisclaimer />
 				<div className="gap-12 flex flex-col">
 					<ProvidersSection />
 					<PendingMatchesSection />

@@ -22,6 +22,14 @@ The version of the Stump API to use. This should really be left alone and **not*
 
 This corresponds to the `api_version` configuration option in the `Stump.toml` file.
 
+### ENABLE_KOBO_SYNC
+
+Whether or not to enable the Kobo sync integration. To learn more about this integration, visit the [Kobo](/guides/integrations/kobo) guide.
+
+| Type    | Default Value |
+| ------- | ------------- |
+| Boolean | `false`       |
+
 ### ENABLE_KOREADER_SYNC
 
 Whether or not to enable the KoReader sync integration. This is a special integration that allows KoReader to sync with Stump. To learn more about this integration, visit the [KoReader](/guides/integrations/koreader) guide.
@@ -46,7 +54,7 @@ Whether or not to enable Swagger UI. To learn more about what Swagger UI is, vis
 | ------- | ------------- |
 | Boolean | `false`       |
 
-### ENABLE_UPLOAD
+### STUMP_ENABLE_UPLOAD
 
 | Type    | Default Value |
 | ------- | ------------- |
@@ -60,7 +68,7 @@ Controls the computational cost used when hashing user passwords.
 | ------- | ------------- |
 | Integer | `12`          |
 
-### MAX_FILE_UPLOAD_SIZE
+### STUMP_MAX_FILE_UPLOAD_SIZE
 
 The maximum allowed size, in bytes, of files uploaded via the upload interface. This configuration variable will have no effect unless `ENABLE_UPLOAD` is `true`.
 
@@ -68,7 +76,7 @@ The maximum allowed size, in bytes, of files uploaded via the upload interface. 
 | ------- | ------------------ |
 | Integer | `20971520` (20 MB) |
 
-### MAX_IMAGE_UPLOAD_SIZE
+### STUMP_MAX_IMAGE_UPLOAD_SIZE
 
 The maximum size, in bytes, for images uploaded as thumbnails for users, libraries, series, or media.
 
