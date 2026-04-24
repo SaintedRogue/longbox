@@ -19,13 +19,14 @@ pub use types::{
 	MatchCandidate, MediaType, MetadataField, PublicationStatus, SearchQuery,
 };
 
-use providers::HardcoverClient;
+use providers::{ComicVineClient, HardcoverClient};
 
 pub fn create_provider(
 	provider_type: &str,
 	api_token: String,
 ) -> MetadataResult<Box<dyn MetadataProvider + Send + Sync>> {
 	match provider_type {
+		"COMIC_VINE" => Ok(Box::new(ComicVineClient::new(api_token, None))),
 		"HARDCOVER" => Ok(Box::new(HardcoverClient::new(api_token, None))),
 		_ => Err(MetadataProviderError::UnsupportedProvider(
 			provider_type.to_string(),
