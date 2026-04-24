@@ -45,6 +45,8 @@ pub enum CoreError {
 	IoError(#[from] io::Error),
 	#[error("Failed to create XML feed: {0}")]
 	XmlWriteError(#[from] xml::writer::Error),
+	#[error("Failed to read XML: {0}")]
+	XmlReadError(#[from] quick_xml::Error),
 	#[error("Failed to create string: {0}")]
 	Utf8ConversionError(#[from] std::string::FromUtf8Error),
 	#[error("Failed to initialize job: {0}")]

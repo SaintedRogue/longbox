@@ -1,37 +1,31 @@
-use std::{
-	collections::{HashMap, HashSet},
-	num::NonZeroU16,
-};
+use std::collections::{HashMap, HashSet};
 
-use models::entity::{media, media_metadata, media_tag, tag};
+use models::entity::{media, media_metadata, tag};
 use quick_xml::{
-	escape::unescape,
-	events::{BytesText, Event},
+	events::{BytesEnd, BytesStart, BytesText, Event},
 	Reader, Writer,
 };
 use sea_orm::ConnectionTrait;
 
-use crate::{
-	filesystem::media::{process_metadata_raw_async, ProcessedMediaMetadata},
-	CoreError,
-};
+use crate::{filesystem::media::process_metadata_raw_async, CoreError};
 
 const SHELL_COMIC_INFO: &str = r#"<?xml version="1.0"?>
 <ComicInfo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
 </ComicInfo>
 "#;
 
-// 1. assume fetched information from database and pass as inputs to function call (i.e., purely functional)
-// 2. give function reference to book, let it query and make detemrinations, etc (i.e., handle the damn thing)
-//
-// general steps are:
+// tags which _might_ contain html, will be handled differently if encountered
+const HTML_CONTENT_TAGS: [&str; 1] = ["Summary"];
+
+/// A function that will perform the full set of steps to update metadata on disk based on
+/// metadata from the database:
+/// 1. Fetch the corresponding book
+/// 2. Inline replace metadata fields with database fields
+/// 3. Write updated metadata file into corresponding book
 pub async fn write_comic_info<C>(conn: &C, book_id: String) -> Result<(), CoreError>
 where
 	C: ConnectionTrait,
 {
-	// 1. load book with metadata
-	// select * from media where id = :book_id left join media_metadata on media_id = book_id ~ rough
-	// ^ media::Model + media_metadata::Model -> ModelWithMetadata { media, metadata }
 	let media::ModelWithMetadata { media, metadata } =
 		media::ModelWithMetadata::find_by_id(book_id.clone())
 			.into_model::<media::ModelWithMetadata>()
@@ -54,72 +48,43 @@ where
 		.map(|tag| tag.name)
 		.collect();
 
-	// 2. ensure file exists
 	let file_path = media.path.clone();
 	if let Err(e) = tokio::fs::metadata(&file_path).await {
 		tracing::error!(error = ?e, "Could not find book on disk");
 		return Err(e.into());
 	}
 
-	// 3. pull the raw metadata from file to be used in step 4
-	// we collect the CURRENT metadata so that we can inline replace tags manually to minimize risk of
-	// data loss which could happen if we were to just dump our rust struct back into XML (e.g., if
-	// we didn't process X field used by some software, we don't want to lose it)
 	let existing_xml_bytes = process_metadata_raw_async(file_path)
 		.await?
 		.unwrap_or_else(|| SHELL_COMIC_INFO.to_string().into_bytes().to_vec());
 	let xml_string = String::from_utf8_lossy(&existing_xml_bytes).to_string();
 
-	// 4. take db metadata and merge into existing xml (or template, if none exist)
 	let updated_metadata = merge_metadata_into_xml(metadata, existing_tags, xml_string);
 
-	// 5. TODO: write updated_metadata xml as ComicInfo.xml in file, see TODO remark in process.rs re: trait fns
-	// 6. Done, wow how ez
+	// TODO: write updated_metadata xml as ComicInfo.xml in file, see TODO remark in process.rs re: trait fns
+	//
+	// 1. implement ebook xml stuff
+	// 2. implement writing operations:
+	//
+	// zip + rar + epub are all basically the same process, just rar is a diff compression alg
+	// 1. find the existing metadata file (or it might not exist)
+	// 2. replace the contents with updated ones (or write it) in place if possible (i.e., without unzip)
+	//
+	// part of the work:
+	// - does zip support writes? https://crates.io/crates/zip
+	//      - it should, but need to learn
+	//      - https://github.com/zip-rs/zip2/blob/master/examples/write_sample.rs
+	// - can we use ^ for epubs? prolly, it is a zip
+	// - does rar support writes? https://crates.io/crates/unrar
+	//
+	// decisions:
+	// functional? i.e. write_zip_comic_info, write_rar_comic_info, etc. maybe a  write.rs? utils.rs?
+	// trait based? e.g., trait MetadataWriter? put the trait in mod.rs
 
 	unimplemented!()
 }
 
-// i edit metadata -> i tell stump to save the file -> server calls core to save file
-// 1. server loads current metadata -> pass file location + metadata to core
-// 2. just call core -> core load metadata and handle
-
 type XmlString = String;
-
-// aim for suboptimal first:
-// 1. loop through each tag
-// 2. find corresponding tag in `metadata`
-// 3. if it is a processable tag (e.g., Title) then replace value <Title>value</Title>
-// ^ tricky part with this is reconciling the ones we could not find (e.g., what if we used shell)
-// emphasis on suboptimal:
-// - track the fields visited? e.g. SUPPORTED_FIELDS = ["title", "writers", ..., etc]
-// - if by end of loop, we filter unvisited and append to end of xml (inside <ComicInfo> ofc)
-
-// !! pseudo code !!
-//
-// loop:
-// if event is start: <-- we can get the tag name (e.g., "Title")
-//      current_tag = event.tag
-//      visited_tags["Title"] = true
-// if event is text: <-- this is the value inside the tag (e.g., "The Way of Kings")
-//      existing_text = event.text
-//      new_text = metadata["Title"] <-- pull from database metadata
-//      el.replace_text(existing_text, new_text)
-// if event is end:
-//      current_tag = None
-// if event is eof:
-//      break
-//
-// for unprocessed_field in visited_tags.filter(value is false):
-//      write_field(metadata[field])
-//
-// !! pseudo code !!
-//
-// ^ open questions:
-// 1. where are we writing to? do we:
-//      - maintain a writer and sync position with reader?
-//      - easiest is probably to just have a writer attached to a separate buffer that
-//        always writes for each event, not just text replacement
-// 2. actual api for reader/writer, not pseudo code
 
 fn merge_metadata_into_xml(
 	metadata: media_metadata::Model,
@@ -133,6 +98,7 @@ fn merge_metadata_into_xml(
 	let mut buf = Vec::new();
 	let mut current_tag = String::default();
 	let mut visited = HashSet::<String>::new();
+	let mut empty_field = false;
 
 	let metadata_map = build_metadata_map(metadata.clone(), existing_tags.clone());
 
@@ -141,49 +107,119 @@ fn merge_metadata_into_xml(
 			Ok(Event::Start(e)) => {
 				let tag = String::from_utf8_lossy(e.name().as_ref()).to_string();
 				current_tag = tag.clone();
-
+				dbg!(&current_tag);
+				empty_field = true;
+				// case where we need to rm it since nullish in db
 				if let Some(None) = metadata_map.get(tag.as_str()) {
 					visited.insert(tag.clone());
 				} else {
+					// otherwise write the start tag
 					writer.write_event(Event::Start(e))?;
 				}
 			},
-			// TODO: determine if Event::Text would pop off if e.g. <Title></Title> and if so
-			// how do we handle it here
-			Ok(Event::Text(e)) => match metadata_map.get(current_tag.as_str()) {
-				Some(Some(value)) => {
-					// TODO: do we need to escape value?
-					writer.write_event(Event::Text(BytesText::new(value)))?;
-					visited.insert(current_tag.clone());
-				},
-				Some(None) => {
-					// already handled in Event::Start
-				},
-				None => {
-					tracing::debug!(
-						?current_tag,
-						"This field is not managed by Stump. Writing it back as-is."
-					);
-					writer.write_event(Event::Text(e))?;
-				},
+			Ok(Event::Text(e)) => {
+				empty_field = false;
+				match metadata_map.get(&current_tag.as_str()) {
+					Some(Some(value)) => {
+						if HTML_CONTENT_TAGS.contains(&current_tag.as_str()) {
+							let end = quick_xml::events::BytesEnd::new(&current_tag);
+
+							if let Err(error) = reader.read_text(end.name()) {
+								return Err(error.into());
+							}
+
+							writer.write_event(Event::Text(BytesText::new(value)))?;
+							writer
+								.write_event(Event::End(BytesEnd::new(&current_tag)))?;
+						} else {
+							// TODO: do we need to escape value?
+							writer.write_event(Event::Text(BytesText::new(value)))?;
+							visited.insert(current_tag.clone());
+						}
+					},
+					Some(None) => {
+						// already handled in Event::Start
+					},
+					None => {
+						tracing::debug!(
+							?current_tag,
+							"This field is not managed by Stump. Writing it back as-is."
+						);
+						writer.write_event(Event::Text(e))?;
+					},
+				}
 			},
-			// TODO: how do we handle <Title /> OR <Title></Title> if that ends up here
+			// Event::Empty only applies to self-closing tags like <Title />, Event::Start will NOT be matched
 			Ok(Event::Empty(e)) => {
-				unimplemented!()
+				let tag = String::from_utf8_lossy(e.name().as_ref()).to_string();
+				current_tag = tag.clone();
+				match metadata_map.get(current_tag.as_str()) {
+					Some(Some(value)) => {
+						// TODO: do we need to escape value?
+						writer.write_event(Event::Start(e))?;
+						writer.write_event(Event::Text(BytesText::new(value)))?;
+						writer.write_event(Event::End(BytesEnd::new(&current_tag)))?;
+						visited.insert(current_tag.clone());
+					},
+					Some(None) => {
+						visited.insert(tag.clone());
+					},
+					None => {
+						tracing::debug!(
+							?current_tag,
+							"This field is not managed by Stump. Writing it back as-is."
+						);
+						writer.write_event(Event::Empty(e))?;
+					},
+				}
 			},
 			Ok(Event::End(e)) => {
 				// not end, i.e. eof, just end of tag
+				if empty_field {
+					match metadata_map.get(&current_tag.as_str()) {
+						Some(Some(value)) => {
+							// TODO: do we need to escape value?
+							writer.write_event(Event::Text(BytesText::new(value)))?;
+							visited.insert(current_tag.clone());
+						},
+						Some(None) => {
+							// already handled in Event::Start
+						},
+						None => {
+							tracing::debug!(
+    							?current_tag,
+    							"This field is not managed by Stump. Writing it back as-is."
+							);
+						},
+					}
+				}
 				let tag = String::from_utf8_lossy(e.name().as_ref()).to_string();
 
 				if let Some(None) = metadata_map.get(tag.as_str()) {
 					current_tag.clear();
 				} else {
-					// if it is ComicInfo tag ^ ->
-					//          writer write it:
-					//              1. start event for the tag
-					//              2. text like before (same todo as above re: do we need to escape)
-					//              3. end event for the tag
-					// TODO: do this
+					// when we are at ComicInfo, it is the closer. so before writing it, we have to append all the new fields to the xml
+					if tag == "ComicInfo" {
+						for (xml_tag, value) in metadata_map.iter() {
+							match value {
+								Some(existing_value)
+									if !visited.contains(&xml_tag.to_string()) =>
+								{
+									writer.write_event(Event::Start(BytesStart::new(
+										&xml_tag.to_string(),
+									)))?;
+									writer.write_event(Event::Text(BytesText::new(
+										existing_value,
+									)))?;
+									writer.write_event(Event::End(BytesEnd::new(
+										&xml_tag.to_string(),
+									)))?;
+								},
+								// we do not care about values which are None since we don't want to write them
+								_ => continue,
+							}
+						}
+					}
 					writer.write_event(Event::End(e))?;
 				}
 			},
@@ -196,9 +232,7 @@ fn merge_metadata_into_xml(
 				);
 				writer.write_event(e)?;
 			},
-			_ => {
-				unimplemented!()
-			},
+			Err(error) => return Err(error.into()),
 		}
 	}
 
@@ -213,14 +247,44 @@ fn build_metadata_map(
 
 	map.insert("Title", metadata.title.clone());
 	map.insert("Series", metadata.series.clone());
-
-	// TODO: add all the other fckn fields
+	map.insert("Number", metadata.number.clone().map(|x| x.to_string()));
+	map.insert("Volume", metadata.volume.clone().map(|x| x.to_string()));
+	map.insert("Summary", metadata.summary.clone());
+	map.insert("Notes", metadata.notes.clone());
+	map.insert("Year", metadata.year.clone().map(|x| x.to_string()));
+	map.insert("Month", metadata.month.clone().map(|x| x.to_string()));
+	map.insert("Day", metadata.day.clone().map(|x| x.to_string()));
+	map.insert("Writer", metadata.writers.clone());
+	map.insert("Penciller", metadata.pencillers.clone());
+	map.insert("Inker", metadata.inkers.clone());
+	map.insert("Colorist", metadata.colorists.clone());
+	map.insert("Letterer", metadata.letterers.clone());
+	map.insert("Cover Artist", metadata.cover_artists.clone());
+	map.insert("Editor", metadata.editors.clone());
+	map.insert("Publisher", metadata.publisher.clone());
+	map.insert("Web", metadata.links.clone());
+	map.insert(
+		"PageCount",
+		metadata.page_count.clone().map(|x| x.to_string()),
+	);
+	map.insert("Characters", metadata.characters.clone());
+	map.insert("Teams", metadata.teams.clone());
+	map.insert(
+		"Tags",
+		if existing_tags.is_empty() {
+			None
+		} else {
+			Some(existing_tags.join(","))
+		},
+	);
 
 	map
 }
 
 #[cfg(test)]
 mod tests {
+	use crate::filesystem::media::ProcessedMediaMetadata;
+
 	use super::*;
 	use models::entity::media_metadata;
 	use quick_xml::de::from_str as xml_from_str;
@@ -242,7 +306,7 @@ mod tests {
 		let xml_string =
 			merge_metadata_into_xml(metadata.clone(), vec![], existing_xml.to_string())
 				.expect("Should have converted comic info");
-
+		println!("{}", xml_string);
 		assert!(xml_string.contains("Invincible #1")); // the updated title
 
 		let deserialized_xml: ProcessedMediaMetadata =
@@ -322,7 +386,179 @@ Note: Unknown Comic Books variant by Mico Suayan connects with Venom #8, Web of 
 </ComicInfo>"#;
 
 		let metadata = media_metadata::Model {
-			// TODO: add all the fields
+			title: Some("Heist Part Dos".to_string()),
+			series: Some("Heist".to_string()),
+			number: rust_decimal::Decimal::from_f32_retain(8.5_f32),
+			volume: Some(4),
+			summary: Some("This is a test summary".to_string()),
+			notes: Some("No notes".to_string()),
+			year: Some(67),
+			month: Some(4),
+			day: Some(20),
+			writers: Some("Nick Spencer".to_string()),
+			pencillers: Some("Humberto Ramos, Michele Bandini".to_string()),
+			inkers: Some("Michele Bandini, Victor Olazaba".to_string()),
+			colorists: Some("Edgar Delgado, Erick Arciniega".to_string()),
+			letterers: Some("Joe Caramagna".to_string()),
+			cover_artists: Some("Clayton Crain, Edgar Delgado, Humberto Ramos, Jason Keith, Jeff Dekal, Mike Wieringo, Tim Townsend".to_string()),
+			editors: Some("Kathleen Wisneski, Nick Lowe".to_string()),
+			publisher: Some("Marvel".to_string()),
+			links: Some("https://comicvine.gamespot.com/the-amazing-spider-man-9-heist-part-two/4000-692056/".to_string()),
+			page_count: Some(24),
+			characters: Some("Armadillo, Black Cat, Captain America, Carlie Cooper, Hawkeye, Human Torch, Iron Man, Jarvis, Kate Bishop, Mary Jane, Odessa Drake, Spider-Man, Squirrel Girl, Thing, Thor, Walter Hardy, Wasp".to_string()),
+			teams: Some("Thieves Guild".to_string()),
+			..Default::default()
+		};
+
+		let xml_string =
+			merge_metadata_into_xml(metadata.clone(), vec![], existing_xml.to_string())
+				.expect("Should have converted comic info");
+		println!("{}", &xml_string);
+		let deserialized_xml: ProcessedMediaMetadata =
+			xml_from_str(&xml_string).expect("Should have properly parsed xml_string");
+
+		assert_eq!(deserialized_xml.title, Some("Heist Part Dos".to_string()));
+		assert_eq!(deserialized_xml.series, Some("Heist".to_string()));
+		assert_eq!(deserialized_xml.number, Some(8.5));
+		assert_eq!(deserialized_xml.volume, Some(4));
+		assert_eq!(
+			deserialized_xml.summary,
+			Some("This is a test summary".to_string())
+		);
+		assert_eq!(deserialized_xml.notes, Some("No notes".to_string()));
+		assert_eq!(deserialized_xml.year, Some(67));
+		assert_eq!(deserialized_xml.month, Some(4));
+		assert_eq!(deserialized_xml.day, Some(20));
+		assert_eq!(
+			deserialized_xml.writers,
+			Some(vec!["Nick Spencer".to_string()])
+		);
+		assert_eq!(
+			deserialized_xml.pencillers,
+			Some(vec![
+				"Humberto Ramos".to_string(),
+				"Michele Bandini".to_string()
+			])
+		);
+		assert_eq!(
+			deserialized_xml.inkers,
+			Some(vec![
+				"Michele Bandini".to_string(),
+				"Victor Olazaba".to_string()
+			])
+		);
+		assert_eq!(
+			deserialized_xml.colorists,
+			Some(vec![
+				"Edgar Delgado".to_string(),
+				"Erick Arciniega".to_string()
+			])
+		);
+		assert_eq!(
+			deserialized_xml.letterers,
+			Some(vec!["Joe Caramagna".to_string()])
+		);
+		assert_eq!(
+			deserialized_xml.cover_artists,
+			Some(vec![
+				"Clayton Crain".to_string(),
+				"Edgar Delgado".to_string(),
+				"Humberto Ramos".to_string(),
+				"Jason Keith".to_string(),
+				"Jeff Dekal".to_string(),
+				"Mike Wieringo".to_string(),
+				"Tim Townsend".to_string()
+			])
+		);
+		assert_eq!(
+			deserialized_xml.editors,
+			Some(vec![
+				"Kathleen Wisneski".to_string(),
+				"Nick Lowe".to_string()
+			])
+		);
+		assert_eq!(deserialized_xml.publisher, Some("Marvel".to_string()));
+		assert_eq!(deserialized_xml.links, Some(vec!["https://comicvine.gamespot.com/the-amazing-spider-man-9-heist-part-two/4000-692056/".to_string()]));
+		assert_eq!(deserialized_xml.page_count, Some(24));
+		assert_eq!(
+			deserialized_xml.characters,
+			Some(vec![
+				"Armadillo".to_string(),
+				"Black Cat".to_string(),
+				"Captain America".to_string(),
+				"Carlie Cooper".to_string(),
+				"Hawkeye".to_string(),
+				"Human Torch".to_string(),
+				"Iron Man".to_string(),
+				"Jarvis".to_string(),
+				"Kate Bishop".to_string(),
+				"Mary Jane".to_string(),
+				"Odessa Drake".to_string(),
+				"Spider-Man".to_string(),
+				"Squirrel Girl".to_string(),
+				"Thing".to_string(),
+				"Thor".to_string(),
+				"Walter Hardy".to_string(),
+				"Wasp".to_string()
+			])
+		);
+		assert_eq!(
+			deserialized_xml.teams,
+			Some(vec!["Thieves Guild".to_string()])
+		);
+	}
+
+	#[test]
+	fn test_plain_text_to_html() {
+		let existing_xml = r#"<?xml version="1.0"?>
+<ComicInfo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+    <Title>Invincible 001</Title>
+    <Summary>This is a test summary</Summary>
+</ComicInfo>"#;
+
+		let markdown_summary = r#"There's been a major theft the likes of which we've never seen and for once, The Black Cat didn't do it.
+
+But Spider-Man might need the help of his once-foe-once-friend-once-crime-boss Felicia Hardy, the Black Cat!
+
+*List of covers and their creators:*
+ Cover | Name                                                | Creator(s)                                | Sidebar Location |
+-------------------------------------------------------------------------------------------------------------------------
+ Reg   | Regular Cover                                       | Humberto Ramos &amp; Edgar Delgado            | 1                |
+ Var   | Uncanny X-Men Variant Cover                         | Clayton Crain                             | 8                |
+ Var   | Variant Cover                                       | Mike Wieringo, Tim Townsend &amp; Jason Keith | 2                |
+ Var   | Virgin Variant Cover                                | Mike Wieringo, Tim Townsend &amp; Jason Keith | 9-10             |
+ RE    | ComicXposure Variant Cover                          | Jeff Dekal                                | 3                |
+ RE    | ComicXposure Virgin Variant Cover                   | Jeff Dekal                                | 4                |
+ RE    | Unknown Comic Books Connecting Variant Cover        | Mico Suayan                               | 5                |
+ RE    | Unknown Comic Books Connecting Virgin Variant Cover | Mico Suayan                               | 6                |
+ 2nd   | Second Printing Variant Cover                       | Humberto Ramos                            | 7                |
+Note: Unknown Comic Books variant by Mico Suayan connects with Venom #8, Web of Venom: Carnage Born #1, and Amazing Spider-Man #10."#;
+
+		let metadata = media_metadata::Model {
+			summary: Some(markdown_summary.to_string()),
+			..Default::default()
+		};
+
+		let xml_string =
+			merge_metadata_into_xml(metadata.clone(), vec![], existing_xml.to_string())
+				.expect("Should have converted comic info");
+
+		let deserialized_xml: ProcessedMediaMetadata =
+			xml_from_str(&xml_string).expect("Should have properly parsed xml_string");
+		assert_eq!(deserialized_xml.summary, metadata.summary);
+	}
+
+	#[test]
+	fn test_append_fields_not_in_existing_xml() {
+		let existing_xml = r#"<?xml version="1.0"?>
+		<ComicInfo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+		    <Title>Invincible 001</Title>
+		</ComicInfo>
+		"#;
+
+		let metadata = media_metadata::Model {
+			title: Some("Invincible #1".to_string()),
+			characters: Some("Mark Grayson, Nolan Grayson, Debbie Grayson".to_string()),
 			..Default::default()
 		};
 
@@ -333,13 +569,80 @@ Note: Unknown Comic Books variant by Mico Suayan connects with Venom #8, Web of 
 		let deserialized_xml: ProcessedMediaMetadata =
 			xml_from_str(&xml_string).expect("Should have properly parsed xml_string");
 
-		// TODO: assert each field in deserialized_xml
+		assert!(deserialized_xml
+			.characters
+			.expect("characters should have been parsed")
+			.contains(&"Mark Grayson".to_string()));
+	}
+
+	// ensure we do not have data loss for non-managed fields
+	#[test]
+	fn test_retain_non_managed_fields() {
+		let existing_xml = r#"<?xml version="1.0"?>
+	<ComicInfo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+	    <Title>Invincible 001</Title>
+		<Banana>Yum</Banana>
+	</ComicInfo>
+	"#;
+
+		let metadata = media_metadata::Model {
+			title: Some("Invincible #1".to_string()),
+			..Default::default()
+		};
+
+		let xml_string =
+			merge_metadata_into_xml(metadata.clone(), vec![], existing_xml.to_string())
+				.expect("Should have converted comic info");
+
+		assert!(xml_string.contains(&"<Banana>Yum</Banana>".to_string()))
+	}
+
+	// <Tags>Fantasy</Tags> , metadata.tags = ["Fantasy", "Sci-Fi"] -> <Tags>Fantasy,Sci-Fi</Tags>
+	#[test]
+	fn test_update_existing_tags() {
+		let existing_xml = r#"<?xml version="1.0"?>
+<ComicInfo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+    <Title>Invincible 001</Title>
+	<Tags>Fantasy</Tags>
+</ComicInfo>
+"#;
+
+		let metadata = media_metadata::Model {
+			title: Some("Invincible #1".to_string()),
+			..Default::default()
+		};
+
+		let xml_string = merge_metadata_into_xml(
+			metadata.clone(),
+			vec!["Fantasy".to_string(), "Sci-Fi".to_string()],
+			existing_xml.to_string(),
+		)
+		.expect("Should have converted comic info");
+
+		assert!(xml_string.contains(&"<Tags>Fantasy,Sci-Fi</Tags>".to_string()))
+	}
+
+	// no <Tags> in XML -> metadata.tags = ["Fantasy"] -> <Tags>Fantasy</Tags>
+	#[test]
+	fn test_adds_tags_field_when_previously_missing() {
+		let existing_xml = r#"<?xml version="1.0"?>
+<ComicInfo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+    <Title>Invincible 001</Title>
+</ComicInfo>
+"#;
+
+		let metadata = media_metadata::Model {
+			title: Some("Invincible #1".to_string()),
+			..Default::default()
+		};
+
+		let xml_string = merge_metadata_into_xml(
+			metadata.clone(),
+			vec!["Fantasy".to_string()],
+			existing_xml.to_string(),
+		)
+		.expect("Should have converted comic info");
+
+		assert!(xml_string.contains(&"<Tags>Fantasy</Tags>".to_string()))
 	}
 }
-
-// LOGAN REFERENCES:
-// - https://anansi-project.github.io/docs/comicinfo/documentation
-//   - we don't currenly deserialize all fields, so manual xml reader/writer has
-//     benefit of finding tags and inline replacing instead of
-//     relying on serde to dump the entire thing which could technically
-//     lead to data loss since we do not intake or represent all which is supported
