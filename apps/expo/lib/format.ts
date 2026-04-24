@@ -73,3 +73,21 @@ export const parseGraphQLDecimal = (value: unknown): number | null => {
 	}
 	return null
 }
+
+/**
+ * Parse a value (usually a string, from GraphQL) into a percentage (0-100)
+ */
+export const parseGraphQLPercentageDecimal = (value: unknown): number | null => {
+	const decimal = parseGraphQLDecimal(value)
+	// we shouldn't really need to cap to 100, so this should be fine
+	return decimal != null ? decimal * 100 : null
+}
+
+/**
+ * Parse a value (usually typed as `any`, from GraphQL) into a Date, or return null
+ */
+export const parseGraphQLDateTime = (value: unknown): Date | null => {
+	if (value == null) return null
+	const date = new Date(String(value))
+	return isNaN(date.getTime()) ? null : date
+}

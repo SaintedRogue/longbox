@@ -1,8 +1,9 @@
 import { TrueSheet } from '@lodev09/react-native-true-sheet'
 import { useNavigationState, useScrollToTop } from '@react-navigation/native'
 import { FlashList, FlashListRef } from '@shopify/flash-list'
-import { useInfiniteSuspenseGraphQL, useRefetch, useSuspenseGraphQL } from '@stump/client'
+import { useInfiniteGraphQL, useRefetch, useSuspenseGraphQL } from '@stump/client'
 import { graphql } from '@stump/graphql'
+import { keepPreviousData } from '@tanstack/react-query'
 import { useLocalSearchParams } from 'expo-router'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { Platform } from 'react-native'
@@ -10,23 +11,30 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useStore } from 'zustand'
 import { useShallow } from 'zustand/react/shallow'
 
-import { BookGridItem } from '~/components/book'
-import { IBookGridItemFragment } from '~/components/book/BookGridItem'
-import { BookFilterHeader } from '~/components/book/filterHeader'
-import { useGridItemSize } from '~/components/grid/useGridItemSize'
+import { BookListItem, type IBookListItemFragment } from '~/components/book'
+import { SeriesBooksListHeader } from '~/components/book/listHeader/SeriesBooksListHeader'
 import ListEmpty from '~/components/ListEmpty'
+import { useListSizing } from '~/components/listLayout'
 import RefreshControl from '~/components/RefreshControl'
-import { SeriesOverviewSheet, usePrefetchSeriesOverview, useSeriesMenu } from '~/components/series'
+import { SeriesOverviewSheet, usePrefetchSeriesOverview } from '~/components/series'
 import { Button, RefreshButton, Text } from '~/components/ui'
 import { ON_END_REACHED_THRESHOLD } from '~/lib/constants'
 import { useDownloadSeries } from '~/lib/hooks/db/downloadSeries'
 import { useDynamicHeader } from '~/lib/hooks/useDynamicHeader'
 import { BookFilterContext, createBookFilterStore } from '~/stores/filters'
+import { useBooksLayout } from '~/stores/layout'
 
 const query = graphql(`
 	query SeriesBooksSceneSeriesName($id: ID!) {
 		seriesById(id: $id) {
 			resolvedName
+			stats {
+				bookCount
+				completedBooks
+				inProgressBooks
+				totalReadingTimeSeconds
+			}
+			libraryId
 		}
 	}
 `)
@@ -40,7 +48,7 @@ const booksQuery = graphql(`
 		media(filter: $filter, pagination: $pagination, orderBy: $orderBy) {
 			nodes {
 				id
-				...BookGridItem
+				...BookListItem
 			}
 			pageInfo {
 				__typename
@@ -78,24 +86,19 @@ export default function Screen() {
 	useDynamicHeader({
 		title: series.resolvedName,
 		showBackButton,
-		// headerRight: () => (
-		// 	<SeriesActionMenu
-		// 		seriesId={id}
-		// 		onShowOverview={() => sheetRef.current?.present()}
-		// 		onDownloadSeries={() => downloadSeries(id)}
-		// 	/>
-		// ),
 	})
 
 	useEffect(() => {
 		prefetch(id)
 	}, [id, prefetch])
 
-	const menuFragment = useSeriesMenu({
-		seriesId: id,
-		onShowOverview: () => sheetRef.current?.present(),
-		onDownloadSeries: () => downloadSeries(id),
-	})
+	const actions = useMemo(
+		() => ({
+			onShowOverview: () => sheetRef.current?.present(),
+			onDownloadSeries: () => downloadSeries(id),
+		}),
+		[id, downloadSeries],
+	)
 
 	// eslint-disable-next-line react-hooks/refs
 	const store = useRef(createBookFilterStore()).current
@@ -108,7 +111,7 @@ export default function Screen() {
 		})),
 	)
 
-	const { data, hasNextPage, fetchNextPage, refetch } = useInfiniteSuspenseGraphQL(
+	const { data, hasNextPage, fetchNextPage, refetch } = useInfiniteGraphQL(
 		booksQuery,
 		['seriesBooks', id, filters, sort],
 		{
@@ -119,8 +122,10 @@ export default function Screen() {
 			orderBy: [sort],
 			pagination: { offset: { page: 1 } },
 		},
+		{
+			placeholderData: keepPreviousData,
+		},
 	)
-	const { numColumns, paddingHorizontal } = useGridItemSize()
 
 	const nodes = data?.pages.flatMap((page) => page.media.nodes) || []
 
@@ -132,30 +137,41 @@ export default function Screen() {
 		}
 	}, [hasNextPage, fetchNextPage])
 
-	const listRef = useRef<FlashListRef<IBookGridItemFragment>>(null)
+	const listRef = useRef<FlashListRef<IBookListItemFragment>>(null)
 	useScrollToTop(listRef)
 
 	const isFiltered = Object.keys(filters).length > 0
 
+	const layoutKey = `library-${series.libraryId}-seriesBooks`
+	const layout = useBooksLayout(layoutKey, (state) => state.layout)
+	const { numColumns, paddingHorizontal, ItemSeparatorComponent } = useListSizing({ layout })
+
 	return (
 		<BookFilterContext.Provider value={store}>
-			{menuFragment}
 			<SafeAreaView
 				style={{ flex: 1 }}
 				edges={['left', 'right', ...(Platform.OS === 'ios' ? [] : ['bottom' as const])]}
 			>
 				<FlashList
+					key={layout} // force re-render when layout changes
 					ref={listRef}
 					data={nodes}
-					renderItem={({ item }) => <BookGridItem book={item} />}
+					renderItem={({ item }) => <BookListItem layout={layout} book={item} />}
 					contentContainerStyle={{
-						paddingHorizontal: paddingHorizontal,
+						paddingHorizontal,
 						paddingVertical: 16,
 					}}
 					numColumns={numColumns}
 					onEndReachedThreshold={ON_END_REACHED_THRESHOLD}
 					onEndReached={onEndReached}
-					ListHeaderComponent={<BookFilterHeader seriesId={id} />}
+					ListHeaderComponent={
+						<SeriesBooksListHeader
+							seriesId={id}
+							layoutKey={layoutKey}
+							stats={series.stats}
+							additionalActions={actions}
+						/>
+					}
 					ListHeaderComponentStyle={{ paddingBottom: 16, marginHorizontal: -paddingHorizontal }}
 					contentInsetAdjustmentBehavior="always"
 					refreshControl={
@@ -190,6 +206,7 @@ export default function Screen() {
 							}
 						/>
 					}
+					ItemSeparatorComponent={ItemSeparatorComponent}
 				/>
 			</SafeAreaView>
 

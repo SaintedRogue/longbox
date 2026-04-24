@@ -1,22 +1,22 @@
 import { useScrollToTop } from '@react-navigation/native'
 import { FlashList, FlashListRef } from '@shopify/flash-list'
-import { useInfiniteSuspenseGraphQL, useRefetch } from '@stump/client'
+import { useInfiniteGraphQL, useRefetch, useSuspenseGraphQL } from '@stump/client'
 import { graphql } from '@stump/graphql'
+import { keepPreviousData } from '@tanstack/react-query'
 import { useCallback, useRef } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useStore } from 'zustand'
 import { useShallow } from 'zustand/react/shallow'
 
 import { useActiveServer } from '~/components/activeServer'
-import { useGridItemSize } from '~/components/grid/useGridItemSize'
 import ListEmpty from '~/components/ListEmpty'
+import { useListSizing } from '~/components/listLayout'
 import RefreshControl from '~/components/RefreshControl'
-import { SeriesGridItem } from '~/components/series'
-import { SeriesFilterHeader } from '~/components/series/filterHeader'
-import { ISeriesGridItemFragment } from '~/components/series/SeriesGridItem'
-import { Button, RefreshButton, Text } from '~/components/ui'
+import { SeriesListHeader } from '~/components/series/listHeader'
+import SeriesListItem, { ISeriesListItemFragment } from '~/components/series/SeriesListItem'
+import { Button, FullScreenLoader, RefreshButton, Text } from '~/components/ui'
 import { ON_END_REACHED_THRESHOLD } from '~/lib/constants'
-import { createSeriesFilterStore, SeriesFilterContext } from '~/stores/filters'
+import { useSeriesFilterStore } from '~/stores/filters'
+import { useSeriesLayout } from '~/stores/layout'
 
 const query = graphql(`
 	query SeriesScreen(
@@ -27,7 +27,7 @@ const query = graphql(`
 		series(pagination: $pagination, filter: $filters, orderBy: $orderBy) {
 			nodes {
 				id
-				...SeriesGridItem
+				...SeriesListItem
 			}
 			pageInfo {
 				__typename
@@ -43,16 +43,25 @@ const query = graphql(`
 	}
 `)
 
+const statsQuery = graphql(`
+	query SeriesScreenStats {
+		librariesStats {
+			seriesCount
+			bookCount
+			totalBytes
+			completedBooks
+			inProgressBooks
+			totalReadingTimeSeconds
+		}
+	}
+`)
+
 export default function Screen() {
 	const {
 		activeServer: { id: serverID },
 	} = useActiveServer()
 
-	// eslint-disable-next-line react-hooks/refs
-	const store = useRef(createSeriesFilterStore()).current
-
-	const { filters, sort, resetFilters } = useStore(
-		store,
+	const { filters, sort, resetFilters } = useSeriesFilterStore(
 		useShallow((state) => ({
 			filters: state.filters,
 			sort: state.sort,
@@ -60,12 +69,29 @@ export default function Screen() {
 		})),
 	)
 
-	const { data, hasNextPage, fetchNextPage, refetch } = useInfiniteSuspenseGraphQL(
+	const {
+		data: { librariesStats },
+	} = useSuspenseGraphQL(statsQuery, ['seriesStats', serverID])
+
+	// i swapped to non-suspense because it was flickering the stack items
+	const {
+		data,
+		hasNextPage,
+		fetchNextPage,
+		refetch,
+		isLoading: isInitialLoading,
+	} = useInfiniteGraphQL(
 		query,
 		['series', serverID, filters, sort],
-		{ filters, orderBy: [sort], pagination: { offset: { page: 1 } } },
+		{
+			filters,
+			orderBy: [sort],
+			pagination: { offset: { page: 1 } },
+		},
+		{
+			placeholderData: keepPreviousData,
+		},
 	)
-	const { numColumns, paddingHorizontal } = useGridItemSize()
 
 	const nodes = data?.pages.flatMap((page) => page.series.nodes) || []
 
@@ -79,32 +105,38 @@ export default function Screen() {
 
 	const isFiltered = Object.keys(filters).length > 0
 
-	const listRef = useRef<FlashListRef<ISeriesGridItemFragment>>(null)
+	const listRef = useRef<FlashListRef<ISeriesListItemFragment>>(null)
 	useScrollToTop(listRef)
 
+	const layout = useSeriesLayout('global', (state) => state.layout)
+	const { numColumns, paddingHorizontal, ItemSeparatorComponent } = useListSizing({ layout })
+
 	return (
-		<SeriesFilterContext.Provider value={store}>
-			<SafeAreaView style={{ flex: 1 }} edges={['left', 'right']}>
-				<FlashList
-					ref={listRef}
-					data={nodes}
-					renderItem={({ item }) => <SeriesGridItem series={item} />}
-					contentContainerStyle={{
-						paddingVertical: 16,
-						paddingHorizontal: paddingHorizontal,
-					}}
-					numColumns={numColumns}
-					onEndReachedThreshold={ON_END_REACHED_THRESHOLD}
-					onEndReached={onEndReached}
-					contentInsetAdjustmentBehavior="always"
-					ListHeaderComponent={<SeriesFilterHeader />}
-					ListHeaderComponentStyle={{ paddingBottom: 16, marginHorizontal: -paddingHorizontal }}
-					refreshControl={
-						nodes.length > 0 ? (
-							<RefreshControl refreshing={isRefetching} onRefresh={handleRefetch} />
-						) : undefined
-					}
-					ListEmptyComponent={
+		<SafeAreaView style={{ flex: 1 }} edges={['left', 'right']}>
+			<FlashList
+				key={layout} // force re-render when layout changes
+				ref={listRef}
+				data={nodes}
+				renderItem={({ item }) => <SeriesListItem layout={layout} series={item} />}
+				contentContainerStyle={{
+					paddingVertical: 16,
+					paddingHorizontal,
+				}}
+				numColumns={numColumns}
+				onEndReachedThreshold={ON_END_REACHED_THRESHOLD}
+				onEndReached={onEndReached}
+				contentInsetAdjustmentBehavior="always"
+				ListHeaderComponent={<SeriesListHeader stats={librariesStats} />}
+				ListHeaderComponentStyle={{ paddingBottom: 16, marginHorizontal: -paddingHorizontal }}
+				refreshControl={
+					nodes.length > 0 ? (
+						<RefreshControl refreshing={isRefetching} onRefresh={handleRefetch} />
+					) : undefined
+				}
+				ListEmptyComponent={
+					isInitialLoading ? (
+						<FullScreenLoader />
+					) : (
 						<ListEmpty
 							message={isFiltered ? 'No series found matching your filters' : 'No series returned'}
 							actions={
@@ -132,9 +164,10 @@ export default function Screen() {
 								</>
 							}
 						/>
-					}
-				/>
-			</SafeAreaView>
-		</SeriesFilterContext.Provider>
+					)
+				}
+				ItemSeparatorComponent={ItemSeparatorComponent}
+			/>
+		</SafeAreaView>
 	)
 }

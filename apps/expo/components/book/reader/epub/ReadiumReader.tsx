@@ -186,15 +186,15 @@ export default function ReadiumReader({
 			onLocationChange: store.onLocationChange,
 			cleanup: store.onUnload,
 			setBookmarks: store.setBookmarks,
-			annotations: store.annotations,
 			setAnnotations: store.setAnnotations,
 			addAnnotation: store.addAnnotation,
 			updateAnnotation: store.updateAnnotation,
 			removeAnnotation: store.removeAnnotation,
 			getAnnotation: store.getAnnotation,
-			positions: store.positions,
 		})),
 	)
+	const positions = useEpubLocationStore((state) => state.positions)
+	const annotations = useEpubLocationStore((state) => state.annotations)
 
 	const sdkCtx = useSDKSafe()
 
@@ -331,8 +331,14 @@ export default function ReadiumReader({
 
 			store.onLocationChange(locator)
 
+			// This is a bit of a cautionary change without explicit testing, but if a book doesn't have
+			// any positions I don't think we can reliably make any progression-related calculations. I think,
+			// more than anything, what this would mean is somehow this callback hit before fully loading
+			// the book and getting positions
+			if (!positions.length) return
+
 			const totalProgression = locator.locations?.totalProgression
-			const isLikelyLastLocator = isLastReadiumLocator(locator, store.positions)
+			const isLikelyLastLocator = isLastReadiumLocator(locator, positions)
 
 			if (!hasReachedEndRef.current && !incognito && isLikelyLastLocator) {
 				hasReachedEndRef.current = true
@@ -342,8 +348,8 @@ export default function ReadiumReader({
 						extra: {
 							totalProgression,
 							position: locator.locations?.position,
-							positionsCount: store.positions?.length,
-							positions: JSON.stringify(store.positions),
+							positionsCount: positions?.length,
+							positions: JSON.stringify(positions),
 							href: locator.href,
 							locator,
 						},
@@ -360,6 +366,7 @@ export default function ReadiumReader({
 			onReachedEnd,
 			incognito,
 			store,
+			positions,
 			controlsVisible,
 			setControlsVisible,
 			enableDebugAnalytics,
@@ -376,8 +383,8 @@ export default function ReadiumReader({
 						extra: {
 							totalProgression: event.nativeEvent.locations?.totalProgression,
 							position: event.nativeEvent.locations?.position,
-							positionsCount: store.positions?.length,
-							positions: JSON.stringify(store.positions),
+							positionsCount: positions?.length,
+							positions: JSON.stringify(positions),
 							href: event.nativeEvent.href,
 							locator: event.nativeEvent,
 						},
@@ -386,7 +393,7 @@ export default function ReadiumReader({
 				onReachedEnd?.(event.nativeEvent)
 			}
 		},
-		[onReachedEnd, incognito, enableDebugAnalytics, store.positions],
+		[onReachedEnd, incognito, enableDebugAnalytics, positions],
 	)
 
 	const handleMiddleTouch = useCallback(() => {
@@ -547,7 +554,7 @@ export default function ReadiumReader({
 					bookId={book.id}
 					url={localUri}
 					initialLocator={initialLocator}
-					decorations={store.annotations}
+					decorations={annotations}
 					onBookLoaded={({ nativeEvent }) => handleBookLoaded(nativeEvent)}
 					onLocatorChange={({ nativeEvent: locator }) => handleLocationChanged(locator)}
 					onMiddleTouch={handleMiddleTouch}

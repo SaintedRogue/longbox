@@ -152,7 +152,7 @@ export function formatHumanDuration(
 	},
 ): string {
 	if (seconds <= 0) {
-		return formatDuration({ seconds: 0 }, { format: ['seconds'] })
+		return formatDuration({ seconds: 0 }, { zero: true, format: ['seconds'] })
 	}
 
 	const h = Math.trunc(seconds / 3600)
@@ -174,4 +174,16 @@ export function formatHumanDuration(
 			delimiter: options?.delimiter,
 		},
 	)
+}
+
+/**
+ * Format a duration in human-readable form, separating the unit and value.
+ *
+ * Only returns one significant unit (hours, minutes or seconds).
+ */
+export function formatHumanDurationSeparate(seconds: number) {
+	const formattedDuration = formatHumanDuration(seconds, { significantUnits: 1 })
+	const [, value, unit] = formattedDuration.match(/^(\d+)\s*(.+)$/) || []
+	if (!value || !unit) return
+	return { value, unit }
 }

@@ -1,21 +1,23 @@
 import { FlashList } from '@shopify/flash-list'
-import { useInfiniteSuspenseGraphQL } from '@stump/client'
+import { useInfiniteGraphQL, useRefetch, useSuspenseGraphQL } from '@stump/client'
 import { graphql } from '@stump/graphql'
-import { Suspense, useCallback, useRef } from 'react'
+import { keepPreviousData } from '@tanstack/react-query'
+import { useCallback, useRef } from 'react'
 import { Platform } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useStore } from 'zustand'
 import { useShallow } from 'zustand/react/shallow'
 
 import { useActiveServer } from '~/components/activeServer'
-import { BookGridItem } from '~/components/book'
-import { BookFilterHeader } from '~/components/book/filterHeader'
-import { useGridItemSize } from '~/components/grid/useGridItemSize'
+import { BookListItem } from '~/components/book'
+import { BooksListHeader } from '~/components/book/listHeader'
 import ListEmpty from '~/components/ListEmpty'
+import { useListSizing } from '~/components/listLayout'
 import RefreshControl from '~/components/RefreshControl'
 import { Button, Text } from '~/components/ui'
 import { ON_END_REACHED_THRESHOLD } from '~/lib/constants'
 import { BookFilterContext, createBookFilterStore, useInitialBookFilters } from '~/stores/filters'
+import { useBooksLayout } from '~/stores/layout'
 
 const query = graphql(`
 	query BooksScreen(
@@ -26,7 +28,7 @@ const query = graphql(`
 		media(pagination: $pagination, filter: $filters, orderBy: $orderBy) {
 			nodes {
 				id
-				...BookGridItem
+				...BookListItem
 			}
 			pageInfo {
 				__typename
@@ -38,6 +40,19 @@ const query = graphql(`
 					zeroBased
 				}
 			}
+		}
+	}
+`)
+
+const statsQuery = graphql(`
+	query BooksScreenStats {
+		librariesStats {
+			seriesCount
+			bookCount
+			totalBytes
+			completedBooks
+			inProgressBooks
+			totalReadingTimeSeconds
 		}
 	}
 `)
@@ -60,12 +75,24 @@ export default function Screen() {
 		})),
 	)
 
-	const { data, hasNextPage, fetchNextPage, refetch, isRefetching } = useInfiniteSuspenseGraphQL(
+	const {
+		data: { librariesStats: booksStats },
+	} = useSuspenseGraphQL(statsQuery, ['booksStats', serverID])
+
+	const { data, hasNextPage, fetchNextPage, refetch } = useInfiniteGraphQL(
 		query,
 		['books', serverID, filters, sort],
-		{ filters, orderBy: [sort], pagination: { offset: { page: 1 } } },
+		{
+			filters,
+			orderBy: [sort],
+			pagination: { offset: { page: 1 } },
+		},
+		{
+			placeholderData: keepPreviousData,
+		},
 	)
-	const { numColumns, paddingHorizontal } = useGridItemSize()
+
+	const [isRefetching, onRefetch] = useRefetch(refetch)
 
 	const onEndReached = useCallback(() => {
 		if (hasNextPage) {
@@ -75,6 +102,9 @@ export default function Screen() {
 
 	const isFiltered = Object.keys(filters).length > 0
 
+	const layout = useBooksLayout('global', (state) => state.layout)
+	const { numColumns, paddingHorizontal, ItemSeparatorComponent } = useListSizing({ layout })
+
 	return (
 		<BookFilterContext.Provider value={store}>
 			<SafeAreaView
@@ -82,23 +112,20 @@ export default function Screen() {
 				edges={['left', 'right', ...(Platform.OS === 'ios' ? [] : ['bottom' as const])]}
 			>
 				<FlashList
+					key={layout} // force re-render when layout changes
 					data={data?.pages.flatMap((page) => page.media.nodes) || []}
-					renderItem={({ item }) => <BookGridItem book={item} />}
+					renderItem={({ item }) => <BookListItem layout={layout} book={item} />}
 					contentContainerStyle={{
 						paddingVertical: 16,
-						paddingHorizontal: paddingHorizontal,
+						paddingHorizontal,
 					}}
 					numColumns={numColumns}
 					onEndReachedThreshold={ON_END_REACHED_THRESHOLD}
 					onEndReached={onEndReached}
 					contentInsetAdjustmentBehavior="automatic"
-					ListHeaderComponent={
-						<Suspense fallback={null}>
-							<BookFilterHeader />
-						</Suspense>
-					}
+					ListHeaderComponent={<BooksListHeader stats={booksStats} />}
 					ListHeaderComponentStyle={{ paddingBottom: 16, marginHorizontal: -paddingHorizontal }}
-					refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
+					refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={onRefetch} />}
 					ListEmptyComponent={
 						<ListEmpty
 							message={isFiltered ? 'No books found matching your filters' : 'No books returned'}
@@ -116,6 +143,7 @@ export default function Screen() {
 							}
 						/>
 					}
+					ItemSeparatorComponent={ItemSeparatorComponent}
 				/>
 			</SafeAreaView>
 		</BookFilterContext.Provider>
