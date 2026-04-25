@@ -400,7 +400,7 @@ impl UserMutation {
 		Ok(removed_sessions.len().try_into()?)
 	}
 
-	#[graphql(guard = "PermissionGuard::one(UserPermission::LockUsers)")]
+	#[graphql(guard = "PermissionGuard::one(UserPermission::LockUser)")]
 	async fn update_user_lock_status(
 		&self,
 		ctx: &Context<'_>,

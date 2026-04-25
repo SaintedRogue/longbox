@@ -1,7 +1,10 @@
 use async_graphql::{Context, Object, Result, ID};
-use models::entity::{
-	book_club, book_club_book, book_club_discussion, book_club_discussion_message,
-	book_club_member, user::AuthUser,
+use models::{
+	entity::{
+		book_club, book_club_book, book_club_discussion, book_club_discussion_message,
+		book_club_member, user::AuthUser,
+	},
+	shared::enums::UserPermission,
 };
 use sea_orm::{
 	prelude::*, sea_query::Query, ColumnTrait, QueryFilter, QueryOrder, QuerySelect,
@@ -256,7 +259,8 @@ async fn verify_read_access(
 	user: &AuthUser,
 	conn: &DatabaseConnection,
 ) -> Result<()> {
-	if user.is_server_owner {
+	// TODO(permissions): implicit permission
+	if user.has_permission(UserPermission::ManageServer) {
 		return Ok(());
 	}
 
