@@ -1,7 +1,7 @@
 use crate::{
 	data::{AuthContext, CoreContext},
 	error_message::FORBIDDEN_ACTION,
-	guard::{OptionalFeature, OptionalFeatureGuard, PermissionGuard, ServerOwnerGuard},
+	guard::{OptionalFeature, OptionalFeatureGuard, PermissionGuard, SelfGuard},
 	input::user::{
 		AgeRestrictionInput, CreateUserInput, NavigationArrangementInput,
 		UpdateUserInput, UpdateUserPreferencesInput,
@@ -33,7 +33,8 @@ pub struct UserMutation;
 
 #[Object]
 impl UserMutation {
-	#[graphql(guard = "ServerOwnerGuard")]
+	// TODO(permissions): I don't think a one-off requires its own permission, but adding a todo to consider again later
+	#[graphql(guard = "PermissionGuard::one(UserPermission::ManageServer)")]
 	async fn delete_login_activity(&self, ctx: &Context<'_>) -> Result<u64> {
 		let conn = ctx.data::<CoreContext>()?.conn.as_ref();
 
@@ -152,7 +153,9 @@ impl UserMutation {
 
 		let target_id = match &id {
 			Some(id) => {
-				if id.as_str() != user.id && !user.is_server_owner {
+				if id.as_str() != user.id
+					&& !user.has_permission(UserPermission::ManageUsers)
+				{
 					return Err(FORBIDDEN_ACTION.into());
 				}
 				id.to_string()
@@ -310,6 +313,9 @@ impl UserMutation {
 		}
 	}
 
+	#[graphql(
+		guard = "SelfGuard::new(&id.to_string()).or(PermissionGuard::one(UserPermission::ManageUsers))"
+	)]
 	async fn update_user(
 		&self,
 		ctx: &Context<'_>,
@@ -321,7 +327,7 @@ impl UserMutation {
 		let config = core_ctx.config.as_ref();
 		let conn = core_ctx.conn.as_ref();
 
-		if user.id != id.to_string() && !user.is_server_owner {
+		if user.id != id.to_string() {
 			return Err(FORBIDDEN_ACTION.into());
 		}
 
@@ -338,7 +344,7 @@ impl UserMutation {
 		Ok(updated_user)
 	}
 
-	#[graphql(guard = "ServerOwnerGuard")]
+	#[graphql(guard = "PermissionGuard::one(UserPermission::DeleteUser)")]
 	async fn delete_user(
 		&self,
 		ctx: &Context<'_>,
@@ -361,6 +367,7 @@ impl UserMutation {
 			.await?
 			.ok_or("User not found")?;
 
+		// TODO(permissions): remove this? if we rm is_server_owner then i guess admins can delete each other?
 		if existing_user.is_server_owner {
 			return Err("You cannot delete the server owner".into());
 		}
@@ -382,7 +389,9 @@ impl UserMutation {
 		Ok(User::from(deleted_user))
 	}
 
-	#[graphql(guard = "ServerOwnerGuard")]
+	#[graphql(
+		guard = "SelfGuard::new(&id.to_string()).or(PermissionGuard::one(UserPermission::ManageUserSessions))"
+	)]
 	async fn delete_user_sessions(&self, ctx: &Context<'_>, id: ID) -> Result<u64> {
 		let core_ctx = ctx.data::<CoreContext>()?;
 		let conn = core_ctx.conn.as_ref();
@@ -391,7 +400,7 @@ impl UserMutation {
 		Ok(removed_sessions.len().try_into()?)
 	}
 
-	#[graphql(guard = "ServerOwnerGuard")]
+	#[graphql(guard = "PermissionGuard::one(UserPermission::LockUsers)")]
 	async fn update_user_lock_status(
 		&self,
 		ctx: &Context<'_>,
