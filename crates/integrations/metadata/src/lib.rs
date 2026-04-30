@@ -11,7 +11,7 @@ pub mod types;
 pub use client::build_client_with_retry;
 pub use error::{MetadataProviderError, MetadataResult};
 pub use merge::{AutoApplyConfig, FieldMerger, MergeStrategy, MetadataFieldOverride};
-pub use provider::MetadataProvider;
+pub use provider::{MetadataProvider, ProviderCredentialVerification};
 pub use rate_limit::RateLimiter;
 pub use scoring::MatchScorer;
 pub use types::{

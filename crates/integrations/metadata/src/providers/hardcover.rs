@@ -5,6 +5,7 @@ use serde::Deserialize;
 use crate::{
 	client::{build_client_with_retry, RetryClientConfig},
 	error::MetadataProviderError,
+	provider::ProviderCredentialVerification,
 	serde_utils::string_or_number,
 	types::{
 		ExternalMediaMetadata, ExternalSeriesMetadata, MatchCandidate, MediaType,
@@ -424,6 +425,91 @@ impl MetadataProvider for HardcoverClient {
 			..Default::default()
 		})
 	}
+
+	// 	const validateHardcoverApiKey: Validator = async (apiKey, t) => {
+	// 		checkPrefix(apiKey, t)
+
+	// 		const response = await fetch('https://api.hardcover.app/v1/graphql', {
+	// 			method: 'POST',
+	// 			body: JSON.stringify({
+	// 				query: `
+	//           query {
+	//             me {
+	//               id
+	//               username
+	//             }
+	//           }
+	//         `,
+	// 			}),
+	// 			headers: {
+	// 				'Content-Type': 'application/json',
+	// 				Authorization: `Bearer ${apiKey}`,
+	// 			},
+	// 		})
+
+	// 		if (!response.ok) {
+	// 			throw new Error(t(getKey('apiToken.hardcoverStatusError'), { status: response.status }))
+	// 		}
+
+	// 		const data = await response.json()
+	// 		const firstError = getProperty(data, 'errors[0].message')
+	// 		if (firstError && typeof firstError === 'string') {
+	// 			throw new Error(t(getKey('apiToken.hardcoverValidationError'), { message: firstError }))
+	// 		}
+	// 		// hardcover `me` is an array for whatever reason
+	// 		return getProperty(data, 'data.me[0].id') != null
+	// }
+	async fn verify_credentials(
+		&self,
+	) -> Result<ProviderCredentialVerification, MetadataProviderError> {
+		let token = self.token()?;
+
+		let body = serde_json::json!({ "query": "query { me { id username } }" });
+
+		let response = self
+			.client
+			.post(Self::API_URL)
+			.bearer_auth(token)
+			.json(&body)
+			.send()
+			.await?
+			.error_for_status()?
+			.json::<GraphQLResponse<MeResponse>>()
+			.await?;
+
+		if let Some(errors) = response.errors {
+			if !errors.is_empty() {
+				let messages: Vec<_> =
+					errors.iter().map(|e| e.message.as_str()).collect();
+				return Ok(ProviderCredentialVerification {
+					response_status: 200, // safe assumption since we got a valid resp
+					is_valid: false,
+					error: Some(messages.join("\n")),
+				});
+			}
+		}
+
+		Ok(ProviderCredentialVerification {
+			response_status: 200,
+			is_valid: response
+				.data
+				.and_then(|d| d.me.into_iter().next())
+				.is_some(),
+			error: None,
+		})
+	}
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Me {
+	// this is the valid structure but we don't need to use it, so dead code
+	#[allow(dead_code)]
+	pub id: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct MeResponse {
+	pub me: Vec<Me>,
 }
 
 #[derive(Debug, Deserialize)]

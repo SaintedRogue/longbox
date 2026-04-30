@@ -3,6 +3,7 @@ use reqwest_middleware::ClientWithMiddleware;
 use crate::{
 	client::{build_client_with_retry, RetryClientConfig},
 	error::MetadataProviderError,
+	provider::ProviderCredentialVerification,
 	providers::comic_vine::utils::{
 		extract_issue_id, filled_array_or_none, parse_date_parts,
 	},
@@ -400,6 +401,34 @@ impl MetadataProvider for ComicVineClient {
 				external_id
 			)),
 			..Default::default()
+		})
+	}
+
+	async fn verify_credentials(
+		&self,
+	) -> Result<ProviderCredentialVerification, MetadataProviderError> {
+		let request = self
+			.client
+			.get("https://comicvine.gamespot.com/api/characters/")
+			.query(&[("api_key", self.api_key.as_str()), ("format", "json")]);
+
+		let response = request.send().await?.error_for_status()?;
+		let response_status = response.status().as_u16();
+		// don't care about actual data, so used serde_json::Value as catch-all
+		let data: ComicVineResponse<serde_json::Value> = response.json().await?;
+
+		if data.status_code != 1 || !data.error.is_empty() {
+			return Ok(ProviderCredentialVerification {
+				is_valid: false,
+				response_status,
+				error: Some(data.error),
+			});
+		}
+
+		Ok(ProviderCredentialVerification {
+			is_valid: true,
+			response_status,
+			error: None,
 		})
 	}
 }
