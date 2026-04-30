@@ -426,39 +426,6 @@ impl MetadataProvider for HardcoverClient {
 		})
 	}
 
-	// 	const validateHardcoverApiKey: Validator = async (apiKey, t) => {
-	// 		checkPrefix(apiKey, t)
-
-	// 		const response = await fetch('https://api.hardcover.app/v1/graphql', {
-	// 			method: 'POST',
-	// 			body: JSON.stringify({
-	// 				query: `
-	//           query {
-	//             me {
-	//               id
-	//               username
-	//             }
-	//           }
-	//         `,
-	// 			}),
-	// 			headers: {
-	// 				'Content-Type': 'application/json',
-	// 				Authorization: `Bearer ${apiKey}`,
-	// 			},
-	// 		})
-
-	// 		if (!response.ok) {
-	// 			throw new Error(t(getKey('apiToken.hardcoverStatusError'), { status: response.status }))
-	// 		}
-
-	// 		const data = await response.json()
-	// 		const firstError = getProperty(data, 'errors[0].message')
-	// 		if (firstError && typeof firstError === 'string') {
-	// 			throw new Error(t(getKey('apiToken.hardcoverValidationError'), { message: firstError }))
-	// 		}
-	// 		// hardcover `me` is an array for whatever reason
-	// 		return getProperty(data, 'data.me[0].id') != null
-	// }
 	async fn verify_credentials(
 		&self,
 	) -> Result<ProviderCredentialVerification, MetadataProviderError> {
