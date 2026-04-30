@@ -426,6 +426,7 @@ impl MetadataProvider for HardcoverClient {
 		})
 	}
 
+	#[tracing::instrument(skip(self))]
 	async fn verify_credentials(
 		&self,
 	) -> Result<ProviderCredentialVerification, MetadataProviderError> {
@@ -471,7 +472,7 @@ impl MetadataProvider for HardcoverClient {
 pub struct Me {
 	// this is the valid structure but we don't need to use it, so dead code
 	#[allow(dead_code)]
-	pub id: String,
+	pub username: String,
 }
 
 #[derive(Debug, Deserialize)]

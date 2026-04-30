@@ -41,6 +41,7 @@ export function ProviderApiKeyInput() {
 		mutate,
 		isPending,
 		error: criticalError,
+		reset,
 	} = useGraphQLMutation(verificationMutation, {})
 
 	const validateKey = useCallback(
@@ -48,6 +49,7 @@ export function ProviderApiKeyInput() {
 			if (isPending || !apiKey) return
 
 			form.clearErrors('apiToken')
+			reset()
 
 			if (apiKey.startsWith('Bearer ')) {
 				form.setError('apiToken', {
@@ -59,7 +61,7 @@ export function ProviderApiKeyInput() {
 			mutate({ config: { apiToken: apiKey, providerType: provider } })
 		},
 
-		[provider, mutate, isPending, t, form],
+		[provider, mutate, isPending, t, form, reset],
 	)
 
 	useEffect(
@@ -68,6 +70,7 @@ export function ProviderApiKeyInput() {
 				validateKey(debouncedValue)
 			} else {
 				form.clearErrors('apiToken')
+				reset()
 			}
 		},
 

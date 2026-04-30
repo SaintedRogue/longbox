@@ -416,6 +416,7 @@ impl MetadataProvider for ComicVineClient {
 		})
 	}
 
+	#[tracing::instrument(skip(self))]
 	async fn verify_credentials(
 		&self,
 	) -> Result<ProviderCredentialVerification, MetadataProviderError> {
@@ -429,7 +430,8 @@ impl MetadataProvider for ComicVineClient {
 		// don't care about actual data, so used serde_json::Value as catch-all
 		let data: ComicVineResponse<serde_json::Value> = response.json().await?;
 
-		if data.status_code != 1 || !data.error.is_empty() {
+		// sometimes data.error would be "OK" which is kinda annoying, so we only check status code here
+		if data.status_code != 1 {
 			return Ok(ProviderCredentialVerification {
 				is_valid: false,
 				response_status,
@@ -490,5 +492,14 @@ mod tests {
 		let results = client.search_media(&query).await;
 		println!("search_media results: {:#?}", results);
 		assert!(results.is_ok());
+	}
+
+	#[ignore = "Requires COMIC_VINE_API_KEY env var"]
+	#[tokio::test]
+	async fn test_verify_credentials() {
+		let client = get_test_client();
+		let verification = client.verify_credentials().await;
+		assert!(verification.is_ok());
+		assert!(verification.unwrap().is_valid);
 	}
 }
