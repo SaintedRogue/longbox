@@ -41,6 +41,7 @@ export const LibrarySettingsConfig = graphql(`
 			processMetadata
 			watch
 			libraryPattern
+			libraryType
 			thumbnailConfig {
 				__typename
 				resizeMethod {
