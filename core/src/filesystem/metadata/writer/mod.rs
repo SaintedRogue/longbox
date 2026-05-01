@@ -55,3 +55,21 @@ fn write_metadata_blocking<P: AsRef<Path>>(
 		))),
 	}
 }
+
+#[cfg(test)]
+pub(crate) mod tests {
+	use std::{fs, path::PathBuf};
+
+	pub fn get_test_zip_path() -> String {
+		PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+			.join("integration-tests/data/book.zip")
+			.to_string_lossy()
+			.to_string()
+	}
+
+	pub fn get_test_zip_file_data() -> Vec<u8> {
+		let test_zip_path = get_test_zip_path();
+
+		fs::read(test_zip_path).expect("Failed to fetch test zip file")
+	}
+}

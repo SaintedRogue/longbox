@@ -1,3 +1,4 @@
+use std::fs;
 use std::{fs::File, path::Path};
 
 use std::collections::BTreeMap;
@@ -32,6 +33,8 @@ pub fn write_into_zip<P: AsRef<Path>>(
 		BTreeMap::from([(PathBuf::from(metadata_enclosed_path), metadata_buf)]),
 	)?;
 	zip_writer.finish()?;
+
+	fs::write(book_path, &buffer)?;
 
 	Ok(())
 }
@@ -128,7 +131,6 @@ where
 			self.start_file_from_path(&path, options.remove(&path).unwrap_or_default())?;
 			self.write_all(&contents)?;
 		}
-
 		Ok(())
 	}
 }
@@ -138,23 +140,65 @@ where
 
 #[cfg(test)]
 mod tests {
+	use std::fs;
+
+	use crate::filesystem::{
+		media::process_metadata_raw,
+		metadata::writer::{tests::get_test_zip_file_data, zip::write_into_zip},
+	};
+
 	// does indeed already have ComicInfo.xml
 	#[tokio::test]
 	async fn test_zip_replace_comic_info() {
-		// note: may need to unzip book.zip to check if it has metadata. if not, copy the zip, unzip, add one, zip back up, put into repo as `book-with-comic-info.zip` or sm
-		// 1. copy core/integration-tests/data/book.zip to /tmp or something (via tempfile dev dependency, see other examples in repo)
-		// 2. create generic XML, convert to bytes
-		// 3. pass path to tmp file and bytes to write_into_zip
-		// 4. unzip tmp file OR get metadata raw from ZipProcessor
-		// 5. assert metadata is expected
-		//
-		// see also: get_test_zip_path, test_process
+		let tempdir = tempfile::tempdir().expect("Failed to create tempdir");
+		let temp_zip_file_path = tempdir
+			.path()
+			.join("book.zip")
+			.to_string_lossy()
+			.to_string();
+		fs::write(&temp_zip_file_path, get_test_zip_file_data())
+			.expect("Failed to write temporary zip file");
+
+		let generic_xml = r#"<?xml version="1.0"?>
+<ComicInfo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+    <Title>Invincible 001</Title>
+</ComicInfo>"#.bytes().collect::<Vec<u8>>();
+
+		write_into_zip(&temp_zip_file_path, generic_xml.clone())
+			.expect("Failed to write into zip");
+
+		let updated_xml = process_metadata_raw(&temp_zip_file_path)
+			.expect("Failed to retrieve raw metadata")
+			.expect("No metadata found in zip");
+
+		assert_eq!(generic_xml, updated_xml)
 	}
 
 	// doesn't already have ComicInfo.xml
 	#[tokio::test]
 	async fn test_zip_insert_comic_info() {
-		// same exact steps as test_zip_replace_comic_info but with a book zip file which doesn't have metadata
+		let tempdir = tempfile::tempdir().expect("Failed to create tempdir");
+		let temp_zip_file_path = tempdir
+			.path()
+			.join("book-sans-metadata.zip")
+			.to_string_lossy()
+			.to_string();
+		fs::write(&temp_zip_file_path, get_test_zip_file_data())
+			.expect("Failed to write temporary zip file");
+
+		let generic_xml = r#"<?xml version="1.0"?>
+<ComicInfo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+    <Title>Invincible 001</Title>
+</ComicInfo>"#.bytes().collect::<Vec<u8>>();
+
+		write_into_zip(&temp_zip_file_path, generic_xml.clone())
+			.expect("Failed to write into zip");
+
+		let updated_xml = process_metadata_raw(&temp_zip_file_path)
+			.expect("Failed to retrieve raw metadata")
+			.expect("No metadata found in zip");
+
+		assert_eq!(generic_xml, updated_xml)
 	}
 
 	// TODO: test_zip_replace_opf
