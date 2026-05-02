@@ -99,25 +99,31 @@ export default function ImageBasedReader({ initialPage, onPastEndReached }: Prop
 
 	// Note: This does not work for Android so we need an alternative solution
 	const didCallEndReached = useRef(false)
-	const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
-		if (didCallEndReached.current) return
+	const handleScroll = useCallback(
+		(event: NativeSyntheticEvent<NativeScrollEvent>) => {
+			if (didCallEndReached.current) return
 
-		const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent
+			const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent
 
-		const targetContentOffset = event.nativeEvent.targetContentOffset || contentOffset
+			const targetContentOffset = event.nativeEvent.targetContentOffset || contentOffset
 
-		// invertion transform accounts for RTL already
-		const isPastEnd = contentOffset.x + layoutMeasurement.width > contentSize.width
-		const isTargetPastEnd = targetContentOffset.x + layoutMeasurement.width > contentSize.width
+			// invertion transform accounts for RTL already
+			const isPastEnd = contentOffset.x + layoutMeasurement.width > contentSize.width
+			const isTargetPastEnd = targetContentOffset.x + layoutMeasurement.width > contentSize.width
 
-		if (isPastEnd && isTargetPastEnd) {
-			didCallEndReached.current = true
-			onPastEndReached?.()
-		}
-	}, [])
+			if (isPastEnd && isTargetPastEnd) {
+				didCallEndReached.current = true
+				onPastEndReached?.()
+			}
+		},
+		[onPastEndReached],
+	)
 
 	const isRtl = readingDirection === ReadingDirection.Rtl
 	const isVertical = readingMode === ReadingMode.ContinuousVertical
+	// If we change between 'vertical' and 'horizontal' key, we want the current page instead
+	const startIndex =
+		pageSets.findIndex((set) => set.includes((currentPage ?? initialPage) - 1)) || 0
 
 	return (
 		<View style={[{ width, height }, isRtl && { transform: [{ scaleX: -1 }] }]}>
@@ -159,11 +165,11 @@ export default function ImageBasedReader({ initialPage, onPastEndReached }: Prop
 						handlePageChanged(page)
 					}
 				}}
-				initialScrollIndex={
-					// If we change between 'vertical' and 'horizontal' key, we want the current page instead
-					pageSets.findIndex((set) => set.includes((currentPage ?? initialPage) - 1)) || 0
-				}
+				initialScrollIndex={startIndex}
 				initialScrollIndexParams={isVertical ? { viewOffset: -insets.top } : undefined}
+				maintainVisibleContentPosition={{
+					disabled: true, // See https://github.com/Shopify/flash-list/issues/2250
+				}}
 				showsHorizontalScrollIndicator={false}
 				onScroll={handleScroll}
 				onMomentumScrollEnd={() => setZoomResetCounter((c) => c + 1)}
