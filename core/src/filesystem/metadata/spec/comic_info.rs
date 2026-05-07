@@ -62,7 +62,6 @@ fn merge_metadata_into_xml(
 			Ok(Event::Start(e)) => {
 				let tag = String::from_utf8_lossy(e.name().as_ref()).to_string();
 				current_tag = tag.clone();
-				dbg!(&current_tag);
 				empty_field = true;
 				// case where we need to rm it since nullish in db
 				if let Some(None) = metadata_map.get(tag.as_str()) {
