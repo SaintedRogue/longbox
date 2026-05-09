@@ -21,17 +21,18 @@ impl PermissionSet {
 		PermissionSet(permissions)
 	}
 
-	/// Unwrap the underlying Vec<UserPermission> and include any associated permissions
+	/// Unwrap the underlying Vec<UserPermission> and include any associated permissions,
+	/// recursively, so that callers see the transitive closure of granted permissions.
 	pub fn resolve_into_vec(self) -> Vec<UserPermission> {
-		self.0
-			.into_iter()
-			.flat_map(|permission| {
-				let mut v = vec![permission];
-				v.extend(permission.associated());
-				v
-			})
-			.unique()
-			.collect()
+		let mut resolved: Vec<UserPermission> = Vec::new();
+		let mut queue: Vec<UserPermission> = self.0;
+		while let Some(permission) = queue.pop() {
+			if !resolved.contains(&permission) {
+				resolved.push(permission);
+				queue.extend(permission.associated());
+			}
+		}
+		resolved
 	}
 
 	pub fn resolve_into_string(self) -> Option<String> {
@@ -131,7 +132,7 @@ impl AssociatedPermission for UserPermission {
 /// A function to determine whether a user has a specific permission. The permission
 /// is checked against their explicitly assigned permissions, as well as any inherited
 /// ones through permission associations.
-fn user_has_permission(user: &AuthUser, permission: UserPermission) -> bool {
+pub fn user_has_permission(user: &AuthUser, permission: UserPermission) -> bool {
 	user.permissions
 		.iter()
 		.any(|p| p == &permission || p.associated().contains(&permission))
