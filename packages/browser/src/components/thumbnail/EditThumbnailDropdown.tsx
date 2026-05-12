@@ -1,3 +1,4 @@
+import { useUploadConfig } from '@stump/client'
 import { Button, DropdownMenu } from '@stump/components'
 import { UserPermission } from '@stump/graphql'
 import { useLocaleContext } from '@stump/i18n'
@@ -15,13 +16,25 @@ type Props = {
 	label?: string
 	onChooseSelector: () => void
 	onUploadImage: (file: File) => Promise<void>
+	isEbook?: boolean
 }
 
-export default function EditThumbnailDropdown({ label, onChooseSelector, onUploadImage }: Props) {
+export default function EditThumbnailDropdown({
+	label,
+	onChooseSelector,
+	onUploadImage,
+	isEbook,
+}: Props) {
 	const { t } = useLocaleContext()
 	const { checkPermission } = useAppContext()
 
-	const canUpload = useMemo(() => checkPermission(UserPermission.UploadFile), [checkPermission])
+	const hasUploadPermission = checkPermission(UserPermission.UploadFile)
+
+	const { uploadConfig } = useUploadConfig({
+		enabled: hasUploadPermission,
+	})
+
+	const canUpload = uploadConfig?.enabled && hasUploadPermission
 
 	const [showUploadModal, setShowUploadModal] = useState(false)
 
@@ -36,7 +49,13 @@ export default function EditThumbnailDropdown({ label, onChooseSelector, onUploa
 				align="start"
 				contentWrapperClassName="w-18"
 				trigger={
-					<Button size="md" className="border border-edge">
+					<Button
+						size="md"
+						className="border border-edge"
+						// if we can't upload, then the only option is to select from within book which
+						// doesn't make sense for ebooks, so disable the button in that case
+						disabled={!canUpload && isEbook}
+					>
 						{label || t(withLocaleKey('label'))}
 						<ChevronDown className="ml-2 h-4 w-4" />
 					</Button>
@@ -44,10 +63,14 @@ export default function EditThumbnailDropdown({ label, onChooseSelector, onUploa
 				groups={[
 					{
 						items: [
-							{
-								label: t(withLocaleKey('options.selectFromBooks')),
-								onClick: onChooseSelector,
-							},
+							...(!isEbook
+								? [
+										{
+											label: t(withLocaleKey('options.selectFromBooks')),
+											onClick: onChooseSelector,
+										},
+									]
+								: []),
 							...(canUpload
 								? [
 										{

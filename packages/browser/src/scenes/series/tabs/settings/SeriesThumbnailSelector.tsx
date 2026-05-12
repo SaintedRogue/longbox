@@ -21,6 +21,7 @@ export const SeriesThumbnailSelectorFragment = graphql(`
 		thumbnail {
 			url
 		}
+		isEntirelyEpub
 	}
 `)
 
@@ -171,6 +172,7 @@ export default function SeriesThumbnailSelector({ fragment }: Props) {
 						<EditThumbnailDropdown
 							onChooseSelector={() => setIsOpen(true)}
 							onUploadImage={handleUploadImage}
+							isEbook={series.isEntirelyEpub}
 						/>
 					</span>
 				</Dialog.Trigger>

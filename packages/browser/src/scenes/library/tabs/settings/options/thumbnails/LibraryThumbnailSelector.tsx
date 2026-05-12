@@ -12,6 +12,7 @@ import SeriesBookGrid, { SelectedBook } from '@/scenes/series/tabs/settings/Seri
 import LibrarySeriesGrid, { SelectedSeries } from '../../LibrarySeriesGrid'
 
 // TODO: Redesign this ugly shit
+// ^ lol yes but -> TODO: isEntirelyEpub to library and if true, no show grids
 
 const updateMutation = graphql(`
 	mutation LibraryThumbnailSelectorUpdate($id: ID!, $input: UpdateThumbnailInput!) {

@@ -10,7 +10,7 @@ import { usePreferences } from '@/hooks/usePreferences'
 
 const query = graphql(`
 	query SeriesBookGrid($id: String!, $pagination: Pagination) {
-		media(filter: { seriesId: { eq: $id } }, pagination: $pagination) {
+		media(filter: { seriesId: { eq: $id }, extension: { neq: "epub" } }, pagination: $pagination) {
 			nodes {
 				id
 				thumbnail {

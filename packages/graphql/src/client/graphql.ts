@@ -3894,6 +3894,7 @@ export type Series = {
   description?: Maybe<Scalars['String']['output']>;
   id: Scalars['String']['output'];
   isComplete: Scalars['Boolean']['output'];
+  isEntirelyEpub: Scalars['Boolean']['output'];
   isFavorite: Scalars['Boolean']['output'];
   library: Library;
   libraryId?: Maybe<Scalars['String']['output']>;
@@ -5856,7 +5857,7 @@ export type BookTagEditorSetTagsMutationVariables = Exact<{
 
 export type BookTagEditorSetTagsMutation = { __typename?: 'Mutation', setMediaTags: { __typename?: 'Media', id: string, tags: Array<{ __typename?: 'Tag', id: number, name: string }> } };
 
-export type BookThumbnailSelectorFragment = { __typename?: 'Media', id: string, pages: number, thumbnail: { __typename?: 'ImageRef', url: string } } & { ' $fragmentName'?: 'BookThumbnailSelectorFragment' };
+export type BookThumbnailSelectorFragment = { __typename?: 'Media', id: string, pages: number, extension: string, thumbnail: { __typename?: 'ImageRef', url: string } } & { ' $fragmentName'?: 'BookThumbnailSelectorFragment' };
 
 export type BookThumbnailSelectorUpdateMutationVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -6267,7 +6268,7 @@ export type SeriesTagEditorSetTagsMutationVariables = Exact<{
 
 export type SeriesTagEditorSetTagsMutation = { __typename?: 'Mutation', setSeriesTags: { __typename?: 'Series', id: string, tags: Array<{ __typename?: 'Tag', id: number, name: string }> } };
 
-export type SeriesThumbnailSelectorFragment = { __typename?: 'Series', id: string, thumbnail: { __typename?: 'ImageRef', url: string } } & { ' $fragmentName'?: 'SeriesThumbnailSelectorFragment' };
+export type SeriesThumbnailSelectorFragment = { __typename?: 'Series', id: string, isEntirelyEpub: boolean, thumbnail: { __typename?: 'ImageRef', url: string } } & { ' $fragmentName'?: 'SeriesThumbnailSelectorFragment' };
 
 export type SeriesThumbnailSelectorUpdateMutationVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -7576,6 +7577,7 @@ export const BookThumbnailSelectorFragmentDoc = new TypedDocumentString(`
     url
   }
   pages
+  extension
 }
     `, {"fragmentName":"BookThumbnailSelector"}) as unknown as TypedDocumentString<BookThumbnailSelectorFragment, unknown>;
 export const ContinueReadingBookFragmentDoc = new TypedDocumentString(`
@@ -7695,6 +7697,7 @@ export const SeriesThumbnailSelectorFragmentDoc = new TypedDocumentString(`
   thumbnail {
     url
   }
+  isEntirelyEpub
 }
     `, {"fragmentName":"SeriesThumbnailSelector"}) as unknown as TypedDocumentString<SeriesThumbnailSelectorFragment, unknown>;
 export const EmailerListItemFragmentDoc = new TypedDocumentString(`
@@ -11167,6 +11170,7 @@ export const BookManagementSceneDocument = new TypedDocumentString(`
     url
   }
   pages
+  extension
 }`) as unknown as TypedDocumentString<BookManagementSceneQuery, BookManagementSceneQueryVariables>;
 export const BookManagementSceneAnalyzeDocument = new TypedDocumentString(`
     mutation BookManagementSceneAnalyze($id: ID!) {
@@ -12166,7 +12170,10 @@ fragment BookMetadata on Media {
 }`) as unknown as TypedDocumentString<SeriesBooksSceneQuery, SeriesBooksSceneQueryVariables>;
 export const SeriesBookGridDocument = new TypedDocumentString(`
     query SeriesBookGrid($id: String!, $pagination: Pagination) {
-  media(filter: {seriesId: {eq: $id}}, pagination: $pagination) {
+  media(
+    filter: {seriesId: {eq: $id}, extension: {neq: "epub"}}
+    pagination: $pagination
+  ) {
     nodes {
       id
       thumbnail {
@@ -12232,6 +12239,7 @@ fragment SeriesThumbnailSelector on Series {
   thumbnail {
     url
   }
+  isEntirelyEpub
 }`) as unknown as TypedDocumentString<SeriesSettingsSceneQuery, SeriesSettingsSceneQueryVariables>;
 export const SeriesSettingsSceneAnalyzeDocument = new TypedDocumentString(`
     mutation SeriesSettingsSceneAnalyze($id: ID!) {

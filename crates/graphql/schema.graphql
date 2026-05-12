@@ -2753,6 +2753,7 @@ type Series {
 	thumbnailPath: String
 	libraryId: String
 	metadata: SeriesMetadata
+	isEntirelyEpub: Boolean!
 	isFavorite: Boolean!
 	resolvedName: String!
 	resolvedDescription: String

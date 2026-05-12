@@ -50,6 +50,32 @@ impl From<series::ModelWithMetadata> for Series {
 
 #[ComplexObject]
 impl Series {
+	async fn is_entirely_epub(&self, ctx: &Context<'_>) -> Result<bool> {
+		let conn = ctx.data::<CoreContext>()?.conn.as_ref();
+
+		let result = conn
+			.query_one(Statement::from_sql_and_values(
+				DatabaseBackend::Sqlite,
+				r"
+				SELECT
+					COUNT(*) > 0 AND COUNT(*) = SUM(CASE WHEN extension = 'epub' THEN 1 ELSE 0 END) AS is_entirely_epub
+				FROM
+					media
+				WHERE
+					series_id = $1
+				",
+				[self.model.id.clone().into()],
+			))
+			.await?;
+
+		let is_entirely_epub = result
+			.map(|res| res.try_get::<bool>("", "is_entirely_epub"))
+			.transpose()?
+			.unwrap_or(false);
+
+		Ok(is_entirely_epub)
+	}
+
 	async fn is_favorite(&self, ctx: &Context<'_>) -> Result<bool> {
 		let AuthContext { user, .. } = ctx.data::<AuthContext>()?;
 		let loader = ctx.data::<DataLoader<FavoritesLoader>>()?;
