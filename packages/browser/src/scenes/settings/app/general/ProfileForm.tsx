@@ -99,7 +99,7 @@ export default function ProfileForm() {
 
 	return (
 		<Form form={form} onSubmit={handleSubmit}>
-			<div className="space-y-8 md:max-w-2xl md:flex-row md:justify-between md:space-y-0 flex w-full flex-col-reverse space-y-reverse">
+			<div className="space-y-8 md:max-w-2xl md:flex-row md:justify-between md:space-y-0 gap-x-4 flex w-full flex-col-reverse space-y-reverse">
 				<div className="gap-6 flex grow flex-col">
 					{isUselessForm && (
 						<Alert variant="warning">
@@ -160,9 +160,23 @@ export default function ProfileForm() {
 							</Text>
 						)}
 					</div>
+
+					{/*not the most well-positioned but its fine!*/}
+					{!uploadConfig?.enabled && (
+						<Alert className="md:max-w-sm max-w-full" dismissible id="avatar-upload-disabled">
+							<AlertTitle>
+								{t('settingsScene.app/account.sections.account.labels.avatarUploadDisabled.title')}
+							</AlertTitle>
+							<AlertDescription>
+								{t(
+									'settingsScene.app/account.sections.account.labels.avatarUploadDisabled.description',
+								)}
+							</AlertDescription>
+						</Alert>
+					)}
 				</div>
 
-				{uploadConfig?.enabled && canChangeAvatar && <AvatarPicker />}
+				{canChangeAvatar && <AvatarPicker uploadDisabled={!uploadConfig?.enabled} />}
 			</div>
 		</Form>
 	)

@@ -1,5 +1,8 @@
 import { useGraphQLMutation, useGraphQLUploadMutation } from '@stump/client'
 import {
+	Alert,
+	AlertDescription,
+	AlertTitle,
 	Avatar,
 	Button,
 	cn,
@@ -41,7 +44,11 @@ const deleteMutation = graphql(`
 	}
 `)
 
-export default function AvatarPicker() {
+type Props = {
+	uploadDisabled?: boolean
+}
+
+export default function AvatarPicker({ uploadDisabled }: Props) {
 	const { t } = useLocaleContext()
 	const { user, setUser } = useUser()
 	const [isModalOpen, { on, off }] = useBoolean(false)
@@ -140,9 +147,9 @@ export default function AvatarPicker() {
 						<Dialog.Close onClick={off} />
 					</Dialog.Header>
 
-					<div className="gap-y-4 py-2 scrollbar-hide flex h-[300px] flex-col">
+					<div className="gap-y-4 py-2 h-75 scrollbar-hide flex flex-col">
 						<div className="flex items-center justify-center">
-							<div className={cx('relative h-[100px]', { 'h-[100px]': filePreview })}>
+							<div className={cx('h-25 relative', { 'h-25': filePreview })}>
 								{filePreview && (
 									<>
 										<div className="top-0 right-0 absolute flex items-center justify-center">
@@ -163,9 +170,7 @@ export default function AvatarPicker() {
 										</div>
 									</>
 								)}
-								{!filePreview && (
-									<div className="flex h-[100px] w-[100px] rounded-full border border-edge" />
-								)}
+								{!filePreview && <div className="h-25 w-25 flex rounded-full border border-edge" />}
 							</div>
 						</div>
 
@@ -216,6 +221,7 @@ export default function AvatarPicker() {
 										{
 											label: t(getKey('changeImage')),
 											onClick: on,
+											disabled: uploadDisabled,
 										},
 										{
 											disabled: !imageUrl,

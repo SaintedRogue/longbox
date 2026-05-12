@@ -1366,6 +1366,10 @@
 							"title": "You lack permissions to change these settings",
 							"description": "Contact your administrator if you want to make changes to these settings"
 						},
+						"avatarUploadDisabled": {
+							"title": "Avatar upload is disabled",
+							"description": "Contact your administrator if you want to upload an avatar"
+						},
 						"insufficientPermission": "You do not have permission to change this"
 					},
 					"errors": {
@@ -2576,6 +2580,10 @@
 			"tooManyFiles": "You have selected too many files",
 			"noValidFiles": "No valid files were selected"
 		}
+	},
+	"uploadDisabledAlert": {
+		"title": "File uploads are disabled",
+		"description": "This functionality has been disabled by a server administrator"
 	},
 	"userPermissions": {
 		"ACCESS_API_KEYS": {

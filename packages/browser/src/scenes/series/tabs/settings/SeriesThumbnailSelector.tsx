@@ -1,16 +1,19 @@
-import { useGraphQLMutation, useSDK } from '@stump/client'
+import { useGraphQLMutation, useSDK, useUploadConfig } from '@stump/client'
 import { Button, Dialog, PickSelect } from '@stump/components'
 import {
 	FragmentType,
 	graphql,
 	SeriesThumbnailSelectorUpdateMutation,
 	useFragment,
+	UserPermission,
 } from '@stump/graphql'
 import { Suspense, useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
 import { EntityCard } from '@/components/entity'
 import EditThumbnailDropdown from '@/components/thumbnail/EditThumbnailDropdown'
+import { UploadDisabledAlert } from '@/components/UploadDisabledAlert'
+import { useAppContext } from '@/context'
 
 import BookPageGrid from '../../../book/settings/BookPageGrid'
 import SeriesBookGrid, { SelectedBook } from './SeriesBookGrid'
@@ -65,6 +68,8 @@ export default function SeriesThumbnailSelector({ fragment }: Props) {
 	const series = useFragment(SeriesThumbnailSelectorFragment, fragment)
 
 	const { sdk } = useSDK()
+	const { checkPermission } = useAppContext()
+
 	const [selectedBook, setSelectedBook] = useState<SelectedBook>()
 	const [page, setPage] = useState<number>()
 	const [isOpen, setIsOpen] = useState(false)
@@ -94,6 +99,12 @@ export default function SeriesThumbnailSelector({ fragment }: Props) {
 			onSuccess: (data) => onSuccess(data.uploadSeriesThumbnail),
 		},
 	)
+
+	const hasUploadPermission = checkPermission(UserPermission.UploadFile)
+
+	const { uploadConfig } = useUploadConfig({
+		enabled: hasUploadPermission,
+	})
 
 	const handleOpenChange = (nowOpen: boolean) => {
 		if (!nowOpen) {
@@ -155,8 +166,12 @@ export default function SeriesThumbnailSelector({ fragment }: Props) {
 		}
 	}, [isOpen])
 
+	const isUselessForm = series.isEntirelyEpub && !uploadConfig?.enabled
+
 	return (
-		<div className="relative">
+		<div className="gap-2 relative flex flex-col">
+			{isUselessForm && <UploadDisabledAlert />}
+
 			<EntityCard
 				imageUrl={
 					selectedBook && page ? sdk.media.bookPageURL(selectedBook.id, page) : series.thumbnail.url

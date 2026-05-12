@@ -45,6 +45,8 @@ const resetMetadataMutation = graphql(`
 	}
 `)
 
+// TODO: implement proper series management and localize then
+
 export default function SeriesSettingsScene() {
 	const { sdk } = useSDK()
 	const { series } = useSeriesContext()

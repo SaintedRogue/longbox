@@ -3,7 +3,7 @@ import { Button, DropdownMenu } from '@stump/components'
 import { UserPermission } from '@stump/graphql'
 import { useLocaleContext } from '@stump/i18n'
 import { ChevronDown } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 
 import { useAppContext } from '@/context'
 
@@ -71,11 +71,14 @@ export default function EditThumbnailDropdown({
 										},
 									]
 								: []),
-							...(canUpload
+							// we show the upload option as disabled to signal that is _is_ a feature,
+							// but unavailable due to server config. if lacking permission, it is hidden
+							...(hasUploadPermission
 								? [
 										{
 											label: t(withLocaleKey('options.uploadImage')),
 											onClick: () => setShowUploadModal(true),
+											disabled: !uploadConfig?.enabled,
 										},
 									]
 								: []),

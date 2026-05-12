@@ -359,6 +359,8 @@ type UploadConfigQueryParams = {
 export const useUploadConfig = ({ enabled }: UploadConfigQueryParams) => {
 	const { data, ...restRet } = useGraphQL(uploadConfigQuery, ['uploadConfig'], undefined, {
 		enabled,
+		// 10 min feels very reasonable for something that likely won't change often
+		staleTime: 10 * 60 * 1000,
 	})
 	return { uploadConfig: data?.uploadConfig, ...restRet }
 }
