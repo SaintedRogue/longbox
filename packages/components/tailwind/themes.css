@@ -541,8 +541,10 @@
 	--color-background-inverse: #ffffff;
 	--color-background-overlay: #111113;
 	--color-background-overlay-hover: #17171a;
-	--color-background-surface: #0a0a0a;
-	--color-background-surface-hover: #242628;
+	/*--color-background-surface: rgba(255 255 255 / 0.08);*/
+	/*--color-background-surface: #0a0a0a;*/
+	--color-background-surface: #101010;
+	--color-background-surface-hover: #151515;
 	--color-background-surface-secondary: #1f2123;
 
 	--color-edge: #1f2123;
@@ -586,8 +588,8 @@
 	--color-sidebar-inverse: #ffffff;
 	--color-sidebar-overlay: #0a0a0a;
 	--color-sidebar-overlay-hover: #111113;
-	--color-sidebar-surface: #0a0a0a;
-	--color-sidebar-surface-hover: #17171a;
+	--color-sidebar-surface: #101010;
+	--color-sidebar-surface-hover: #151515;
 	--color-sidebar-surface-secondary: #1f2123;
 
 	--color-scrollbar: #000000;
