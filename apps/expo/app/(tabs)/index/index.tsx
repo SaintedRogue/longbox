@@ -1,9 +1,8 @@
 import { useRouter } from 'expo-router'
 import partition from 'lodash/partition'
 import { ExternalLink, Rss, Server } from 'lucide-react-native'
-import { Fragment, useCallback, useEffect, useState } from 'react'
-import { Alert, Linking, useWindowDimensions, View } from 'react-native'
-import { ScrollView } from 'react-native-gesture-handler'
+import { useCallback, useEffect, useState } from 'react'
+import { Alert, Linking, ScrollView, useWindowDimensions, View } from 'react-native'
 
 import EmptyState from '~/components/EmptyState'
 import { useOwlHeaderOffset } from '~/components/Owl'
@@ -71,10 +70,9 @@ export default function Screen() {
 		(server: SavedServer) => {
 			Alert.alert(
 				t('savedServerActions.deleteServer.title'),
-				t('savedServerActions.deleteServer.confirmation').replace(
-					'{{serverName}}',
-					`'${server.name}'`,
-				),
+				t('savedServerActions.deleteServer.confirmation', {
+					serverName: `'${server.name}'`,
+				}),
 				[
 					{ text: t('common.cancel'), style: 'cancel' },
 					{
@@ -110,7 +108,11 @@ export default function Screen() {
 	const emptyContainerStyle = useOwlHeaderOffset()
 
 	return (
-		<Fragment>
+		<ScrollView
+			key={`${width}-${allOPDSServers.length}-${stumpServers.length}-${stumpEnabled}`}
+			className="flex-1 bg-background"
+			contentInsetAdjustmentBehavior="automatic"
+		>
 			<EditServerDialog
 				editingServer={editingServer}
 				onClose={() => setEditingServer(null)}
@@ -128,7 +130,7 @@ export default function Screen() {
 								size="lg"
 								roundness="full"
 								className="relative"
-								onPress={() => Linking.openURL('https://www.stumpapp.dev/guides/mobile/app')}
+								onPress={() => Linking.openURL('https://www.stumpapp.dev/docs/apps/mobile')}
 							>
 								<Text>{t('emptyState.seeDocumentation')}</Text>
 
@@ -145,51 +147,45 @@ export default function Screen() {
 			)}
 
 			{!isCleanSlate && (
-				<ScrollView
-					key={`${width}-${allOPDSServers.length}-${stumpServers.length}-${stumpEnabled}`}
-					className="flex-1 bg-background"
-					contentInsetAdjustmentBehavior="automatic"
-				>
-					<View className="gap-5 p-4 tablet:p-6 flex-1 items-start justify-start bg-background">
-						{stumpEnabled && (
-							<View className="gap-2 flex w-full items-start">
-								<ListLabel className="px-2">Stump</ListLabel>
-
-								{!stumpServers.length && (
-									<ListEmptyMessage icon={Server} message={t('emptyState.noStumpServers')} />
-								)}
-
-								{stumpServers.map((server) => (
-									<SavedServerListItem
-										key={server.id}
-										server={server}
-										onEdit={() => onSelectForEdit(server)}
-										onDelete={() => handleDeleteServer(server)}
-									/>
-								))}
-							</View>
-						)}
-
+				<View className="gap-5 p-4 tablet:p-6 flex-1 items-start justify-start bg-background">
+					{stumpEnabled && (
 						<View className="gap-2 flex w-full items-start">
-							<ListLabel className="px-2">OPDS</ListLabel>
+							<ListLabel className="px-2">Stump</ListLabel>
 
-							{!allOPDSServers.length && (
-								<ListEmptyMessage icon={Rss} message={t('emptyState.noOPDSServers')} />
+							{!stumpServers.length && (
+								<ListEmptyMessage icon={Server} message={t('emptyState.noStumpServers')} />
 							)}
 
-							{allOPDSServers.map((server) => (
+							{stumpServers.map((server) => (
 								<SavedServerListItem
 									key={server.id}
 									server={server}
-									forceOPDS
 									onEdit={() => onSelectForEdit(server)}
 									onDelete={() => handleDeleteServer(server)}
 								/>
 							))}
 						</View>
+					)}
+
+					<View className="gap-2 flex w-full items-start">
+						<ListLabel className="px-2">OPDS</ListLabel>
+
+						{!allOPDSServers.length && (
+							<ListEmptyMessage icon={Rss} message={t('emptyState.noOPDSServers')} />
+						)}
+
+						{allOPDSServers.map((server) => (
+							<SavedServerListItem
+								key={server.id}
+								server={server}
+								forceOPDS
+								onEdit={() => onSelectForEdit(server)}
+								onDelete={() => handleDeleteServer(server)}
+							/>
+						))}
 					</View>
-				</ScrollView>
+				</View>
 			)}
-		</Fragment>
+		</ScrollView>
 	)
 }

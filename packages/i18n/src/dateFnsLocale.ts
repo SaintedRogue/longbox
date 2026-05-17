@@ -15,6 +15,7 @@ const dateFnsLocaleLoaders: Record<AllowedLocale, () => Promise<Locale>> = {
 	'en-GB': () => import('date-fns/locale/en-GB').then((m) => m.enGB),
 	'en-US': () => import('date-fns/locale/en-US').then((m) => m.enUS),
 	'es-ES': () => import('date-fns/locale/es').then((m) => m.es),
+	'fa-IR': () => import('date-fns/locale/fa-IR').then((m) => m.faIR),
 	'fi-FI': () => import('date-fns/locale/fi').then((m) => m.fi),
 	'fr-FR': () => import('date-fns/locale/fr').then((m) => m.fr),
 	'he-IL': () => import('date-fns/locale/he').then((m) => m.he),
@@ -63,6 +64,7 @@ function findClosestLocale(locale: string): AllowedLocale {
 		el: 'el-GR',
 		en: 'en-US',
 		es: 'es-ES',
+		fa: 'fa-IR',
 		fi: 'fi-FI',
 		fr: 'fr-FR',
 		he: 'he-IL',
@@ -150,7 +152,7 @@ export function formatHumanDuration(
 	},
 ): string {
 	if (seconds <= 0) {
-		return formatDuration({ seconds: 0 }, { format: ['seconds'] })
+		return formatDuration({ seconds: 0 }, { zero: true, format: ['seconds'] })
 	}
 
 	const h = Math.trunc(seconds / 3600)
@@ -172,4 +174,16 @@ export function formatHumanDuration(
 			delimiter: options?.delimiter,
 		},
 	)
+}
+
+/**
+ * Format a duration in human-readable form, separating the unit and value.
+ *
+ * Only returns one significant unit (hours, minutes or seconds).
+ */
+export function formatHumanDurationSeparate(seconds: number) {
+	const formattedDuration = formatHumanDuration(seconds, { significantUnits: 1 })
+	const [, value, unit] = formattedDuration.match(/^(\d+)\s*(.+)$/) || []
+	if (!value || !unit) return
+	return { value, unit }
 }

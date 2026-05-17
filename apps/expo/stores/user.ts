@@ -8,12 +8,13 @@ import {
 	ThumbnailResizeMode,
 } from '~/components/image/ThumbnailPlaceholder'
 
-import { CachePolicy } from './reader'
 import { ZustandMMKVStorage } from './store'
 
 export const useUserStore = createUserStore(ZustandMMKVStorage)
 
 export type ListLayout = 'grid' | 'list'
+
+export type DisplayLanguageKeysType = 'none' | 'abbreviated' | 'full'
 
 type MobilePreferencesStore = {
 	showTabLabels: boolean
@@ -21,7 +22,6 @@ type MobilePreferencesStore = {
 	setMaskURLs: (mask: boolean) => void
 	storeLastRead: boolean
 	reduceAnimations: boolean
-	cachePolicy: CachePolicy
 	allowDownscaling: boolean
 	thumbnailRatio: number
 	thumbnailResizeMode: ThumbnailResizeMode
@@ -39,6 +39,8 @@ type MobilePreferencesStore = {
 	// Note: Will push more analytics to aide in debug efforts
 	enableDebugAnalytics: boolean
 	preferMinimalReader: boolean
+	displayLanguageKeys: DisplayLanguageKeysType
+	lowercaseTranslation: boolean
 	/**
 	 * Patch the store with new values.
 	 */
@@ -57,7 +59,6 @@ export const usePreferencesStore = create<MobilePreferencesStore>()(
 			setMaskURLs: (mask) => set({ maskURLs: mask }),
 			storeLastRead: false,
 			reduceAnimations: false,
-			cachePolicy: 'memory-disk',
 			allowDownscaling: true,
 			thumbnailRatio: 2 / 3,
 			thumbnailPlaceholder: 'grayscale',
@@ -75,6 +76,8 @@ export const usePreferencesStore = create<MobilePreferencesStore>()(
 			bookClubsEnabled: false,
 			enableDebugAnalytics: false,
 			preferMinimalReader: false,
+			displayLanguageKeys: 'none',
+			lowercaseTranslation: false,
 			patch: (data) => set(data),
 		}),
 		{

@@ -4,9 +4,9 @@ import { Stack, useGlobalSearchParams } from 'expo-router'
 import { useMemo } from 'react'
 import { Platform } from 'react-native'
 
-import ChevronBackLink from '~/components/ChevronBackLink'
+import BackLink from '~/components/BackLink'
 import { getProgressionURL } from '~/components/opds/utils'
-import { IS_IOS_24_PLUS } from '~/lib/constants'
+import { IS_IOS_26_PLUS } from '~/lib/constants'
 
 import { PublicationContext } from './context'
 
@@ -41,8 +41,8 @@ export default function Layout() {
 						headerTitle: '',
 						headerShown: true,
 						headerTransparent: true,
-						headerBlurEffect: IS_IOS_24_PLUS ? undefined : 'regular',
-						headerLeft: Platform.OS === 'ios' ? () => <ChevronBackLink /> : undefined,
+						headerBlurEffect: IS_IOS_26_PLUS ? undefined : 'regular',
+						headerLeft: Platform.OS === 'ios' ? () => <BackLink /> : undefined,
 					}}
 				/>
 			</Stack>

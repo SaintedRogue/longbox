@@ -1,7 +1,6 @@
 import * as Sentry from '@sentry/react-native'
 import { useSDKSafe } from '@stump/client'
 import { useQuery } from '@tanstack/react-query'
-import setProperty from 'lodash/set'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { View } from 'react-native'
 import { initialWindowMetrics, useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -17,7 +16,6 @@ import {
 	getPositions,
 	HighlightRequestEvent,
 	intoBookmarkRef,
-	isLastReadiumLocator,
 	NoteRequestEvent,
 	ReadiumLocator,
 	ReadiumView,
@@ -186,15 +184,15 @@ export default function ReadiumReader({
 			onLocationChange: store.onLocationChange,
 			cleanup: store.onUnload,
 			setBookmarks: store.setBookmarks,
-			annotations: store.annotations,
 			setAnnotations: store.setAnnotations,
 			addAnnotation: store.addAnnotation,
 			updateAnnotation: store.updateAnnotation,
 			removeAnnotation: store.removeAnnotation,
 			getAnnotation: store.getAnnotation,
-			positions: store.positions,
 		})),
 	)
+	const positions = useEpubLocationStore((state) => state.positions)
+	const annotations = useEpubLocationStore((state) => state.annotations)
 
 	const sdkCtx = useSDKSafe()
 
@@ -275,7 +273,8 @@ export default function ReadiumReader({
 
 	const handleBookLoaded = useCallback(
 		async (event: BookLoadedEventPayload) => {
-			store.onBookLoad(event.bookMetadata, await getPositions(book.id))
+			const fetchedPositions = await getPositions(book.id)
+			store.onBookLoad(event.bookMetadata, fetchedPositions)
 
 			hasReachedEndRef.current = false
 
@@ -331,62 +330,40 @@ export default function ReadiumReader({
 
 			store.onLocationChange(locator)
 
-			const totalProgression = locator.locations?.totalProgression
-			const isLikelyLastLocator = isLastReadiumLocator(locator, store.positions)
+			// already reaching end = also do not report
+			if (hasReachedEndRef.current || incognito) return
 
-			if (!hasReachedEndRef.current && !incognito && isLikelyLastLocator) {
-				hasReachedEndRef.current = true
-				if (enableDebugAnalytics) {
-					Sentry.captureMessage('handleLocationChanged -> isLastReadiumLocator', {
-						level: 'debug',
-						extra: {
-							totalProgression,
-							position: locator.locations?.position,
-							positionsCount: store.positions?.length,
-							positions: JSON.stringify(store.positions),
-							href: locator.href,
-							locator,
-						},
-					})
-				}
-				setProperty(locator, 'locations.totalProgression', 1.0)
-				onReachedEnd?.(locator)
-			} else if (!incognito && totalProgression != null) {
+			const totalProgression = locator.locations?.totalProgression
+			if (totalProgression != null) {
 				onLocationChanged(locator, totalProgression)
 			}
 		},
-		[
-			onLocationChanged,
-			onReachedEnd,
-			incognito,
-			store,
-			controlsVisible,
-			setControlsVisible,
-			enableDebugAnalytics,
-		],
+		[onLocationChanged, incognito, store, controlsVisible, setControlsVisible],
 	)
 
 	const handleReachedEnd = useCallback(
 		(event: { nativeEvent: ReadiumLocator }) => {
+			const { nativeEvent: locator } = event
+
 			if (!hasReachedEndRef.current && !incognito) {
 				hasReachedEndRef.current = true
 				if (enableDebugAnalytics) {
 					Sentry.captureMessage('handleReachedEnd -> not already reached end', {
 						level: 'debug',
 						extra: {
-							totalProgression: event.nativeEvent.locations?.totalProgression,
-							position: event.nativeEvent.locations?.position,
-							positionsCount: store.positions?.length,
-							positions: JSON.stringify(store.positions),
-							href: event.nativeEvent.href,
-							locator: event.nativeEvent,
+							totalProgression: locator.locations?.totalProgression,
+							position: locator.locations?.position,
+							positionsCount: positions?.length,
+							positions: JSON.stringify(positions),
+							href: locator.href,
+							locator,
 						},
 					})
 				}
-				onReachedEnd?.(event.nativeEvent)
+				onReachedEnd?.(locator)
 			}
 		},
-		[onReachedEnd, incognito, enableDebugAnalytics, store.positions],
+		[onReachedEnd, incognito, enableDebugAnalytics, positions],
 	)
 
 	const handleMiddleTouch = useCallback(() => {
@@ -547,7 +524,7 @@ export default function ReadiumReader({
 					bookId={book.id}
 					url={localUri}
 					initialLocator={initialLocator}
-					decorations={store.annotations}
+					decorations={annotations}
 					onBookLoaded={({ nativeEvent }) => handleBookLoaded(nativeEvent)}
 					onLocatorChange={({ nativeEvent: locator }) => handleLocationChanged(locator)}
 					onMiddleTouch={handleMiddleTouch}

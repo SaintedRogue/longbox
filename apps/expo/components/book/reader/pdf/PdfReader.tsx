@@ -1,3 +1,4 @@
+import { useSDKSafe } from '@stump/client'
 import { ReadingDirection, ReadingMode } from '@stump/graphql'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { View } from 'react-native'
@@ -16,7 +17,7 @@ import {
 } from '~/modules/readium'
 import { useReaderStore } from '~/stores'
 import { usePdfStore } from '~/stores/pdf'
-import { useBookPreferences } from '~/stores/reader'
+import { Timer, useBookPreferences } from '~/stores/reader'
 
 import { ReaderBookRef } from '../image/context'
 import { ControlsBackdrop } from '../shared'
@@ -43,9 +44,9 @@ type Props = {
 	 */
 	offlineUri?: string
 	/**
-	 * A callback to reset the reading timer
+	 * The active book's timer
 	 */
-	resetTimer?: () => void
+	timer?: Timer
 } & OfflineCompatibleReader
 
 // TODO(expo-pdf): Long term, consider just using a library like https://github.com/wonday/react-native-pdf
@@ -57,7 +58,7 @@ type Props = {
 // - settings sheet, a chunk of existing settings do not apply to PDF
 
 export default function PdfReader({ book, initialPage, onPageChanged, ...ctx }: Props) {
-	const { downloadBook } = useDownload({ serverId: ctx.serverId })
+	const { downloadImmediate } = useDownload({ serverId: ctx.serverId })
 
 	const [localUri, setLocalUri] = useState<string | null>(() => ctx.offlineUri || null)
 	const [isDownloading, setIsDownloading] = useState(false)
@@ -133,13 +134,16 @@ export default function PdfReader({ book, initialPage, onPageChanged, ...ctx }: 
 		})),
 	)
 
+	const sdkCtx = useSDKSafe()
+
 	useEffect(() => {
-		if (localUri) return
+		if (localUri || !sdkCtx) return
 
 		async function download() {
 			setIsDownloading(true)
-			const result = await downloadBook({
+			const result = await downloadImmediate({
 				...book,
+				url: sdkCtx!.sdk.media.downloadURL(book.id),
 				bookName: book.name,
 				libraryId: book.library?.id,
 				libraryName: book.library?.name,
@@ -157,7 +161,7 @@ export default function PdfReader({ book, initialPage, onPageChanged, ...ctx }: 
 		}
 
 		download().finally(() => setIsDownloading(false))
-	}, [localUri, book, downloadBook, store])
+	}, [localUri, book, downloadImmediate, store, sdkCtx])
 
 	useEffect(
 		() => {

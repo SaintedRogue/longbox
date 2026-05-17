@@ -1,21 +1,17 @@
 use std::{ops::Deref, path::PathBuf};
 
 use axum::{
-	body::Body,
 	extract::{Path, Query, State},
-	http::{header, HeaderMap, HeaderValue, Request},
+	http::{header, HeaderMap, HeaderValue},
 	middleware,
 	response::IntoResponse,
 	routing::get,
 	Extension, Json, Router,
 };
 use graphql::{data::AuthContext, pagination::OffsetPagination};
-use models::{
-	entity::{
-		library, media, media_metadata, reading_session, registered_reading_device,
-		series, series_metadata, user::AuthUser,
-	},
-	shared::enums::UserPermission,
+use models::entity::{
+	library, media, media_metadata, reading_session, registered_reading_device, series,
+	series_metadata, user::AuthUser,
 };
 use sea_orm::{prelude::*, Condition, Order, QueryOrder, QueryTrait};
 use sea_orm::{PaginatorTrait, QuerySelect};
@@ -41,14 +37,13 @@ use stump_core::{
 	utils::chain_optional_iter,
 	Ctx,
 };
-use tower_http::services::ServeFile;
 
 use crate::{
 	config::state::AppState,
 	errors::{APIError, APIResult},
 	middleware::{auth::auth_middleware, host::HostExtractor},
 	routers::{api::v2::media::get_media_thumbnail_by_id, relative_favicon_path},
-	utils::http::ImageResponse,
+	utils::{http::ImageResponse, serve_media},
 };
 
 const DEFAULT_LIMIT: u64 = 10;
@@ -314,10 +309,9 @@ async fn catalog(
 		)
 		.build()?;
 
-	// let latest_books_conditions = apply_media_restrictions_for_user(user);
 	let latest_books = OPDSPublicationEntity::find_for_user(&user)
 		.limit(DEFAULT_LIMIT)
-		.order_by_asc(media::Column::CreatedAt)
+		.order_by_desc(media::Column::CreatedAt)
 		.into_model::<OPDSPublicationEntity>()
 		.all(ctx.conn.as_ref())
 		.await?;
@@ -362,7 +356,7 @@ async fn catalog(
 	let continue_reading = OPDSPublicationEntity::find_for_user(&user)
 		.filter(in_progress_filter.clone())
 		.limit(DEFAULT_LIMIT)
-		.order_by_asc(reading_session::Column::UpdatedAt)
+		.order_by_desc(reading_session::Column::UpdatedAt)
 		.into_model::<OPDSPublicationEntity>()
 		.all(ctx.conn.as_ref())
 		.await?;
@@ -749,7 +743,7 @@ async fn browse_library_by_id(
 	let latest_library_books = OPDSPublicationEntity::find_for_user(&user)
 		.filter(series::Column::LibraryId.eq(id.clone()))
 		.limit(DEFAULT_LIMIT)
-		.order_by_asc(media::Column::CreatedAt)
+		.order_by_desc(media::Column::CreatedAt)
 		.into_model::<OPDSPublicationEntity>()
 		.all(ctx.conn.as_ref())
 		.await?;
@@ -1428,45 +1422,5 @@ async fn download_book(
 	Extension(req): Extension<AuthContext>,
 	headers: HeaderMap,
 ) -> APIResult<impl IntoResponse> {
-	let user = req
-		.user_and_enforce_permissions(&[UserPermission::DownloadFile])
-		.map_err(|_| {
-			tracing::error!("User does not have permission to download file");
-			APIError::forbidden_discreet()
-		})?;
-
-	let book = media::Entity::find_for_user(&user)
-		.filter(media::Column::Id.eq(id.clone()))
-		.into_model::<media::MediaIdentSelect>()
-		.one(ctx.conn.as_ref())
-		.await?
-		.ok_or(APIError::NotFound("Book not found".to_string()))?;
-
-	// Note: I am reusing the original headers to support range requests
-	let mut serve_req = Request::new(Body::empty());
-	*serve_req.headers_mut() = headers;
-
-	match ServeFile::new(&book.path).try_call(serve_req).await {
-		Ok(mut response) => {
-			if let Some(filename) = std::path::Path::new(&book.path)
-				.file_name()
-				.and_then(|os_str| os_str.to_str())
-			{
-				response.headers_mut().insert(
-					header::CONTENT_DISPOSITION,
-					format!("attachment; filename=\"{}\"", filename)
-						.parse()
-						.unwrap_or_else(|_| "attachment".parse().unwrap()),
-				);
-			}
-			Ok(response)
-		},
-		Err(e) => {
-			tracing::error!(error = ?e, path = %book.path, "Error serving media file");
-			Err(APIError::InternalServerError(format!(
-				"Failed to serve file: {}",
-				e
-			)))
-		},
-	}
+	serve_media::serve_media_file(req, headers, ctx.conn.as_ref(), id).await
 }

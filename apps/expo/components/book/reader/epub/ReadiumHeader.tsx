@@ -1,14 +1,15 @@
+import * as Sentry from '@sentry/react-native'
 import { ALargeSmall, TableOfContents } from 'lucide-react-native'
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Pressable, View } from 'react-native'
 import Animated from 'react-native-reanimated'
 import { initialWindowMetrics, useSafeAreaInsets } from 'react-native-safe-area-context'
 
+import BackLink from '~/components/BackLink'
 import { FADE_IN, FADE_OUT, useReaderAnimations } from '~/components/book/reader/shared'
-import ChevronBackLink from '~/components/ChevronBackLink'
 import { Text } from '~/components/ui'
 import { Icon } from '~/components/ui/icon'
-import { usePreferencesStore } from '~/stores'
+import { usePreferencesStore, useReaderStore } from '~/stores'
 import { flattenToc, useEpubLocationStore, useEpubTheme } from '~/stores/epub'
 import { useEpubSheetStore } from '~/stores/epubSheet'
 
@@ -25,6 +26,7 @@ export default function ReadiumHeader() {
 
 	const { secondaryStyle, primaryStyle } = useReaderAnimations()
 	const preferMinimalReader = usePreferencesStore((state) => state.preferMinimalReader)
+	const controlsShown = useReaderStore((state) => state.showControls)
 	const { chapterTitle, progressText } = useChapterProgress()
 
 	return (
@@ -32,7 +34,7 @@ export default function ReadiumHeader() {
 			{/* Controls hidden */}
 			{!preferMinimalReader && (
 				<Animated.View
-					className="inset-x-safe absolute z-20 h-12 items-center justify-center px-8"
+					className="inset-x-safe h-12 px-8 absolute z-20 items-center justify-center"
 					style={[{ top: initialWindowMetrics?.insets.top || insets.top }, primaryStyle]}
 				>
 					<Animated.View key={chapterTitle} entering={FADE_IN} exiting={FADE_OUT}>
@@ -49,14 +51,16 @@ export default function ReadiumHeader() {
 
 			{/* Controls shown */}
 			<Animated.View
-				className="inset-x-safe absolute z-20 h-12 flex-row items-center justify-between gap-2 px-4"
+				className="inset-x-safe h-12 gap-2 px-4 absolute z-20 flex-row items-center justify-between"
 				style={[{ top: initialWindowMetrics?.insets.top || insets.top }, secondaryStyle]}
+				pointerEvents={controlsShown ? undefined : 'none'}
 			>
-				<View className="flex-row items-center gap-4">
-					<ChevronBackLink
+				<View className="gap-4 flex-row items-center">
+					<BackLink
 						color={colors?.foreground}
 						style={{ opacity: 0.9 }}
 						activeOpacity={0.7}
+						iconClassName="mr-[unset]"
 					/>
 					<OpenSheetButton sheet="locations" />
 				</View>
@@ -73,7 +77,7 @@ export default function ReadiumHeader() {
 					</Animated.View>
 				</View>
 
-				<View className="flex-row items-center gap-4">
+				<View className="gap-4 flex-row items-center">
 					<BookmarkButton color={colors?.foreground} />
 					<OpenSheetButton sheet="settings" />
 				</View>
@@ -89,20 +93,50 @@ function useChapterProgress() {
 	const toc = useEpubLocationStore((store) => store.toc)
 	const page = useEpubLocationStore((state) => state.position)
 	const totalPages = useEpubLocationStore((state) => state.totalPages)
+	const enableDebugAnalytics = usePreferencesStore((state) => state.enableDebugAnalytics)
 
-	const pagesLeftInChapter = useMemo(() => {
+	const pagesLeftInChapterRaw = useMemo(() => {
 		const flatToc = flattenToc(toc)
 		const activeIndex = flatToc.findIndex((item) => item.label === chapterTitle)
+
+		if (activeIndex === -1 || totalPages <= 0) return null
+
 		const nextChapter = flatToc.slice(activeIndex + 1).find((item) => item.position != null)
 
 		if (activeIndex + 1 === flatToc.length) {
 			return totalPages - page
 		}
+
 		if (nextChapter?.position != null) {
 			return nextChapter.position - 1 - page
 		}
 		return null
 	}, [chapterTitle, toc, page, totalPages])
+
+	const pagesLeftInChapter = useMemo(() => {
+		if (pagesLeftInChapterRaw == null) return null
+		if (pagesLeftInChapterRaw < 0) return null
+		return pagesLeftInChapterRaw
+	}, [pagesLeftInChapterRaw])
+
+	useEffect(() => {
+		if (!enableDebugAnalytics) return
+		if (pagesLeftInChapterRaw == null || pagesLeftInChapterRaw >= 0) return
+
+		const storeSnapshot = useEpubLocationStore.getState()
+		Sentry.captureMessage('Encountered negative pages left in chapter', {
+			level: 'debug',
+			extra: {
+				locator: storeSnapshot.locator,
+				position: storeSnapshot.position,
+				totalPages: storeSnapshot.totalPages,
+				chapterTitle: storeSnapshot.currentChapter,
+				toc: storeSnapshot.toc,
+				flattenedToc: flattenToc(storeSnapshot.toc),
+				pagesLeftInChapterRaw,
+			},
+		})
+	}, [enableDebugAnalytics, pagesLeftInChapterRaw])
 
 	const progressText = useMemo(() => {
 		if (pagesLeftInChapter == null) return null

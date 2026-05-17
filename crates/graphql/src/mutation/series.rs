@@ -3,26 +3,29 @@ use chrono::Utc;
 use models::{
 	entity::{
 		favorite_series, finished_reading_session, library, library_config, media,
-		media_metadata, reading_session, series, user::AuthUser,
+		reading_session, series, user::AuthUser,
 	},
-	shared::enums::{MetadataResetImpact, UserPermission},
+	shared::enums::UserPermission,
 };
 use sea_orm::{
 	prelude::*,
 	sea_query::{OnConflict, Query},
 	ActiveValue::Set,
-	IntoActiveModel, QuerySelect, TransactionTrait,
+	QuerySelect, TransactionTrait,
 };
-use stump_core::filesystem::{
-	image::{generate_book_thumbnail, GenerateThumbnailOptions},
-	media::analysis::{AnalysisJobConfig, AnalyzeMediaJob, MediaAnalysisJobScope},
-	scanner::SeriesScanJob,
+use stump_core::job::stump_job::StumpJob;
+use stump_core::{
+	database::SQLITE_BIND_LIMIT,
+	filesystem::{
+		image::{generate_book_thumbnail, GenerateThumbnailOptions},
+		media::analysis::{AnalysisJobConfig, MediaAnalysisJobScope},
+	},
 };
 
 use crate::{
 	data::{AuthContext, CoreContext},
 	guard::PermissionGuard,
-	input::{series::SeriesMetadataInput, thumbnail::UpdateThumbnailInput},
+	input::thumbnail::UpdateThumbnailInput,
 	object::series::Series,
 };
 
@@ -49,13 +52,11 @@ impl SeriesMutation {
 				.await?
 				.ok_or("Series not found")?;
 
-		core.enqueue_job(
-			AnalyzeMediaJob::new(AnalysisJobConfig {
-				force_reanalysis,
-				scope: MediaAnalysisJobScope::Series(model.id),
-			})
-			.wrapped(),
-		)?;
+		core.enqueue(StumpJob::analyze_media(AnalysisJobConfig {
+			force_reanalysis,
+			scope: MediaAnalysisJobScope::Series(model.id),
+		}))
+		.await?;
 
 		Ok(true)
 	}
@@ -178,106 +179,6 @@ impl SeriesMutation {
 		Ok(series.into())
 	}
 
-	#[graphql(guard = "PermissionGuard::one(UserPermission::EditMetadata)")]
-	async fn update_series_metadata(
-		&self,
-		ctx: &Context<'_>,
-		id: ID,
-		input: SeriesMetadataInput,
-	) -> Result<Series> {
-		let AuthContext { user, .. } = ctx.data::<AuthContext>()?;
-		let conn = ctx.data::<CoreContext>()?.conn.as_ref();
-
-		let model = series::ModelWithMetadata::find_for_user(user)
-			.filter(series::Column::Id.eq(id.to_string()))
-			.into_model::<series::ModelWithMetadata>()
-			.one(conn)
-			.await?
-			.ok_or("Series not found")?;
-
-		let mut active_model = input.into_active_model();
-		active_model.series_id = Set(model.series.id.clone());
-
-		let updated_metadata = if model.metadata.is_some() {
-			active_model.update(conn).await?
-		} else {
-			active_model.insert(conn).await?
-		};
-
-		let model = series::ModelWithMetadata {
-			series: model.series,
-			metadata: Some(updated_metadata),
-		};
-
-		Ok(model.into())
-	}
-
-	#[graphql(guard = "PermissionGuard::one(UserPermission::EditMetadata)")]
-	async fn reset_series_metadata(
-		&self,
-		ctx: &Context<'_>,
-		id: ID,
-		impact: MetadataResetImpact,
-	) -> Result<Series> {
-		let AuthContext { user, .. } = ctx.data::<AuthContext>()?;
-		let core = ctx.data::<CoreContext>()?;
-		let conn = core.conn.as_ref();
-
-		let mut model = series::ModelWithMetadata::find_for_user(user)
-			.filter(series::Column::Id.eq(id.to_string()))
-			.into_model::<series::ModelWithMetadata>()
-			.one(conn)
-			.await?
-			.ok_or("Series not found")?;
-
-		let tx = conn.begin().await?;
-
-		if matches!(
-			impact,
-			MetadataResetImpact::Series | MetadataResetImpact::Everything
-		) {
-			if let Some(metadata) = model.metadata.take() {
-				metadata.delete(&tx).await?;
-			} else {
-				tracing::debug!(series_id = ?model.series.id, "No metadata to reset");
-			}
-		}
-
-		if matches!(
-			impact,
-			MetadataResetImpact::Books | MetadataResetImpact::Everything
-		) {
-			let media_metadata_models = media_metadata::Entity::find()
-				.filter(
-					media_metadata::Column::MediaId.in_subquery(
-						Query::select()
-							.column(media::Column::Id)
-							.from(media::Entity)
-							.and_where(
-								media::Column::SeriesId.eq(model.series.id.clone()),
-							)
-							.to_owned(),
-					),
-				)
-				.all(&tx)
-				.await?;
-			tracing::trace!(
-				count = media_metadata_models.len(),
-				"Found media metadata to delete"
-			);
-
-			for media_metadata in media_metadata_models {
-				media_metadata.delete(&tx).await?;
-			}
-		}
-
-		tx.commit().await?;
-
-		tracing::debug!(?impact, series_id = ?model.series.id, "Reset metadata for series");
-
-		Ok(model.into())
-	}
-
 	/// Toggle the completion status of a series. If the series is marked as completed, all books
 	/// in the series will also be marked as completed, and vice versa for marking as not completed.
 	/// This is considered a dangerous operation since it can modify all your read progression related
@@ -320,7 +221,8 @@ impl SeriesMutation {
 				.await?
 				.ok_or("Series not found")?;
 
-		core.enqueue_job(SeriesScanJob::new(model.id, model.path, None))?;
+		core.enqueue(StumpJob::series_scan(model.id, model.path, None))
+			.await?;
 
 		Ok(true)
 	}
@@ -338,7 +240,8 @@ async fn set_series_completed(
 		.column(media::Column::Id)
 		.filter(
 			media::Column::SeriesId.eq(series.series.id.clone()).and(
-				media::Column::Id.in_subquery(
+				// to get books WITHOUT completion means they do not have a finished_reading_session
+				media::Column::Id.not_in_subquery(
 					Query::select()
 						.column(finished_reading_session::Column::MediaId)
 						.from(finished_reading_session::Entity)
@@ -349,14 +252,13 @@ async fn set_series_completed(
 				),
 			),
 		)
+		.into_tuple::<String>()
 		.all(&tx)
-		.await?
-		.into_iter()
-		.map(|m| m.id)
-		.collect::<Vec<String>>();
+		.await?;
+
 	tracing::debug!(
 		count = book_ids_without_completion.len(),
-		"Fetched unread/incomplete books for series"
+		"Fetched unread books within series"
 	);
 
 	let deleted_sessions = reading_session::Entity::delete_many()
@@ -388,7 +290,7 @@ async fn set_series_completed(
 		.collect::<std::collections::HashMap<_, _>>();
 
 	let now = DateTimeWithTimeZone::from(Utc::now());
-	let finished_sessions = book_ids_without_completion
+	let finished_sessions_chunks = book_ids_without_completion
 		.into_iter()
 		.map(|media_id| {
 			let prior = session_map.get(&media_id);
@@ -403,13 +305,14 @@ async fn set_series_completed(
 			}
 		})
 		.collect::<Vec<finished_reading_session::ActiveModel>>();
-
-	if !finished_sessions.is_empty() {
-		let count = finished_sessions.len();
-		let _ = finished_reading_session::Entity::insert_many(finished_sessions)
-			.exec(&tx)
-			.await?;
-		tracing::debug!(count, "Inserted finished reading sessions for series");
+	if !finished_sessions_chunks.is_empty() {
+		for chunk in finished_sessions_chunks.chunks(SQLITE_BIND_LIMIT) {
+			let count = chunk.len();
+			let _ = finished_reading_session::Entity::insert_many(chunk.to_vec())
+				.exec(&tx)
+				.await?;
+			tracing::debug!(count, "Inserted finished reading sessions for series");
+		}
 	} else {
 		tracing::debug!("No books to mark as finished in series");
 	}

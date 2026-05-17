@@ -19,15 +19,32 @@ import { useColorScheme } from './useColorScheme'
 ColorSpace.register(sRGB)
 ColorSpace.register(OKLCH)
 
-export const ENABLE_LARGE_HEADER = Platform.select({
-	// iOS 26+ has a bug that causes freezes when using large headers
-	ios: typeof Platform.Version === 'number' ? Platform.Version < 26 : Number(Platform.Version) < 26,
-	default: true,
-})
-
-export const IS_IOS_24_PLUS = Platform.OS === 'ios' && parseInt(Platform.Version, 10) >= 24
+export const IS_IOS_26_PLUS = Platform.OS === 'ios' && parseInt(Platform.Version, 10) >= 26
 
 export const ON_END_REACHED_THRESHOLD = Platform.OS === 'ios' ? 0.75 : 0.6
+
+// Note: These are vague categories that do not matter, and it doesn't matter
+// if the setting fits the category name that well, as long as it looks good
+export const SETTINGS_COLORS = {
+	majorVisuals: '#be193a',
+	minorVisuals: '#3287d5',
+	interactive: '#1ea550',
+	server: '#c46e07',
+	data: '#3fa7a9',
+	hiding: '#484395',
+	destructive: '#fd6bd5',
+}
+
+export const STAT_COLORS = {
+	inProgress: '#f59e0b', // amber-500
+	completed: '#34d399', // emerald-400
+	books: '#60a5fa', // blue-400
+	series: '#c084fc', // purple-400
+	readingTime: '#fb7185', // rose-400
+	size: '#94a3b8', // slate-400
+}
+
+// TODO: android-specific tab bar color
 
 const light = {
 	background: {
@@ -35,7 +52,7 @@ const light = {
 		inverse: '#161719',
 		overlay: {
 			DEFAULT: '#f6f6f7',
-			hover: '#e9eaeb',
+			hover: 'rgb(0 0 0 / 0.05)',
 		},
 		surface: {
 			DEFAULT: '#f7f7f8',
@@ -117,6 +134,7 @@ const light = {
 		background: '#ffffff',
 		grabber: '#ccc',
 	},
+	tabbar: '#f7f7f8',
 }
 
 type Theme = typeof light
@@ -126,8 +144,8 @@ const dark: Theme = {
 		DEFAULT: '#000000',
 		inverse: '#ffffff',
 		overlay: {
-			DEFAULT: '#111113',
-			hover: '#17171a',
+			DEFAULT: '#2d2d2d',
+			hover: 'rgb(255 255 255 / 0.1)',
 		},
 		surface: {
 			DEFAULT: '#0a0a0a',
@@ -209,6 +227,7 @@ const dark: Theme = {
 		background: '#000000',
 		grabber: '#333',
 	},
+	tabbar: '#0B0B0B',
 }
 
 export const COLORS = {

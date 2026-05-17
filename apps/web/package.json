@@ -1,6 +1,6 @@
 {
 	"name": "@stump/web",
-	"version": "0.1.2",
+	"version": "0.1.3",
 	"description": "",
 	"license": "MIT",
 	"scripts": {
@@ -8,15 +8,15 @@
 		"start": "vite preview",
 		"build": "vite build",
 		"format": "eslint --fix . && prettier --config ../../prettier.config.js --ignore-path ../../.prettierignore --write .",
-		"nuke": "rimraf node_modules"
+		"clean": "rimraf node_modules"
 	},
 	"dependencies": {
 		"@stump/browser": "*",
 		"@stump/client": "*",
 		"react": "^19.0.0",
 		"react-dom": "^19.0.0",
-		"react-router": "^6.30.0",
-		"react-router-dom": "^6.30.0"
+		"react-router": "^6.30.3",
+		"react-router-dom": "^6.30.3"
 	},
 	"devDependencies": {
 		"@types/react": "^19.0.0",
