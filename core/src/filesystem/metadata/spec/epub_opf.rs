@@ -1,3 +1,4 @@
+use chrono::NaiveDate;
 use quick_xml::{
 	events::{attributes::Attribute, BytesEnd, BytesStart, BytesText, Event},
 	Reader, Writer,
@@ -26,6 +27,12 @@ use crate::CoreError;
 //      let updated_opf = merge_opf_metadata(&opf_string, metadata, existing_tags)?;
 //      Ok(Some(updated_opf))
 // }
+
+// TODO:
+// - scream AHH
+// - we need to handle some tags differently, e.g. some that can come up multiple times
+//   like subject. we can't write the full list of tags in every subject tag
+// - keep track of visited
 
 pub async fn generate_epub_opf<P: AsRef<Path>>(
 	book_path: P,
@@ -63,8 +70,7 @@ fn merge_opf_metadata(
 
 	// TODO: need this?
 	let mut opf_metadata: HashMap<String, Vec<String>> = HashMap::new();
-	// TODO: build it
-	let metadata_map: HashMap<&'static str, Option<String>> = HashMap::new();
+	let metadata_map = build_metadata_value_map(metadata, existing_tags);
 
 	// tags which _might_ contain html, will be handled differently if encountered
 	const HTML_CONTENT_TAGS: [&str; 3] = ["description", "summary", "synopsis"];
@@ -96,7 +102,7 @@ fn merge_opf_metadata(
 
 				let base_tag =
 					tag.strip_prefix("dc:").unwrap_or(tag.as_str()).to_string();
-
+				// TODO: account for tags like 'subject' with multiple tags with a single value each
 				// TODO: track visiting later
 
 				// let base_tag = tag_name
@@ -139,7 +145,7 @@ fn merge_opf_metadata(
 					writer.write_event(Event::Start(e))?;
 				}
 			},
-			Ok(Event::Empty(mut e)) => {
+			Ok(Event::Empty(e)) => {
 				let tag = String::from_utf8_lossy(e.name().as_ref()).to_string();
 
 				let mut value_attr: Option<String> = None;
@@ -149,7 +155,9 @@ fn merge_opf_metadata(
 				// handle meta or opf:meta a little diff:
 
 				if tag == "meta" || tag == "opf:meta" {
-					let attributes: Vec<_> = e.clone().attributes().flatten().collect();
+					let inner_e = e.clone();
+					let attrs = inner_e.attributes();
+					let attributes: Vec<_> = attrs.flatten().collect();
 
 					let mut metadata_field = String::new();
 
@@ -157,6 +165,9 @@ fn merge_opf_metadata(
 						match (attr.key.as_ref(), attr.value.as_ref()) {
 							(b"name", b"calibre:series") if tag == "meta" => {
 								metadata_field = "series".to_string();
+								// TODO: if interchangeable (i.e., accept content OR value) then needs to be
+								// an array, and change to something like:
+								// if v.iter().map(|key| key.as_bytes()).includes(key)
 								value_attr = Some("content".to_string());
 							},
 							// todo: other named pairs?
@@ -164,29 +175,35 @@ fn merge_opf_metadata(
 						}
 					}
 
-					//  todo: sort this out
 					let updated_attrs: Vec<Attribute<'_>> = attributes
 						.into_iter()
 						.filter_map(|attr| {
 							match (value_attr.as_deref(), attr.key.clone().as_ref()) {
 								(Some(v), key) if v.as_bytes() == key => {
-									// todo: get value e.g. metadata_map.get()
-									// match metadata_map.get(metadata_field)
-									//      if Some(Some(v)) => updated
-									//      if Some(None) => None
-									//      if None => Some(attr)
-
-									Some(Attribute::from((
-										attr.key.into_inner(),
-										"themetadatavaluegoeshere".as_bytes(),
-									)))
+									match metadata_map.get(metadata_field.as_str()) {
+										// have a value and set, set it
+										Some(Some(metadata_value)) => {
+											Some(Attribute::from((
+												attr.key.into_inner(),
+												metadata_value.as_bytes(),
+											)))
+										},
+										// have a value and unset, unset it
+										Some(None) => None,
+										// not managed by Stump
+										None => Some(attr),
+									}
 								},
 								_ => Some(attr),
 							}
 						})
 						.collect();
 
-					let bytes_start = e.clear_attributes().with_attributes(updated_attrs);
+					let mut inner_e = e.clone();
+					let bytes_start = inner_e
+						.clear_attributes()
+						.to_owned()
+						.with_attributes(updated_attrs);
 					writer.write_event(Event::Empty(bytes_start))?;
 				} else {
 					writer.write_event(Event::Empty(e))?;
@@ -366,12 +383,97 @@ fn build_opf_tag_map() -> HashMap<&'static str, String> {
 	map
 }
 
+fn normalize_metadata_key(key: &str) -> &str {
+	match key {
+		"collection_name" => "series",
+		"series_index" | "collection_position" => "number",
+		"creator" | "author" => "writers",
+		"genre" | "subject" | "subjects" => "genres",
+		"tag" => "tags",
+		"description" | "synopsis" => "summary",
+		"identifier_mobi-asin" => "identifier_mobi_asin",
+		_ => key,
+	}
+}
+
+// TODO: consider leaning into serde for this instead of manually constructing a hashmap
+// i can imagine something like:
+// ```rust
+// let mut metadata_map = metadata.to_json()
+// metadat_map["tags"] = existing_tags.clone()
+// return metadata_map
+// ```
+// and then we just use Value accessors as needed and coerce things into strings
+// e.g.
+//
+// fn get_value(metadata_map: &Value, key: &str) -> Option<String>
+// let value = metadata_map.get(key)
+// etc
 fn build_metadata_value_map(
 	metadata: media_metadata::Model,
 	existing_tags: Vec<String>,
 ) -> HashMap<&'static str, Option<String>> {
 	let mut map = HashMap::new();
+	map.insert("title", metadata.title.clone());
+	map.insert("title_sort", metadata.title_sort.clone());
+	map.insert("series", metadata.series.clone());
+	map.insert("number", metadata.number.clone().map(|x| x.to_string()));
+	map.insert("volume", metadata.volume.clone().map(|x| x.to_string()));
+	map.insert("summary", metadata.summary.clone());
+	map.insert("notes", metadata.notes.clone());
+	map.insert("genre", metadata.genres.clone());
+	map.insert(
+		"tag",
+		if existing_tags.is_empty() {
+			None
+		} else {
+			Some(existing_tags.join(","))
+		},
+	);
+	map.insert("year", metadata.year.clone().map(|x| x.to_string()));
+	map.insert("month", metadata.month.clone().map(|x| x.to_string()));
+	map.insert("day", metadata.day.clone().map(|x| x.to_string()));
+	map.insert("language", metadata.language.clone());
+	map.insert("identifier_amazon", metadata.identifier_amazon.clone());
+	map.insert("identifier_calibre", metadata.identifier_calibre.clone());
+	map.insert("identifier_google", metadata.identifier_google.clone());
+	map.insert("identifier_isbn", metadata.identifier_isbn.clone());
+	map.insert(
+		"indentifier_mobi_asin",
+		metadata.identifier_mobi_asin.clone(),
+	);
+	map.insert("identifier_uuid", metadata.identifier_uuid.clone());
+	map.insert("pencillers", metadata.pencillers.clone());
+	map.insert("inkers", metadata.inkers.clone());
+	map.insert("colorists", metadata.colorists.clone());
+	map.insert("letterers", metadata.letterers.clone());
+	map.insert("coverartists", metadata.cover_artists.clone());
+	map.insert("editors", metadata.editors.clone());
+	map.insert("publisher", metadata.publisher.clone());
+	map.insert("links", metadata.links.clone());
+	map.insert("characters", metadata.characters.clone());
+	map.insert("teams", metadata.teams.clone());
+	map.insert(
+		"pagecount",
+		metadata.page_count.clone().map(|x| x.to_string()),
+	);
 
+	let date = match (metadata.year, metadata.month, metadata.day) {
+		(Some(y), Some(m), maybe_day) => {
+			let day = maybe_day.unwrap_or(1);
+			NaiveDate::from_ymd_opt(y, m as u32, day as u32).map(|nd| nd.to_string())
+		},
+		_ => None,
+	};
+	map.insert("date", date);
+	map.insert("writers", metadata.writers.clone());
+	// TODO: today age restrictions are one-way, i.e. we know what to do when encountering
+	// e.g. a rating of "G" but cannot assume the other direction when writing back because we
+	// store numbers.
+	// map.insert(
+	// 	"typicalagerange",
+	// 	metadata.age_rating.clone().map(|x| x.to_string()),
+	// );
 	map
 }
 //
