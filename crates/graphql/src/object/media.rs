@@ -7,13 +7,11 @@ use models::{
 	shared::{analysis::MediaAnalysisData, image::ImageRef},
 };
 use num_traits::cast::ToPrimitive;
-use sea_orm::{
-	prelude::*, sea_query::Query, DatabaseBackend, FromQueryResult, QuerySelect,
-	Statement,
-};
+use sea_orm::{prelude::*, sea_query::Query, FromQueryResult, QuerySelect};
 
 use crate::{
 	data::{AuthContext, CoreContext, ServiceContext},
+	utils::db_statement,
 	loader::{
 		favorite::{FavoriteMediaLoaderKey, FavoritesLoader},
 		library_config::{LibraryConfigLoader, LibraryConfigLoaderKey},
@@ -281,22 +279,22 @@ impl Media {
 
 		let series_id = self.model.series_id.clone().ok_or("Series ID not set")?;
 
-		let position = PositionResult::find_by_statement(Statement::from_sql_and_values(
-			DatabaseBackend::Sqlite,
+		let position = PositionResult::find_by_statement(db_statement(
+			conn,
 			r#"
             SELECT position
             FROM (
-                SELECT 
+                SELECT
                     id,
                     ROW_NUMBER() OVER (
-                        PARTITION BY series_id 
+                        PARTITION BY series_id
                         ORDER BY name
                     ) as position
                 FROM media
-                WHERE series_id = ?
+                WHERE series_id = $1
                 AND deleted_at IS NULL
             ) ranked
-            WHERE id = ?
+            WHERE id = $2
             "#,
 			[series_id.into(), self.model.id.clone().into()],
 		))

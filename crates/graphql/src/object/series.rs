@@ -15,8 +15,8 @@ use models::{
 	},
 };
 use sea_orm::{
-	prelude::*, sea_query::Query, Condition, DatabaseBackend, FromQueryResult, JoinType,
-	QueryOrder, QuerySelect, QueryTrait, Statement,
+	prelude::*, sea_query::Query, Condition, FromQueryResult, JoinType, QueryOrder,
+	QuerySelect, QueryTrait,
 };
 
 use crate::{
@@ -27,6 +27,7 @@ use crate::{
 		series_finished_count::{FinishedCountLoaderKey, SeriesFinishedCountLoader},
 	},
 	object::{series_metadata::SeriesMetadata, stats::SeriesStats},
+	utils::db_statement,
 };
 
 use super::{library::Library, media::Media, tag::Tag};
@@ -127,8 +128,8 @@ impl Series {
 		let conn = ctx.data::<CoreContext>()?.conn.as_ref();
 
 		let query_result = conn
-			.query_all(Statement::from_sql_and_values(
-				DatabaseBackend::Sqlite,
+			.query_all(db_statement(
+				conn,
 				r"
 				SELECT
 					substr(COALESCE(media_metadata.title, media.name), 1, 1) AS letter,

@@ -1,7 +1,7 @@
 use async_graphql::{Result, SimpleObject};
-use sea_orm::{
-	prelude::*, DatabaseBackend, DatabaseConnection, FromQueryResult, Statement,
-};
+use sea_orm::{prelude::*, DatabaseConnection, FromQueryResult};
+
+use crate::utils::db_statement;
 
 // eventually i see more stats living in here, e.g.:
 // - https://github.com/stumpapp/stump/issues/559
@@ -35,8 +35,8 @@ impl LibraryStats {
 		for_all_users: bool,
 	) -> Result<Self> {
 		let result = conn
-			.query_one(Statement::from_sql_and_values(
-				DatabaseBackend::Sqlite,
+			.query_one(db_statement(
+				conn,
 				r"
 				WITH library_media AS (
 					SELECT media.id, media.size
@@ -47,14 +47,14 @@ impl LibraryStats {
 				base_counts AS (
 					SELECT
 						COUNT(*) AS book_count,
-						IFNULL(SUM(size), 0) AS total_bytes,
+						COALESCE(SUM(size), 0) AS total_bytes,
 						(SELECT COUNT(*) FROM series WHERE ($1 IS NULL OR series.library_id = $1)) AS series_count
 					FROM library_media
 				),
 				finished_stats AS (
 					SELECT
 						COUNT(DISTINCT frs.media_id) AS completed_books,
-						IFNULL(SUM(frs.elapsed_seconds), 0) AS finished_reading_time
+						COALESCE(SUM(frs.elapsed_seconds), 0) AS finished_reading_time
 					FROM finished_reading_sessions frs
 					WHERE frs.media_id IN (SELECT id FROM library_media)
 						AND ($2 IS TRUE OR frs.user_id = $3)
@@ -62,7 +62,7 @@ impl LibraryStats {
 				active_stats AS (
 					SELECT
 						COUNT(DISTINCT rs.media_id) AS in_progress_books,
-						IFNULL(SUM(rs.elapsed_seconds), 0) AS active_reading_time
+						COALESCE(SUM(rs.elapsed_seconds), 0) AS active_reading_time
 					FROM reading_sessions rs
 					WHERE rs.media_id IN (SELECT id FROM library_media)
 						AND ($2 IS TRUE OR rs.user_id = $3)
@@ -105,20 +105,20 @@ impl SeriesStats {
 		for_all_users: bool,
 	) -> Result<Self> {
 		let result = conn
-			.query_one(Statement::from_sql_and_values(
-				DatabaseBackend::Sqlite,
+			.query_one(db_statement(
+				conn,
 				r"
 				WITH base_counts AS (
 					SELECT
 						COUNT(*) AS book_count,
-						IFNULL(SUM(media.size), 0) AS total_bytes
+						COALESCE(SUM(media.size), 0) AS total_bytes
 					FROM media
 					WHERE media.series_id = $1
 				),
 				finished_stats AS (
 					SELECT
 						COUNT(DISTINCT frs.media_id) AS completed_books,
-						IFNULL(SUM(frs.elapsed_seconds), 0) AS finished_reading_time
+						COALESCE(SUM(frs.elapsed_seconds), 0) AS finished_reading_time
 					FROM finished_reading_sessions frs
 					WHERE frs.media_id IN (SELECT id FROM media WHERE series_id = $1)
 						AND ($2 IS TRUE OR frs.user_id = $3)
@@ -126,7 +126,7 @@ impl SeriesStats {
 				active_stats AS (
 					SELECT
 						COUNT(DISTINCT rs.media_id) AS in_progress_books,
-						IFNULL(SUM(rs.elapsed_seconds), 0) AS active_reading_time
+						COALESCE(SUM(rs.elapsed_seconds), 0) AS active_reading_time
 					FROM reading_sessions rs
 					WHERE rs.media_id IN (SELECT id FROM media WHERE series_id = $1)
 						AND ($2 IS TRUE OR rs.user_id = $3)

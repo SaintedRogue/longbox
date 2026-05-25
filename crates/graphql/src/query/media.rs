@@ -14,8 +14,7 @@ use models::{
 use sea_orm::{
 	prelude::*,
 	sea_query::{ExprTrait, Query},
-	Condition, DatabaseBackend, FromQueryResult, JoinType, QueryOrder, QuerySelect,
-	Statement,
+	Condition, FromQueryResult, JoinType, QueryOrder, QuerySelect,
 };
 
 use crate::{
@@ -28,6 +27,7 @@ use crate::{
 		CursorPaginationInfo, OffsetPaginationInfo, PaginatedResponse, Pagination,
 		PaginationValidator,
 	},
+	utils::db_statement,
 };
 
 #[derive(Default)]
@@ -126,12 +126,12 @@ impl MediaQuery {
 		let conn = ctx.data::<CoreContext>()?.conn.as_ref();
 
 		let query_result = conn
-			.query_one(Statement::from_sql_and_values(
-				DatabaseBackend::Sqlite,
+			.query_one(db_statement(
+				conn,
 				r"
-				SELECT 
+				SELECT
 					COALESCE(SUM(size), 0) as total_size
-				FROM 
+				FROM
 					media
 				WHERE deleted_at IS NULL
 				",
@@ -277,8 +277,8 @@ impl MediaQuery {
 		let conn = ctx.data::<CoreContext>()?.conn.as_ref();
 
 		let query_result = conn
-			.query_all(Statement::from_sql_and_values(
-				DatabaseBackend::Sqlite,
+			.query_all(db_statement(
+				conn,
 				r"
 				SELECT
 					substr(COALESCE(media_metadata.title, media.name), 1, 1) AS letter,
@@ -462,63 +462,63 @@ impl MediaQuery {
 		}
 
 		let on_deck_media_ids =
-			OnDeckMediaId::find_by_statement(Statement::from_sql_and_values(
-				DatabaseBackend::Sqlite,
+			OnDeckMediaId::find_by_statement(db_statement(
+				conn,
 				r#"
-				WITH 
+				WITH
 				-- Find all series where the user has read at least one book
 				user_read_series AS (
-					SELECT DISTINCT m.series_id 
+					SELECT DISTINCT m.series_id
 					FROM media m
 					JOIN finished_reading_sessions frs ON frs.media_id = m.id
-					WHERE frs.user_id = ?
+					WHERE frs.user_id = $1
 					AND m.series_id IS NOT NULL
 				),
 
 				-- Find all media IDs that user has read
 				user_read_media AS (
-					SELECT media_id 
+					SELECT media_id
 					FROM finished_reading_sessions
-					WHERE user_id = ?
+					WHERE user_id = $1
 				),
 
 				-- We do not want books from series with active reading sessions
 				user_active_series AS (
-					SELECT m.series_id 
+					SELECT m.series_id
 					FROM media m
 					JOIN reading_sessions rs ON rs.media_id = m.id
-					WHERE rs.user_id = ?
+					WHERE rs.user_id = $1
 					AND m.series_id IS NOT NULL
 				),
 
 				-- For each series, get last read date for sorting priority
 				series_last_read AS (
-					SELECT 
+					SELECT
 						m.series_id,
 						MAX(frs.completed_at) as last_read_date
 					FROM finished_reading_sessions frs
 					JOIN media m ON m.id = frs.media_id
-					WHERE frs.user_id = ?
+					WHERE frs.user_id = $1
 					AND m.series_id IN (SELECT series_id FROM user_read_series)
 					GROUP BY m.series_id
 				),
 
 				-- Find the first unread book for each series
 				next_in_series AS (
-					SELECT 
-						m.id, 
+					SELECT
+						m.id,
 						m.name,
 						m.series_id,
 						ROW_NUMBER() OVER(
-							PARTITION BY m.series_id 
+							PARTITION BY m.series_id
 							ORDER BY m.name
 						) as book_rank,
 						COALESCE(srl.last_read_date, '1970-01-01') as series_last_read_date
-					FROM 
+					FROM
 						media m
 					LEFT JOIN
 						series_last_read srl ON srl.series_id = m.series_id
-					WHERE 
+					WHERE
 						m.series_id IN (SELECT series_id FROM user_read_series)
 						AND m.series_id NOT IN (SELECT series_id FROM user_active_series)
 						-- Exclude media that user has read or is currently reading
@@ -527,26 +527,19 @@ impl MediaQuery {
 				)
 
 				-- Get only the first book for each series
-				SELECT 
+				SELECT
 					id
-				FROM 
+				FROM
 					next_in_series
-				WHERE 
+				WHERE
 					book_rank = 1
 				ORDER BY
 					-- Most recently read series first
 					series_last_read_date DESC
-				LIMIT ?
-				OFFSET ?
+				LIMIT $2
+				OFFSET $3
 				"#,
-				[
-					user_id.clone().into(),
-					user_id.clone().into(),
-					user_id.clone().into(),
-					user_id.clone().into(),
-					limit.into(),
-					offset.into(),
-				],
+				[user_id.clone().into(), limit.into(), offset.into()],
 			))
 			.all(conn)
 			.await?;
@@ -581,46 +574,46 @@ impl MediaQuery {
 			.collect();
 
 		let total_count = conn
-			.query_one(Statement::from_sql_and_values(
-				DatabaseBackend::Sqlite,
+			.query_one(db_statement(
+				conn,
 				r#"
 					-- Count total number of on deck items (for pagination)
-					WITH 
+					WITH
 					-- Find all series where the user has read at least one book
 					user_read_series AS (
-						SELECT DISTINCT m.series_id 
+						SELECT DISTINCT m.series_id
 						FROM media m
 						JOIN finished_reading_sessions frs ON frs.media_id = m.id
-						WHERE frs.user_id = ?
+						WHERE frs.user_id = $1
 						AND m.series_id IS NOT NULL
 					),
 
 					-- Find all media IDs that user has read or is currently reading
 					user_read_or_reading_media AS (
 						-- Media that user has finished
-						SELECT media_id 
+						SELECT media_id
 						FROM finished_reading_sessions
-						WHERE user_id = ?
-						
+						WHERE user_id = $1
+
 						UNION
-						
+
 						-- Media that user is currently reading
-						SELECT media_id 
+						SELECT media_id
 						FROM reading_sessions
-						WHERE user_id = ?
+						WHERE user_id = $1
 					),
 
 					-- Find the first unread book for each series
 					next_in_series AS (
-						SELECT 
-							m.id, 
+						SELECT
+							m.id,
 							ROW_NUMBER() OVER(
-								PARTITION BY m.series_id 
+								PARTITION BY m.series_id
 								ORDER BY m.name
 							) as book_rank
-						FROM 
+						FROM
 							media m
-						WHERE 
+						WHERE
 							m.series_id IN (SELECT series_id FROM user_read_series)
 							-- Exclude media that user has read or is currently reading
 							AND m.id NOT IN (SELECT media_id FROM user_read_or_reading_media)
@@ -629,18 +622,14 @@ impl MediaQuery {
 					)
 
 					-- Count only the first book for each series
-					SELECT 
+					SELECT
 						COUNT(*) as count
-					FROM 
+					FROM
 						next_in_series
-					WHERE 
+					WHERE
 						book_rank = 1
 					"#,
-				[
-					user_id.clone().into(),
-					user_id.clone().into(),
-					user_id.into(),
-				],
+				[user_id.into()],
 			))
 			.await?
 			.ok_or_else(|| async_graphql::Error::new("Failed to get count"))?
