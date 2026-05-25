@@ -42,31 +42,41 @@ ARG TARGETARCH
 
 WORKDIR /app
 
-COPY . .
-
 # We need to install git for yarn to work (we have git dependencies)
 RUN apk add --no-cache git
 
-RUN --mount=type=cache,target=/usr/local/yarn/.cache,id=${TARGETARCH} \ 
+# Copy manifests first so yarn install is cached independently of source changes
+COPY package.json yarn.lock lerna.json ./
+COPY patches/ patches/
+COPY apps/web/package.json apps/web/
+COPY apps/desktop/package.json apps/desktop/
+COPY apps/expo/package.json apps/expo/
+COPY docs/package.json docs/
+COPY packages/browser/package.json packages/browser/
+COPY packages/client/package.json packages/client/
+COPY packages/components/package.json packages/components/
+COPY packages/graphql/package.json packages/graphql/
+COPY packages/i18n/package.json packages/i18n/
+COPY packages/sdk/package.json packages/sdk/
+
+RUN --mount=type=cache,target=/usr/local/yarn/.cache,id=${TARGETARCH} \
     # https://github.com/nodejs/docker-node/issues/1335
     yarn config set network-timeout 300000 && \
-        YARN_CACHE_FOLDER=/usr/local/yarn/.cache yarn install --frozen-lockfile && \
-        yarn web build && \
-        mv ./apps/web/dist/ ./build && \
-        if [ ! -d "./build" ] || [ ! "$(ls -A ./build)" ]; then exit 1; fi
+    YARN_CACHE_FOLDER=/usr/local/yarn/.cache yarn install --frozen-lockfile
+
+COPY . .
+
+RUN yarn web build && \
+    mv ./apps/web/dist/ ./build && \
+    if [ ! -d "./build" ] || [ ! "$(ls -A ./build)" ]; then exit 1; fi
 
 # ------------------------------------------------------------------------------
-# Cargo Build Stage
+# Cargo Chef — installed once, shared by planner and builder
 # ------------------------------------------------------------------------------
 
-FROM rust:1.92-bookworm AS builder
+FROM rust:1.92-bookworm AS chef
 
-ARG GIT_REV
-ARG BUILD_CHANNEL
-ARG TARGETARCH
-
-ENV GIT_REV=${GIT_REV}
-ENV BUILD_CHANNEL=${BUILD_CHANNEL}
+RUN cargo install cargo-chef --locked
 
 RUN --mount=type=cache,target=/var/cache/apt --mount=type=cache,target=/var/lib/apt \
     apt-get update && apt-get install -y \
@@ -77,13 +87,44 @@ RUN --mount=type=cache,target=/var/cache/apt --mount=type=cache,target=/var/lib/
         libssl-dev \
         pkg-config \
         curl \
-        libsqlite3-dev;
+        libsqlite3-dev
 
-# Cargo build for stump
 WORKDIR /app
+
+# ------------------------------------------------------------------------------
+# Planner — generates recipe.json from Cargo manifests
+# ------------------------------------------------------------------------------
+
+FROM chef AS planner
 
 COPY . .
 
+# Apply the same workspace corrections used at build time so the recipe matches
+RUN sed -i '/core\/integration-tests/d' Cargo.toml && \
+    sed -i '/apps\/desktop\/src-tauri/d' Cargo.toml && \
+    cargo chef prepare --recipe-path recipe.json
+
+# ------------------------------------------------------------------------------
+# Builder — cook deps into a layer, then compile stump source
+# ------------------------------------------------------------------------------
+
+FROM chef AS builder
+
+ARG GIT_REV
+ARG BUILD_CHANNEL
+ARG TARGETARCH
+
+ENV GIT_REV=${GIT_REV}
+ENV BUILD_CHANNEL=${BUILD_CHANNEL}
+
+# Cook dependencies into a Docker layer. This step only re-runs when
+# recipe.json changes (i.e. Cargo.toml / Cargo.lock changed), so compiled
+# deps are served from the GHA layer cache on every source-only change.
+COPY --from=planner /app/recipe.json recipe.json
+RUN --mount=type=cache,target=/usr/local/cargo/registry,id=${TARGETARCH} \
+    cargo chef cook --release --recipe-path recipe.json
+
+COPY . .
 
 RUN --mount=type=cache,target=/usr/local/cargo/registry,id=${TARGETARCH} \
     --mount=type=cache,target=/app/target,id=${TARGETARCH} \
