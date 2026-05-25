@@ -1,11 +1,14 @@
 use std::env;
 
 use migrations::{Migrator, MigratorTrait};
-use sea_orm::{self, DatabaseConnection, FromQueryResult};
+use sea_orm::{self, DatabaseBackend, DatabaseConnection, FromQueryResult};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
-use crate::{config::StumpConfig, CoreError};
+use crate::{
+	config::{env_keys, StumpConfig},
+	CoreError,
+};
 
 pub const FORCE_RESET_KEY: &str = "FORCE_DB_RESET";
 
@@ -13,18 +16,37 @@ pub const FORCE_RESET_KEY: &str = "FORCE_DB_RESET";
 /// the default is 999
 pub const SQLITE_BIND_LIMIT: usize = 900;
 
-pub async fn connect(config: &StumpConfig) -> Result<DatabaseConnection, CoreError> {
-	let config_dir = config.get_config_dir();
+fn resolve_database_url(config: &StumpConfig) -> String {
+	// A full DATABASE_URL takes highest precedence (works for both postgres:// and sqlite://)
+	if let Ok(url) = env::var(env_keys::DATABASE_URL_KEY) {
+		return url;
+	}
 
-	let sqlite_url = if let Some(path) = config.db_path.clone() {
+	// A DB_PASSWORD env var signals PostgreSQL; compose the URL from individual components
+	if let Ok(password) = env::var(env_keys::DB_PASSWORD_KEY) {
+		let host = env::var(env_keys::DB_HOST_KEY).unwrap_or_else(|_| "localhost".to_string());
+		let port = env::var(env_keys::DB_PORT_KEY).unwrap_or_else(|_| "5432".to_string());
+		let name = env::var(env_keys::DB_NAME_KEY).unwrap_or_else(|_| "stump".to_string());
+		let user = env::var(env_keys::DB_USER_KEY).unwrap_or_else(|_| "stump".to_string());
+		// Percent-encode the password so special characters don't break the URL
+		let encoded_password = urlencoding::encode(&password);
+		return format!("postgresql://{user}:{encoded_password}@{host}:{port}/{name}");
+	}
+
+	// Fall back to SQLite
+	let config_dir = config.get_config_dir();
+	if let Some(path) = config.db_path.clone() {
 		format!("sqlite://{path}/stump.db?mode=rwc")
 	} else if cfg!(debug_assertions) {
 		format!("sqlite://{}/dev.db?mode=rwc", env!("CARGO_MANIFEST_DIR"))
 	} else {
 		format!("sqlite://{}/stump.db?mode=rwc", config_dir.display())
-	};
+	}
+}
 
-	let connection = sea_orm::Database::connect(&sqlite_url).await?;
+pub async fn connect(config: &StumpConfig) -> Result<DatabaseConnection, CoreError> {
+	let db_url = resolve_database_url(config);
+	let connection = sea_orm::Database::connect(&db_url).await?;
 
 	let force_reset = match env::var(FORCE_RESET_KEY) {
 		Ok(value) => value == "true",
@@ -38,8 +60,13 @@ pub async fn connect(config: &StumpConfig) -> Result<DatabaseConnection, CoreErr
 	};
 
 	if force_reset && cfg!(debug_assertions) {
-		tracing::debug!("Forcing database reset");
-		Migrator::down(&connection, None).await?;
+		if connection.get_database_backend() == DatabaseBackend::Sqlite {
+			tracing::debug!("Forcing database reset");
+			Migrator::down(&connection, None).await?;
+		} else {
+			tracing::warn!("Force reset is only supported for SQLite");
+			return Err(CoreError::DatabaseResetNotAllowed);
+		}
 	} else if force_reset {
 		tracing::warn!("You can only force a reset in debug mode as a safety measure");
 		return Err(CoreError::DatabaseResetNotAllowed);

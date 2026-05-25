@@ -27,6 +27,12 @@ pub mod env_keys {
 	pub const LOG_DIR_KEY: &str = "STUMP_LOG_DIR";
 	pub const COLORFUL_LOGS_KEY: &str = "STUMP_COLORFUL_LOGS";
 	pub const DB_PATH_KEY: &str = "STUMP_DB_PATH";
+	pub const DATABASE_URL_KEY: &str = "DATABASE_URL";
+	pub const DB_PASSWORD_KEY: &str = "DB_PASSWORD";
+	pub const DB_HOST_KEY: &str = "DB_HOST";
+	pub const DB_PORT_KEY: &str = "DB_PORT";
+	pub const DB_NAME_KEY: &str = "DB_NAME";
+	pub const DB_USER_KEY: &str = "DB_USER";
 	pub const CLIENT_KEY: &str = "STUMP_CLIENT_DIR";
 	pub const ORIGINS_KEY: &str = "STUMP_ALLOWED_ORIGINS";
 	pub const PDFIUM_KEY: &str = "PDFIUM_PATH";
