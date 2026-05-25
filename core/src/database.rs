@@ -1,7 +1,7 @@
 use std::env;
 
 use migrations::{Migrator, MigratorTrait};
-use sea_orm::{self, DatabaseBackend, DatabaseConnection, FromQueryResult};
+use sea_orm::{self, ConnectionTrait, DatabaseBackend, DatabaseConnection, FromQueryResult};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
