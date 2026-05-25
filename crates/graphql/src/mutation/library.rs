@@ -1113,7 +1113,7 @@ async fn enforce_valid_library_path(
 	// check if new_path matches the pattern "/data/books/_%".
 	let values: [sea_orm::Value; 1] = [path.into()];
 	let mut parent_query = library::Entity::find()
-		.filter(Expr::cust_with_values("? LIKE path || '/_%'", values));
+		.filter(Expr::cust_with_values(r#"? LIKE "path" || '/_%'"#, values));
 
 	if let Some(existing_path) = existing_path {
 		parent_query = parent_query.filter(library::Column::Path.ne(existing_path));
