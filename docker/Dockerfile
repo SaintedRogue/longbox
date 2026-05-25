@@ -50,8 +50,6 @@ COPY package.json yarn.lock lerna.json ./
 COPY patches/ patches/
 COPY apps/web/package.json apps/web/
 COPY apps/desktop/package.json apps/desktop/
-COPY apps/expo/package.json apps/expo/
-COPY docs/package.json docs/
 COPY packages/browser/package.json packages/browser/
 COPY packages/client/package.json packages/client/
 COPY packages/components/package.json packages/components/
