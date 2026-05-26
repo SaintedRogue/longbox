@@ -2029,7 +2029,7 @@ impl MigrationTrait for Migration {
 					.col(ColumnDef::new(MediaMetadata::Links).text())
 					.col(ColumnDef::new(MediaMetadata::Month).integer())
 					.col(ColumnDef::new(MediaMetadata::Notes).text())
-					.col(ColumnDef::new(MediaMetadata::Number).float())
+					.col(ColumnDef::new(MediaMetadata::Number).decimal())
 					.col(ColumnDef::new(MediaMetadata::PageCount).integer())
 					.col(ColumnDef::new(MediaMetadata::Pencillers).text())
 					.col(ColumnDef::new(MediaMetadata::Publisher).text())
@@ -2161,7 +2161,7 @@ impl MigrationTrait for Migration {
 							.primary_key(),
 					)
 					.col(ColumnDef::new(ReadingSessions::Page).integer())
-					.col(ColumnDef::new(ReadingSessions::PercentageCompleted).float())
+					.col(ColumnDef::new(ReadingSessions::PercentageCompleted).decimal())
 					.col(ColumnDef::new(ReadingSessions::Locator).json())
 					.col(ColumnDef::new(ReadingSessions::Epubcfi).text())
 					.col(ColumnDef::new(ReadingSessions::KoreaderProgress).text())
@@ -3567,7 +3567,7 @@ impl MigrationTrait for Migration {
 					.col(ColumnDef::new(ReadingSessions::Locator).text())
 					.col(
 						ColumnDef::new(ReadingSessions::PercentageCompleted)
-							.float()
+							.decimal()
 							.not_null(),
 					)
 					.col(ColumnDef::new(ReadingSessions::KoreaderProgress).text())

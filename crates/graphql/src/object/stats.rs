@@ -47,14 +47,14 @@ impl LibraryStats {
 				base_counts AS (
 					SELECT
 						COUNT(*) AS book_count,
-						COALESCE(SUM(size), 0) AS total_bytes,
+						COALESCE(CAST(SUM(size) AS BIGINT), 0) AS total_bytes,
 						(SELECT COUNT(*) FROM series WHERE ($1 IS NULL OR series.library_id = $1)) AS series_count
 					FROM library_media
 				),
 				finished_stats AS (
 					SELECT
 						COUNT(DISTINCT frs.media_id) AS completed_books,
-						COALESCE(SUM(frs.elapsed_seconds), 0) AS finished_reading_time
+						COALESCE(CAST(SUM(frs.elapsed_seconds) AS BIGINT), 0) AS finished_reading_time
 					FROM finished_reading_sessions frs
 					WHERE frs.media_id IN (SELECT id FROM library_media)
 						AND ($2 IS TRUE OR frs.user_id = $3)
@@ -62,7 +62,7 @@ impl LibraryStats {
 				active_stats AS (
 					SELECT
 						COUNT(DISTINCT rs.media_id) AS in_progress_books,
-						COALESCE(SUM(rs.elapsed_seconds), 0) AS active_reading_time
+						COALESCE(CAST(SUM(rs.elapsed_seconds) AS BIGINT), 0) AS active_reading_time
 					FROM reading_sessions rs
 					WHERE rs.media_id IN (SELECT id FROM library_media)
 						AND ($2 IS TRUE OR rs.user_id = $3)
@@ -111,14 +111,14 @@ impl SeriesStats {
 				WITH base_counts AS (
 					SELECT
 						COUNT(*) AS book_count,
-						COALESCE(SUM(media.size), 0) AS total_bytes
+						COALESCE(CAST(SUM(media.size) AS BIGINT), 0) AS total_bytes
 					FROM media
 					WHERE media.series_id = $1
 				),
 				finished_stats AS (
 					SELECT
 						COUNT(DISTINCT frs.media_id) AS completed_books,
-						COALESCE(SUM(frs.elapsed_seconds), 0) AS finished_reading_time
+						COALESCE(CAST(SUM(frs.elapsed_seconds) AS BIGINT), 0) AS finished_reading_time
 					FROM finished_reading_sessions frs
 					WHERE frs.media_id IN (SELECT id FROM media WHERE series_id = $1)
 						AND ($2 IS TRUE OR frs.user_id = $3)
@@ -126,7 +126,7 @@ impl SeriesStats {
 				active_stats AS (
 					SELECT
 						COUNT(DISTINCT rs.media_id) AS in_progress_books,
-						COALESCE(SUM(rs.elapsed_seconds), 0) AS active_reading_time
+						COALESCE(CAST(SUM(rs.elapsed_seconds) AS BIGINT), 0) AS active_reading_time
 					FROM reading_sessions rs
 					WHERE rs.media_id IN (SELECT id FROM media WHERE series_id = $1)
 						AND ($2 IS TRUE OR rs.user_id = $3)
