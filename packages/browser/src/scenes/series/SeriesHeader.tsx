@@ -65,12 +65,12 @@ export default function SeriesHeader() {
 					{hasMetadataBadges && (
 						<div className="gap-2 flex flex-wrap items-center">
 							{metadata?.publisher && (
-								<Badge variant="default" size="xs" rounded="full">
+								<Badge size="xs" rounded="full">
 									{metadata.publisher}
 								</Badge>
 							)}
 							{metadata?.year && (
-								<Badge variant="default" size="xs" rounded="full">
+								<Badge size="xs" rounded="full">
 									{metadata.year}
 								</Badge>
 							)}
@@ -116,7 +116,10 @@ export default function SeriesHeader() {
 							<Text size="xs" variant="muted">
 								Tags
 							</Text>
-							<TagList tags={tags} baseUrl={paths.bookSearch()} />
+							<TagList
+								tags={tags}
+								buildHref={(tag) => paths.bookSearchWithFilter({ tags: { anyOf: [tag.name] } })}
+							/>
 						</div>
 					)}
 
@@ -135,7 +138,7 @@ export default function SeriesHeader() {
 									}
 									return (
 										<Link key={link} href={link} underline={false}>
-											<Badge variant="default" size="xs" rounded="full" className="cursor-pointer">
+											<Badge size="xs" rounded="full" className="cursor-pointer">
 												<span>{label}</span>
 												<ExternalLink className="ml-1 h-3 w-3 opacity-90" />
 											</Badge>

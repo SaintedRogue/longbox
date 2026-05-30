@@ -1066,6 +1066,14 @@ export enum InterfaceLayout {
   Table = 'TABLE'
 }
 
+/** The roundness of certain UI elements in the client interface, such as cards, buttons, inputs, etc */
+export enum InterfaceRoundness {
+  None = 'NONE',
+  Normal = 'NORMAL',
+  Pill = 'PILL',
+  Rounded = 'ROUNDED'
+}
+
 export type Job = {
   __typename?: 'Job';
   completedAt?: Maybe<Scalars['DateTime']['output']>;
@@ -1532,6 +1540,7 @@ export type MediaFilterInput = {
   seriesId?: InputMaybe<FieldFilterString>;
   size?: InputMaybe<NumericFilterI64>;
   status?: InputMaybe<FieldFilterFileStatus>;
+  tags?: InputMaybe<FieldFilterString>;
   updatedAt?: InputMaybe<NumericFilterDateTime>;
 };
 
@@ -4543,6 +4552,7 @@ export type UpdateUserPreferencesInput = {
   enableJobOverlay: Scalars['Boolean']['input'];
   enableLiveRefetch: Scalars['Boolean']['input'];
   enableReplacePrimarySidebar: Scalars['Boolean']['input'];
+  interfaceRoundness: InterfaceRoundness;
   layoutMaxWidthPx?: InputMaybe<Scalars['Int']['input']>;
   locale: Scalars['String']['input'];
   preferAccentColor: Scalars['Boolean']['input'];
@@ -4729,6 +4739,7 @@ export type UserPreferences = {
   enableLiveRefetch: Scalars['Boolean']['output'];
   enableReplacePrimarySidebar: Scalars['Boolean']['output'];
   homeArrangement: Arrangement;
+  interfaceRoundness: InterfaceRoundness;
   layoutMaxWidthPx?: Maybe<Scalars['Int']['output']>;
   locale: Scalars['String']['output'];
   navigationArrangement: Arrangement;
