@@ -19,13 +19,7 @@ import { useColorScheme } from './useColorScheme'
 ColorSpace.register(sRGB)
 ColorSpace.register(OKLCH)
 
-export const ENABLE_LARGE_HEADER = Platform.select({
-	// iOS 26+ has a bug that causes freezes when using large headers
-	ios: typeof Platform.Version === 'number' ? Platform.Version < 26 : Number(Platform.Version) < 26,
-	default: true,
-})
-
-export const IS_IOS_24_PLUS = Platform.OS === 'ios' && parseInt(Platform.Version, 10) >= 24
+export const IS_IOS_26_PLUS = Platform.OS === 'ios' && parseInt(Platform.Version, 10) >= 26
 
 export const ON_END_REACHED_THRESHOLD = Platform.OS === 'ios' ? 0.75 : 0.6
 
@@ -58,7 +52,7 @@ const light = {
 		inverse: '#161719',
 		overlay: {
 			DEFAULT: '#f6f6f7',
-			hover: '#e9eaeb',
+			hover: 'rgb(0 0 0 / 0.05)',
 		},
 		surface: {
 			DEFAULT: '#f7f7f8',
@@ -150,8 +144,8 @@ const dark: Theme = {
 		DEFAULT: '#000000',
 		inverse: '#ffffff',
 		overlay: {
-			DEFAULT: '#111113',
-			hover: '#17171a',
+			DEFAULT: '#2d2d2d',
+			hover: 'rgb(255 255 255 / 0.1)',
 		},
 		surface: {
 			DEFAULT: '#0a0a0a',

@@ -16,10 +16,12 @@ use super::oidc_config::OidcConfig;
 use crate::{CoreError, CoreResult};
 use stump_config_gen::StumpConfigGenerator;
 
+// TODO(env): prefix with STUMP_ for consistency
 pub mod env_keys {
 	pub const CONFIG_DIR_KEY: &str = "STUMP_CONFIG_DIR";
 	pub const IN_DOCKER_KEY: &str = "STUMP_IN_DOCKER";
 	pub const PROFILE_KEY: &str = "STUMP_PROFILE";
+	pub const IP_KEY: &str = "STUMP_IP";
 	pub const PORT_KEY: &str = "STUMP_PORT";
 	pub const VERBOSITY_KEY: &str = "STUMP_VERBOSITY";
 	pub const PRETTY_LOGS_KEY: &str = "STUMP_PRETTY_LOGS";
@@ -29,7 +31,7 @@ pub mod env_keys {
 	pub const CLIENT_KEY: &str = "STUMP_CLIENT_DIR";
 	pub const ORIGINS_KEY: &str = "STUMP_ALLOWED_ORIGINS";
 	pub const PDFIUM_KEY: &str = "PDFIUM_PATH";
-	pub const ENABLE_SWAGGER_KEY: &str = "ENABLE_SWAGGER_UI";
+	pub const ENABLE_PLAYGROUND_KEY: &str = "STUMP_ENABLE_PLAYGROUND";
 	pub const ENABLE_KOREADER_SYNC_KEY: &str = "ENABLE_KOREADER_SYNC";
 	pub const ENABLE_KOBO_SYNC_KEY: &str = "ENABLE_KOBO_SYNC";
 	pub const ENABLE_OPDS_PROGRESSION_KEY: &str = "ENABLE_OPDS_PROGRESSION";
@@ -121,6 +123,11 @@ pub struct StumpConfig {
 	#[validator(do_validate_profile)]
 	pub profile: String,
 
+	/// The IP address on which to listen on (default: "0.0.0.0").
+	#[default_value("0.0.0.0".to_string())]
+	#[env_key(IP_KEY)]
+	pub ip: String,
+
 	/// The port from which to serve the application (default: 10801).
 	#[default_value(10801)]
 	#[env_key(PORT_KEY)]
@@ -173,10 +180,10 @@ pub struct StumpConfig {
 	#[env_key(PDFIUM_KEY)]
 	pub pdfium_path: Option<String>,
 
-	/// Indicates if the Swagger UI should be disabled.
+	/// Indicates if the GraphQL playground should be enabled.
 	#[default_value(false)]
-	#[env_key(ENABLE_SWAGGER_KEY)]
-	pub enable_swagger: bool,
+	#[env_key(ENABLE_PLAYGROUND_KEY)]
+	pub enable_playground: bool,
 
 	/// Indicates if the KoReader sync feature should be enabled.
 	#[default_value(false)]
@@ -466,10 +473,11 @@ mod tests {
 			client_dir: Some("not_a_real_dir".to_string()),
 
 			enable_opds_progression: Some(false),
+			ip: None,
 			config_dir: None,
 			allowed_origins: Some(vec!["origin1".to_string(), "origin2".to_string()]),
 			pdfium_path: Some("not_a_path_to_pdfium".to_string()),
-			enable_swagger: Some(false),
+			enable_playground: Some(false),
 			enable_koreader_sync: Some(false),
 			enable_kobo_sync: Some(false),
 			password_hash_cost: None,
@@ -508,6 +516,7 @@ mod tests {
 			new_toml_vals,
 			PartialStumpConfig {
 				profile: Some("release".to_string()),
+				ip: Some("0.0.0.0".to_string()),
 				port: Some(1337),
 				verbosity: Some(3),
 				pretty_logs: Some(true),
@@ -519,7 +528,7 @@ mod tests {
 
 				allowed_origins: Some(vec!["origin1".to_string(), "origin2".to_string()]),
 				pdfium_path: Some("not_a_path_to_pdfium".to_string()),
-				enable_swagger: Some(false),
+				enable_playground: Some(false),
 				enable_koreader_sync: Some(false),
 				enable_kobo_sync: Some(false),
 				enable_opds_progression: Some(false),
@@ -561,7 +570,7 @@ mod tests {
 			[
 				(PORT_KEY, Some("1337")),
 				(VERBOSITY_KEY, Some("2")),
-				(ENABLE_SWAGGER_KEY, Some("true")),
+				(ENABLE_PLAYGROUND_KEY, Some("true")),
 				(HASH_COST_KEY, Some("1")),
 			],
 			|| {
@@ -579,6 +588,7 @@ mod tests {
 					generated,
 					StumpConfig {
 						profile: "release".to_string(),
+						ip: "0.0.0.0".to_string(),
 						port: 1337,
 						verbosity: 2,
 						pretty_logs: true,
@@ -589,7 +599,7 @@ mod tests {
 						config_dir,
 						allowed_origins: vec![],
 						pdfium_path: None,
-						enable_swagger: true,
+						enable_playground: true,
 						enable_koreader_sync: false,
 						enable_kobo_sync: false,
 						enable_opds_progression: false,

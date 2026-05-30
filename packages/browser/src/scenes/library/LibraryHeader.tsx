@@ -66,7 +66,7 @@ export default function LibraryHeader() {
 					{hasPublishers && (
 						<BadgeList>
 							{publishers.map((publisher) => (
-								<Badge key={publisher} variant="default" size="xs" rounded="full">
+								<Badge key={publisher} rounded="full">
 									{publisher}
 								</Badge>
 							))}
@@ -93,7 +93,7 @@ export default function LibraryHeader() {
 										})}
 										underline={false}
 									>
-										<Badge variant="secondary" size="xs" rounded="full" className="cursor-pointer">
+										<Badge variant="secondary" rounded="full" className="cursor-pointer">
 											{genre}
 										</Badge>
 									</Link>
@@ -107,7 +107,10 @@ export default function LibraryHeader() {
 							<Text size="xs" variant="muted">
 								Tags
 							</Text>
-							<TagList tags={tags} baseUrl={paths.bookSearch()} />
+							<TagList
+								tags={tags}
+								buildHref={(tag) => paths.bookSearchWithFilter({ tags: { anyOf: [tag.name] } })}
+							/>
 						</div>
 					)}
 				</div>
