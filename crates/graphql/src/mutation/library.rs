@@ -33,9 +33,9 @@ use crate::{
 	data::{AuthContext, CoreContext},
 	error_message,
 	guard::PermissionGuard,
-	utils::db_statement,
 	input::{library::CreateOrUpdateLibraryInput, thumbnail::UpdateThumbnailInput},
 	object::library::Library,
+	utils::db_statement,
 };
 
 #[derive(Default, SimpleObject)]
@@ -1112,19 +1112,20 @@ async fn enforce_valid_library_path(
 
 	// example: new_path = "/data/books/fiction", existing_library = "/data/books"
 	// check if new_path matches the pattern "/data/books/_%".
-	let (parent_sql, parent_values): (String, Vec<sea_orm::Value>) =
-		if let Some(ep) = existing_path {
-			(
+	let (parent_sql, parent_values): (String, Vec<sea_orm::Value>) = if let Some(ep) =
+		existing_path
+	{
+		(
 				r#"SELECT COUNT(*) AS count FROM libraries WHERE $1 LIKE "path" || '/_%' AND "path" != $2"#.to_string(),
 				vec![path.into(), ep.into()],
 			)
-		} else {
-			(
-				r#"SELECT COUNT(*) AS count FROM libraries WHERE $1 LIKE "path" || '/_%'"#
-					.to_string(),
-				vec![path.into()],
-			)
-		};
+	} else {
+		(
+			r#"SELECT COUNT(*) AS count FROM libraries WHERE $1 LIKE "path" || '/_%'"#
+				.to_string(),
+			vec![path.into()],
+		)
+	};
 
 	let parent_libraries_count: i64 = conn
 		.query_one(db_statement(conn, parent_sql, parent_values))

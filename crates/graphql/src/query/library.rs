@@ -11,8 +11,7 @@ use models::{
 		ordering::{OrderBy, OrderDirection},
 	},
 };
-use sea_orm::{prelude::*, FromQueryResult, QueryOrder, QuerySelect, QueryTrait,
-};
+use sea_orm::{prelude::*, FromQueryResult, QueryOrder, QuerySelect, QueryTrait};
 
 use crate::{
 	data::{AuthContext, CoreContext},
@@ -273,11 +272,7 @@ impl LibraryQuery {
                 ORDER BY "path" ASC
                 LIMIT $2 OFFSET $3;
                 "#,
-				[
-					library_id.as_str().into(),
-					limit.into(),
-					offset.into(),
-				],
+				[library_id.as_str().into(), limit.into(), offset.into()],
 			))
 			.await?;
 

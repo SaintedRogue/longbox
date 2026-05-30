@@ -758,7 +758,11 @@ impl MigrationTrait for Migration {
 					.col(ColumnDef::new(Users::HashedPassword).text().not_null())
 					.col(ColumnDef::new(Users::IsServerOwner).boolean().not_null())
 					.col(ColumnDef::new(Users::AvatarUrl).text())
-					.col(ColumnDef::new(Users::CreatedAt).timestamp_with_time_zone().not_null())
+					.col(
+						ColumnDef::new(Users::CreatedAt)
+							.timestamp_with_time_zone()
+							.not_null(),
+					)
 					.col(ColumnDef::new(Users::DeletedAt).timestamp_with_time_zone())
 					.col(ColumnDef::new(Users::IsLocked).boolean().not_null())
 					.col(ColumnDef::new(Users::MaxSessionsAllowed).integer())
@@ -895,7 +899,11 @@ impl MigrationTrait for Migration {
 					.col(ColumnDef::new(BookClubs::Description).text())
 					.col(ColumnDef::new(BookClubs::IsPrivate).boolean().not_null())
 					.col(ColumnDef::new(BookClubs::MemberRoleSpec).json())
-					.col(ColumnDef::new(BookClubs::CreatedAt).timestamp_with_time_zone().not_null())
+					.col(
+						ColumnDef::new(BookClubs::CreatedAt)
+							.timestamp_with_time_zone()
+							.not_null(),
+					)
 					.col(ColumnDef::new(BookClubs::Emoji).text())
 					.to_owned(),
 			)
@@ -956,7 +964,11 @@ impl MigrationTrait for Migration {
 					.col(ColumnDef::new(Jobs::SaveState).blob())
 					.col(ColumnDef::new(Jobs::OutputData).blob())
 					.col(ColumnDef::new(Jobs::MsElapsed).big_integer().not_null())
-					.col(ColumnDef::new(Jobs::CreatedAt).timestamp_with_time_zone().not_null())
+					.col(
+						ColumnDef::new(Jobs::CreatedAt)
+							.timestamp_with_time_zone()
+							.not_null(),
+					)
 					.col(ColumnDef::new(Jobs::CompletedAt).timestamp_with_time_zone())
 					.to_owned(),
 			)
@@ -1204,11 +1216,18 @@ impl MigrationTrait for Migration {
 							.unique_key(),
 					)
 					.col(ColumnDef::new(Libraries::Status).text().not_null())
-					.col(ColumnDef::new(Libraries::CreatedAt).timestamp_with_time_zone().not_null())
+					.col(
+						ColumnDef::new(Libraries::CreatedAt)
+							.timestamp_with_time_zone()
+							.not_null(),
+					)
 					.col(ColumnDef::new(Libraries::UpdatedAt).timestamp_with_time_zone())
 					.col(ColumnDef::new(Libraries::Emoji).text())
 					.col(ColumnDef::new(Libraries::ConfigId).integer().not_null())
-					.col(ColumnDef::new(Libraries::LastScannedAt).timestamp_with_time_zone())
+					.col(
+						ColumnDef::new(Libraries::LastScannedAt)
+							.timestamp_with_time_zone(),
+					)
 					.foreign_key(
 						ForeignKey::create()
 							.name("fk-libraries-config")
@@ -1230,7 +1249,11 @@ impl MigrationTrait for Migration {
 					.col(ColumnDef::new(Series::Id).text().not_null().primary_key())
 					.col(ColumnDef::new(Series::Name).text().not_null())
 					.col(ColumnDef::new(Series::Description).text())
-					.col(ColumnDef::new(Series::CreatedAt).timestamp_with_time_zone().not_null())
+					.col(
+						ColumnDef::new(Series::CreatedAt)
+							.timestamp_with_time_zone()
+							.not_null(),
+					)
 					.col(ColumnDef::new(Series::UpdatedAt).timestamp_with_time_zone())
 					.col(ColumnDef::new(Series::DeletedAt).timestamp_with_time_zone())
 					.col(ColumnDef::new(Series::Path).text().not_null())
@@ -1260,7 +1283,11 @@ impl MigrationTrait for Migration {
 					.col(ColumnDef::new(Media::Extension).text().not_null())
 					.col(ColumnDef::new(Media::Pages).integer().not_null())
 					.col(ColumnDef::new(Media::UpdatedAt).timestamp_with_time_zone())
-					.col(ColumnDef::new(Media::CreatedAt).timestamp_with_time_zone().not_null())
+					.col(
+						ColumnDef::new(Media::CreatedAt)
+							.timestamp_with_time_zone()
+							.not_null(),
+					)
 					.col(ColumnDef::new(Media::ModifiedAt).timestamp_with_time_zone())
 					.col(ColumnDef::new(Media::Hash).text())
 					.col(ColumnDef::new(Media::KoreaderHash).text())
@@ -1368,8 +1395,16 @@ impl MigrationTrait for Migration {
 					)
 					.col(ColumnDef::new(Sessions::SessionId).string().not_null())
 					.col(ColumnDef::new(Sessions::UserId).string().not_null())
-					.col(ColumnDef::new(Sessions::CreatedAt).timestamp_with_time_zone().not_null())
-					.col(ColumnDef::new(Sessions::ExpiryTime).timestamp_with_time_zone().not_null())
+					.col(
+						ColumnDef::new(Sessions::CreatedAt)
+							.timestamp_with_time_zone()
+							.not_null(),
+					)
+					.col(
+						ColumnDef::new(Sessions::ExpiryTime)
+							.timestamp_with_time_zone()
+							.not_null(),
+					)
 					.foreign_key(
 						ForeignKey::create()
 							.name("fk-sessions-user")
@@ -1784,7 +1819,11 @@ impl MigrationTrait for Migration {
 					)
 					.col(ColumnDef::new(Logs::Level).text().not_null())
 					.col(ColumnDef::new(Logs::Message).text().not_null())
-					.col(ColumnDef::new(Logs::Timestamp).timestamp_with_time_zone().not_null())
+					.col(
+						ColumnDef::new(Logs::Timestamp)
+							.timestamp_with_time_zone()
+							.not_null(),
+					)
 					.col(ColumnDef::new(Logs::JobId).text())
 					.col(ColumnDef::new(Logs::Context).text())
 					.foreign_key(
@@ -2170,7 +2209,10 @@ impl MigrationTrait for Migration {
 							.timestamp_with_time_zone()
 							.not_null(),
 					)
-					.col(ColumnDef::new(ReadingSessions::UpdatedAt).timestamp_with_time_zone())
+					.col(
+						ColumnDef::new(ReadingSessions::UpdatedAt)
+							.timestamp_with_time_zone(),
+					)
 					.col(ColumnDef::new(ReadingSessions::MediaId).text().not_null())
 					.col(ColumnDef::new(ReadingSessions::UserId).text().not_null())
 					.col(ColumnDef::new(ReadingSessions::DeviceId).text())
@@ -2665,7 +2707,11 @@ impl MigrationTrait for Migration {
 							.timestamp_with_time_zone()
 							.not_null(),
 					)
-					.col(ColumnDef::new(BookClubBooks::EndAt).timestamp_with_time_zone().not_null())
+					.col(
+						ColumnDef::new(BookClubBooks::EndAt)
+							.timestamp_with_time_zone()
+							.not_null(),
+					)
 					.col(ColumnDef::new(BookClubBooks::DiscussionDurationDays).integer())
 					.col(ColumnDef::new(BookClubBooks::Title).text())
 					.col(ColumnDef::new(BookClubBooks::Author).text())
@@ -2966,7 +3012,10 @@ impl MigrationTrait for Migration {
 							.not_null(),
 					)
 					.col(ColumnDef::new(EmailerSendRecords::AttachmentMeta).text())
-					.col(ColumnDef::new(EmailerSendRecords::SentAt).timestamp_with_time_zone())
+					.col(
+						ColumnDef::new(EmailerSendRecords::SentAt)
+							.timestamp_with_time_zone(),
+					)
 					.col(
 						ColumnDef::new(EmailerSendRecords::SentByUserId)
 							.text()
@@ -3371,7 +3420,11 @@ impl MigrationTrait for Migration {
 					.col(ColumnDef::new(Logs::Id).text().not_null().primary_key())
 					.col(ColumnDef::new(Logs::Level).integer().not_null())
 					.col(ColumnDef::new(Logs::Message).text().not_null())
-					.col(ColumnDef::new(Logs::Timestamp).timestamp_with_time_zone().not_null())
+					.col(
+						ColumnDef::new(Logs::Timestamp)
+							.timestamp_with_time_zone()
+							.not_null(),
+					)
 					.col(ColumnDef::new(Logs::JobId).text().not_null())
 					.foreign_key(
 						ForeignKey::create()
@@ -3827,8 +3880,16 @@ impl MigrationTrait for Migration {
 					.if_not_exists()
 					.col(ColumnDef::new(Sessions::Id).text().not_null().primary_key())
 					.col(ColumnDef::new(Sessions::SessionId).text().not_null())
-					.col(ColumnDef::new(Sessions::CreatedAt).timestamp_with_time_zone().not_null())
-					.col(ColumnDef::new(Sessions::ExpiryTime).timestamp_with_time_zone().not_null())
+					.col(
+						ColumnDef::new(Sessions::CreatedAt)
+							.timestamp_with_time_zone()
+							.not_null(),
+					)
+					.col(
+						ColumnDef::new(Sessions::ExpiryTime)
+							.timestamp_with_time_zone()
+							.not_null(),
+					)
 					.col(ColumnDef::new(Sessions::UserId).text().not_null())
 					.foreign_key(
 						ForeignKey::create()

@@ -1,7 +1,9 @@
 use std::env;
 
 use migrations::{Migrator, MigratorTrait};
-use sea_orm::{self, ConnectionTrait, DatabaseBackend, DatabaseConnection, FromQueryResult};
+use sea_orm::{
+	self, ConnectionTrait, DatabaseBackend, DatabaseConnection, FromQueryResult,
+};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
@@ -24,10 +26,13 @@ fn resolve_database_url(config: &StumpConfig) -> String {
 
 	// A DB_PASSWORD env var signals PostgreSQL; compose the URL from individual components
 	if let Ok(password) = env::var(env_keys::DB_PASSWORD_KEY) {
-		let host = env::var(env_keys::DB_HOST_KEY).unwrap_or_else(|_| "localhost".to_string());
+		let host =
+			env::var(env_keys::DB_HOST_KEY).unwrap_or_else(|_| "localhost".to_string());
 		let port = env::var(env_keys::DB_PORT_KEY).unwrap_or_else(|_| "5432".to_string());
-		let name = env::var(env_keys::DB_NAME_KEY).unwrap_or_else(|_| "stump".to_string());
-		let user = env::var(env_keys::DB_USER_KEY).unwrap_or_else(|_| "stump".to_string());
+		let name =
+			env::var(env_keys::DB_NAME_KEY).unwrap_or_else(|_| "stump".to_string());
+		let user =
+			env::var(env_keys::DB_USER_KEY).unwrap_or_else(|_| "stump".to_string());
 		// Percent-encode the password so special characters don't break the URL
 		let encoded_password = urlencoding::encode(&password);
 		return format!("postgresql://{user}:{encoded_password}@{host}:{port}/{name}");

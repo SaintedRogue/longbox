@@ -8,8 +8,7 @@ use models::{
 		ordering::OrderBy,
 	},
 };
-use sea_orm::{prelude::*, FromQueryResult, QueryOrder, QuerySelect,
-};
+use sea_orm::{prelude::*, FromQueryResult, QueryOrder, QuerySelect};
 
 use crate::{
 	data::{AuthContext, CoreContext},

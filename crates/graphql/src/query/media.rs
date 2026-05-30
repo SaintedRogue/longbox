@@ -461,10 +461,9 @@ impl MediaQuery {
 			id: String,
 		}
 
-		let on_deck_media_ids =
-			OnDeckMediaId::find_by_statement(db_statement(
-				conn,
-				r#"
+		let on_deck_media_ids = OnDeckMediaId::find_by_statement(db_statement(
+			conn,
+			r#"
 				WITH
 				-- Find all series where the user has read at least one book
 				user_read_series AS (
@@ -539,10 +538,10 @@ impl MediaQuery {
 				LIMIT $2
 				OFFSET $3
 				"#,
-				[user_id.clone().into(), limit.into(), offset.into()],
-			))
-			.all(conn)
-			.await?;
+			[user_id.clone().into(), limit.into(), offset.into()],
+		))
+		.all(conn)
+		.await?;
 
 		let media_ids: Vec<String> =
 			on_deck_media_ids.into_iter().map(|row| row.id).collect();

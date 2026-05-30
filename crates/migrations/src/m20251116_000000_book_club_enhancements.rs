@@ -132,7 +132,11 @@ impl MigrationTrait for Migration {
 					.col(ColumnDef::new(BookClubs::Description).text())
 					.col(ColumnDef::new(BookClubs::IsPrivate).boolean().not_null())
 					.col(ColumnDef::new(BookClubs::MemberRoleSpec).json())
-					.col(ColumnDef::new(BookClubs::CreatedAt).timestamp_with_time_zone().not_null())
+					.col(
+						ColumnDef::new(BookClubs::CreatedAt)
+							.timestamp_with_time_zone()
+							.not_null(),
+					)
 					.col(ColumnDef::new(BookClubs::Emoji).text())
 					.to_owned(),
 			)
@@ -298,7 +302,10 @@ impl MigrationTrait for Migration {
 							.primary_key(),
 					)
 					.col(ColumnDef::new(BookClubBooks::Position).integer().not_null())
-					.col(ColumnDef::new(BookClubBooks::CompletedAt).timestamp_with_time_zone())
+					.col(
+						ColumnDef::new(BookClubBooks::CompletedAt)
+							.timestamp_with_time_zone(),
+					)
 					.col(ColumnDef::new(BookClubBooks::Title).text())
 					.col(ColumnDef::new(BookClubBooks::Author).text())
 					.col(ColumnDef::new(BookClubBooks::Url).text())
@@ -356,7 +363,10 @@ impl MigrationTrait for Migration {
 							.not_null()
 							.default("PENDING"),
 					)
-					.col(ColumnDef::new(BookClubBookSuggestions::ResolvedAt).timestamp_with_time_zone())
+					.col(
+						ColumnDef::new(BookClubBookSuggestions::ResolvedAt)
+							.timestamp_with_time_zone(),
+					)
 					.col(ColumnDef::new(BookClubBookSuggestions::ResolvedById).text())
 					.col(
 						ColumnDef::new(BookClubBookSuggestions::CreatedAt)
@@ -562,7 +572,10 @@ impl MigrationTrait for Migration {
 							.timestamp_with_time_zone()
 							.not_null(),
 					)
-					.col(ColumnDef::new(BookClubDiscussionMessage::EditedAt).timestamp_with_time_zone())
+					.col(
+						ColumnDef::new(BookClubDiscussionMessage::EditedAt)
+							.timestamp_with_time_zone(),
+					)
 					.col(
 						ColumnDef::new(BookClubDiscussionMessage::IsPinnedMessage)
 							.boolean()
@@ -1031,7 +1044,11 @@ impl MigrationTrait for Migration {
 					.col(ColumnDef::new(BookClubs::Description).text())
 					.col(ColumnDef::new(BookClubs::IsPrivate).boolean().not_null())
 					.col(ColumnDef::new(BookClubs::MemberRoleSpec).json())
-					.col(ColumnDef::new(BookClubs::CreatedAt).timestamp_with_time_zone().not_null())
+					.col(
+						ColumnDef::new(BookClubs::CreatedAt)
+							.timestamp_with_time_zone()
+							.not_null(),
+					)
 					.col(ColumnDef::new(BookClubs::Emoji).text())
 					.to_owned(),
 			)

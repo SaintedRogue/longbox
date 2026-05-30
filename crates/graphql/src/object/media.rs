@@ -11,7 +11,6 @@ use sea_orm::{prelude::*, sea_query::Query, FromQueryResult, QuerySelect};
 
 use crate::{
 	data::{AuthContext, CoreContext, ServiceContext},
-	utils::db_statement,
 	loader::{
 		favorite::{FavoriteMediaLoaderKey, FavoritesLoader},
 		library_config::{LibraryConfigLoader, LibraryConfigLoaderKey},
@@ -24,6 +23,7 @@ use crate::{
 	},
 	object::epub::Epub,
 	pagination::{CursorPagination, CursorPaginationInfo, PaginatedResponse, Pagination},
+	utils::db_statement,
 };
 
 use super::{
