@@ -21,6 +21,7 @@ pub mod env_keys {
 	pub const CONFIG_DIR_KEY: &str = "STUMP_CONFIG_DIR";
 	pub const IN_DOCKER_KEY: &str = "STUMP_IN_DOCKER";
 	pub const PROFILE_KEY: &str = "STUMP_PROFILE";
+	pub const IP_KEY: &str = "STUMP_IP";
 	pub const PORT_KEY: &str = "STUMP_PORT";
 	pub const VERBOSITY_KEY: &str = "STUMP_VERBOSITY";
 	pub const PRETTY_LOGS_KEY: &str = "STUMP_PRETTY_LOGS";
@@ -127,6 +128,11 @@ pub struct StumpConfig {
 	#[env_key(PROFILE_KEY)]
 	#[validator(do_validate_profile)]
 	pub profile: String,
+
+	/// The IP address on which to listen on (default: "0.0.0.0").
+	#[default_value("0.0.0.0".to_string())]
+	#[env_key(IP_KEY)]
+	pub ip: String,
 
 	/// The port from which to serve the application (default: 10801).
 	#[default_value(10801)]
@@ -473,6 +479,7 @@ mod tests {
 			client_dir: Some("not_a_real_dir".to_string()),
 
 			enable_opds_progression: Some(false),
+			ip: None,
 			config_dir: None,
 			allowed_origins: Some(vec!["origin1".to_string(), "origin2".to_string()]),
 			pdfium_path: Some("not_a_path_to_pdfium".to_string()),
@@ -515,6 +522,7 @@ mod tests {
 			new_toml_vals,
 			PartialStumpConfig {
 				profile: Some("release".to_string()),
+				ip: Some("0.0.0.0".to_string()),
 				port: Some(1337),
 				verbosity: Some(3),
 				pretty_logs: Some(true),
@@ -586,6 +594,7 @@ mod tests {
 					generated,
 					StumpConfig {
 						profile: "release".to_string(),
+						ip: "0.0.0.0".to_string(),
 						port: 1337,
 						verbosity: 2,
 						pretty_logs: true,
