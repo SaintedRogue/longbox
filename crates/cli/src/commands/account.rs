@@ -2,11 +2,14 @@ use std::{thread, time::Duration};
 
 use clap::Subcommand;
 use dialoguer::{theme::ColorfulTheme, Confirm, Input, Password};
-use models::entity::{
-	api_key, book_club_member, bookmark, favorite_library, favorite_media,
-	favorite_series, finished_reading_session, last_library_visit, library_exclusion,
-	media_annotation, reading_session, refresh_token, review, session, user,
-	user_login_activity, user_preferences,
+use models::{
+	entity::{
+		api_key, book_club_member, bookmark, favorite_library, favorite_media,
+		favorite_series, finished_reading_session, last_library_visit, library_exclusion,
+		media_annotation, reading_session, refresh_token, review, session, user,
+		user_login_activity, user_preferences,
+	},
+	shared::{enums::UserPermission, permission_set::PermissionSet},
 };
 use sea_orm::{
 	prelude::*, ActiveValue::Set, IntoActiveModel, QueryTrait, TransactionTrait,
@@ -44,8 +47,8 @@ pub enum Account {
 		#[clap(long)]
 		username: String,
 	},
-	/// Enter a flow to change the server owner to another account
-	ResetOwner,
+	/// Grant the ManageServer (admin) permission to an account
+	GrantAdmin,
 	/// Migrate a local user account to an OIDC account
 	MigrateOidc {
 		/// The username of the local account to migrate
@@ -72,7 +75,7 @@ pub async fn handle_account_command(
 		Account::ResetPassword { username } => {
 			reset_account_password(username, config.password_hash_cost, config).await
 		},
-		Account::ResetOwner => change_server_owner(config).await,
+		Account::GrantAdmin => grant_admin(config).await,
 		Account::MigrateOidc {
 			username,
 			oidc_email,
@@ -206,35 +209,48 @@ async fn print_accounts(locked: Option<bool>, config: &StumpConfig) -> CliResult
 	Ok(())
 }
 
-// TODO(permissions): rm this?
-async fn change_server_owner(config: &StumpConfig) -> CliResult<()> {
+async fn grant_admin(config: &StumpConfig) -> CliResult<()> {
 	let conn = connect(config).await?;
 
-	let all_accounts = models::entity::user::Entity::find()
+	let unlocked_accounts = user::Entity::find()
 		.filter(user::Column::IsLocked.eq(false))
 		.all(&conn)
 		.await?;
 
-	let current_server_owner = all_accounts
-		.iter()
-		.find(|user| user.is_server_owner)
-		.cloned();
-
 	let username = Input::new()
-		.with_prompt("Enter the username of the account to assign as server owner")
+		.with_prompt("Enter the username of the account to grant ManageServer to")
 		.allow_empty(false)
 		.validate_with(|input: &String| -> Result<(), &str> {
-			let existing_user = all_accounts.iter().find(|user| user.username == *input);
-			if existing_user.is_some() {
+			if unlocked_accounts.iter().any(|user| user.username == *input) {
 				Ok(())
 			} else {
-				Err("An account with that username does not exist or their account is locked")
+				Err("No unlocked account exists with that username")
 			}
 		})
 		.interact_text()?;
 
+	let target_user = unlocked_accounts
+		.into_iter()
+		.find(|user| user.username == username)
+		.ok_or(CliError::OperationFailed(
+			"Failed to reconcile users after validation".to_string(),
+		))?;
+
+	let existing_permissions =
+		PermissionSet::from(target_user.permissions.clone().unwrap_or_default());
+	if existing_permissions.contains(UserPermission::ManageServer) {
+		println!(
+			"'{}' already holds ManageServer (directly or transitively). Nothing to do.",
+			target_user.username
+		);
+		return Ok(());
+	}
+
 	let confirmation = Confirm::new()
-		.with_prompt("Are you sure you want to continue?")
+		.with_prompt(format!(
+			"Grant ManageServer (admin) to '{}'?",
+			target_user.username
+		))
 		.interact()?;
 
 	if !confirmation {
@@ -242,35 +258,17 @@ async fn change_server_owner(config: &StumpConfig) -> CliResult<()> {
 		return Ok(());
 	}
 
-	let target_user = all_accounts
-		.into_iter()
-		.find(|user| user.username == username)
-		.ok_or(CliError::OperationFailed(
-			"Failed to reconcile users after validation".to_string(),
-		))?;
-
 	let progress = default_progress_spinner();
-	if let Some(user) = current_server_owner {
-		progress.set_message(format!("Removing owner status from {}", user.username));
-		let mut active_model = user.into_active_model();
-		active_model.is_server_owner = Set(false);
-		let updated_user = active_model.update(&conn).await?;
+	progress.set_message(format!("Granting ManageServer to {}", target_user.username));
 
-		session::Entity::delete_many()
-			.filter(session::Column::UserId.eq(updated_user.id))
-			.exec(&conn)
-			.await?;
-	}
-
-	progress.set_message(format!("Setting owner status for {}", target_user.username));
+	let updated_permissions = existing_permissions
+		.with(UserPermission::ManageServer)
+		.resolve_into_string();
 	let mut active_model = target_user.into_active_model();
-	active_model.is_server_owner = Set(true);
-	let _updated_user = active_model.update(&conn).await?;
-	session::Entity::delete_many()
-		.filter(session::Column::UserId.eq(_updated_user.id))
-		.exec(&conn)
-		.await?;
-	progress.finish_with_message("Successfully changed the server owner!");
+	active_model.permissions = Set(updated_permissions);
+	active_model.update(&conn).await?;
+
+	progress.finish_with_message("Granted ManageServer successfully!");
 
 	Ok(())
 }
@@ -313,19 +311,30 @@ async fn migrate_oidc_account(
 
 	progress.finish_and_clear();
 
-	let mut is_server_owner = local_user.is_server_owner;
+	let local_perms =
+		PermissionSet::from(local_user.permissions.clone().unwrap_or_default());
+	let local_has_admin = local_perms.contains(UserPermission::ManageServer);
 
-	// i went back and forth a bit on whether to even handle this here, since there is a dedicated command for changing server ownership.
-	// ultimately i added it, but with extra confirmation
-	if local_user.is_server_owner {
-		is_server_owner = Confirm::new()
-            .with_prompt(format!(
-                "The local account '{}' is currently the server owner. Do you want to transfer server ownership to the OIDC account '{}' as part of this migration?",
-                local_user.username, oidc_user.username
-            ))
-            .default(false)
-            .interact()?;
-	}
+	// The OIDC user inherits the local user's permissions wholesale. If the local
+	// account holds ManageServer, confirm before transferring admin powers to the
+	// new identity (extra safeguard, since the local account is then deleted).
+	let transfer_admin = if local_has_admin {
+		Confirm::new()
+			.with_prompt(format!(
+				"The local account '{}' holds the ManageServer permission. Transfer admin powers to the OIDC account '{}' as part of this migration?",
+				local_user.username, oidc_user.username
+			))
+			.default(false)
+			.interact()?
+	} else {
+		false
+	};
+
+	let transferred_permissions = if local_has_admin && !transfer_admin {
+		local_perms.without(UserPermission::ManageServer)
+	} else {
+		local_perms
+	};
 
 	println!("\nMigration Summary:");
 	println!(
@@ -346,8 +355,8 @@ async fn migrate_oidc_account(
 		local_user.username
 	);
 	println!("  6. Delete local account '{}'", local_user.username);
-	if is_server_owner {
-		println!("  7. Transfer server ownership to OIDC account");
+	if local_has_admin && !transfer_admin {
+		println!("  7. Drop ManageServer (OIDC account will NOT be admin)");
 	}
 
 	let confirmation = Confirm::new()
@@ -369,7 +378,7 @@ async fn migrate_oidc_account(
 		oidc_user,
 		&conn,
 		|message| progress.set_message(message.to_string()),
-		is_server_owner,
+		transferred_permissions,
 	)
 	.await;
 
@@ -395,7 +404,7 @@ async fn do_migrate_oidc_account<F>(
 	oidc_user: user::Model,
 	conn: &DatabaseConnection,
 	post_message: F,
-	is_server_owner: bool,
+	transferred_permissions: PermissionSet,
 ) -> CliResult<()>
 where
 	F: Fn(&str),
@@ -589,9 +598,8 @@ where
 
 	let mut oidc_active = oidc_user_in_txn.into_active_model();
 	oidc_active.user_preferences_id = Set(local_user.user_preferences_id);
-	oidc_active.permissions = Set(local_user.permissions);
+	oidc_active.permissions = Set(transferred_permissions.resolve_into_string());
 	oidc_active.username = Set(local_user.username.clone());
-	oidc_active.is_server_owner = Set(is_server_owner);
 	oidc_active.update(&txn).await?;
 
 	post_message("Committing changes...");
@@ -614,8 +622,9 @@ mod tests {
 			api_key::APIKeyPermissions,
 			enums::{
 				FileStatus, LibraryPattern, LibraryViewMode, ReadingDirection,
-				ReadingImageScaleFit, ReadingMode,
+				ReadingImageScaleFit, ReadingMode, UserPermission,
 			},
+			permission_set::PermissionSet,
 			readium::ReadiumLocator,
 		},
 	};
@@ -970,7 +979,7 @@ mod tests {
 			oidc_user.clone(),
 			&db,
 			|_| {},
-			true,
+			PermissionSet::new(vec![UserPermission::ManageServer]),
 		)
 		.await;
 
@@ -1000,8 +1009,11 @@ mod tests {
 			"OIDC user should have local user's preferences"
 		);
 		assert!(
-			updated_oidc_user.is_server_owner,
-			"OIDC user should be server owner"
+			updated_oidc_user
+				.permissions
+				.as_deref()
+				.is_some_and(|s| s.split(',').any(|p| p.trim() == "MANAGE_SERVER")),
+			"OIDC user should hold ManageServer (transferred from local user)"
 		);
 
 		if let Some(prefs_id) = updated_oidc_user.user_preferences_id {

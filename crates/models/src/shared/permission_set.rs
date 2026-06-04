@@ -19,6 +19,34 @@ impl PermissionSet {
 		PermissionSet(permissions)
 	}
 
+	/// Returns true iff the target permission would be effectively granted to a user
+	/// holding this set — directly granted, or reachable transitively via associations.
+	pub fn contains(&self, target: UserPermission) -> bool {
+		PermissionSet::new(self.0.clone())
+			.resolve_into_vec()
+			.contains(&target)
+	}
+
+	/// Returns a new PermissionSet with the target permission added to the explicit
+	/// grants (no-op if it's already an explicit grant; a transitively-reachable
+	/// permission is still added as an explicit grant when requested).
+	pub fn with(mut self, target: UserPermission) -> PermissionSet {
+		if !self.0.contains(&target) {
+			self.0.push(target);
+		}
+		self
+	}
+
+	/// Returns a new PermissionSet with the target permission stripped from the
+	/// explicit grants (no-op if absent). Does NOT strip transitive grants — if the
+	/// set holds an upstream permission whose associations include the target, the
+	/// target is still reachable via `contains` after this call. To revoke a
+	/// transitively-granted permission, remove the upstream grant instead.
+	pub fn without(mut self, target: UserPermission) -> PermissionSet {
+		self.0.retain(|p| *p != target);
+		self
+	}
+
 	/// Unwrap the underlying Vec<UserPermission> and include any associated permissions,
 	/// recursively, so that callers see the transitive closure of granted permissions.
 	pub fn resolve_into_vec(self) -> Vec<UserPermission> {
@@ -171,4 +199,44 @@ pub fn permissions_satisfy_all(
 	required
 		.iter()
 		.all(|target| permissions_satisfy(granted, *target))
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn test_contains_resolves_associated_permissions() {
+		// ManageUsers transitively grants CreateUser via associations.
+		let set = PermissionSet::new(vec![UserPermission::ManageUsers]);
+		assert!(set.contains(UserPermission::ManageUsers));
+		assert!(set.contains(UserPermission::CreateUser));
+		assert!(!set.contains(UserPermission::AccessKoboSync));
+	}
+
+	#[test]
+	fn test_with_adds_and_is_idempotent_on_explicit_grant() {
+		let set = PermissionSet::new(vec![UserPermission::AccessAPIKeys]);
+		let extended = set.with(UserPermission::ManageServer);
+		assert!(extended.contains(UserPermission::ManageServer));
+		assert!(extended.contains(UserPermission::AccessAPIKeys));
+
+		// Idempotent: adding an already-present explicit grant does not duplicate it.
+		let extended_again = extended.with(UserPermission::ManageServer);
+		assert!(extended_again.contains(UserPermission::ManageServer));
+	}
+
+	#[test]
+	fn test_without_strips_explicit_grant_only() {
+		let set = PermissionSet::new(vec![
+			UserPermission::ManageUsers,
+			UserPermission::AccessAPIKeys,
+		]);
+		let pruned = set.without(UserPermission::ManageUsers);
+		assert!(!pruned.contains(UserPermission::ManageUsers));
+		// CreateUser was reachable transitively via ManageUsers; with ManageUsers
+		// stripped, it's no longer reachable.
+		assert!(!pruned.contains(UserPermission::CreateUser));
+		assert!(pruned.contains(UserPermission::AccessAPIKeys));
+	}
 }
