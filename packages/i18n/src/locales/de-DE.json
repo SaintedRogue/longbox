@@ -453,6 +453,10 @@
 				"update": "Nach jeder Veränderung scannen"
 			},
 			"description": "Indiziere die Bibliotheksdateien, um die Datenbank auszufüllen"
+		},
+		"errors": {
+			"failedToUpdate": "Failed to update library",
+			"failedToScan": "Failed to scan library"
 		}
 	},
 	"createLibraryScene": {
@@ -1011,7 +1015,8 @@
 									"pages": "Seiten",
 									"tags": "Tags",
 									"createdAt": "Erstellt am",
-									"updatedAt": "Aktualisiert am"
+									"updatedAt": "Aktualisiert am",
+									"readingStatus": "Lesestatus"
 								}
 							},
 							"book_meta": {
@@ -1088,6 +1093,13 @@
 					"listValue": {
 						"placeholder": "Werte hinzufügen",
 						"emptyState": "Keine Werte zum Anzeigen vorhanden"
+					},
+					"enumValue": {
+						"selectPlaceholder": "Wert auswählen",
+						"READING": "Lesen",
+						"FINISHED": "Beendet",
+						"NOT_STARTED": "Nicht begonnen",
+						"ABANDONED": "Abgebrochen"
 					}
 				}
 			}
@@ -1408,6 +1420,14 @@
 					"label": "Design und Erscheinung",
 					"description": "Die grundlegenden Erscheinungseinstellungen für Stump"
 				},
+				"interface": {
+					"title": "Oberfläche",
+					"description": "Primäre Benutzeroberfläche und Interaktionselemente"
+				},
+				"thumbnails": {
+					"title": "Vorschaubilder",
+					"description": "Anzeigeoptionen für Vorschaubilder"
+				},
 				"themeSelect": {
 					"label": "Design",
 					"description": [
@@ -1450,6 +1470,10 @@
 						"thumbhash": "Thumbhash"
 					}
 				},
+				"navigation": {
+					"title": "Navigation",
+					"description": "Passe die Navigationselemente der App an"
+				},
 				"layoutAndArrangement": {
 					"label": "Layout und Anordnung",
 					"description": "Passe an wie Stump Informationen anzeigt und Inhalte organisiert"
@@ -1465,11 +1489,11 @@
 				},
 				"doubleSidebar": {
 					"label": "Seitenleisteneinstellungen",
-					"description": "Aktiviert die Seitenleisten-Navigation für die Einstellungsseiten. Falls du häufig einen kleineren Bildschirm verwendest, sollten du dies vielleicht deaktivieren."
+					"description": "Aktiviert die Seitenleistennavigation für die Einstellungsseiten"
 				},
 				"replacePrimarySidebar": {
 					"label": "Primäre Seitenleiste ersetzen",
-					"description": "Jede Instanz einer sekundären Seitenleiste ersetzt die primäre Seitenleiste, anstatt neben dieser angezeigt zu werden",
+					"description": "Jede Instanz einer sekundären Seitenleiste ersetzt die primäre Seitenleiste, anstatt diese nebeneinander zu stapeln",
 					"tooltips": {
 						"doubleSidebar": "Diese Einstellung erfordert die Seitenleisteneinstellungen aktiviert zu sein",
 						"topbar": "Diese Einstellung ist derzeit nicht unterstützt, wenn die primäre Navigation auf Topleiste eingestellt ist"
@@ -1477,10 +1501,7 @@
 				},
 				"navigationArrangement": {
 					"label": "Navigationsanordnung",
-					"description": {
-						"sidebar": "Navigationselemente in der Seitenleiste anordnen und anpassen",
-						"topbar": "Navigationselemente in der oberen Leiste anordnen und anpassen"
-					},
+					"description": "Navigationselemente in deiner primären Navigation neu anordnen oder anpassen",
 					"isLocked": "Anordnung ist gesperrt",
 					"lock": "Anordnung sperren",
 					"unlock": "Anordnung entsperren",
@@ -1558,6 +1579,14 @@
 				"enableJobOverlayToggle": {
 					"label": "Job Overlay",
 					"description": "Zeige ein schwebendes Overlay, während ein Job läuft"
+				},
+				"dayResetHourOffset": {
+					"label": "Reading day reset offset",
+					"description": "Shift when a reading day resets, in hours from midnight"
+				},
+				"readingSessionGracePeriod": {
+					"label": "Reading session grace period",
+					"description": "If no activity is detected within this time frame, in seconds, the next update will start a new session"
 				}
 			}
 		},
@@ -2830,6 +2859,9 @@
 			"value": "Wert",
 			"version": "Version"
 		},
+		"errors": {
+			"unknown": "Unknown error"
+		},
 		"formatSeriesPosition": {
 			"none": {
 				"positionWithTotal": "{{position}} von {{total}} in {{seriesName}}",
@@ -2923,6 +2955,14 @@
 				"dismissAll": "Alle verwerfen"
 			}
 		},
+		"progressSync": {
+			"skippedSync": {
+				"skippedOneServer": "Sync skipped for {{skippedCount}} server",
+				"skippedMultipleServers": "Sync skipped for {{skippedCount}} servers",
+				"explanation": "Some servers use authentication methods that cannot be automatically refreshed"
+			},
+			"syncFailed": "Failed to sync offline progress"
+		},
 		"settings": {
 			"preferences": {
 				"label": "Präferenzen",
@@ -2969,6 +3009,7 @@
 			},
 			"autoSyncLocalData": "Lokale Daten automatisch synchronisieren",
 			"lowercaseTranslation": "Kleinbuchstaben-Labels",
+			"tintListBackground": "Tint List Backgrounds",
 			"management": {
 				"label": "Verwaltung",
 				"dataUsage": {
@@ -3088,7 +3129,7 @@
 			},
 			"allowDownscaling": "Herabskalieren",
 			"tapSidesToNavigate": "Seiten zum Navigieren antippen",
-			"volumeButtonsNavigate": "Volume Buttons Navigate",
+			"volumeButtonsNavigate": "Lautstärketastennavigation",
 			"footerControls": {
 				"label": "Footer",
 				"options": {
@@ -3142,7 +3183,7 @@
 				}
 			},
 			"publisherStyles": "Verlagsstil",
-			"volumeButtonsNavigate": "Volume Buttons Navigate",
+			"volumeButtonsNavigate": "Lautstärketastennavigation",
 			"textAlignment": {
 				"label": "Textausrichtung",
 				"options": {

@@ -453,6 +453,10 @@
 				"update": "更新后扫描"
 			},
 			"description": "索引书库文件以填充你的数据库"
+		},
+		"errors": {
+			"failedToUpdate": "Failed to update library",
+			"failedToScan": "Failed to scan library"
 		}
 	},
 	"createLibraryScene": {
@@ -1011,7 +1015,8 @@
 									"pages": "页数",
 									"tags": "标签",
 									"createdAt": "创建时间",
-									"updatedAt": "更新时间"
+									"updatedAt": "更新时间",
+									"readingStatus": "Reading status"
 								}
 							},
 							"book_meta": {
@@ -1088,6 +1093,13 @@
 					"listValue": {
 						"placeholder": "添加值",
 						"emptyState": "没有可显示的值"
+					},
+					"enumValue": {
+						"selectPlaceholder": "Select value",
+						"READING": "Reading",
+						"FINISHED": "Finished",
+						"NOT_STARTED": "Not started",
+						"ABANDONED": "Abandoned"
 					}
 				}
 			}
@@ -1408,6 +1420,14 @@
 					"label": "主题和外观",
 					"description": "Stump 的基本外观和风格选项"
 				},
+				"interface": {
+					"title": "Interface",
+					"description": "Primary UI surfaces and interaction elements"
+				},
+				"thumbnails": {
+					"title": "Thumbnails",
+					"description": "Display options for thumbnail images"
+				},
 				"themeSelect": {
 					"label": "主题",
 					"description": [
@@ -1450,6 +1470,10 @@
 						"thumbhash": "缩略图哈希"
 					}
 				},
+				"navigation": {
+					"title": "Navigation",
+					"description": "Customize the navigation elements of the app"
+				},
 				"layoutAndArrangement": {
 					"label": "布局和安排",
 					"description": "自定义Stump 如何显示信息和组织内容"
@@ -1465,11 +1489,11 @@
 				},
 				"doubleSidebar": {
 					"label": "设置边栏",
-					"description": "为设置页面启用侧边栏导航。如果您经常使用一个较小的屏幕，您可能希望禁用它。"
+					"description": "Enables sidebar navigation for the settings pages"
 				},
 				"replacePrimarySidebar": {
 					"label": "替换主侧边栏",
-					"description": "任何次要侧边栏的实例都将取代主侧边栏，而不是在它旁边显示",
+					"description": "Any instance of a secondary sidebar will replace the primary sidebar instead of stacking them",
 					"tooltips": {
 						"doubleSidebar": "此设置需要启用侧边栏",
 						"topbar": "当主导航设置为顶部栏时，当前不支持此设置"
@@ -1477,10 +1501,7 @@
 				},
 				"navigationArrangement": {
 					"label": "导航排列",
-					"description": {
-						"sidebar": "在侧边栏中排列和自定义导航项",
-						"topbar": "在顶部栏中排列和自定义导航项"
-					},
+					"description": "Rearrange or tweak the navigation items in your primary navigation",
 					"isLocked": "排列已锁定",
 					"lock": "锁定排列",
 					"unlock": "解锁排列",
@@ -1558,6 +1579,14 @@
 				"enableJobOverlayToggle": {
 					"label": "作业叠加",
 					"description": "当作业运行时显示浮动叠加层"
+				},
+				"dayResetHourOffset": {
+					"label": "Reading day reset offset",
+					"description": "Shift when a reading day resets, in hours from midnight"
+				},
+				"readingSessionGracePeriod": {
+					"label": "Reading session grace period",
+					"description": "If no activity is detected within this time frame, in seconds, the next update will start a new session"
 				}
 			}
 		},
@@ -2830,6 +2859,9 @@
 			"value": "值",
 			"version": "版本"
 		},
+		"errors": {
+			"unknown": "Unknown error"
+		},
 		"formatSeriesPosition": {
 			"none": {
 				"positionWithTotal": "{{position}} of {{total}} in {{seriesName}}",
@@ -2923,6 +2955,14 @@
 				"dismissAll": "全部忽略"
 			}
 		},
+		"progressSync": {
+			"skippedSync": {
+				"skippedOneServer": "Sync skipped for {{skippedCount}} server",
+				"skippedMultipleServers": "Sync skipped for {{skippedCount}} servers",
+				"explanation": "Some servers use authentication methods that cannot be automatically refreshed"
+			},
+			"syncFailed": "Failed to sync offline progress"
+		},
 		"settings": {
 			"preferences": {
 				"label": "首选项",
@@ -2969,6 +3009,7 @@
 			},
 			"autoSyncLocalData": "自动同步本地数据",
 			"lowercaseTranslation": "Lowercase Labels",
+			"tintListBackground": "Tint List Backgrounds",
 			"management": {
 				"label": "管理",
 				"dataUsage": {
