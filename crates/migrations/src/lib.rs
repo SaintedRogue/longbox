@@ -25,6 +25,7 @@ mod m20260505_231341_jwt_secrets;
 mod m20260519_192218_reading_sessions_v2;
 mod m20260523_220757_rename_registered_reading_devices;
 mod m20260525_165704_roundness_preference;
+mod m20260612_184203_user_series_state;
 
 pub struct Migrator;
 
@@ -48,14 +49,15 @@ impl MigratorTrait for Migrator {
 			Box::new(m20260128_000000_add_library_type::Migration),
 			Box::new(m20260207_000000_metadata_provider_integration::Migration),
 			Box::new(m20260220_000000_user_avatar_path::Migration),
-			Box::new(m20260311_000000_scheduled_jobs_redesign::Migration),
 			Box::new(m20260307_000000_library_skip_book_overview::Migration),
+			Box::new(m20260311_000000_scheduled_jobs_redesign::Migration),
 			Box::new(m20260404_185829_add_name_indexes::Migration),
 			Box::new(m20260406_000000_add_kobo_sync_sessions::Migration),
 			Box::new(m20260505_231341_jwt_secrets::Migration),
 			Box::new(m20260519_192218_reading_sessions_v2::Migration),
 			Box::new(m20260523_220757_rename_registered_reading_devices::Migration),
 			Box::new(m20260525_165704_roundness_preference::Migration),
+			Box::new(m20260612_184203_user_series_state::Migration),
 		]
 	}
 }
