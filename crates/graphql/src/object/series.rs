@@ -5,7 +5,10 @@ use async_graphql::{
 };
 
 use models::{
-	entity::{library, media, reading_session, series, series_tag, tag},
+	entity::{
+		library, media, reading_session, series, series_tag, tag, user_series_state,
+	},
+	services::series_state,
 	shared::{
 		alphabet::{AvailableAlphabet, EntityLetter},
 		enums::ReadingStatus,
@@ -330,6 +333,7 @@ impl Series {
 		})
 	}
 
+	/// Get the stats for this series, scoped to current user by default
 	async fn stats(
 		&self,
 		ctx: &Context<'_>,
@@ -347,6 +351,19 @@ impl Series {
 		.await?;
 
 		Ok(stats)
+	}
+
+	/// Get the on-deck/re-read state for this series for the current user, if it exists
+	async fn user_series_state(
+		&self,
+		ctx: &Context<'_>,
+	) -> Result<Option<user_series_state::Model>> {
+		let AuthContext { user, .. } = ctx.data::<AuthContext>()?;
+		let conn = ctx.data::<CoreContext>()?.conn.as_ref();
+
+		let state = series_state::get(conn, &user.id, &self.model.id).await?;
+
+		Ok(state)
 	}
 }
 

@@ -1944,6 +1944,23 @@ type Mutation {
 	"""
 	updateSeriesThumbnail(id: ID!, input: UpdateThumbnailInput!): Series!
 	scanSeries(id: ID!): Boolean!
+	"""
+	exclude the series from on deck recommendations, except for books added to the series after
+	dropping
+	"""
+	dropSeries(id: ID!): UserSeriesState!
+	"un-drop a series, which will cause it to be included in on deck recommendations per normal logic"
+	undropSeries(id: ID!): UserSeriesState!
+	"""
+	set the intent to stop the current readthrough, effectively a pause. on deck will stop
+	showing books in the current readthrough and instead only show unread books
+	"""
+	stopSeriesReread(id: ID!): UserSeriesState!
+	"""
+	restore the intent to read through the series, effectively a resume of the highest
+	readthrough
+	"""
+	resumeSeriesReread(id: ID!): UserSeriesState!
 	"Create a bookmark for a user"
 	createBookmark(input: BookmarkInput!): Bookmark!
 	"Delete a bookmark by ID, only if the user created it"
@@ -2831,6 +2848,8 @@ type Series {
 	"""
 	thumbnail: ImageRef!
 	stats(allUsers: Boolean): SeriesStats!
+	"Get the readthrough state for this series for the current user, if it exists"
+	userReadthroughState: UserSeriesState
 }
 
 input SeriesFilterInput {
@@ -3611,6 +3630,23 @@ type UserPreferences {
 	userId: String
 	homeArrangement: Arrangement!
 	navigationArrangement: Arrangement!
+}
+
+type UserSeriesState {
+	seriesId: String!
+	"""
+	the readthrough number at which this series was dropped, so that we can
+	revert back to "first book beyond highest position ever read" logic for
+	the recommendations query instead of "next book in current re-read"
+	"""
+	stoppedReadthrough: Int
+	"""
+	when set, the books in the series will be excluded from on-deck recommentations
+	if the timestamp is after the ingestion time into stump
+	"""
+	droppedAt: DateTime
+	createdAt: DateTime!
+	updatedAt: DateTime
 }
 
 "Marks an element of a GraphQL schema as no longer supported."
