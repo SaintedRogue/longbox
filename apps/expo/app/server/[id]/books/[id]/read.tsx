@@ -13,7 +13,7 @@ import { useLiveQuery } from 'drizzle-orm/expo-sqlite'
 import { useKeepAwake } from 'expo-keep-awake'
 import * as NavigationBar from 'expo-navigation-bar'
 import { useLocalSearchParams } from 'expo-router'
-import { useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 
 import { useActiveServer } from '~/components/activeServer'
 import {
@@ -26,7 +26,6 @@ import { NextInSeriesBookRef } from '~/components/book/reader/image/context'
 import { db, downloadedFiles } from '~/db'
 import { booksDirectory } from '~/lib/filesystem'
 import {
-	useAppState,
 	useSyncOnlineToOfflineAnnotations,
 	useSyncOnlineToOfflineBookmarks,
 	useSyncOnlineToOfflineProgress,
@@ -304,10 +303,14 @@ export default function Screen() {
 	const {
 		preferences: { trackElapsedTime },
 	} = useBookPreferences({ book })
-	const { pause, resume, totalSeconds, isRunning, reset } = useBookTimer(book?.id || '', {
+	const timer = useBookTimer(book?.id || '', {
 		initial: book?.readProgress?.elapsedSeconds,
 		enabled: trackElapsedTime,
 	})
+
+	// tracks the elapsed total at the time of the last successful sync so we can
+	// send a delta
+	const lastSyncedElapsedRef = useRef(book?.readProgress?.elapsedSeconds ?? 0)
 
 	const { syncProgress } = useSyncOnlineToOfflineProgress({ bookId: book.id, serverId })
 
@@ -317,27 +320,34 @@ export default function Screen() {
 		onError: (error) => {
 			console.error('Failed to update read progress:', error)
 		},
-		// TODO: Consider a preference to disable online-to-offline sync?
-		onSuccess: (_, { input: onlineProgress }) => syncProgress(onlineProgress),
+		onSuccess: (_, { input: onlineProgress }) => {
+			lastSyncedElapsedRef.current = timer.getCurrentTime()
+			// TODO: Consider a preference to disable online-to-offline sync?
+			syncProgress(onlineProgress)
+		},
 	})
 
 	const onPageChanged = useCallback(
 		(page: number) => {
+			const totalSeconds = timer.getCurrentTime()
+			const delta = Math.max(0, totalSeconds - lastSyncedElapsedRef.current)
 			updateProgress({
 				id: book.id,
 				input: {
 					paged: {
 						page,
-						elapsedSeconds: totalSeconds,
+						elapsedSecondsDelta: delta > 0 ? delta : undefined,
 					},
 				},
 			})
 		},
-		[book.id, totalSeconds, updateProgress],
+		[book.id, timer, updateProgress],
 	)
 
 	const onLocationChanged = useCallback(
 		(locator: ReadiumLocator, percentage: number) => {
+			const totalSeconds = timer.getCurrentTime()
+			const delta = Math.max(0, totalSeconds - lastSyncedElapsedRef.current)
 			updateProgress({
 				id: book.id,
 				input: {
@@ -352,18 +362,20 @@ export default function Screen() {
 								type: locator.type || 'application/xhtml+xml',
 							},
 						},
-						elapsedSeconds: totalSeconds,
+						elapsedSecondsDelta: delta > 0 ? delta : undefined,
 						percentage,
-						isComplete: percentage >= 0.99,
+						isComplete: false,
 					},
 				},
 			})
 		},
-		[book.id, totalSeconds, updateProgress],
+		[book.id, timer, updateProgress],
 	)
 
 	const onReachedEnd = useCallback(
 		(locator: ReadiumLocator) => {
+			const totalSeconds = timer.getCurrentTime()
+			const delta = Math.max(0, totalSeconds - lastSyncedElapsedRef.current)
 			updateProgress({
 				id: book.id,
 				input: {
@@ -378,13 +390,13 @@ export default function Screen() {
 								type: locator.type || 'application/xhtml+xml',
 							},
 						},
-						elapsedSeconds: totalSeconds,
+						elapsedSecondsDelta: delta > 0 ? delta : undefined,
 						isComplete: true,
 					},
 				},
 			})
 		},
-		[book.id, totalSeconds, updateProgress],
+		[book.id, timer, updateProgress],
 	)
 
 	const { syncCreate: syncBookmarkCreate, syncDelete: syncBookmarkDelete } =
@@ -544,29 +556,6 @@ export default function Screen() {
 		}
 	}, [setShowControls])
 
-	const onFocusedChanged = useCallback(
-		(focused: boolean) => {
-			if (!focused) {
-				pause()
-			} else if (focused) {
-				resume()
-			}
-		},
-		[pause, resume],
-	)
-
-	const appState = useAppState({
-		onStateChanged: onFocusedChanged,
-	})
-	const showControls = useReaderStore((state) => state.showControls)
-	useEffect(() => {
-		if ((showControls && isRunning) || appState !== 'active') {
-			pause()
-		} else if (!showControls && !isRunning && appState === 'active') {
-			resume()
-		}
-	}, [showControls, pause, resume, isRunning, appState])
-
 	/**
 	 * Invalidate the book query when a reader is unmounted so that the book overview
 	 * is updated with the latest read progress
@@ -609,6 +598,7 @@ export default function Screen() {
 		return (
 			<ReadiumReader
 				book={book}
+				timer={timer}
 				initialLocator={initialLocator ? intoReadiumLocator(initialLocator) : undefined}
 				onLocationChanged={onLocationChanged}
 				onReachedEnd={onReachedEnd}
@@ -630,7 +620,7 @@ export default function Screen() {
 				onPageChanged={onPageChanged}
 				serverId={serverId}
 				// incognito
-				resetTimer={reset}
+				timer={timer}
 			/>
 		)
 	} else if (book.extension.match(ARCHIVE_EXTENSION) || book.extension.match(PDF_EXTENSION)) {
@@ -640,7 +630,7 @@ export default function Screen() {
 				book={book}
 				pageURL={(page: number) => sdk.media.bookPageURL(book.id, page)}
 				onPageChanged={onPageChanged}
-				resetTimer={reset}
+				timer={timer}
 				nextInSeries={nextInSeries}
 				serverId={serverId}
 				requestHeaders={requestHeaders}

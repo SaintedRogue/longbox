@@ -3,7 +3,7 @@ import { useRef } from 'react'
 import { Platform } from 'react-native'
 
 import BackLink from '~/components/BackLink'
-import { IS_IOS_24_PLUS } from '~/lib/constants'
+import { IS_IOS_26_PLUS } from '~/lib/constants'
 import { usePreferencesStore } from '~/stores'
 import { createSeriesFilterStore, SeriesFilterContext } from '~/stores/filters'
 
@@ -31,8 +31,7 @@ export default function Screen() {
 						headerLargeTitleStyle: {
 							fontSize: 30,
 						},
-						headerLargeTitle: Platform.OS === 'ios',
-						headerBlurEffect: IS_IOS_24_PLUS ? undefined : 'regular',
+						headerBlurEffect: IS_IOS_26_PLUS ? undefined : 'regular',
 						animation: animationEnabled ? 'default' : 'none',
 						headerLeft: Platform.OS === 'android' ? undefined : () => <BackLink />,
 					}}
@@ -44,7 +43,7 @@ export default function Screen() {
 						headerShown: true,
 						headerTitle: '',
 						headerTransparent: Platform.OS === 'ios',
-						headerBlurEffect: IS_IOS_24_PLUS ? undefined : 'regular',
+						headerBlurEffect: IS_IOS_26_PLUS ? undefined : 'regular',
 						animation: animationEnabled ? 'default' : 'none',
 					}}
 				/>

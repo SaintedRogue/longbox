@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use super::env_keys::*;
 
-const REQUIRED_SCOPES: &str = "openid,email";
+const REQUIRED_SCOPES: &str = "email";
 
 // TODO(permissions): i am not sure how to go about claims and permissions, or at the very least i am not sure what is standard. i figure there are really two routes:
 // 1. provider supplies all permissions in a claim and we just reconcile with that

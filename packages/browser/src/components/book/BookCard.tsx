@@ -1,6 +1,6 @@
+import { getThumbnailTintColor } from '@stump/client'
 import { cn, ProgressBar, Text } from '@stump/components'
 import { FragmentType, graphql, useFragment } from '@stump/graphql'
-import { getColor, serialize, set } from 'colorjs.io/fn'
 import pluralize from 'pluralize'
 import { memo, useCallback, useMemo } from 'react'
 
@@ -132,7 +132,7 @@ const BookCard = memo(function BookCard({
 	const renderSubtitle = () => {
 		if (isMissing) {
 			return (
-				<Text size="xs" className="text-amber-500 uppercase">
+				<Text size="xs" className="text-warning uppercase">
 					File Missing
 				</Text>
 			)
@@ -174,12 +174,7 @@ const BookCard = memo(function BookCard({
 	const thumbnailAverageColor = placeholderData?.averageColor
 	const backgroundColor = useMemo(() => {
 		if (thumbnailAverageColor) {
-			const color = getColor(thumbnailAverageColor)
-			set(color, {
-				'oklch.l': isDarkVariant ? 0.35 : 0.9,
-				'oklch.c': 0.04,
-			})
-			return serialize(color, { format: 'hex' })
+			return getThumbnailTintColor(thumbnailAverageColor, { dark: isDarkVariant })
 		}
 		return (
 			getThemeColor('thumbnail.stack.series') ??
@@ -195,14 +190,14 @@ const BookCard = memo(function BookCard({
 			onMouseEnter={prefetch}
 			className={cn(
 				'group gap-1 relative flex flex-col',
-				'rounded-lg p-1 border border-transparent transition-colors duration-100',
+				'p-1 rounded-lg border border-transparent transition-colors duration-100',
 				'focus-visible:outline-none',
 				fullWidth ? 'w-full' : 'w-40 sm:w-[10.666rem] md:w-48 shrink-0',
 			)}
 		>
 			<div
 				className={cn(
-					'-inset-0.5 rounded-lg absolute -z-10',
+					'-inset-0.5 absolute -z-10 rounded-lg',
 					'scale-95 opacity-0 duration-100',
 					'group-hover:scale-100 group-hover:opacity-100',
 					'group-focus-visible:scale-100 group-focus-visible:opacity-100',

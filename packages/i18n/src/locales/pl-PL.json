@@ -453,6 +453,10 @@
 				"update": "Skanuj po aktualizacjach"
 			},
 			"description": "Indeksuj pliki biblioteki, aby wypełnić bazę danych"
+		},
+		"errors": {
+			"failedToUpdate": "Failed to update library",
+			"failedToScan": "Failed to scan library"
 		}
 	},
 	"createLibraryScene": {
@@ -935,12 +939,12 @@
 						"description": "Dostępna dla wszystkich użytkowników na serwerze"
 					},
 					"shared": {
-						"label": "Współdzielone",
+						"label": "Współdzielona",
 						"description": "Określeni użytkownicy mogą uzyskać dostęp do tej inteligentnej listy",
 						"createDisclaimer": "Możesz wybrać, z kim ta lista jest udostępniona po jej utworzeniu"
 					},
 					"private": {
-						"label": "Prywatne",
+						"label": "Prywatna",
 						"description": "Tylko Ty możesz uzyskać dostęp do tej inteligentnej listy"
 					}
 				}
@@ -1011,7 +1015,8 @@
 									"pages": "Strony",
 									"tags": "Etykiety",
 									"createdAt": "Utworzono",
-									"updatedAt": "Zaktualizowano"
+									"updatedAt": "Zaktualizowano",
+									"readingStatus": "Status czytania"
 								}
 							},
 							"book_meta": {
@@ -1088,6 +1093,13 @@
 					"listValue": {
 						"placeholder": "Dodaj wartości",
 						"emptyState": "Brak wartości do wyświetlenia"
+					},
+					"enumValue": {
+						"selectPlaceholder": "Wybierz wartość",
+						"READING": "Czytane",
+						"FINISHED": "Ukończone",
+						"NOT_STARTED": "Nierozpoczęte",
+						"ABANDONED": "Porzucone"
 					}
 				}
 			}
@@ -1408,6 +1420,14 @@
 					"label": "Motyw i wygląd",
 					"description": "Podstawowe opcje wyglądu Stump"
 				},
+				"interface": {
+					"title": "Interfejs",
+					"description": "Podstawowe powierzchnie interfejsu i elementy interakcji"
+				},
+				"thumbnails": {
+					"title": "Miniatury",
+					"description": "Opcje wyświetlania miniatur obrazów"
+				},
 				"themeSelect": {
 					"label": "Motyw",
 					"description": [
@@ -1450,6 +1470,10 @@
 						"thumbhash": "Thumbhash"
 					}
 				},
+				"navigation": {
+					"title": "Nawigacja",
+					"description": "Dostosuj elementy nawigacyjne aplikacji"
+				},
 				"layoutAndArrangement": {
 					"label": "Układ i aranżacja",
 					"description": "Dostosuj jak Stump wyświetla informacje i organizuje zawartość"
@@ -1465,7 +1489,7 @@
 				},
 				"doubleSidebar": {
 					"label": "Panel boczny ustawień",
-					"description": "Włącza nawigację na panelu bocznym dla stron ustawień. Jeśli często używasz mniejszego ekranu, możesz chcieć to wyłączyć."
+					"description": "Umożliwia nawigację z użyciem paska bocznego dla stron ustawień"
 				},
 				"replacePrimarySidebar": {
 					"label": "Zastąp główny panel boczny",
@@ -1477,10 +1501,7 @@
 				},
 				"navigationArrangement": {
 					"label": "Układ nawigacji",
-					"description": {
-						"sidebar": "Uporządkuj i dostosuj elementy nawigacji na pasku bocznym",
-						"topbar": "Uporządkuj i dostosuj elementy nawigacji na górnym pasku"
-					},
+					"description": "Zmień kolejność lub dostosuj elementy nawigacyjne w głównej nawigacji",
 					"isLocked": "Układ jest zablokowany",
 					"lock": "Zablokuj układ",
 					"unlock": "Odblokuj układ",
@@ -1558,6 +1579,14 @@
 				"enableJobOverlayToggle": {
 					"label": "Nakładka zadań",
 					"description": "Pokaż pływającą nakładkę, gdy wykonywane jest zadanie"
+				},
+				"dayResetHourOffset": {
+					"label": "Przesunięcie resetu dnia czytania",
+					"description": "Przesuń czas, w jakim resetuje się dzień czytania, w godzinach od północy"
+				},
+				"readingSessionGracePeriod": {
+					"label": "Okres karencji sesji czytania",
+					"description": "W przypadku braku aktywności w tym przedziale czasowym, w sekundach, następna aktualizacja rozpocznie nową sesję"
 				}
 			}
 		},
@@ -2310,7 +2339,13 @@
 			"providerForm": {
 				"apiToken": {
 					"label": "Token API",
-					"description": "Token API do uwierzytelniania z tym dostawcą"
+					"description": "Token API do uwierzytelniania z tym dostawcą",
+					"validationError": "Automatyczna walidacja dla tego tokenu zakończyła się niepowodzeniem",
+					"validationRequestError": "Żądanie walidacji zakończyło się niepowodzeniem",
+					"validationRequestErrorUnknown": "Żądanie walidacji napotkało na nieznany błąd",
+					"hardcoverStatusError": "API Hardcover odpowiedziało statusem {{status}}",
+					"hardcoverValidationError": "API Hardcover odpowiedziało błedem: {{message}}",
+					"noBearerPrefixRequired": "Usuń przedrostek 'Bearer ' z tokenu API"
 				},
 				"apiTokenExpiresAt": {
 					"label": "Ważność tokenu",
@@ -2784,12 +2819,13 @@
 			"year": "Rok"
 		},
 		"common": {
+			"book": "Książka",
 			"cancel": "Anuluj",
 			"chapter": "Rozdział",
 			"clear": "Wyczyść",
-			"completed": "Completed",
+			"completed": "Ukończone",
 			"confirm": "Potwierdź",
-			"content": "Content",
+			"content": "Zawartość",
 			"details": "Szczegóły",
 			"delete": "Usuń",
 			"downloads": "Pobrane",
@@ -2797,9 +2833,9 @@
 			"enabled": "Aktywne",
 			"enable": "Aktywuj",
 			"error": "Błąd",
-			"grid": "Grid",
-			"list": "List",
-			"lastCompleted": "Last Completed",
+			"grid": "Siatka",
+			"list": "Lista",
+			"lastCompleted": "Ostatnio ukończone",
 			"name": "Nazwa",
 			"none": "Brak",
 			"options": "Ustawienia",
@@ -2807,6 +2843,7 @@
 			"pages": "Strony",
 			"password": "Hasło",
 			"progress": "Postęp",
+			"publication": "Publikacja",
 			"readTime": "Czas czytania",
 			"readMore": "Dowiedz się więcej",
 			"save": "Zapisz",
@@ -2821,6 +2858,24 @@
 			"username": "Nazwa użytkownika",
 			"value": "Wartość",
 			"version": "Wersja"
+		},
+		"errors": {
+			"unknown": "Unknown error"
+		},
+		"formatSeriesPosition": {
+			"none": {
+				"positionWithTotal": "{{position}} z {{total}} w {{seriesName}}",
+				"position": "{{position}} w {{seriesName}}"
+			},
+			"book": {
+				"positionWithTotal": "{{position}} książka z {{total}} w {{seriesName}}",
+				"position": "{{position}} książka w {{seriesName}}"
+			},
+			"hashtag": {
+				"positionWithTotal": "#{{position}} z {{total}} w {{seriesName}}",
+				"position": "#{{position}} w {{seriesName}}"
+			},
+			"unknownSeriesName": "seria"
 		},
 		"emptyState": {
 			"noStumpServers": "Nie dodano żadnych serwerów Stump",
@@ -2900,6 +2955,14 @@
 				"dismissAll": "Odrzucić wszystkie"
 			}
 		},
+		"progressSync": {
+			"skippedSync": {
+				"skippedOneServer": "Sync skipped for {{skippedCount}} server",
+				"skippedMultipleServers": "Sync skipped for {{skippedCount}} servers",
+				"explanation": "Some servers use authentication methods that cannot be automatically refreshed"
+			},
+			"syncFailed": "Failed to sync offline progress"
+		},
 		"settings": {
 			"preferences": {
 				"label": "Preferencje",
@@ -2945,13 +3008,14 @@
 				"bookClubsEnabled": "Funkcje klubu książki"
 			},
 			"autoSyncLocalData": "Automatycznie synchronizuj dane lokalne",
-			"lowercaseTranslation": "Lowercase Labels",
+			"lowercaseTranslation": "Małoliterowe przypisy",
+			"tintListBackground": "Zabarw tła list",
 			"management": {
 				"label": "Zarządzanie",
 				"dataUsage": {
 					"label": "Wykorzystanie danych",
 					"nonStumpData": "Dane inne niż Stump",
-					"serversTotal": "Łącznie serwerów",
+					"serversTotal": "Łącznie z serwerów",
 					"totalFiles": "Łącznie plików",
 					"totalSize": "Łączny rozmiar",
 					"deleteDownloads": {
@@ -3012,7 +3076,7 @@
 			},
 			"contactInfo": {
 				"label": "Kontakt",
-				"email": "Adres e-mail",
+				"email": "Wiadomość e-mail",
 				"discord": "Discord",
 				"github": "GitHub"
 			},
@@ -3031,7 +3095,7 @@
 				"controls": "Sterowanie"
 			},
 			"readingMode": {
-				"label": "Kierunek",
+				"label": "Tryb czytania",
 				"options": {
 					"PAGED": "Strony",
 					"CONTINUOUS_HORIZONTAL": "Przewijanie (poziome)",
@@ -3065,6 +3129,7 @@
 			},
 			"allowDownscaling": "Skalowanie zmniejszające",
 			"tapSidesToNavigate": "Dotknij boki, aby nawigować",
+			"volumeButtonsNavigate": "Nawigacja przyciskami głośności",
 			"footerControls": {
 				"label": "Stopka",
 				"options": {
@@ -3118,6 +3183,7 @@
 				}
 			},
 			"publisherStyles": "Style wydawcy",
+			"volumeButtonsNavigate": "Nawigacja przyciskami głośności",
 			"textAlignment": {
 				"label": "Wyrównanie tekstu",
 				"options": {
@@ -3145,14 +3211,14 @@
 			}
 		},
 		"libraryType": {
-			"BOOK": "Books",
-			"COMIC": "Comics",
-			"LIGHT_NOVEL": "Light Novels",
+			"BOOK": "Książki",
+			"COMIC": "Komiksy",
+			"LIGHT_NOVEL": "Light Novel",
 			"MANGA": "Manga",
 			"MANHWA": "Manhwa",
-			"MIXED": "Mixed",
-			"WEBTOON": "Webtoons",
-			"WEB_NOVEL": "Web Novels"
+			"MIXED": "Mieszane",
+			"WEBTOON": "Webtoon",
+			"WEB_NOVEL": "Web Novel"
 		},
 		"savedServerActions": {
 			"clearCache": "Wyczyść pamięć podręczną",
@@ -3166,31 +3232,31 @@
 			}
 		},
 		"filtering": {
-			"notStarted": "Not Started",
-			"currentlyReading": "Currently Reading",
-			"finished": "Finished"
+			"notStarted": "Nierozpoczęte",
+			"currentlyReading": "Aktualnie czytane",
+			"finished": "Ukończone"
 		},
 		"sorting": {
-			"labelEllipsis": "Sort By...",
+			"labelEllipsis": "Sortuj według...",
 			"sortField": {
-				"NAME": "Name",
-				"ADDED_AT": "Date Added",
-				"CREATED_AT": "Date Added",
-				"NUMBER": "Series Position",
-				"SERIES": "Series",
-				"YEAR": "Year Published"
+				"NAME": "Nazwy",
+				"ADDED_AT": "Daty dodania",
+				"CREATED_AT": "Daty dodania",
+				"NUMBER": "Pozycji serii",
+				"SERIES": "Serii",
+				"YEAR": "Roku wydania"
 			},
 			"sortDirection": {
-				"ASC": "Ascending",
-				"DESC": "Descending"
+				"ASC": "Rosnąco",
+				"DESC": "Malejąco"
 			},
 			"sortDirectionString": {
 				"ASC": "A → Z",
 				"DESC": "Z → A"
 			},
 			"sortDirectionDate": {
-				"ASC": "Oldest First",
-				"DESC": "Newest First"
+				"ASC": "Najpierw najstarsze",
+				"DESC": "Najpierw najnowsze"
 			},
 			"sortDirectionNumber": {
 				"ASC": "1 → 10",

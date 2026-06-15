@@ -453,6 +453,10 @@
 				"update": "Сканировать после обновления"
 			},
 			"description": "Индексация файлов библиотеки для заполнения базы данных"
+		},
+		"errors": {
+			"failedToUpdate": "Failed to update library",
+			"failedToScan": "Failed to scan library"
 		}
 	},
 	"createLibraryScene": {
@@ -1011,7 +1015,8 @@
 									"pages": "Страницы",
 									"tags": "Метки",
 									"createdAt": "Дата создания",
-									"updatedAt": "Дата изменения"
+									"updatedAt": "Дата изменения",
+									"readingStatus": "Reading status"
 								}
 							},
 							"book_meta": {
@@ -1088,6 +1093,13 @@
 					"listValue": {
 						"placeholder": "Добавить значение",
 						"emptyState": "Нет значений для отображения"
+					},
+					"enumValue": {
+						"selectPlaceholder": "Select value",
+						"READING": "Reading",
+						"FINISHED": "Finished",
+						"NOT_STARTED": "Not started",
+						"ABANDONED": "Abandoned"
 					}
 				}
 			}
@@ -1408,6 +1420,14 @@
 					"label": "Theme and appearance",
 					"description": "The basic look and feel options for Stump"
 				},
+				"interface": {
+					"title": "Interface",
+					"description": "Primary UI surfaces and interaction elements"
+				},
+				"thumbnails": {
+					"title": "Thumbnails",
+					"description": "Display options for thumbnail images"
+				},
 				"themeSelect": {
 					"label": "Тема оформления",
 					"description": [
@@ -1450,6 +1470,10 @@
 						"thumbhash": "Thumbhash"
 					}
 				},
+				"navigation": {
+					"title": "Navigation",
+					"description": "Customize the navigation elements of the app"
+				},
 				"layoutAndArrangement": {
 					"label": "Layout and arrangement",
 					"description": "Customize how Stump displays information and organizes content"
@@ -1465,11 +1489,11 @@
 				},
 				"doubleSidebar": {
 					"label": "Settings sidebar",
-					"description": "Enables the sidebar navigation for the settings pages. If you frequently use a smaller screen, you may want to disable this."
+					"description": "Enables sidebar navigation for the settings pages"
 				},
 				"replacePrimarySidebar": {
 					"label": "Replace primary sidebar",
-					"description": "Any instance of a secondary sidebar will replace the primary sidebar instead of being displayed next to it",
+					"description": "Any instance of a secondary sidebar will replace the primary sidebar instead of stacking them",
 					"tooltips": {
 						"doubleSidebar": "This setting requires the settings sidebar to be enabled",
 						"topbar": "This setting is not currently supported when the primary navigation is set to top bar"
@@ -1477,10 +1501,7 @@
 				},
 				"navigationArrangement": {
 					"label": "Расположение навигации",
-					"description": {
-						"sidebar": "Размещать и настраивать элементы навигации в боковой панели",
-						"topbar": "Размещать и настраивать навигационные элементы в верхней панели"
-					},
+					"description": "Rearrange or tweak the navigation items in your primary navigation",
 					"isLocked": "Размещение заблокировано",
 					"lock": "Заблокировать размещения",
 					"unlock": "Разблокировать размещения",
@@ -1558,6 +1579,14 @@
 				"enableJobOverlayToggle": {
 					"label": "Job overlay",
 					"description": "Show a floating overlay while a job is running"
+				},
+				"dayResetHourOffset": {
+					"label": "Reading day reset offset",
+					"description": "Shift when a reading day resets, in hours from midnight"
+				},
+				"readingSessionGracePeriod": {
+					"label": "Reading session grace period",
+					"description": "If no activity is detected within this time frame, in seconds, the next update will start a new session"
 				}
 			}
 		},
@@ -2310,7 +2339,13 @@
 			"providerForm": {
 				"apiToken": {
 					"label": "API token",
-					"description": "The API token for authenticating with this provider"
+					"description": "The API token for authenticating with this provider",
+					"validationError": "The auto-validation failed for this token",
+					"validationRequestError": "The validation request failed",
+					"validationRequestErrorUnknown": "An unknown error occurred during validation",
+					"hardcoverStatusError": "Hardcover API responded with status {{status}}",
+					"hardcoverValidationError": "Hardcover API responded with an error: {{message}}",
+					"noBearerPrefixRequired": "Remove the 'Bearer ' prefix from the API token"
 				},
 				"apiTokenExpiresAt": {
 					"label": "API token expiration",
@@ -2784,6 +2819,7 @@
 			"year": "Year"
 		},
 		"common": {
+			"book": "Book",
 			"cancel": "Cancel",
 			"chapter": "Chapter",
 			"clear": "Clear",
@@ -2807,7 +2843,8 @@
 			"pages": "Pages",
 			"password": "Password",
 			"progress": "Progress",
-			"readTime": "Read time",
+			"publication": "Publication",
+			"readTime": "Reading time",
 			"readMore": "Read more",
 			"save": "Save",
 			"select": "Select",
@@ -2821,6 +2858,24 @@
 			"username": "Username",
 			"value": "Value",
 			"version": "Version"
+		},
+		"errors": {
+			"unknown": "Unknown error"
+		},
+		"formatSeriesPosition": {
+			"none": {
+				"positionWithTotal": "{{position}} of {{total}} in {{seriesName}}",
+				"position": "{{position}} in {{seriesName}}"
+			},
+			"book": {
+				"positionWithTotal": "Book {{position}} of {{total}} in {{seriesName}}",
+				"position": "Book {{position}} in {{seriesName}}"
+			},
+			"hashtag": {
+				"positionWithTotal": "#{{position}} of {{total}} in {{seriesName}}",
+				"position": "#{{position}} in {{seriesName}}"
+			},
+			"unknownSeriesName": "series"
 		},
 		"emptyState": {
 			"noStumpServers": "No Stump servers added",
@@ -2900,6 +2955,14 @@
 				"dismissAll": "Dismiss All"
 			}
 		},
+		"progressSync": {
+			"skippedSync": {
+				"skippedOneServer": "Sync skipped for {{skippedCount}} server",
+				"skippedMultipleServers": "Sync skipped for {{skippedCount}} servers",
+				"explanation": "Some servers use authentication methods that cannot be automatically refreshed"
+			},
+			"syncFailed": "Failed to sync offline progress"
+		},
 		"settings": {
 			"preferences": {
 				"label": "Preferences",
@@ -2946,6 +3009,7 @@
 			},
 			"autoSyncLocalData": "Auto-Sync Local Data",
 			"lowercaseTranslation": "Lowercase Labels",
+			"tintListBackground": "Tint List Backgrounds",
 			"management": {
 				"label": "Management",
 				"dataUsage": {
@@ -3065,6 +3129,7 @@
 			},
 			"allowDownscaling": "Downscaling",
 			"tapSidesToNavigate": "Tap Sides to Navigate",
+			"volumeButtonsNavigate": "Volume Buttons Navigate",
 			"footerControls": {
 				"label": "Footer",
 				"options": {
@@ -3118,6 +3183,7 @@
 				}
 			},
 			"publisherStyles": "Publisher Styles",
+			"volumeButtonsNavigate": "Volume Buttons Navigate",
 			"textAlignment": {
 				"label": "Text Alignment",
 				"options": {
