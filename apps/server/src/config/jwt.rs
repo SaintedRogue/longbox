@@ -37,8 +37,14 @@ async fn get_access_token_secret(conn: &DatabaseConnection) -> APIResult<String>
 		));
 	};
 
-	let _ = ACCESS_TOKEN_SECRET.set(secret.clone());
-	Ok(secret)
+	// this should fix some flakiness in tests which technically is plausible in production:
+	// if two calls to get_access_token_secret() happen at the same time, they could both see the OnceLock
+	// as unset and try to set it at same time. so the return value, instead of just returning the secret,
+	// will always pull from the lock for effectively a last-write-wins return
+	let _ = ACCESS_TOKEN_SECRET.set(secret);
+	ACCESS_TOKEN_SECRET.get().cloned().ok_or_else(|| {
+		APIError::InternalServerError("JWT access secret unexpectedly unset".to_string())
+	})
 }
 
 async fn get_refresh_token_secret(conn: &DatabaseConnection) -> APIResult<String> {
@@ -58,8 +64,11 @@ async fn get_refresh_token_secret(conn: &DatabaseConnection) -> APIResult<String
 		));
 	};
 
-	let _ = REFRESH_TOKEN_SECRET.set(refresh_secret.clone());
-	Ok(refresh_secret)
+	// same reasoning as get_access_token_secret() above re: flaky tests and last-write-wins return value
+	let _ = REFRESH_TOKEN_SECRET.set(refresh_secret);
+	REFRESH_TOKEN_SECRET.get().cloned().ok_or_else(|| {
+		APIError::InternalServerError("JWT refresh secret unexpectedly unset".to_string())
+	})
 }
 
 #[derive(Debug, Serialize)]
