@@ -57,7 +57,7 @@
 		"colorjs.io": "^0.5.2",
 		"date-fns": "^4.1.0",
 		"drizzle-orm": "^0.45.2",
-		"expo": "^55.0.24",
+		"expo": "^56.0.12",
 		"expo-application": "~55.0.15",
 		"expo-asset": "~55.0.17",
 		"expo-auth-session": "~55.0.16",
