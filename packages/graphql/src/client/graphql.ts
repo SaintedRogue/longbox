@@ -2043,6 +2043,11 @@ export type Mutation = {
    */
   deleteUserAvatar: User;
   deleteUserSessions: Scalars['Int']['output'];
+  /**
+   * Exclude the series from on deck recommendations, except for books added to the series after
+   * dropping
+   */
+  dropSeries: UserSeriesState;
   /** Edit your own message */
   editMessage: BookClubDiscussionMessage;
   favoriteMedia: Media;
@@ -2091,6 +2096,11 @@ export type Mutation = {
   resetSeriesMetadata: Series;
   respondToBookClubInvitation: BookClubInvitation;
   /**
+   * Restore the intent to read through the series, effectively a resume of the highest
+   * readthrough
+   */
+  resumeSeriesReread: UserSeriesState;
+  /**
    * Enqueue a scan job for a library. This will index the filesystem from the library's root path
    * and update the database accordingly.
    */
@@ -2117,6 +2127,11 @@ export type Mutation = {
    * and unlinks removed ones. Returns the updated series.
    */
   setSeriesTags: Series;
+  /**
+   * Set the intent to stop the current readthrough, effectively a pause. on deck will stop
+   * showing books in the current readthrough and instead only show unread books
+   */
+  stopSeriesReread: UserSeriesState;
   /** Suggest a book for the book club */
   suggestBook: BookClubBookSuggestion;
   /** Send a test email to verify the SMTP configuration is working */
@@ -2129,6 +2144,8 @@ export type Mutation = {
   toggleReaction: Scalars['Boolean']['output'];
   /** Toggle like on a suggestion */
   toggleSuggestionLike: Scalars['Boolean']['output'];
+  /** Un-drop a series, which will cause it to be included in on deck recommendations per normal logic */
+  undropSeries: UserSeriesState;
   /** Update an annotation's note text */
   updateAnnotation: MediaAnnotation;
   updateApiKey: Apikey;
@@ -2548,6 +2565,11 @@ export type MutationDeleteUserSessionsArgs = {
 };
 
 
+export type MutationDropSeriesArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
 export type MutationEditMessageArgs = {
   input: EditMessageInput;
   messageId: Scalars['ID']['input'];
@@ -2681,6 +2703,11 @@ export type MutationRespondToBookClubInvitationArgs = {
 };
 
 
+export type MutationResumeSeriesRereadArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
 export type MutationScanLibraryArgs = {
   id: Scalars['ID']['input'];
   options?: InputMaybe<Scalars['JSON']['input']>;
@@ -2739,6 +2766,11 @@ export type MutationSetSeriesTagsArgs = {
 };
 
 
+export type MutationStopSeriesRereadArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
 export type MutationSuggestBookArgs = {
   bookClubId: Scalars['ID']['input'];
   input: SuggestBookInput;
@@ -2760,6 +2792,11 @@ export type MutationToggleReactionArgs = {
 
 export type MutationToggleSuggestionLikeArgs = {
   suggestionId: Scalars['ID']['input'];
+};
+
+
+export type MutationUndropSeriesArgs = {
+  id: Scalars['ID']['input'];
 };
 
 
@@ -3951,6 +3988,11 @@ export type SendToEmail = {
 export type Series = {
   __typename?: 'Series';
   createdAt: Scalars['DateTime']['output'];
+  /**
+   * The highest readthrough number seen across all sessions for this user+series, or
+   * null if not started yet
+   */
+  currentReadthrough?: Maybe<Scalars['Int']['output']>;
   deletedAt?: Maybe<Scalars['DateTime']['output']>;
   description?: Maybe<Scalars['String']['output']>;
   id: Scalars['String']['output'];
@@ -3967,8 +4009,17 @@ export type Series = {
   path: Scalars['String']['output'];
   percentageCompleted: Scalars['Float']['output'];
   readCount: Scalars['Int']['output'];
+  /**
+   * The reading status of this series for the current user:
+   * - `READING` if any book has an active (latest) session
+   * - `FINISHED` if all books have a finished session and **none** are active,
+   * including re-reads
+   * - `NOT_STARTED` if no sessions exist at all
+   */
+  readingStatus: ReadingStatus;
   resolvedDescription?: Maybe<Scalars['String']['output']>;
   resolvedName: Scalars['String']['output'];
+  /** Get the stats for this series, scoped to current user by default */
   stats: SeriesStats;
   status: FileStatus;
   tags: Array<Tag>;
@@ -3982,6 +4033,8 @@ export type Series = {
   unreadCount: Scalars['Int']['output'];
   upNext: Array<Media>;
   updatedAt?: Maybe<Scalars['DateTime']['output']>;
+  /** Get the on-deck/re-read state for this series for the current user, if it exists */
+  userSeriesState?: Maybe<UserSeriesState>;
 };
 
 
@@ -4816,6 +4869,24 @@ export type UserPreferences = {
   userId?: Maybe<Scalars['String']['output']>;
 };
 
+export type UserSeriesState = {
+  __typename?: 'UserSeriesState';
+  createdAt: Scalars['DateTime']['output'];
+  /**
+   * when set, the books in the series will be excluded from on-deck recommentations
+   * if the timestamp is after the ingestion time into stump
+   */
+  droppedAt?: Maybe<Scalars['DateTime']['output']>;
+  seriesId: Scalars['String']['output'];
+  /**
+   * the date at which the last readthrough was dropped, so that we can
+   * revert back to "first book beyond highest position ever read" logic for
+   * the recommendations query instead of "next book in current re-read"
+   */
+  stoppedReadthroughAt?: Maybe<Scalars['DateTime']['output']>;
+  updatedAt?: Maybe<Scalars['DateTime']['output']>;
+};
+
 export type CreateBookClubMobileMutationVariables = Exact<{
   input: CreateBookClubInput;
 }>;
@@ -5162,7 +5233,7 @@ export type SeriesBooksSceneSeriesNameQueryVariables = Exact<{
 }>;
 
 
-export type SeriesBooksSceneSeriesNameQuery = { __typename?: 'Query', seriesById?: { __typename?: 'Series', resolvedName: string, libraryId?: string | null, stats: { __typename?: 'SeriesStats', bookCount: number, completedBooks: number, inProgressBooks: number, totalReadingTimeSeconds: number } } | null };
+export type SeriesBooksSceneSeriesNameQuery = { __typename?: 'Query', seriesById?: { __typename?: 'Series', resolvedName: string, libraryId?: string | null, readingStatus: ReadingStatus, currentReadthrough?: number | null, stats: { __typename?: 'SeriesStats', bookCount: number, completedBooks: number, inProgressBooks: number, totalReadingTimeSeconds: number }, userSeriesState?: { __typename?: 'UserSeriesState', stoppedReadthroughAt?: any | null, droppedAt?: any | null } | null } | null };
 
 export type SeriesBooksScreenQueryVariables = Exact<{
   filter: MediaFilterInput;
@@ -5345,6 +5416,34 @@ export type SeriesBooksListHeaderScanSeriesMutationVariables = Exact<{
 
 
 export type SeriesBooksListHeaderScanSeriesMutation = { __typename?: 'Mutation', scanSeries: boolean };
+
+export type SeriesBooksListHeaderDropSeriesMutationVariables = Exact<{
+  id: Scalars['ID']['input'];
+}>;
+
+
+export type SeriesBooksListHeaderDropSeriesMutation = { __typename?: 'Mutation', dropSeries: { __typename?: 'UserSeriesState', droppedAt?: any | null } };
+
+export type SeriesBooksListHeaderUndropSeriesMutationVariables = Exact<{
+  id: Scalars['ID']['input'];
+}>;
+
+
+export type SeriesBooksListHeaderUndropSeriesMutation = { __typename?: 'Mutation', undropSeries: { __typename?: 'UserSeriesState', droppedAt?: any | null } };
+
+export type SeriesBooksListHeaderStopRereadMutationVariables = Exact<{
+  id: Scalars['ID']['input'];
+}>;
+
+
+export type SeriesBooksListHeaderStopRereadMutation = { __typename?: 'Mutation', stopSeriesReread: { __typename?: 'UserSeriesState', stoppedReadthroughAt?: any | null } };
+
+export type SeriesBooksListHeaderResumeRereadMutationVariables = Exact<{
+  id: Scalars['ID']['input'];
+}>;
+
+
+export type SeriesBooksListHeaderResumeRereadMutation = { __typename?: 'Mutation', resumeSeriesReread: { __typename?: 'UserSeriesState', stoppedReadthroughAt?: any | null } };
 
 export type BookMenuFragment = { __typename?: 'Media', id: string, resolvedName: string, isFavorite: boolean, library: { __typename?: 'Library', id: string, name: string }, series: { __typename?: 'Series', id: string, resolvedName: string }, readProgress?: { __typename: 'ResumeReadingCursor' } | null, readHistory: Array<{ __typename: 'ReadthroughRecord' }> } & { ' $fragmentName'?: 'BookMenuFragment' };
 
@@ -8990,6 +9089,12 @@ export const SeriesBooksSceneSeriesNameDocument = new TypedDocumentString(`
       totalReadingTimeSeconds
     }
     libraryId
+    readingStatus
+    currentReadthrough
+    userSeriesState {
+      stoppedReadthroughAt
+      droppedAt
+    }
   }
 }
     `) as unknown as TypedDocumentString<SeriesBooksSceneSeriesNameQuery, SeriesBooksSceneSeriesNameQueryVariables>;
@@ -9585,6 +9690,34 @@ export const SeriesBooksListHeaderScanSeriesDocument = new TypedDocumentString(`
   scanSeries(id: $id)
 }
     `) as unknown as TypedDocumentString<SeriesBooksListHeaderScanSeriesMutation, SeriesBooksListHeaderScanSeriesMutationVariables>;
+export const SeriesBooksListHeaderDropSeriesDocument = new TypedDocumentString(`
+    mutation SeriesBooksListHeaderDropSeries($id: ID!) {
+  dropSeries(id: $id) {
+    droppedAt
+  }
+}
+    `) as unknown as TypedDocumentString<SeriesBooksListHeaderDropSeriesMutation, SeriesBooksListHeaderDropSeriesMutationVariables>;
+export const SeriesBooksListHeaderUndropSeriesDocument = new TypedDocumentString(`
+    mutation SeriesBooksListHeaderUndropSeries($id: ID!) {
+  undropSeries(id: $id) {
+    droppedAt
+  }
+}
+    `) as unknown as TypedDocumentString<SeriesBooksListHeaderUndropSeriesMutation, SeriesBooksListHeaderUndropSeriesMutationVariables>;
+export const SeriesBooksListHeaderStopRereadDocument = new TypedDocumentString(`
+    mutation SeriesBooksListHeaderStopReread($id: ID!) {
+  stopSeriesReread(id: $id) {
+    stoppedReadthroughAt
+  }
+}
+    `) as unknown as TypedDocumentString<SeriesBooksListHeaderStopRereadMutation, SeriesBooksListHeaderStopRereadMutationVariables>;
+export const SeriesBooksListHeaderResumeRereadDocument = new TypedDocumentString(`
+    mutation SeriesBooksListHeaderResumeReread($id: ID!) {
+  resumeSeriesReread(id: $id) {
+    stoppedReadthroughAt
+  }
+}
+    `) as unknown as TypedDocumentString<SeriesBooksListHeaderResumeRereadMutation, SeriesBooksListHeaderResumeRereadMutationVariables>;
 export const BookMenuCompleteDocument = new TypedDocumentString(`
     mutation BookMenuComplete($id: ID!) {
   finishMediaProgress(id: $id)
