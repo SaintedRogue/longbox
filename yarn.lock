@@ -5685,6 +5685,13 @@
     picocolors "^1.1.1"
     plist "^3.1.0"
 
+"@react-native-vector-icons/fontawesome6@^13.1.2":
+  version "13.1.2"
+  resolved "https://registry.yarnpkg.com/@react-native-vector-icons/fontawesome6/-/fontawesome6-13.1.2.tgz#a15d34b7197948baeda200a6a294e0634ae313d4"
+  integrity sha512-oQvQeDE8kSXm3l+oRKQm/Jo4ewR9YdKW2gFDVVl3st1yY5Nml1ZS4m3lTp3a/KehT9w+Uiv2JNn3kG0VOo+AZw==
+  dependencies:
+    "@react-native-vector-icons/common" "^13.0.1"
+
 "@react-native-vector-icons/octicons@^21.1.2":
   version "21.1.2"
   resolved "https://registry.yarnpkg.com/@react-native-vector-icons/octicons/-/octicons-21.1.2.tgz#7ee45ddd5de880c5355eaee5882980fdb56aa9d1"
