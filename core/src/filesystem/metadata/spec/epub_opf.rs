@@ -8,7 +8,7 @@ use std::{
 	path::Path,
 };
 
-use models::entity::media_metadata;
+use models::entity::{age_restriction::Column::RestrictOnUnset, media_metadata};
 
 use crate::CoreError;
 
@@ -75,301 +75,442 @@ fn merge_opf_metadata(
 	// tags which _might_ contain html, will be handled differently if encountered
 	const HTML_CONTENT_TAGS: [&str; 3] = ["description", "summary", "synopsis"];
 
+	// calibre-2.opf
+	// TODO(sort_name): add to metadata
+	// property file-as == sort_name
+	// calibre:series
+	//
+
+	////////////////////
+	// REVISED ???? //
+	//
+	// fn get_struct_field(local_name):
+	//  if title: return title
+	//  if publisher: return publisher
+	//
+	// fn get_metadata_field(local_name, map):
+	//  let managed_field = get_struct_field(local_name)
+	//  if !managed_field return none
+	//  return map.get(managed_field)
+	//
+	// pending_events = hashmap() {"title": StartEvent}
+	//
+	// fn resolve_writable_event(event, local_name):
+	//  match get_metadata_field(current_local_tag)
+	//      if Some(Some(value)) and non-empty and non-changed:
+	//          return event
+	//      if Some(Some(value)) and non-empty:
+	//          return event.replacetext(value)
+	//      if Some(None): // lol some nun
+	//          return None
+	//      if None:
+	//          return event
+	//
+	// let map = build_metadata_value_map()
+	// let visited = hashmap()
+	//////////////////
+
+	let mut is_dropping_element = false;
+
 	loop {
 		match reader.read_event_into(&mut buf) {
-			Ok(Event::Start(e)) => {
-				let tag = String::from_utf8_lossy(e.name().as_ref()).to_string();
-				current_tag = tag.clone();
-				empty_field = true;
-				// the problem:
-				// - dc:title
-				// - meta (title) -> attribute `name="title"`
-				// ^ --> title
-				// - dc:title {title: title, dc:title: title}
-				// case where we need to rm it since nullish in db
-				//
-				// why track attrs
-				// - i need to check attrs so i know the stump metadata field
-				//      - e.g., tag(dc:identifier) + attr(opf:scheme) -> identifier_{attr_value}
-				// - when reading, checking this for visited is fine
-				// - when at the end, missing items, how do I write them?
-				//      - e.g., let's say I am missing identifier_google
-				//      - ^ i need to know to write <dc:identifier opf:scheme="GOOGLE">{event.text}</dc:identifier>
-				//
-
-				// when i read, i need to be able to determine a tag+attr combo = metadat field so that i can mark it as visited
-				// when i write, i need to be able to determine FOR MISSING ITEMS (not visited) the tag+attr combo from the metadata_field
-
-				let base_tag =
-					tag.strip_prefix("dc:").unwrap_or(tag.as_str()).to_string();
-				// TODO: account for tags like 'subject' with multiple tags with a single value each
-				// TODO: track visiting later
-
-				// let base_tag = tag_name
-				// 	.strip_prefix("dc:")
-				// 	.unwrap_or(tag_name.as_str())
-				// 	.to_string();
-				// if HTML_CONTENT_TAGS.contains(&base_tag.as_str()) {
-				// 	html_tag_to_read = Some((tag_name, base_tag));
-				// } else {
-				// 	current_tag = base_tag.clone();
-
-				// for attr in e.attributes().flatten() {
-				// 	match attr.key.as_ref() {
-				// 		b"opf:scheme" if base_tag == "identifier" => {
-				// 			let scheme =
-				// 				String::from_utf8_lossy(&attr.value).to_lowercase();
-				// 			struct_field = format!("identifier_{}", scheme);
-				// 		},
-				// 		b"name" if tag == "meta" => {
-				// 			let name = String::from_utf8_lossy(&attr.value);
-				// 			struct_field =
-				// 				name.trim_start_matches("calibre:").to_string();
-				// 		},
-				// 		b"property" if tag == "meta" => {
-				// 			let property = String::from_utf8_lossy(&attr.value);
-				// 			struct_field = property.to_string();
-				// 		},
-				// 		b"property" if tag == "opf:meta" => {
-				// 			let property = String::from_utf8_lossy(&attr.value);
-				// 			struct_field = property.to_string();
-				// 		},
-				// 		_ => {},
-				// 	}
-				// }
-
-				if let Some(None) = metadata_map.get(struct_field.as_str()) {
-					visited.insert(tag.clone());
-				} else {
-					// otherwise write the start tag
-					writer.write_event(Event::Start(e))?;
-				}
-			},
-			Ok(Event::Empty(e)) => {
-				let tag = String::from_utf8_lossy(e.name().as_ref()).to_string();
-
-				let mut value_attr: Option<String> = None;
-
-				// <meta content="My Series Title" name="calibre:series" />
-
-				// handle meta or opf:meta a little diff:
-
-				if tag == "meta" || tag == "opf:meta" {
-					let inner_e = e.clone();
-					let attrs = inner_e.attributes();
-					let attributes: Vec<_> = attrs.flatten().collect();
-
-					let mut metadata_field = String::new();
-
-					for attr in attributes.iter() {
-						match (attr.key.as_ref(), attr.value.as_ref()) {
-							(b"name", b"calibre:series") if tag == "meta" => {
-								metadata_field = "series".to_string();
-								// TODO: if interchangeable (i.e., accept content OR value) then needs to be
-								// an array, and change to something like:
-								// if v.iter().map(|key| key.as_bytes()).includes(key)
-								value_attr = Some("content".to_string());
-							},
-							// todo: other named pairs?
-							_ => {},
-						}
-					}
-
-					let updated_attrs: Vec<Attribute<'_>> = attributes
-						.into_iter()
-						.filter_map(|attr| {
-							match (value_attr.as_deref(), attr.key.clone().as_ref()) {
-								(Some(v), key) if v.as_bytes() == key => {
-									match metadata_map.get(metadata_field.as_str()) {
-										// have a value and set, set it
-										Some(Some(metadata_value)) => {
-											Some(Attribute::from((
-												attr.key.into_inner(),
-												metadata_value.as_bytes(),
-											)))
-										},
-										// have a value and unset, unset it
-										Some(None) => None,
-										// not managed by Stump
-										None => Some(attr),
-									}
-								},
-								_ => Some(attr),
-							}
-						})
-						.collect();
-
-					let mut inner_e = e.clone();
-					let bytes_start = inner_e
-						.clear_attributes()
-						.to_owned()
-						.with_attributes(updated_attrs);
-					writer.write_event(Event::Empty(bytes_start))?;
-				} else {
-					writer.write_event(Event::Empty(e))?;
+			Ok(Event::Start(bytes)) => {
+				if is_dropping_element {
+					buf.clear();
+					continue;
 				}
 
-				// 1. if we have a value in metadata and it is Some:
-				//      - create start/end
-				// 2. we have a value in metadata but it is None
-				//      - do nothing, because handled in start
-				// 3. non-stump managed, just writes the event
+				let local_name =
+					String::from_utf8_lossy(bytes.local_name().as_ref()).to_string();
 
-				// if tag_name == "meta" {
-				// 	let mut meta_name = String::new();
-				// 	let mut meta_content = String::new();
+				// if managed value exists at all
+				let Some(managed_value) = metadata_map.get(local_name.as_str()).cloned()
+				else {
+					// not managed by stump, write as-is
+					writer.write_event(Event::Start(bytes))?;
+					continue;
+				};
 
-				// 	for attr in e.attributes().flatten() {
-				// 		match attr.key.as_ref() {
-				// 			b"name" => {
-				// 				let name = String::from_utf8_lossy(&attr.value);
-				// 				meta_name =
-				// 					name.trim_start_matches("calibre:").to_string();
-				// 			},
-				// 			b"property" => {
-				// 				let property = String::from_utf8_lossy(&attr.value);
-				// 				meta_name = property.to_string();
-				// 			},
-				// 			b"content" => {
-				// 				meta_content = String::from_utf8_lossy(&attr.value)
-				// 					.trim()
-				// 					.to_string();
-				// 			},
-				// 			_ => {},
-				// 		}
-				// 	}
+				// if managed value exists and is set to a non-null
+				let Some(value) = managed_value else {
+					// otherwise, null -> no need to write it
+					is_dropping_element = true;
+					continue;
+				};
 
-				// 	if !meta_name.is_empty() && !meta_content.is_empty() {
-				// 		tracing::trace!(?meta_name, ?meta_content, "Found meta tag");
-				// 		opf_metadata
-				// 			.entry(meta_name)
-				// 			.or_default()
-				// 			.push(meta_content);
-				// 	}
-				// } else {
-				// 	let base_tag = tag_name
-				// 		.strip_prefix("dc:")
-				// 		.unwrap_or(tag_name.as_str())
-				// 		.to_string();
-
-				// 	let mut tag_key = base_tag.clone();
-				// 	let mut tag_content = String::new();
-
-				// 	for attr in e.attributes().flatten() {
-				// 		match attr.key.as_ref() {
-				// 			b"opf:scheme" if base_tag == "identifier" => {
-				// 				let scheme =
-				// 					String::from_utf8_lossy(&attr.value).to_lowercase();
-				// 				tag_key = format!("identifier_{}", scheme);
-				// 			},
-				// 			b"content" => {
-				// 				tag_content = String::from_utf8_lossy(&attr.value)
-				// 					.trim()
-				// 					.to_string();
-				// 			},
-				// 			_ => {},
-				// 		}
-				// 	}
-
-				// 	if !tag_key.is_empty() && !tag_content.is_empty() {
-				// 		opf_metadata.entry(tag_key).or_default().push(tag_content);
-				// 	}
-			},
-			Ok(Event::Text(e)) => {
-				empty_field = false;
-
-				// 1. if we have a value in metadata and it is Some:
-				//      - if html, read + write full content
-				//      - write the event using value from event
-				//      - mark as visited
-				// 2. we have a value in metadata but it is None
-				//      - do nothing, because handled in start
-				// 3. non-stump managed, just writes the event
+				// local_name == meta:
+				//  find attr named name -> calibre:series?
+				//      content=metadata_map.series
 				//
-				// ??:
-				// - how do we track visited (enough to strip prefix etc and parse attrs?)
-				// -
+				// identifier_{value of opf:scheme.tolowercase()}
 
-				// if !current_tag.is_empty() {
-				// 	let text = String::from_utf8_lossy(&e).to_string();
-				// 	let content = text.trim().to_string();
-				// 	if !content.is_empty() {
-				// 		match current_tag.as_str() {
-				// 			"belongs-to-collection" => {
-				// 				opf_metadata
-				// 					.entry("collection_name".to_string())
-				// 					.or_default()
-				// 					.push(content.clone());
-				// 			},
-				// 			"collection-type" => {
-				// 				opf_metadata
-				// 					.entry("collection_type".to_string())
-				// 					.or_default()
-				// 					.push(content.clone());
-				// 			},
-				// 			"group-position" => {
-				// 				opf_metadata
-				// 					.entry("collection_position".to_string())
-				// 					.or_default()
-				// 					.push(content.clone());
-				// 			},
-				// 			"identifier" => {
-				// 				// Some books seem to have prefixed identifiers (e.g., "isbn:9780062444134")
-				// 				if let Some(colon_pos) = content.find(':') {
-				// 					let scheme = content[..colon_pos].to_lowercase();
-				// 					let value = content[colon_pos + 1..].to_string();
-				// 					let key = format!("identifier_{}", scheme);
-				// 					opf_metadata.entry(key).or_default().push(value);
-				// 				} else {
-				// 					// No prefix, treat as generic identifier
-				// 					opf_metadata
-				// 						.entry(current_tag.clone())
-				// 						.or_default()
-				// 						.push(content);
-				// 				}
-				// 			},
-				// 			_ => {
-				// 				opf_metadata
-				// 					.entry(current_tag.clone())
-				// 					.or_default()
-				// 					.push(content);
-				// 			},
-				// 		}
-				// 	}
-				// }
+				// let value = match managed_value {
+				// 	Some(value) => value,
+				// 	// if set to null, we do not write it to opf
+				// 	None => {
+				// 		is_dropping_element = true;
+				// 		continue;
+				// 	},
+				// };
+
+				//  field = get_metadata_field(local_name, map) <-- value IN metadata model for field
+				//  if field.is_empty():
+				//      write_event(event)
+				//  else if visited.get(field):
+				//      is_dropping_element = true // TODO: might not be fully right
+				//  else:
+				//      current_field = raw_tag_name
+				//      TODO: list
+				//          1. some events need replacements of values in attrs, so we would need to write start with those replacements
+				//          2. text will need the start event written before writing text
+				//          3. move/copy the some nun check, we dont need to write start then
+				//
+				//      // OR
+				//      current_field = raw_tag_name
+				//      if field we know has value in Text:
+				//          pending_events.insert(field, event)
 			},
-			Ok(Event::End(_)) => {
-				current_tag.clear();
+			Ok(Event::Empty(bytes)) => {},
+			Ok(Event::Text(bytes)) => {
+				//  if is_dropping_element:
+				//      clear(buf)
+				//      continue
+				//
+				//  if let Some(event) = resolve_writable_event(event, local_name):
+				//      if let Some(pending_event) = pending_events.get(field):
+				//          write_event(pending_event)
+				//      write_event(event)
+				//  else:
+				//      pending_events.remove(field)
+				//      is_dropping_element = true
+			},
+			Ok(Event::End(bytes)) => {
+				//  if is_dropping_element:
+				//      is_dropping_element = false
+				//      clear(buf)
+				//      continue
+				//
+				//  else:
+				//      write_event(event)
 			},
 			Ok(Event::Eof) => break,
-			Err(e) => {
-				tracing::warn!("Error parsing OPF XML: {}", e);
+			Err(error) => {
+				tracing::error!(?error, "Error encountered while parsing XML");
 				break;
 			},
-			_ => {},
+			_ => unimplemented!(),
 		}
-
-		// if let Some((full_tag, base_tag)) = html_tag_to_read.take() {
-		// 	let end = quick_xml::events::BytesEnd::new(&full_tag);
-		// 	match reader.read_text(end.name()) {
-		// 		Ok(raw_text) => {
-		// 			let text = unescape(&raw_text)
-		// 				.map(|c| c.into_owned())
-		// 				.unwrap_or_else(|_| raw_text.into_owned());
-		// 			let trimmed = text.trim().to_string();
-
-		// 			if !trimmed.is_empty() {
-		// 				opf_metadata.entry(base_tag).or_default().push(trimmed);
-		// 			}
-		// 		},
-		// 		Err(e) => {
-		// 			tracing::warn!("Error reading {} content: {}", base_tag, e);
-		// 		},
-		// 	}
-		// }
-
-		buf.clear();
 	}
+
+	// loop {
+	// 	match reader.read_event_into(&mut buf) {
+	// 		Ok(Event::Start(e)) => {
+	// 			let tag = String::from_utf8_lossy(e.local_name().as_ref()).to_string();
+	// 			current_tag = tag.clone();
+	// 			empty_field = true;
+
+	// 			// 1. if we have a value in metadata and it is Some:
+	// 			//      - if html, read + write full content
+	// 			//      - write the event using value from event
+	// 			//      - mark as visited
+	// 			// 2. we have a value in metadata but it is None
+	// 			//      - do nothing, because handled in start
+	// 			// 3. non-stump managed, just writes the event
+	// 			//
+	// 			// ??:
+	// 			// - how do we track visited (enough to strip prefix etc and parse attrs?)
+
+	// 			// the problem:
+	// 			// - dc:title
+	// 			// - meta (title) -> attribute `name="title"`
+	// 			// ^ --> title
+	// 			// - dc:title {title: title, dc:title: title}
+	// 			// case where we need to rm it since nullish in db
+	// 			//
+	// 			// why track attrs
+	// 			// - i need to check attrs so i know the stump metadata field
+	// 			//      - e.g., tag(dc:identifier) + attr(opf:scheme) -> identifier_{attr_value}
+	// 			// - when reading, checking this for visited is fine
+	// 			// - when at the end, missing items, how do I write them?
+	// 			//      - e.g., let's say I am missing identifier_google
+	// 			//      - ^ i need to know to write <dc:identifier opf:scheme="GOOGLE">{event.text}</dc:identifier>
+	// 			//
+
+	// 			// when i read, i need to be able to determine a tag+attr combo = metadat field so that i can mark it as visited
+	// 			// when i write, i need to be able to determine FOR MISSING ITEMS (not visited) the tag+attr combo from the metadata_field
+
+	// 			// let base_tag =
+	// 			// 	tag.strip_prefix("dc:").unwrap_or(tag.as_str()).to_string();
+
+	// 			// let local_name = e.local_name()
+
+	// 			// TODO: account for tags like 'subject' with multiple tags with a single value each
+	// 			// TODO: track visiting later
+
+	// 			// let base_tag = tag_name
+	// 			// 	.strip_prefix("dc:")
+	// 			// 	.unwrap_or(tag_name.as_str())
+	// 			// 	.to_string();
+	// 			// if HTML_CONTENT_TAGS.contains(&base_tag.as_str()) {
+	// 			// 	html_tag_to_read = Some((tag_name, base_tag));
+	// 			// } else {
+	// 			// 	current_tag = base_tag.clone();
+
+	// 			// for attr in e.attributes().flatten() {
+	// 			// 	match attr.key.as_ref() {
+	// 			// 		b"opf:scheme" if base_tag == "identifier" => {
+	// 			// 			let scheme =
+	// 			// 				String::from_utf8_lossy(&attr.value).to_lowercase();
+	// 			// 			struct_field = format!("identifier_{}", scheme);
+	// 			// 		},
+	// 			// 		b"name" if tag == "meta" => {
+	// 			// 			let name = String::from_utf8_lossy(&attr.value);
+	// 			// 			struct_field =
+	// 			// 				name.trim_start_matches("calibre:").to_string();
+	// 			// 		},
+	// 			// 		b"property" if tag == "meta" => {
+	// 			// 			let property = String::from_utf8_lossy(&attr.value);
+	// 			// 			struct_field = property.to_string();
+	// 			// 		},
+	// 			// 		b"property" if tag == "opf:meta" => {
+	// 			// 			let property = String::from_utf8_lossy(&attr.value);
+	// 			// 			struct_field = property.to_string();
+	// 			// 		},
+	// 			// 		_ => {},
+	// 			// 	}
+	// 			// }
+	// 			if let Some(None) = metadata_map.get(struct_field.as_str()) {
+	// 				visited.insert(tag.clone());
+	// 			} else {
+	// 				// otherwise write the start tag
+	// 				writer.write_event(Event::Start(e))?;
+	// 			}
+	// 		},
+	// 		Ok(Event::Empty(e)) => {
+	// 			let tag = String::from_utf8_lossy(e.name().as_ref()).to_string();
+
+	// 			let mut value_attr: Option<String> = None;
+
+	// 			// <meta content="My Series Title" name="calibre:series" />
+
+	// 			// handle meta or opf:meta a little diff:
+
+	// 			if tag == "meta" ||dtag == "opf:meta" {
+	// 				let inner_e = e.clone();
+	// 				let attrs = inner_e.attributes();
+	// 				let attributes: Vec<_> = attrs.flatten().collect();
+
+	// 				let mut metadata_field = String::new();
+
+	// 				for attr in attributes.iter() {
+	// 					match (attr.key.as_ref(), attr.value.as_ref()) {
+	// 						(b"name", b"calibre:series") if tag == "meta" => {
+	// 							metadata_field = "series".to_string();
+	// 							// TODO: if interchangeable (i.e., accept content OR value) then needs to be
+	// 							// an array, and change to something like:
+	// 							// if v.iter().map(|key| key.as_bytes()).includes(key)
+	// 							value_attr = Some("content".to_string());
+	// 						},
+	// 						// todo: other named pairs?
+	// 						_ => {},
+	// 					}
+	// 				}
+
+	// 				let updated_attrs: Vec<Attribute<'_>> = attributes
+	// 					.into_iter()
+	// 					.filter_map(|attr| {
+	// 						match (value_attr.as_deref(), attr.key.clone().as_ref()) {
+	// 							(Some(v), key) if v.as_bytes() == key => {
+	// 								match metadata_map.get(metadata_field.as_str()) {
+	// 									// have a value and set, set it
+	// 									Some(Some(metadata_value)) => {
+	// 										Some(Attribute::from((
+	// 											attr.key.into_inner(),
+	// 											metadata_value.as_bytes(),
+	// 										)))
+	// 									},
+	// 									// have a value and unset, unset it
+	// 									Some(None) => None,
+	// 									// not managed by Stump
+	// 									None => Some(attr),
+	// 								}
+	// 							},
+	// 							_ => Some(attr),
+	// 						}
+	// 					})
+	// 					.collect();
+
+	// 				let mut inner_e = e.clone();
+	// 				let bytes_start = inner_e
+	// 					.clear_attributes()
+	// 					.to_owned()
+	// 					.with_attributes(updated_attrs);
+	// 				writer.write_event(Event::Empty(bytes_start))?;
+	// 			} else {
+	// 				writer.write_event(Event::Empty(e))?;
+	// 			}
+
+	// 			// 1. if we have a value in metadata and it is Some:
+	// 			//      - create start/end
+	// 			// 2. we have a value in metadata but it is None
+	// 			//      - do nothing, because handled in start
+	// 			// 3. non-stump managed, just writes the event
+
+	// 			// if tag_name == "meta" {
+	// 			// 	let mut meta_name = String::new();
+	// 			// 	let mut meta_content = String::new();
+
+	// 			// 	for attr in e.attributes().flatten() {
+	// 			// 		match attr.key.as_ref() {
+	// 			// 			b"name" => {
+	// 			// 				let name = String::from_utf8_lossy(&attr.value);
+	// 			// 				meta_name =
+	// 			// 					name.trim_start_matches("calibre:").to_string();
+	// 			// 			},
+	// 			// 			b"property" => {
+	// 			// 				let property = String::from_utf8_lossy(&attr.value);
+	// 			// 				meta_name = property.to_string();
+	// 			// 			},
+	// 			// 			b"content" => {
+	// 			// 				meta_content = String::from_utf8_lossy(&attr.value)
+	// 			// 					.trim()
+	// 			// 					.to_string();
+	// 			// 			},
+	// 			// 			_ => {},
+	// 			// 		}
+	// 			// 	}
+
+	// 			// 	if !meta_name.is_empty() && !meta_content.is_empty() {
+	// 			// 		tracing::trace!(?meta_name, ?meta_content, "Found meta tag");
+	// 			// 		opf_metadata
+	// 			// 			.entry(meta_name)
+	// 			// 			.or_default()
+	// 			// 			.push(meta_content);
+	// 			// 	}
+	// 			// } else {
+	// 			// 	let base_tag = tag_name
+	// 			// 		.strip_prefix("dc:")
+	// 			// 		.unwrap_or(tag_name.as_str())
+	// 			// 		.to_string();
+
+	// 			// 	let mut tag_key = base_tag.clone();
+	// 			// 	let mut tag_content = String::new();
+
+	// 			// 	for attr in e.attributes().flatten() {
+	// 			// 		match attr.key.as_ref() {
+	// 			// 			b"opf:scheme" if base_tag == "identifier" => {
+	// 			// 				let scheme =
+	// 			// 					String::from_utf8_lossy(&attr.value).to_lowercase();
+	// 			// 				tag_key = format!("identifier_{}", scheme);
+	// 			// 			},
+	// 			// 			b"content" => {
+	// 			// 				tag_content = String::from_utf8_lossy(&attr.value)
+	// 			// 					.trim()
+	// 			// 					.to_string();
+	// 			// 			},
+	// 			// 			_ => {},
+	// 			// 		}
+	// 			// 	}
+
+	// 			// 	if !tag_key.is_empty() && !tag_content.is_empty() {
+	// 			// 		opf_metadata.entry(tag_key).or_default().push(tag_content);
+	// 			// 	}
+	// 		},
+	// 		Ok(Event::Text(e)) => {
+	// 			empty_field = false;
+
+	// 			// 1. if we have a value in metadata and it is Some:
+	// 			//      - if html, read + write full content
+	// 			//      - write the event using value from event
+	// 			//      - mark as visited
+	// 			// 2. we have a value in metadata but it is None
+	// 			//      - do nothing, because handled in start
+	// 			// 3. non-stump managed, just writes the event
+	// 			//
+	// 			// ??:
+	// 			// - how do we track visited (enough to strip prefix etc and parse attrs?)
+	// 			// -
+
+	// 			// if !current_tag.is_empty() {
+	// 			// 	let text = String::from_utf8_lossy(&e).to_string();
+	// 			// 	let content = text.trim().to_string();
+	// 			// 	if !content.is_empty() {
+	// 			// 		match current_tag.as_str() {
+	// 			// 			"belongs-to-collection" => {
+	// 			// 				opf_metadata
+	// 			// 					.entry("collection_name".to_string())
+	// 			// 					.or_default()
+	// 			// 					.push(content.clone());
+	// 			// 			},
+	// 			// 			"collection-type" => {
+	// 			// 				opf_metadata
+	// 			// 					.entry("collection_type".to_string())
+	// 			// 					.or_default()
+	// 			// 					.push(content.clone());
+	// 			// 			},
+	// 			// 			"group-position" => {
+	// 			// 				opf_metadata
+	// 			// 					.entry("collection_position".to_string())
+	// 			// 					.or_default()
+	// 			// 					.push(content.clone());
+	// 			// 			},
+	// 			// 			"identifier" => {
+	// 			// 				// Some books seem to have prefixed identifiers (e.g., "isbn:9780062444134")
+	// 			// 				if let Some(colon_pos) = content.find(':') {
+	// 			// 					let scheme = content[..colon_pos].to_lowercase();
+	// 			// 					let value = content[colon_pos + 1..].to_string();
+	// 			// 					let key = format!("identifier_{}", scheme);
+	// 			// 					opf_metadata.entry(key).or_default().push(value);
+	// 			// 				} else {
+	// 			// 					// No prefix, treat as generic identifier
+	// 			// 					opf_metadata
+	// 			// 						.entry(current_tag.clone())
+	// 			// 						.or_default()
+	// 			// 						.push(content);
+	// 			// 				}
+	// 			// 			},
+	// 			// 			_ => {
+	// 			// 				opf_metadata
+	// 			// 					.entry(current_tag.clone())
+	// 			// 					.or_default()
+	// 			// 					.push(content);
+	// 			// 			},
+	// 			// 		}
+	// 			// 	}
+	// 			// }
+	// 		},
+	// 		Ok(Event::End(_)) => {
+	// 			current_tag.clear();
+	// 		},
+	// 		Ok(Event::Eof) => break,
+	// 		Err(e) => {
+	// 			tracing::warn!("Error parsing OPF XML: {}", e);
+	// 			break;
+	// 		},
+	// 		_ => {},
+	// 	}
+
+	// 	// if let Some((full_tag, base_tag)) = html_tag_to_read.take() {
+	// 	// 	let end = quick_xml::events::BytesEnd::new(&full_tag);
+	// 	// 	match reader.read_text(end.name()) {
+	// 	// 		Ok(raw_text) => {
+	// 	// 			let text = unescape(&raw_text)
+	// 	// 				.map(|c| c.into_owned())
+	// 	// 				.unwrap_or_else(|_| raw_text.into_owned());
+	// 	// 			let trimmed = text.trim().to_string();
+
+	// 	// 			if !trimmed.is_empty() {
+	// 	// 				opf_metadata.entry(base_tag).or_default().push(trimmed);
+	// 	// 			}
+	// 	// 		},
+	// 	// 		Err(e) => {
+	// 	// 			tracing::warn!("Error reading {} content: {}", base_tag, e);
+	// 	// 		},
+	// 	// 	}
+	// 	// }
+
+	// 	buf.clear();
+	// }
 
 	unimplemented!()
 }
@@ -476,6 +617,96 @@ fn build_metadata_value_map(
 	// );
 	map
 }
+
+fn resolve_writable_start_event<'a>(
+	bytes: BytesStart<'_>,
+	local_name: &str,
+	metadata: HashMap<&str, Option<String>>,
+) -> Option<BytesStart<'a>> {
+	if local_name != "meta" {
+		// TODO: might be wrong
+		return None;
+	}
+
+	let mut name = None;
+	let mut content = None;
+	let mut property = None;
+
+	for attr in bytes.attributes().flatten() {
+		match attr.key.as_ref() {
+			b"name" => {
+				let value_str = String::from_utf8_lossy(&attr.value);
+				name = Some(value_str.trim_start_matches("calibre:").to_string());
+			},
+			b"property" => {
+				property = Some(String::from_utf8_lossy(&attr.value).trim().to_string())
+			},
+			b"content" => {
+				content = Some(String::from_utf8_lossy(&attr.value).trim().to_string());
+			},
+			_ => {},
+		}
+	}
+
+	// what we look up in map (perhaps via normalize_metadata_key as well)
+	let effective_name = name.clone().or(property.clone());
+
+	//
+
+	None
+}
+
+// 			if tag == "meta" ||dtag == "opf:meta" {
+// 				let inner_e = e.clone();
+// 				let attrs = inner_e.attributes();
+// 				let attributes: Vec<_> = attrs.flatten().collect();
+
+// 				let mut metadata_field = String::new();
+
+// 				for attr in attributes.iter() {
+// 					match (attr.key.as_ref(), attr.value.as_ref()) {
+// 						(b"name", b"calibre:series") if tag == "meta" => {
+// 							metadata_field = "series".to_string();
+// 							// TODO: if interchangeable (i.e., accept content OR value) then needs to be
+// 							// an array, and change to something like:
+// 							// if v.iter().map(|key| key.as_bytes()).includes(key)
+// 							value_attr = Some("content".to_string());
+// 						},
+// 						// todo: other named pairs?
+// 						_ => {},
+// 					}
+// 				}
+
+// 				let updated_attrs: Vec<Attribute<'_>> = attributes
+// 					.into_iter()
+// 					.filter_map(|attr| {
+// 						match (value_attr.as_deref(), attr.key.clone().as_ref()) {
+// 							(Some(v), key) if v.as_bytes() == key => {
+// 								match metadata_map.get(metadata_field.as_str()) {
+// 									// have a value and set, set it
+// 									Some(Some(metadata_value)) => {
+// 										Some(Attribute::from((
+// 											attr.key.into_inner(),
+// 											metadata_value.as_bytes(),
+// 										)))
+// 									},
+// 									// have a value and unset, unset it
+// 									Some(None) => None,
+// 									// not managed by Stump
+// 									None => Some(attr),
+// 								}
+// 							},
+// 							_ => Some(attr),
+// 						}
+// 					})
+// 					.collect();
+
+// 				let mut inner_e = e.clone();
+// 				let bytes_start = inner_e
+// 					.clear_attributes()
+// 					.to_owned()
+// 					.with_attributes(updated_attrs);
+
 //
 //
 // fn merge_opf_metadata(opf_string: OpfString, metadata: &Metadata, existing_tags: Vec<String>) -> Result<OpfString, CoreError> {
