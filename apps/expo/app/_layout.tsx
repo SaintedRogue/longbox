@@ -1,12 +1,12 @@
 import '~/global.css'
 
-import { DarkTheme, DefaultTheme, Theme, ThemeProvider } from '@react-navigation/native'
 import { PortalHost } from '@rn-primitives/portal'
 import * as Sentry from '@sentry/react-native'
 import { initDateFnsLocale, LocaleProvider } from '@stump/i18n'
 import { useMigrations } from 'drizzle-orm/expo-sqlite/migrator'
 import * as Localization from 'expo-localization'
 import { Stack, useNavigationContainerRef } from 'expo-router'
+import { DarkTheme, DefaultTheme, Theme, ThemeProvider } from 'expo-router/react-navigation'
 import * as SplashScreen from 'expo-splash-screen'
 import LottieView from 'lottie-react-native'
 import * as React from 'react'
