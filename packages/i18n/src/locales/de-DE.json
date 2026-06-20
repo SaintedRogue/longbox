@@ -542,6 +542,13 @@
 			"addedFiles": "Hinzugefügte Dateien"
 		}
 	},
+	"libraryHeader": {
+		"tabs": {
+			"books": "Bücher",
+			"series": "Serien",
+			"files": "Dateien"
+		}
+	},
 	"librarySettingsScene": {
 		"heading": "Einstellungen",
 		"subtitle": "Verwalte deine Bibliothek hier. Weitere Informationen über diese Einstellung findest du in der",
@@ -913,6 +920,20 @@
 		"buttons": {
 			"continueReading": "Weiterlesen",
 			"downloadSeries": "Serie herunterladen"
+		}
+	},
+	"seriesHeader": {
+		"tabs": {
+			"books": "Bücher",
+			"files": "Dateien"
+		},
+		"actions": {
+			"markAsRead": "Serie als gelesen markieren",
+			"markAsUnread": "Serie als ungelesen markieren",
+			"goToLibrary": "Geh zur Bibliothek"
+		},
+		"errors": {
+			"failedToUpdateCompletion": "Fehler beim Aktualisieren des Buchvervollständigungsstatus"
 		}
 	},
 	"createOrUpdateSmartListForm": {
@@ -1557,14 +1578,6 @@
 				"additionalPreferences": {
 					"label": "Zusätzliche Präferenzen",
 					"description": "Passe das Aussehen und Verhalten von Stump mit diesen zusätzlichen Einstellungen an"
-				},
-				"showThumbnailsInHeader": {
-					"label": "Vorschaubilder in Kopfzeilen anzeigen",
-					"description": "Falls du die Vorschaubilder öfters sehen möchtest, wird diese Einstellung sie an mehr Stellen zeigen",
-					"tooltips": {
-						"enabled": "Diese Einstellung wird Vorschaubilder an mehr Stellen zeigen",
-						"disabled": "Diese Einstellung wird nicht mehr Vorschaubilder an mehr Stelllen zeigen"
-					}
 				},
 				"hideScrollbarToggle": {
 					"label": "Scrollbar ausblenden",
@@ -2572,9 +2585,11 @@
 	},
 	"common": {
 		"add": "Hinzufügen",
+		"andXMoreTrailing": "... und {{count}} mehr",
 		"cancel": "Abbrechen",
 		"clear": "Löschen",
 		"confirm": "Bestätigen",
+		"created": "Erstellt",
 		"delete": "Löschen",
 		"deleteConfirmation": {
 			"title": "Delete {{type}}",
@@ -2593,11 +2608,22 @@
 		"noChanges": "Keine Änderungen",
 		"create": "Erstellen",
 		"edit": "Bearbeiten",
+		"info": "Info",
+		"infoSheetStats": {
+			"series": "Serien",
+			"inProgress": "In Fortschritt",
+			"completedBooks": "Beendet",
+			"readingTime": "Lesezeit",
+			"size": "Größe"
+		},
 		"update": "Aktualisieren",
 		"upload": "Hochladen",
 		"uploading": "Wird hochgeladen",
 		"uploadingEllipsis": "Wird hochgeladen...",
 		"unimplemented": "Diese Funktionalität ist noch nicht implementiert! Schaue später wieder vorbei",
+		"upNext": "Als nächstes",
+		"unknown": "Unbekannt",
+		"lastUpdated": "Zuletzt aktualisiert",
 		"limitedFunctionality": "Das ist noch nicht vollständig implementiert und es fehlen noch ein paar Funktionen! Schaue später wieder vorbei",
 		"logIn": "Anmelden",
 		"login": "Login",
