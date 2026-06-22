@@ -29,7 +29,7 @@ import { db } from '~/db'
 import migrations from '~/drizzle/migrations'
 import { reactNavigationIntegration } from '~/index'
 import { setAndroidNavigationBar } from '~/lib/android-navigation-bar'
-import { NAV_THEME, toRgbChannels, useColors } from '~/lib/constants'
+import { NAV_THEME, reduceChroma, Shade, toRgbChannels, useColors } from '~/lib/constants'
 import { getDownloadQueueManager } from '~/lib/downloadQueue'
 import { useFileImportListener } from '~/lib/import'
 import { useColorScheme } from '~/lib/useColorScheme'
@@ -77,24 +77,21 @@ export default function RootLayout() {
 	const colors = useColors()
 	const insets = useSafeAreaInsets()
 
-	const accent = usePreferencesStore((state) => state.accentHue)
-	const palette = tailwindColors[accent]
+	const accentHue = usePreferencesStore((state) => state.accentHue)
+	const accentChromaScale = usePreferencesStore((state) => state.accentChromaScale)
+	const palette = tailwindColors[accentHue]
 
 	const accentVars = React.useMemo(() => {
-		return vars({
-			'--accent-50': toRgbChannels(palette[50]),
-			'--accent-100': toRgbChannels(palette[100]),
-			'--accent-200': toRgbChannels(palette[200]),
-			'--accent-300': toRgbChannels(palette[300]),
-			'--accent-400': toRgbChannels(palette[400]),
-			'--accent-500': toRgbChannels(palette[500]),
-			'--accent-600': toRgbChannels(palette[600]),
-			'--accent-700': toRgbChannels(palette[700]),
-			'--accent-800': toRgbChannels(palette[800]),
-			'--accent-900': toRgbChannels(palette[900]),
-			'--accent-950': toRgbChannels(palette[950]),
-		})
-	}, [palette])
+		const shades: Shade[] = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950]
+		return vars(
+			Object.fromEntries(
+				shades.map((shade) => {
+					const color = toRgbChannels(reduceChroma(palette[shade], accentChromaScale))
+					return [`--accent-${shade}`, color]
+				}),
+			),
+		)
+	}, [palette, accentChromaScale])
 
 	useFileImportListener()
 

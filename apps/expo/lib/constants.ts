@@ -89,6 +89,12 @@ export const toRgbChannels = (color: ColorTypes) => {
 	return `${r} ${g} ${b}`
 }
 
+export function reduceChroma(color: ColorTypes, chromaScale: number) {
+	const plainColor = getColor(color)
+	setColor(plainColor, { 'oklch.c': (c) => c * chromaScale })
+	return toHex(plainColor)
+}
+
 export const STAT_COLORS = Object.fromEntries(
 	Object.entries(STAT_HUES).map(([stat, hue]) => {
 		const primary = toHex(tailwindColors[hue]['500'])
@@ -330,6 +336,7 @@ export function usePalette<T extends Record<string, ShadeConfig>>(
 
 export function usePalette(config?: ShadeConfig | Record<string, ShadeConfig>) {
 	const accentHue = usePreferencesStore((state) => state.accentHue)
+	const accentChromaScale = usePreferencesStore((state) => state.accentChromaScale)
 	const palette: Record<Shade, string> = tailwindColors[accentHue]
 	const { isDarkColorScheme } = useColorScheme()
 
@@ -347,7 +354,7 @@ export function usePalette(config?: ShadeConfig | Record<string, ShadeConfig>) {
 		}
 
 		const color = getColor(palette[shade])
-		setColor(color, { 'oklch.c': (c) => c * chromaScale })
+		setColor(color, { 'oklch.c': (c) => c * chromaScale * accentChromaScale })
 		color.alpha = opacity
 
 		return toHex(color)

@@ -9,7 +9,7 @@ import { useShallow } from 'zustand/react/shallow'
 import { useGridItemSize } from '~/components/listLayout/grid/useGridItemSize'
 import { SheetBackDetection } from '~/components/SheetBackDetection'
 import { Text } from '~/components/ui'
-import { HUES, SETTINGS_COLORS, Shade, useColors } from '~/lib/constants'
+import { HUES, reduceChroma, SETTINGS_COLORS, Shade, useColors } from '~/lib/constants'
 import { useTranslate } from '~/lib/hooks'
 import { useColorScheme } from '~/lib/useColorScheme'
 import { usePreferencesStore } from '~/stores'
@@ -21,9 +21,10 @@ export default function AppPrimaryColor() {
 	const { isDarkColorScheme } = useColorScheme()
 	const colors = useColors()
 
-	const { accentHue, patch } = usePreferencesStore(
+	const { accentHue, accentChromaScale, patch } = usePreferencesStore(
 		useShallow((state) => ({
 			accentHue: state.accentHue,
+			accentChromaScale: state.accentChromaScale,
 			patch: state.patch,
 		})),
 	)
@@ -50,7 +51,11 @@ export default function AppPrimaryColor() {
 					onPress={() => sheetRef.current?.present()}
 				>
 					{ACCENT_SHADES.map((shade) => (
-						<View key={shade} className="flex-1" style={{ backgroundColor: palette[shade] }} />
+						<View
+							key={shade}
+							className="flex-1"
+							style={{ backgroundColor: reduceChroma(palette[shade], accentChromaScale) }}
+						/>
 					))}
 					<View className="squircle inset-0 border-accent-500/10 absolute rounded-full border" />
 				</Pressable>
@@ -67,6 +72,57 @@ export default function AppPrimaryColor() {
 				insetAdjustment="automatic"
 			>
 				<ScrollView contentContainerClassName="px-4 py-6">
+					<View
+						className="mb-4 gap-2 p-3 squircle items-center rounded-3xl"
+						style={{
+							backgroundColor: reduceChroma(
+								palette[isDarkColorScheme ? 950 : 100],
+								accentChromaScale,
+							),
+						}}
+					>
+						<Text
+							className="font-bold text-lg"
+							style={{
+								color: reduceChroma(palette[isDarkColorScheme ? 400 : 600], accentChromaScale),
+							}}
+						>
+							Chroma Scale
+						</Text>
+						<View className="gap-2 flex-row justify-center">
+							{CHROMA_SCALES.map((scale) => {
+								const isSelected = accentChromaScale === scale
+								const color = reduceChroma(palette[500], scale)
+
+								return (
+									<Pressable
+										key={scale}
+										onPress={() => patch({ accentChromaScale: scale })}
+										className="py-1 max-w-[80px] flex-1 justify-center transition-transform active:scale-90"
+									>
+										<View
+											className="inset-0 squircle absolute rounded-full"
+											style={{
+												backgroundColor: isSelected ? undefined : color,
+												borderColor: color,
+												borderWidth: 2,
+											}}
+										/>
+
+										<Text
+											className="font-semibold text-center"
+											style={{
+												color: isSelected ? reduceChroma(palette[500], scale) : 'white',
+											}}
+										>
+											{scale.toFixed(1)}
+										</Text>
+									</Pressable>
+								)
+							})}
+						</View>
+					</View>
+
 					<View className="gap-4 flex-row flex-wrap justify-center">
 						{HUES.map((hue) => {
 							const palette = tailwindColors[hue]
@@ -81,13 +137,26 @@ export default function AppPrimaryColor() {
 									<View
 										className="inset-0 squircle absolute rounded-3xl"
 										style={[
-											{ backgroundColor: palette[isDarkColorScheme ? 950 : 50] },
-											isSelected && { borderColor: palette[500], borderWidth: 2 },
+											{
+												backgroundColor: reduceChroma(
+													palette[isDarkColorScheme ? 950 : 100],
+													accentChromaScale,
+												),
+											},
+											isSelected && {
+												borderColor: reduceChroma(palette[500], accentChromaScale),
+												borderWidth: 2,
+											},
 										]}
 									/>
 									<Text
 										className="font-bold text-center"
-										style={{ color: palette[isDarkColorScheme ? 400 : 600] }}
+										style={{
+											color: reduceChroma(
+												palette[isDarkColorScheme ? 400 : 600],
+												accentChromaScale,
+											),
+										}}
 									>
 										{/* TODO(accentHue): add labels associated with each hue instead */}
 										{capitalize(hue)}
@@ -104,7 +173,7 @@ export default function AppPrimaryColor() {
 										{PREVIEW_SHADES.map((shade) => (
 											<View
 												key={shade}
-												style={{ backgroundColor: palette[shade] }}
+												style={{ backgroundColor: reduceChroma(palette[shade], accentChromaScale) }}
 												// I noticed there can sometimes be a small (probably sub-pixel) gap, so the scale helps remove it
 												className="flex-1 scale-x-105"
 											/>
@@ -122,4 +191,5 @@ export default function AppPrimaryColor() {
 }
 
 const ACCENT_SHADES = [100, 300, 500, 700, 900] satisfies Shade[]
-const PREVIEW_SHADES = [200, 400, 600, 800] satisfies Shade[]
+const PREVIEW_SHADES = [300, 400, 600, 700] satisfies Shade[]
+const CHROMA_SCALES = [0.4, 0.6, 0.8, 1.0, 1.2, 1.4]

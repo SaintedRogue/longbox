@@ -32,6 +32,7 @@ type MobilePreferencesStore = {
 	thumbnailPlaceholder: ThumbnailPlaceholderType
 	performanceMonitor: boolean
 	accentHue: Hue
+	accentChromaScale: number
 	showCuratedDownloads?: boolean | undefined
 	preferNativePdf?: boolean | undefined
 	disableDismissGesture: boolean
@@ -68,6 +69,7 @@ export const usePreferencesStore = create<MobilePreferencesStore>()(
 			thumbnailRatio: 2 / 3,
 			thumbnailPlaceholder: 'grayscale',
 			accentHue: 'orange',
+			accentChromaScale: 1,
 			performanceMonitor: false,
 			showCuratedDownloads: true,
 			preferNativePdf: false,
