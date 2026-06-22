@@ -6,7 +6,7 @@ import { stripHtml } from 'string-strip-html'
 
 import { SheetBackDetection } from '~/components/SheetBackDetection'
 import { Markdown, Text } from '~/components/ui'
-import { IS_IOS_26_PLUS, useColors } from '~/lib/constants'
+import { IS_IOS_26_PLUS, useColors, usePalette } from '~/lib/constants'
 import { useTranslate } from '~/lib/hooks'
 
 import { DottedLine } from './DottedLine'
@@ -21,6 +21,7 @@ export default function DescriptionSection({ description }: Props) {
 	const sheetRef = useRef<TrueSheet | null>(null)
 
 	const colors = useColors()
+	const textColor = usePalette({ light: 400, dark: 500, chromaScale: 0.8 })
 
 	const strippedDescription = stripHtml(description).result
 
@@ -43,10 +44,7 @@ export default function DescriptionSection({ description }: Props) {
 							className="bg-background-surface"
 						>
 							<View className="px-4 py-2">
-								<Text
-									className="text-base font-semibold"
-									style={{ color: colors.fill.brand.DEFAULT }}
-								>
+								<Text className="text-base font-semibold" style={{ color: textColor }}>
 									{t('common.readMore')}
 								</Text>
 							</View>

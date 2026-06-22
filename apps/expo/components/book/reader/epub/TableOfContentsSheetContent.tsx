@@ -1,5 +1,4 @@
 import { FlashList, FlashListRef, ViewToken } from '@shopify/flash-list'
-import { getColor, serialize } from 'colorjs.io/fn'
 import { GlassView } from 'expo-glass-effect'
 import { Search } from 'lucide-react-native'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -10,7 +9,7 @@ import { scheduleOnRN } from 'react-native-worklets'
 
 import { ThumbnailImage } from '~/components/image'
 import { Heading, Icon, Text } from '~/components/ui'
-import { IS_IOS_26_PLUS, useColors } from '~/lib/constants'
+import { IS_IOS_26_PLUS, useColors, usePalette } from '~/lib/constants'
 import { useTranslate } from '~/lib/hooks'
 import { useColorScheme } from '~/lib/useColorScheme'
 import { cn } from '~/lib/utils'
@@ -30,10 +29,11 @@ type Props = {
 
 export default function TableOfContentsSheetContent({ goToPage, isOpen }: Props) {
 	const colors = useColors()
-	const accentColor = usePreferencesStore((state) => state.accentColor)
 	const { t } = useTranslate()
 	const { getRequestHeaders } = useEpubReaderContext()
 	const thumbnailRatio = usePreferencesStore((state) => state.thumbnailRatio)
+
+	const selectionColor = usePalette({ light: 400, dark: 500 })
 
 	const [visibleRange, setVisibleRange] = useState({ min: 0, max: 0 })
 	const [textInputWidth, setTextInputWidth] = useState<number>()
@@ -159,7 +159,7 @@ export default function TableOfContentsSheetContent({ goToPage, isOpen }: Props)
 									hitSlop={50}
 									placeholderTextColor="#898d94"
 									keyboardType="number-pad"
-									selectionColor={accentColor || colors.fill.brand.DEFAULT}
+									selectionColor={selectionColor}
 									placeholder={t('tableOfContents.goToPagePlaceholder')}
 									onLayout={(e) => setTextInputWidth(e.nativeEvent.layout.width)}
 									onChangeText={(text) => goToPage.setString(text)}
@@ -205,6 +205,7 @@ export default function TableOfContentsSheetContent({ goToPage, isOpen }: Props)
 					)}
 
 					{showBottomIndicator && (
+						//TODO: fix location
 						<ScrollToChapterIndicator
 							onPress={() => scrollToCurrentChapter({ animated: true })}
 							className="bottom-safe-offset-2"
@@ -252,16 +253,16 @@ const TableOfContentsListItem = ({
 	}
 
 	const { isDarkColorScheme } = useColorScheme()
-	const colors = useColors()
-	const accentColor = usePreferencesStore((state) => state.accentColor)
-
-	const color = getColor(accentColor || colors.fill.brand.DEFAULT)
-	color.alpha = isDarkColorScheme ? 0.1 : 0.15
-	const backgroundColor = serialize(color, { format: 'hex' })
-
 	const isChild = level > 0
-	color.alpha = isDarkColorScheme ? (isChild ? 0.5 : 0.8) : isChild ? 0.7 : 0.9
-	const textColor = serialize(color, { format: 'hex' })
+
+	const palette = usePalette({
+		text: {
+			light: 400,
+			dark: 400,
+			opacity: isDarkColorScheme ? (isChild ? 0.6 : 1) : isChild ? 0.8 : 1,
+		},
+		background: { light: 400, dark: 600, opacity: 0.15 },
+	})
 
 	return (
 		<View>
@@ -272,7 +273,7 @@ const TableOfContentsListItem = ({
 							className={cn('squircle inset-0 absolute rounded-[1.25rem]')}
 							style={[
 								{ opacity: pressed ? 0.7 : 1, marginLeft: 6 + level * 16, marginRight: 6 },
-								currentChapterActive && { backgroundColor: backgroundColor },
+								currentChapterActive && { backgroundColor: palette.background },
 							]}
 						/>
 
@@ -286,7 +287,7 @@ const TableOfContentsListItem = ({
 									currentChapterActive && 'font-bold',
 									isChild && 'text-foreground-muted',
 								)}
-								style={currentChapterActive && { color: textColor }}
+								style={currentChapterActive && { color: palette.text }}
 							>
 								{item.label}
 							</Text>
@@ -295,7 +296,7 @@ const TableOfContentsListItem = ({
 									'py-4 text-base text-foreground-muted shrink-0',
 									currentChapterActive && 'font-bold',
 								)}
-								style={currentChapterActive && { color: textColor }}
+								style={currentChapterActive && { color: palette.text }}
 							>
 								{item.position || t('common.notAvailable')}
 							</Text>
@@ -330,9 +331,8 @@ const ScrollToChapterIndicator = ({
 	className?: string
 }) => {
 	const { t } = useTranslate()
-	const accentColor = usePreferencesStore((state) => state.accentColor)
-	const colors = useColors()
-	const textColor = accentColor || colors.fill.brand.DEFAULT
+
+	const textColor = usePalette({ light: 400, dark: 500 })
 
 	return (
 		<Animated.View

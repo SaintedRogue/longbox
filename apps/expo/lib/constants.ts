@@ -97,12 +97,6 @@ export const STAT_COLORS = Object.fromEntries(
 	}),
 ) as { [K in keyof typeof STAT_HUES]: StatColorPalette }
 
-export function usePalette() {
-	const accentHue = usePreferencesStore((state) => state.accentHue)
-	const palette = tailwindColors[accentHue]
-	return palette
-}
-
 // TODO: android-specific tab bar color
 
 const light = {
@@ -283,7 +277,7 @@ const dark: Theme = {
 		maximumTrack: '#292c30',
 	},
 	sheet: {
-		background: '#000000',
+		background: '#1c1c1e',
 		grabber: '#333',
 	},
 	tabbar: '#0B0B0B',
@@ -296,10 +290,9 @@ export const COLORS = {
 
 export const useColors = () => {
 	const { isDarkColorScheme } = useColorScheme()
-	const accentHue = usePreferencesStore((state) => state.accentHue)
 	const resolvedTheme = clone(isDarkColorScheme ? dark : light)
 
-	const accentColor = tailwindColors[accentHue]['500']
+	const accentColor = usePalette({ light: 400, dark: 500 })
 
 	if (accentColor) {
 		const color = getColor(accentColor)
@@ -324,6 +317,58 @@ export const useColors = () => {
 	}
 
 	return resolvedTheme
+}
+
+type BaseShadeConfig = { light: Shade; dark: Shade; opacity?: number; chromaScale?: number }
+type ShadeConfig = Shade | BaseShadeConfig
+
+export function usePalette(): Record<Shade, string>
+export function usePalette(config: ShadeConfig): string
+export function usePalette<T extends Record<string, ShadeConfig>>(
+	config: T,
+): Record<keyof T, string>
+
+export function usePalette(config?: ShadeConfig | Record<string, ShadeConfig>) {
+	const accentHue = usePreferencesStore((state) => state.accentHue)
+	const palette: Record<Shade, string> = tailwindColors[accentHue]
+	const { isDarkColorScheme } = useColorScheme()
+
+	const resolveConfig = (s: ShadeConfig) => {
+		let shade: Shade
+		let opacity: number = 1
+		let chromaScale: number = 1
+
+		if (typeof s === 'number') {
+			shade = s
+		} else {
+			shade = isDarkColorScheme ? s.dark : s.light
+			opacity = s.opacity ?? 1
+			chromaScale = s.chromaScale ?? 1
+		}
+
+		const color = getColor(palette[shade])
+		setColor(color, { 'oklch.c': (c) => c * chromaScale })
+		color.alpha = opacity
+
+		return toHex(color)
+	}
+
+	// No config: return the 11-colour palette
+	if (config === undefined) {
+		return palette
+	}
+	// A simple config: e.g. 500 or { light: 500, dark: 600 } -> return the single colour
+	else if (typeof config === 'number' || ('light' in config && 'dark' in config)) {
+		return resolveConfig(config as ShadeConfig)
+	}
+	// A record: e.g. pass in { icon: 600, background: { light: 400, dark: 600 } }
+	// if accentHue = 'orange' and isDarkColorScheme = true,
+	// return an object { icon: '#ea580c', background: '#fb923c' }
+	else {
+		return Object.fromEntries(
+			Object.entries(config).map(([key, value]) => [key, resolveConfig(value)]),
+		)
+	}
 }
 
 export const NAV_THEME = {
