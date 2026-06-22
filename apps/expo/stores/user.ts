@@ -8,6 +8,7 @@ import {
 	ThumbnailPlaceholderType,
 	ThumbnailResizeMode,
 } from '~/components/image/ThumbnailPlaceholder'
+import { Hue } from '~/lib/constants'
 
 import { ZustandMMKVStorage } from './store'
 
@@ -30,7 +31,7 @@ type MobilePreferencesStore = {
 	thumbnailResizeMode: ThumbnailResizeMode
 	thumbnailPlaceholder: ThumbnailPlaceholderType
 	performanceMonitor: boolean
-	accentColor?: string | undefined
+	accentHue: Hue
 	showCuratedDownloads?: boolean | undefined
 	preferNativePdf?: boolean | undefined
 	disableDismissGesture: boolean
@@ -66,7 +67,7 @@ export const usePreferencesStore = create<MobilePreferencesStore>()(
 			allowDownscaling: true,
 			thumbnailRatio: 2 / 3,
 			thumbnailPlaceholder: 'grayscale',
-			accentColor: undefined,
+			accentHue: 'orange',
 			performanceMonitor: false,
 			showCuratedDownloads: true,
 			preferNativePdf: false,

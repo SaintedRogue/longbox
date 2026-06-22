@@ -9,6 +9,7 @@ import * as Localization from 'expo-localization'
 import { Stack, useNavigationContainerRef } from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen'
 import LottieView from 'lottie-react-native'
+import { vars } from 'nativewind'
 import * as React from 'react'
 import { AppState, Platform, View } from 'react-native'
 import { SystemBars } from 'react-native-edge-to-edge'
@@ -16,6 +17,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { KeyboardProvider } from 'react-native-keyboard-controller'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Toaster } from 'sonner-native'
+import tailwindColors from 'tailwindcss/colors'
 import { setLocaleDetector } from 'to-words'
 import { useShallow } from 'zustand/react/shallow'
 
@@ -27,7 +29,7 @@ import { db } from '~/db'
 import migrations from '~/drizzle/migrations'
 import { reactNavigationIntegration } from '~/index'
 import { setAndroidNavigationBar } from '~/lib/android-navigation-bar'
-import { NAV_THEME, useColors } from '~/lib/constants'
+import { NAV_THEME, toRgbChannels, useColors } from '~/lib/constants'
 import { getDownloadQueueManager } from '~/lib/downloadQueue'
 import { useFileImportListener } from '~/lib/import'
 import { useColorScheme } from '~/lib/useColorScheme'
@@ -74,6 +76,25 @@ export default function RootLayout() {
 
 	const colors = useColors()
 	const insets = useSafeAreaInsets()
+
+	const accent = usePreferencesStore((state) => state.accentHue)
+	const palette = tailwindColors[accent]
+
+	const accentVars = React.useMemo(() => {
+		return vars({
+			'--accent-50': toRgbChannels(palette[50]),
+			'--accent-100': toRgbChannels(palette[100]),
+			'--accent-200': toRgbChannels(palette[200]),
+			'--accent-300': toRgbChannels(palette[300]),
+			'--accent-400': toRgbChannels(palette[400]),
+			'--accent-500': toRgbChannels(palette[500]),
+			'--accent-600': toRgbChannels(palette[600]),
+			'--accent-700': toRgbChannels(palette[700]),
+			'--accent-800': toRgbChannels(palette[800]),
+			'--accent-900': toRgbChannels(palette[900]),
+			'--accent-950': toRgbChannels(palette[950]),
+		})
+	}, [palette])
 
 	useFileImportListener()
 
@@ -174,85 +195,87 @@ export default function RootLayout() {
 		<LocaleProvider locale={locale}>
 			<GestureHandlerRootView style={{ flex: 1 }}>
 				<ThemeProvider value={isDarkColorScheme ? DARK_THEME : LIGHT_THEME}>
-					{performanceMonitor && <PerformanceMonitor style={{ top: insets.top || 12 }} />}
-					<KeyboardProvider>
-						<SystemBars
-							style={isDarkBackground ? 'light' : 'dark'}
-							hidden={{ statusBar: hideStatusBar, navigationBar: hideNavigationBar }}
-						/>
+					<View className="flex-1" style={accentVars}>
+						{performanceMonitor && <PerformanceMonitor style={{ top: insets.top || 12 }} />}
+						<KeyboardProvider>
+							<SystemBars
+								style={isDarkBackground ? 'light' : 'dark'}
+								hidden={{ statusBar: hideStatusBar, navigationBar: hideNavigationBar }}
+							/>
 
-						<Stack
-							screenOptions={{
-								animation: animationEnabled ? 'default' : 'none',
-								contentStyle: {
-									backgroundColor: colors.background.DEFAULT,
+							<Stack
+								screenOptions={{
+									animation: animationEnabled ? 'default' : 'none',
+									contentStyle: {
+										backgroundColor: colors.background.DEFAULT,
+									},
+								}}
+							>
+								<Stack.Screen
+									name="(tabs)"
+									options={{
+										headerShown: false,
+										title: '',
+										animation: animationEnabled ? 'default' : 'none',
+									}}
+								/>
+
+								<Stack.Screen
+									name="server/[id]"
+									options={{
+										headerShown: false,
+										title: '',
+										animation: animationEnabled ? 'default' : 'none',
+										autoHideHomeIndicator: hideNavigationBar,
+										contentStyle: {
+											backgroundColor: colors.background.DEFAULT,
+										},
+									}}
+								/>
+								<Stack.Screen
+									name="opds/[id]"
+									options={{
+										headerShown: false,
+										animation: animationEnabled ? 'default' : 'none',
+									}}
+								/>
+								<Stack.Screen
+									name="opds-legacy/[id]"
+									options={{
+										headerShown: false,
+										animation: animationEnabled ? 'default' : 'none',
+									}}
+								/>
+
+								<Stack.Screen
+									name="offline"
+									options={{
+										headerShown: false,
+										title: '',
+										animation: animationEnabled ? 'default' : 'none',
+										autoHideHomeIndicator: hideNavigationBar,
+										contentStyle: {
+											backgroundColor: colors.background.DEFAULT,
+										},
+									}}
+								/>
+							</Stack>
+							<FloatingQueueButton />
+							<PortalHost />
+						</KeyboardProvider>
+
+						<Toaster
+							position="bottom-center"
+							styles={{
+								title: {
+									fontSize: 18,
+								},
+								description: {
+									fontSize: 16,
 								},
 							}}
-						>
-							<Stack.Screen
-								name="(tabs)"
-								options={{
-									headerShown: false,
-									title: '',
-									animation: animationEnabled ? 'default' : 'none',
-								}}
-							/>
-
-							<Stack.Screen
-								name="server/[id]"
-								options={{
-									headerShown: false,
-									title: '',
-									animation: animationEnabled ? 'default' : 'none',
-									autoHideHomeIndicator: hideNavigationBar,
-									contentStyle: {
-										backgroundColor: colors.background.DEFAULT,
-									},
-								}}
-							/>
-							<Stack.Screen
-								name="opds/[id]"
-								options={{
-									headerShown: false,
-									animation: animationEnabled ? 'default' : 'none',
-								}}
-							/>
-							<Stack.Screen
-								name="opds-legacy/[id]"
-								options={{
-									headerShown: false,
-									animation: animationEnabled ? 'default' : 'none',
-								}}
-							/>
-
-							<Stack.Screen
-								name="offline"
-								options={{
-									headerShown: false,
-									title: '',
-									animation: animationEnabled ? 'default' : 'none',
-									autoHideHomeIndicator: hideNavigationBar,
-									contentStyle: {
-										backgroundColor: colors.background.DEFAULT,
-									},
-								}}
-							/>
-						</Stack>
-						<FloatingQueueButton />
-						<PortalHost />
-					</KeyboardProvider>
-
-					<Toaster
-						position="bottom-center"
-						styles={{
-							title: {
-								fontSize: 18,
-							},
-							description: {
-								fontSize: 16,
-							},
-						}}
-					/>
+						/>
+					</View>
 				</ThemeProvider>
 			</GestureHandlerRootView>
 		</LocaleProvider>

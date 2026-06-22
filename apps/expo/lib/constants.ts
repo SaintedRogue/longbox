@@ -37,10 +37,35 @@ export const SETTINGS_COLORS = {
 	destructive: '#fd6bd5',
 }
 
-type Hue = Exclude<
-	keyof typeof tailwindColors,
-	'inherit' | 'current' | 'transparent' | 'black' | 'white'
->
+export const HUES = [
+	'red',
+	'orange',
+	'amber',
+	'yellow',
+	'lime',
+	'green',
+	'emerald',
+	'teal',
+	'cyan',
+	'sky',
+	'blue',
+	'indigo',
+	'violet',
+	'purple',
+	'fuchsia',
+	'pink',
+	'rose',
+	'slate',
+	'gray',
+	'zinc',
+	'neutral',
+	'stone',
+] as const
+
+export type Hue = (typeof HUES)[number]
+
+export type Shade = 50 | 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900 | 950
+
 export type StatColorPalette = { primary: string; secondary: string }
 
 const STAT_HUES = {
@@ -56,6 +81,14 @@ export function toHex(color: ColorTypes) {
 	return serialize(to(getColor(color), sRGB), { format: 'hex' })
 }
 
+export const toRgbChannels = (color: ColorTypes) => {
+	const hex = toHex(color)
+	const r = parseInt(hex.slice(1, 3), 16)
+	const g = parseInt(hex.slice(3, 5), 16)
+	const b = parseInt(hex.slice(5, 7), 16)
+	return `${r} ${g} ${b}`
+}
+
 export const STAT_COLORS = Object.fromEntries(
 	Object.entries(STAT_HUES).map(([stat, hue]) => {
 		const primary = toHex(tailwindColors[hue]['500'])
@@ -63,6 +96,12 @@ export const STAT_COLORS = Object.fromEntries(
 		return [stat, { primary, secondary }]
 	}),
 ) as { [K in keyof typeof STAT_HUES]: StatColorPalette }
+
+export function usePalette() {
+	const accentHue = usePreferencesStore((state) => state.accentHue)
+	const palette = tailwindColors[accentHue]
+	return palette
+}
 
 // TODO: android-specific tab bar color
 
@@ -257,8 +296,10 @@ export const COLORS = {
 
 export const useColors = () => {
 	const { isDarkColorScheme } = useColorScheme()
-	const accentColor = usePreferencesStore((state) => state.accentColor)
+	const accentHue = usePreferencesStore((state) => state.accentHue)
 	const resolvedTheme = clone(isDarkColorScheme ? dark : light)
+
+	const accentColor = tailwindColors[accentHue]['500']
 
 	if (accentColor) {
 		const color = getColor(accentColor)
