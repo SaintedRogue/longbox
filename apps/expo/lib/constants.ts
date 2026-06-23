@@ -3,7 +3,9 @@ import {
 	ColorSpace,
 	ColorTypes,
 	getColor,
+	mix,
 	OKLCH,
+	PlainColorObject,
 	serialize,
 	set as setColor,
 	sRGB,
@@ -325,8 +327,10 @@ export const useColors = () => {
 	return resolvedTheme
 }
 
-type BaseShadeConfig = { light: Shade; dark: Shade; opacity?: number; chromaScale?: number }
-type ShadeConfig = Shade | BaseShadeConfig
+const PRECOMPUTED_SHADES = [0, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950, 1000] as const
+
+type BaseShadeConfig = { light: number; dark: number; opacity?: number; chromaScale?: number }
+type ShadeConfig = number | BaseShadeConfig
 
 export function usePalette(): Record<Shade, string>
 export function usePalette(config: ShadeConfig): string
@@ -337,11 +341,11 @@ export function usePalette<T extends Record<string, ShadeConfig>>(
 export function usePalette(config?: ShadeConfig | Record<string, ShadeConfig>) {
 	const accentHue = usePreferencesStore((state) => state.accentHue)
 	const accentChromaScale = usePreferencesStore((state) => state.accentChromaScale)
-	const palette: Record<Shade, string> = tailwindColors[accentHue]
+	const palette: Record<number, string> = tailwindColors[accentHue]
 	const { isDarkColorScheme } = useColorScheme()
 
 	const resolveConfig = (s: ShadeConfig) => {
-		let shade: Shade
+		let shade: number
 		let opacity: number = 1
 		let chromaScale: number = 1
 
@@ -353,7 +357,21 @@ export function usePalette(config?: ShadeConfig | Record<string, ShadeConfig>) {
 			chromaScale = s.chromaScale ?? 1
 		}
 
-		const color = getColor(palette[shade])
+		let color: PlainColorObject
+		const twColor = palette[shade]
+		if (twColor) {
+			color = getColor(twColor)
+		} else {
+			const lower = PRECOMPUTED_SHADES.toReversed().find((s) => s <= shade) ?? 0
+			const upper = PRECOMPUTED_SHADES.find((s) => s >= shade) ?? 1000
+			const ratio = (shade - lower) / (upper - lower)
+
+			const upperColor = getColor(palette[upper] ?? 'black')
+			const lowerColor = getColor(palette[lower] ?? 'white')
+
+			color = mix(lowerColor, upperColor, ratio, { space: 'oklch' })
+		}
+
 		setColor(color, { 'oklch.c': (c) => c * chromaScale * accentChromaScale })
 		color.alpha = opacity
 
@@ -362,7 +380,7 @@ export function usePalette(config?: ShadeConfig | Record<string, ShadeConfig>) {
 
 	// No config: return the 11-colour palette
 	if (config === undefined) {
-		return palette
+		return palette as Record<Shade, string>
 	}
 	// A simple config: e.g. 500 or { light: 500, dark: 600 } -> return the single colour
 	else if (typeof config === 'number' || ('light' in config && 'dark' in config)) {
