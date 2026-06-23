@@ -3,14 +3,15 @@ import { GlassView } from 'expo-glass-effect'
 import { Search } from 'lucide-react-native'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Platform, Pressable, TextInput, View } from 'react-native'
-import { useKeyboardHandler } from 'react-native-keyboard-controller'
+import { useKeyboardHandler, useKeyboardState } from 'react-native-keyboard-controller'
 import Animated from 'react-native-reanimated'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { scheduleOnRN } from 'react-native-worklets'
 
 import { ThumbnailImage } from '~/components/image'
 import { Heading, Icon, Text } from '~/components/ui'
 import { IS_IOS_26_PLUS, useColors, usePalette } from '~/lib/constants'
-import { useTranslate } from '~/lib/hooks'
+import { useDisplay, useTranslate } from '~/lib/hooks'
 import { useColorScheme } from '~/lib/useColorScheme'
 import { cn } from '~/lib/utils'
 import { ReadiumLocator } from '~/modules/readium'
@@ -32,9 +33,14 @@ export default function TableOfContentsSheetContent({ goToPage, isOpen }: Props)
 	const { t } = useTranslate()
 	const { getRequestHeaders } = useEpubReaderContext()
 	const thumbnailRatio = usePreferencesStore((state) => state.thumbnailRatio)
+	const { height } = useDisplay()
+	const insets = useSafeAreaInsets()
+	const keyboardVisible = useKeyboardState((state) => state.isVisible)
 
 	const selectionColor = usePalette({ light: 400, dark: 500 })
 
+	// FIXME: items behind the keyboard are viewableItems from the flashlist, but they shouldn't be counted
+	// and probably change to just use up and down arrows if keyboard is shown
 	const [visibleRange, setVisibleRange] = useState({ min: 0, max: 0 })
 	const [textInputWidth, setTextInputWidth] = useState<number>()
 
@@ -104,9 +110,9 @@ export default function TableOfContentsSheetContent({ goToPage, isOpen }: Props)
 	)
 
 	const showTopIndicator =
-		isOpen && activeTocItemIndex !== -1 && activeTocItemIndex < visibleRange.min
+		isOpen && !keyboardVisible && activeTocItemIndex !== -1 && activeTocItemIndex < visibleRange.min
 	const showBottomIndicator =
-		isOpen && activeTocItemIndex !== -1 && activeTocItemIndex > visibleRange.max
+		isOpen && !keyboardVisible && activeTocItemIndex !== -1 && activeTocItemIndex > visibleRange.max
 
 	const onViewableItemsChanged = useCallback(
 		({ viewableItems }: { viewableItems: ViewToken<TableOfContentsItemWithLevel>[] }) => {
@@ -120,11 +126,17 @@ export default function TableOfContentsSheetContent({ goToPage, isOpen }: Props)
 		[],
 	)
 
+	// truesheet's height on ios when scrollable=true is a device height, which is too big, but
+	// iPad has floating sheets so this calculation doesn't work, and android was already fine
+	// i *think* this is the issue https://github.com/lodev09/react-native-true-sheet/issues/708
+	const style =
+		Platform.OS === 'ios' && !Platform.isPad ? { height: height - insets.top } : { flex: 1 }
+
 	if (!book) return
 
 	return (
 		<>
-			<View className="flex-1">
+			<View style={style}>
 				<View className="px-4 gap-4 pb-4 pt-6 flex-row">
 					<ThumbnailImage
 						source={{
@@ -205,10 +217,9 @@ export default function TableOfContentsSheetContent({ goToPage, isOpen }: Props)
 					)}
 
 					{showBottomIndicator && (
-						//TODO: fix location
 						<ScrollToChapterIndicator
 							onPress={() => scrollToCurrentChapter({ animated: true })}
-							className="bottom-safe-offset-2"
+							className="bottom-safe-or-6"
 						/>
 					)}
 				</View>
