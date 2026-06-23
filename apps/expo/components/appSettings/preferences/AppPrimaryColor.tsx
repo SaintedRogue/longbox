@@ -1,5 +1,4 @@
 import { TrueSheet } from '@lodev09/react-native-true-sheet'
-import capitalize from 'lodash/capitalize'
 import { Pipette } from 'lucide-react-native'
 import { useRef, useState } from 'react'
 import { Pressable, ScrollView, View } from 'react-native'
@@ -44,7 +43,7 @@ export default function AppPrimaryColor() {
 			<AppSettingsRow
 				icon={Pipette}
 				iconBackgroundColor={SETTINGS_COLORS.majorVisuals}
-				title={t('settings.preferences.appPrimaryColor')}
+				title={t(getKey('label'))}
 			>
 				<Pressable
 					className="w-36 h-8 squircle flex-row rounded-full active:opacity-80"
@@ -72,22 +71,14 @@ export default function AppPrimaryColor() {
 				insetAdjustment="automatic"
 			>
 				<ScrollView contentContainerClassName="px-4 py-6">
-					<View
-						className="mb-4 gap-2 p-3 squircle items-center rounded-3xl"
-						style={{
-							backgroundColor: reduceChroma(
-								palette[isDarkColorScheme ? 950 : 100],
-								accentChromaScale,
-							),
-						}}
-					>
+					<View className="mb-4 gap-2 p-3 squircle bg-accent-100 dark:bg-accent-950 items-center rounded-3xl">
 						<Text
 							className="font-bold text-lg"
 							style={{
 								color: reduceChroma(palette[isDarkColorScheme ? 400 : 600], accentChromaScale),
 							}}
 						>
-							Chroma Scale
+							{t(getKey('options.chromaScale'))}
 						</Text>
 						<View className="gap-2 flex-row justify-center">
 							{CHROMA_SCALES.map((scale) => {
@@ -98,14 +89,14 @@ export default function AppPrimaryColor() {
 									<Pressable
 										key={scale}
 										onPress={() => patch({ accentChromaScale: scale })}
-										className="py-1 max-w-[80px] flex-1 justify-center transition-transform active:scale-90"
+										className="py-1 max-w-[80px] flex-1 justify-center active:opacity-60"
 									>
 										<View
 											className="inset-0 squircle absolute rounded-full"
 											style={{
 												backgroundColor: isSelected ? undefined : color,
-												borderColor: color,
-												borderWidth: 2,
+												borderColor: isSelected ? color : undefined,
+												borderWidth: isSelected ? 2 : undefined,
 											}}
 										/>
 
@@ -132,7 +123,7 @@ export default function AppPrimaryColor() {
 									key={hue}
 									onPress={() => patch({ accentHue: hue })}
 									style={{ width: itemWidth }}
-									className="p-3 gap-2 rounded-2xl transition-transform active:scale-95"
+									className="p-3 gap-2 rounded-2xl active:opacity-60"
 								>
 									<View
 										className="inset-0 squircle absolute rounded-3xl"
@@ -158,8 +149,7 @@ export default function AppPrimaryColor() {
 											),
 										}}
 									>
-										{/* TODO(accentHue): add labels associated with each hue instead */}
-										{capitalize(hue)}
+										{t(getKey(`options.hues.${hue}`))}
 									</Text>
 
 									{/* <LinearGradient
@@ -193,3 +183,6 @@ export default function AppPrimaryColor() {
 const ACCENT_SHADES = [100, 300, 500, 700, 900] satisfies Shade[]
 const PREVIEW_SHADES = [300, 400, 600, 700] satisfies Shade[]
 const CHROMA_SCALES = [0.4, 0.6, 0.8, 1.0, 1.2, 1.4]
+
+const LOCALE_KEY = 'settings.preferences.appPrimaryColor'
+const getKey = (key: string) => `${LOCALE_KEY}.${key}`
