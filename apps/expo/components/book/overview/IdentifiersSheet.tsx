@@ -1,11 +1,11 @@
 import { TrueSheet } from '@lodev09/react-native-true-sheet'
 import { GlassView } from 'expo-glass-effect'
 import { Fragment, useRef, useState } from 'react'
-import { Platform, Pressable, ScrollView, View } from 'react-native'
+import { Pressable, ScrollView, View } from 'react-native'
 
 import { SheetBackDetection } from '~/components/SheetBackDetection'
 import { Card, Text } from '~/components/ui'
-import { IS_IOS_26_PLUS, useColors, usePalette } from '~/lib/constants'
+import { useColors, usePalette } from '~/lib/constants'
 import { useTranslate } from '~/lib/hooks'
 
 import { DottedLine } from './DottedLine'
@@ -57,10 +57,10 @@ export default function IdentifiersSheet({ identifiers }: Props) {
 
 			<TrueSheet
 				ref={sheetRef}
-				detents={Platform.OS === 'android' ? [0.4, 1] : ['auto']}
+				detents={[0.5, 1]}
 				grabber
 				scrollable
-				backgroundColor={IS_IOS_26_PLUS ? undefined : colors.background.DEFAULT}
+				backgroundColor={colors.sheet.background}
 				grabberOptions={{ color: colors.sheet.grabber }}
 				onDidPresent={() => setIsOpen(true)}
 				onDidDismiss={() => setIsOpen(false)}

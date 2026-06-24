@@ -55,9 +55,9 @@ export function PickerSheet<T extends string = string>({
 
 			<TrueSheet
 				ref={sheetRef}
-				detents={['auto', 1]}
+				detents={[1]}
 				grabber
-				backgroundColor={colors.background.DEFAULT}
+				backgroundColor={colors.sheet.background}
 				grabberOptions={{ color: colors.sheet.grabber }}
 				onDidPresent={() => setIsOpen(true)}
 				onDidDismiss={() => setIsOpen(false)}

@@ -62,7 +62,7 @@ const CreateAnnotationSheet = forwardRef<CreateAnnotationSheetRef, Props>(
 					ref={sheetRef}
 					detents={['auto', 1]}
 					grabber
-					backgroundColor={IS_IOS_26_PLUS ? undefined : colors.background.DEFAULT}
+					backgroundColor={IS_IOS_26_PLUS ? undefined : colors.sheet.background}
 					grabberOptions={{
 						color: colors.sheet.grabber,
 					}}
@@ -78,7 +78,7 @@ const CreateAnnotationSheet = forwardRef<CreateAnnotationSheetRef, Props>(
 				>
 					<View className="gap-4 p-4">
 						{selectedText && (
-							<View className="rounded-lg p-3 bg-background-surface">
+							<View className="p-3 bg-background-surface rounded-lg">
 								<Text className="text-foreground-muted italic" numberOfLines={3}>
 									&ldquo;{selectedText}&rdquo;
 								</Text>
@@ -94,7 +94,7 @@ const CreateAnnotationSheet = forwardRef<CreateAnnotationSheetRef, Props>(
 								placeholderTextColor={colors.foreground.muted}
 								multiline
 								numberOfLines={3}
-								className="rounded-lg p-3 min-h-[80px] border border-edge bg-background-surface text-foreground"
+								className="p-3 border-edge bg-background-surface min-h-[80px] rounded-lg border text-foreground"
 								textAlignVertical="top"
 								autoFocus
 							/>

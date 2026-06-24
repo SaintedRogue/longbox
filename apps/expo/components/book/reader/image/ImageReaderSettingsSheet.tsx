@@ -58,7 +58,7 @@ export default function ImageReaderSettingsSheet(props: TrueSheetProps) {
 				detents={[0.5, 1]}
 				grabber
 				scrollable
-				backgroundColor={IS_IOS_26_PLUS ? undefined : colors.background.DEFAULT}
+				backgroundColor={IS_IOS_26_PLUS ? undefined : colors.sheet.background}
 				grabberOptions={{ color: colors.sheet.grabber }}
 				insetAdjustment="automatic"
 				{...props}
