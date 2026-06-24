@@ -1,12 +1,14 @@
 import { TrueSheet } from '@lodev09/react-native-true-sheet'
 import { forwardRef, useCallback, useImperativeHandle, useRef, useState } from 'react'
-import { TextInput, View } from 'react-native'
+import { ScrollView, View } from 'react-native'
 
 import { SheetBackDetection } from '~/components/SheetBackDetection'
-import { Text } from '~/components/ui'
 import { IS_IOS_26_PLUS, useColors } from '~/lib/constants'
+import { cn } from '~/lib/utils'
 import { ReadiumLocator } from '~/modules/readium'
 
+import AnnotatedText from './AnnotatedText'
+import AnnotationInput from './AnnotationInput'
 import AnnotationSheetHeader from './AnnotationSheetHeader'
 
 export type CreateAnnotationSheetRef = {
@@ -26,6 +28,7 @@ const CreateAnnotationSheet = forwardRef<CreateAnnotationSheetRef, Props>(
 		const [selectedText, setSelectedText] = useState('')
 		const [annotation, setAnnotation] = useState('')
 		const [isOpen, setIsOpen] = useState(false)
+		const [naturalDetent, setNaturalDetent] = useState<number>(0)
 
 		const colors = useColors()
 
@@ -52,21 +55,24 @@ const CreateAnnotationSheet = forwardRef<CreateAnnotationSheetRef, Props>(
 			setLocator(null)
 			setSelectedText('')
 			setAnnotation('')
+			setNaturalDetent(0)
 			onDismiss?.()
 		}, [onDismiss])
 
-		// TODO: Make look better for iOS sheet, either adjust colors or remove glass
 		return (
 			<>
 				<TrueSheet
 					ref={sheetRef}
-					detents={['auto', 1]}
+					detents={['auto']}
 					grabber
 					backgroundColor={IS_IOS_26_PLUS ? undefined : colors.sheet.background}
 					grabberOptions={{
 						color: colors.sheet.grabber,
 					}}
-					onDidPresent={() => setIsOpen(true)}
+					onDidPresent={(e) => {
+						setIsOpen(true)
+						setNaturalDetent(e.nativeEvent.detent)
+					}}
 					onDidDismiss={handleDismiss}
 					header={
 						<AnnotationSheetHeader
@@ -75,31 +81,22 @@ const CreateAnnotationSheet = forwardRef<CreateAnnotationSheetRef, Props>(
 							onPrimaryAction={handleCreate}
 						/>
 					}
+					scrollable={naturalDetent >= 1}
+					headerStyle={
+						IS_IOS_26_PLUS ? { position: 'absolute', left: 0, right: 0, zIndex: 1 } : undefined
+					}
+					scrollableOptions={{ topScrollEdgeEffect: 'soft' }}
 				>
-					<View className="gap-4 p-4">
-						{selectedText && (
-							<View className="p-3 bg-background-surface rounded-lg">
-								<Text className="text-foreground-muted italic" numberOfLines={3}>
-									&ldquo;{selectedText}&rdquo;
-								</Text>
-							</View>
-						)}
+					<ScrollView
+						className={cn('p-4', IS_IOS_26_PLUS && 'pt-20')}
+						scrollEnabled={naturalDetent >= 1}
+					>
+						<View className="gap-4">
+							{selectedText && <AnnotatedText text={selectedText} />}
 
-						<View className="gap-2">
-							<Text className="text-foreground-muted">Note</Text>
-							<TextInput
-								value={annotation}
-								onChangeText={setAnnotation}
-								placeholder="Enter your notes..."
-								placeholderTextColor={colors.foreground.muted}
-								multiline
-								numberOfLines={3}
-								className="p-3 border-edge bg-background-surface min-h-[80px] rounded-lg border text-foreground"
-								textAlignVertical="top"
-								autoFocus
-							/>
+							<AnnotationInput value={annotation} onChangeText={setAnnotation} />
 						</View>
-					</View>
+					</ScrollView>
 				</TrueSheet>
 
 				<SheetBackDetection ref={sheetRef} isOpen={isOpen} />
