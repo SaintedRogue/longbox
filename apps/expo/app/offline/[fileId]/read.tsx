@@ -32,11 +32,15 @@ import {
 	toAbsolutePath,
 	unpackedBookDirectory,
 } from '~/lib/filesystem'
-import { useLocalAnnotationMutations, useLocalBookmarkMutations } from '~/lib/hooks'
+import {
+	useLocalAnnotationMutations,
+	useLocalBookmarkMutations,
+	useReadingTimer,
+} from '~/lib/hooks'
 import type { ReadiumLocator } from '~/modules/readium'
 import { intoReadiumLocator } from '~/modules/readium'
 import StumpStreamer from '~/modules/streamer'
-import { useBookPreferences, useBookTimer, useReaderStore } from '~/stores/reader'
+import { useBookPreferences, useReaderStore } from '~/stores/reader'
 
 type Params = {
 	fileId: string
@@ -174,8 +178,8 @@ function Reader({ record, bookmarks, annotations }: ReaderProps) {
 		preferences: { trackElapsedTime },
 	} = useBookPreferences({ book, serverId: downloadedFile.serverId })
 
-	const timer = useBookTimer(book?.id || '', {
-		initial: book?.readProgress?.elapsedSeconds,
+	const timer = useReadingTimer({
+		databaseSeconds: book?.readProgress?.elapsedSeconds,
 		enabled: trackElapsedTime,
 	})
 
@@ -189,7 +193,7 @@ function Reader({ record, bookmarks, annotations }: ReaderProps) {
 			serverId,
 			...input
 		}: PagedProgressInput & { bookId: string; serverId: string }) => {
-			const totalSeconds = timer.getCurrentTime()
+			const totalSeconds = timer.getTotalSeconds()
 
 			const result = await db
 				.insert(readProgress)
@@ -233,7 +237,7 @@ function Reader({ record, bookmarks, annotations }: ReaderProps) {
 			percentage,
 			...epubProgress
 		}: ReadiumLocator & { bookId: string; serverId: string; percentage: number }) => {
-			const totalSeconds = timer.getCurrentTime()
+			const totalSeconds = timer.getTotalSeconds()
 
 			const result = await db
 				.insert(readProgress)

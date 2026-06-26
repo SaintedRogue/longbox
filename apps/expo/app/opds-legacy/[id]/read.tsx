@@ -12,8 +12,9 @@ import { ImageReaderBookRef } from '~/components/book/reader/image/context'
 import { useResolveURL } from '~/components/opds/utils'
 import { OPDSLegacyStreamingContextValue } from '~/context/opdsLegacy'
 import { db, downloadedFiles, readProgress, syncStatus } from '~/db'
+import { useReadingTimer } from '~/lib/hooks'
 import { useReaderStore } from '~/stores'
-import { useBookPreferences, useBookTimer } from '~/stores/reader'
+import { useBookPreferences } from '~/stores/reader'
 
 type Params = Omit<OPDSLegacyStreamingContextValue, 'pageCount' | 'serverLastRead'> & {
 	pageCount: string // conform to Route params, reqs being a string
@@ -42,7 +43,12 @@ export default function Screen() {
 		data: [record],
 		updatedAt,
 	} = useLiveQuery(
-		db.select().from(downloadedFiles).where(eq(downloadedFiles.id, params.entryId)).limit(1),
+		db
+			.select()
+			.from(downloadedFiles)
+			.where(eq(downloadedFiles.id, params.entryId))
+			.leftJoin(readProgress, eq(downloadedFiles.id, readProgress.bookId))
+			.limit(1),
 		[params.entryId],
 	)
 	const isLoadingRecord = updatedAt == null
@@ -96,18 +102,21 @@ export default function Screen() {
 
 	const initialPage = contextValue.serverLastRead ?? 1
 
-	const timer = useBookTimer(contextValue.entryId, { enabled: trackElapsedTime })
+	const timer = useReadingTimer({
+		databaseSeconds: record?.read_progress?.elapsedSeconds,
+		enabled: trackElapsedTime,
+	})
 
 	const onPageChanged = useCallback(
 		async (pageNumber: number) => {
 			if (isLoadingRecord || !record) return
-			const totalSeconds = timer.getCurrentTime()
+			const totalSeconds = timer.getTotalSeconds()
 
 			return db
 				.insert(readProgress)
 				.values({
-					bookId: record.id,
-					serverId: record.serverId,
+					bookId: record.downloaded_files.id,
+					serverId: record.downloaded_files.serverId,
 					page: pageNumber,
 					elapsedSeconds: totalSeconds,
 					lastModified: new Date(),

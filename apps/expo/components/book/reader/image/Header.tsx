@@ -17,7 +17,7 @@ type Props = {
 }
 
 export default function Header({ onShowGlobalSettings }: Props) {
-	const { book, timer, serverId } = useImageBasedReader()
+	const { book, serverId } = useImageBasedReader()
 
 	const insets = useSafeAreaInsets()
 	const { secondaryStyle } = useReaderAnimations()
@@ -56,7 +56,8 @@ export default function Header({ onShowGlobalSettings }: Props) {
 				<PagedActionMenu
 					book={book}
 					serverId={serverId}
-					onResetTimer={timer.reset}
+					// TODO: how to deal with reset? especially with reading sesssions and delta seconds
+					// onResetTimer={timer.reset}
 					onShowSettings={onShowGlobalSettings}
 				/>
 			</View>
