@@ -11,7 +11,7 @@ import { scheduleOnRN } from 'react-native-worklets'
 import { ThumbnailImage } from '~/components/image'
 import { Heading, Icon, Text } from '~/components/ui'
 import { IS_IOS_26_PLUS, useColors } from '~/lib/constants'
-import { useTranslate } from '~/lib/hooks'
+import { DraftNumber, useTranslate } from '~/lib/hooks'
 import { useColorScheme } from '~/lib/useColorScheme'
 import { cn } from '~/lib/utils'
 import { ReadiumLocator } from '~/modules/readium'
@@ -21,10 +21,9 @@ import { useEpubSheetStore } from '~/stores/epubSheet'
 
 import { ENTERING_ANIMATION, EXITING_ANIMATION } from '../shared'
 import { useEpubReaderContext } from './context'
-import { GoToPage } from './TableOfContentsSheet'
 
 type Props = {
-	goToPage: GoToPage
+	goToPage: DraftNumber
 	isOpen: boolean
 }
 
@@ -166,6 +165,7 @@ export default function TableOfContentsSheetContent({ goToPage, isOpen }: Props)
 									value={goToPage.string}
 									style={{
 										width: textInputWidth,
+										height: 50,
 										color:
 											goToPage.isValid || goToPage.isEmpty
 												? colors.foreground.DEFAULT

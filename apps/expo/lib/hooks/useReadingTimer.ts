@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react'
 
+import { usePreferencesStore } from '~/stores'
+
 import { useAppState } from './useAppState'
 
 type Params = {
@@ -8,7 +10,7 @@ type Params = {
 }
 
 export const useReadingTimer = ({ databaseSeconds, enabled = false }: Params) => {
-	const maxSecondsCap = 300 // store this as a preference
+	const maxPageViewingSeconds = usePreferencesStore((state) => state.maxPageViewingSeconds)
 
 	const baseSecondsRef = useRef<number>(0)
 	const hasInitializedRef = useRef<boolean>(false)
@@ -44,11 +46,11 @@ export const useReadingTimer = ({ databaseSeconds, enabled = false }: Params) =>
 		}
 
 		const pageSeconds = Math.floor(pageMs / 1000)
-		const cappedSeconds = Math.min(pageSeconds, maxSecondsCap)
-		const remainderMs = cappedSeconds !== maxSecondsCap ? pageMs - pageSeconds * 1000 : 0
+		const cappedSeconds = Math.min(pageSeconds, maxPageViewingSeconds)
+		const remainderMs = cappedSeconds !== maxPageViewingSeconds ? pageMs - pageSeconds * 1000 : 0
 
 		return { cappedSeconds, remainderMs }
-	}, [])
+	}, [maxPageViewingSeconds])
 
 	const popDeltaSeconds = useCallback(() => {
 		const { cappedSeconds, remainderMs } = computePendingTime()
