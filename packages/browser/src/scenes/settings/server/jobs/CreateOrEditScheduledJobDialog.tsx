@@ -10,7 +10,13 @@ import {
 	Label,
 	NativeSelect,
 } from '@stump/components'
-import { FragmentType, graphql, MetadataFetchStatus, useFragment } from '@stump/graphql'
+import {
+	extractErrorMessage,
+	FragmentType,
+	graphql,
+	MetadataFetchStatus,
+	useFragment,
+} from '@stump/graphql'
 import { useLocaleContext } from '@stump/i18n'
 import { useEffect, useMemo, useState } from 'react'
 import { useForm, useFormState, useWatch } from 'react-hook-form'
@@ -113,7 +119,9 @@ export function CreateOrEditScheduledJobDialog({
 	const { mutate: create, isPending: isCreating } = useGraphQLMutation(createMutation, {
 		onError: (error) => {
 			console.error(error)
-			toast.error(t(getKey('toasts.createError')))
+			toast.error(t(getKey('toasts.createError')), {
+				description: extractErrorMessage(error),
+			})
 		},
 		onSuccess: () => {
 			toast.success(t(getKey('toasts.createSuccess')))
@@ -125,7 +133,9 @@ export function CreateOrEditScheduledJobDialog({
 	const { mutate: update, isPending: isUpdating } = useGraphQLMutation(updateMutation, {
 		onError: (error) => {
 			console.error(error)
-			toast.error(t(getKey('toasts.updateError')))
+			toast.error(t(getKey('toasts.updateError')), {
+				description: extractErrorMessage(error),
+			})
 		},
 		onSuccess: () => {
 			toast.success(t(getKey('toasts.updateSuccess')))
@@ -185,7 +195,7 @@ export function CreateOrEditScheduledJobDialog({
 								errorMessage={formErrors.schedule?.message}
 								{...form.register('schedule')}
 							/>
-							<div className="flex-shrink-0">
+							<div className="shrink-0">
 								<NativeSelect
 									value={cronPreset}
 									options={CRON_PRESETS.map((p) => ({
