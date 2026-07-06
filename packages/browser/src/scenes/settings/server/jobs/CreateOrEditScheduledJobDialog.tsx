@@ -26,11 +26,11 @@ import { scheduledJobRowFragment } from './ScheduledJobRow'
 import {
 	buildScheduledJobInput,
 	CRON_PRESETS,
+	getScheduledJobSchema,
 	KIND_OPTIONS,
 	LibraryOption,
 	parseScheduledJobConfig,
 	RETRYABLE_STATUSES,
-	scheduledJobFormSchema,
 	ScheduledJobFormValues,
 } from './utils'
 
@@ -94,7 +94,7 @@ export function CreateOrEditScheduledJobDialog({
 
 	const form = useForm<ScheduledJobFormValues>({
 		defaultValues,
-		resolver: zodResolver(scheduledJobFormSchema),
+		resolver: zodResolver(getScheduledJobSchema(t)),
 	})
 
 	const [watchKind, schedule, libraryIds, statuses, enabled] = useWatch({

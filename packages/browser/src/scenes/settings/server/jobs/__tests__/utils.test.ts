@@ -1,6 +1,8 @@
-import { CRON_PRESETS, cronSchema } from '../utils'
+import { CRON_PRESETS, getCronSchema } from '../utils'
 
 describe('cronSchema', () => {
+	const cronSchema = getCronSchema((key) => key)
+
 	describe('valid expressions', () => {
 		it('accepts a 5-field expression', () => {
 			expect(cronSchema.safeParse('0 0 * * *').success).toBe(true)
