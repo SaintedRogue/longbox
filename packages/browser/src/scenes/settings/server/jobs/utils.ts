@@ -40,9 +40,16 @@ export const KIND_OPTIONS = [
 	{ localeKey: 'metadataRetry', value: 'METADATA_RETRY' },
 ] as const
 
+export const cronSchema = z
+	.string()
+	.min(1)
+	.refine((val) => /^\S+(\s+\S+){4,6}$/.test(val.trim()), {
+		message: 'Schedule must be a valid cron expression (5 or 6 fields)',
+	})
+
 export const scheduledJobFormSchema = z.object({
 	name: z.string().min(1),
-	schedule: z.string().min(1),
+	schedule: cronSchema,
 	kind: z.enum(['LIBRARY_SCAN', 'METADATA_RETRY']),
 	libraryIds: z.array(z.string()).default([]),
 	statuses: z
