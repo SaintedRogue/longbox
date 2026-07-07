@@ -1476,6 +1476,16 @@
 					"label": "Czcionka",
 					"description": "Dostosuj czcionkę używaną w aplikacji"
 				},
+				"interfaceRoundness": {
+					"label": "Interface roundness",
+					"description": "How rounded the corners are for UI elements",
+					"options": {
+						"none": "None",
+						"normal": "Normal",
+						"rounded": "Rounded",
+						"pill": "Pill"
+					}
+				},
 				"thumbnailPreview": {
 					"label": "Podgląd",
 					"description": "Tak będą wyglądały miniatury z bieżącymi ustawieniami"
@@ -1575,9 +1585,25 @@
 						"noLimit": "Bez limitu"
 					}
 				},
+				"displayAndSpacing": {
+					"label": "Display and spacing",
+					"description": "Preferences related to the presentation of content and information"
+				},
 				"additionalPreferences": {
 					"label": "Dodatkowe ustawienia",
 					"description": "Dostosuj wygląd i zachowanie Stump za pomocą tych dodatkowych ustawień"
+				},
+				"contentBrowsing": {
+					"label": "Content browsing",
+					"description": "Preferences that affect browsing and navigating content lists"
+				},
+				"motionAndAnimation": {
+					"label": "Motion and animation",
+					"description": "Visual presentation and movement preferences"
+				},
+				"activityAndStatus": {
+					"label": "Activity and status",
+					"description": "Indicators, overlays, or functionality related to background activity"
 				},
 				"hideScrollbarToggle": {
 					"label": "Ukrywaj pasek przewijania",
