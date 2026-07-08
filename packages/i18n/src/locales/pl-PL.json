@@ -1478,12 +1478,12 @@
 				},
 				"interfaceRoundness": {
 					"label": "Zaokrąglenie interfejsu",
-					"description": "How rounded the corners are for UI elements",
+					"description": "Jak bardzo zaokrąglone będą narożniki elementów interfejsu",
 					"options": {
-						"none": "None",
-						"normal": "Normal",
-						"rounded": "Rounded",
-						"pill": "Pill"
+						"none": "W ogóle",
+						"normal": "Normalnie",
+						"rounded": "Zaokrąglone",
+						"pill": "Pastylka"
 					}
 				},
 				"thumbnailPreview": {
@@ -1509,8 +1509,8 @@
 					"label": "Zaokrąglenie miniatury",
 					"description": "Jak bardzo zaokrąglone powinny być narożniki miniatur",
 					"options": {
-						"none": "Brak",
-						"normal": "Normalne",
+						"none": "W ogóle",
+						"normal": "Normalnie",
 						"rounded": "Zaokrąglone",
 						"large": "Duże"
 					}
@@ -1586,24 +1586,24 @@
 					}
 				},
 				"displayAndSpacing": {
-					"label": "Display and spacing",
-					"description": "Preferences related to the presentation of content and information"
+					"label": "Rozstaw i widok",
+					"description": "Ustawienia powiązane z prezentacją treści i informacji"
 				},
 				"additionalPreferences": {
 					"label": "Dodatkowe ustawienia",
 					"description": "Dostosuj wygląd i zachowanie Stump za pomocą tych dodatkowych ustawień"
 				},
 				"contentBrowsing": {
-					"label": "Content browsing",
-					"description": "Preferences that affect browsing and navigating content lists"
+					"label": "Przeglądanie treści",
+					"description": "Ustawienia mające wpływ na przeglądanie i nawigację list treści"
 				},
 				"motionAndAnimation": {
-					"label": "Motion and animation",
-					"description": "Visual presentation and movement preferences"
+					"label": "Ruch i animacja",
+					"description": "Ustawienia prezentacji wizualnej i ruchu"
 				},
 				"activityAndStatus": {
-					"label": "Activity and status",
-					"description": "Indicators, overlays, or functionality related to background activity"
+					"label": "Aktywność i status",
+					"description": "Wskaźniki, nakładki lub funkcjonalności związane z aktywnością w tle"
 				},
 				"hideScrollbarToggle": {
 					"label": "Ukrywaj pasek przewijania",
@@ -2944,7 +2944,7 @@
 			"read": "Czytaj",
 			"readAgain": "Czytaj ponownie",
 			"readTime": "Czas czytania",
-			"readthrough": "Readthrough",
+			"readthrough": "Przeczytanie",
 			"readMore": "Dowiedz się więcej",
 			"refresh": "Odśwież",
 			"save": "Zapisz",
@@ -3130,9 +3130,9 @@
 			"textCase": {
 				"label": "Kapitalizacja tekstu",
 				"options": {
-					"lowerCase": "Lowercase",
-					"sentenceCase": "Sentence Case",
-					"titleCase": "Title Case"
+					"lowerCase": "małe litery",
+					"sentenceCase": "Jak w zdaniu",
+					"titleCase": "Jak w Tytule"
 				}
 			},
 			"tintListBackground": "Zabarw tła list",
