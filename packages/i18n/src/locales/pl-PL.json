@@ -1477,7 +1477,7 @@
 					"description": "Dostosuj czcionkę używaną w aplikacji"
 				},
 				"interfaceRoundness": {
-					"label": "Interface roundness",
+					"label": "Zaokrąglenie interfejsu",
 					"description": "How rounded the corners are for UI elements",
 					"options": {
 						"none": "None",
