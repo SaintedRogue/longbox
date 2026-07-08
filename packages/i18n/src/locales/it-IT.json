@@ -1477,13 +1477,13 @@
 					"description": "Personalizza il carattere usato nell'applicazione"
 				},
 				"interfaceRoundness": {
-					"label": "Interface roundness",
-					"description": "How rounded the corners are for UI elements",
+					"label": "Rotondità interfaccia",
+					"description": "Quanto sono arrotondati gli angoli degli elementi UI",
 					"options": {
-						"none": "None",
-						"normal": "Normal",
-						"rounded": "Rounded",
-						"pill": "Pill"
+						"none": "Nessuno",
+						"normal": "Normale",
+						"rounded": "Arrotondato",
+						"pill": "Pillola"
 					}
 				},
 				"thumbnailPreview": {
@@ -1586,24 +1586,24 @@
 					}
 				},
 				"displayAndSpacing": {
-					"label": "Display and spacing",
-					"description": "Preferences related to the presentation of content and information"
+					"label": "Visualizzazione e spaziatura",
+					"description": "Preferenze relative alla presentazione dei contenuti e delle informazioni"
 				},
 				"additionalPreferences": {
 					"label": "Preferenze aggiuntive",
 					"description": "Personalizza l'aspetto e il comportamento di Stump con queste impostazioni aggiuntive"
 				},
 				"contentBrowsing": {
-					"label": "Content browsing",
-					"description": "Preferences that affect browsing and navigating content lists"
+					"label": "Navigazione contenuti",
+					"description": "Preferenze che influenzano la navigazione degli elenchi di contenuti"
 				},
 				"motionAndAnimation": {
-					"label": "Motion and animation",
-					"description": "Visual presentation and movement preferences"
+					"label": "Movimento e animazione",
+					"description": "Presentazione visiva e preferenze di movimento"
 				},
 				"activityAndStatus": {
-					"label": "Activity and status",
-					"description": "Indicators, overlays, or functionality related to background activity"
+					"label": "Attività e stato",
+					"description": "Indicatori, sovrapposizioni o funzionalità relative alle attività in background"
 				},
 				"hideScrollbarToggle": {
 					"label": "Nascondi barra di scorrimento",
