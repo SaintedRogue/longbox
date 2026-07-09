@@ -380,9 +380,11 @@ export function usePalette(config?: ShadeConfig | CommonConfig | Record<string, 
 		return toHex(color)
 	}
 
-	// No config: return the 11-colour palette
+	// No config: return an 11-colour palette
 	if (config === undefined) {
-		return palette as Record<Shade, string>
+		return Object.fromEntries(
+			Object.entries(palette).map(([key, value]) => [key, reduceChroma(value, accentChromaScale)]),
+		)
 	}
 	// Common config 'accent': Accent colour
 	else if (config === 'accent') {

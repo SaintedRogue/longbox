@@ -17,7 +17,6 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { KeyboardProvider } from 'react-native-keyboard-controller'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Toaster } from 'sonner-native'
-import tailwindColors from 'tailwindcss/colors'
 import { setLocaleDetector } from 'to-words'
 import { useShallow } from 'zustand/react/shallow'
 
@@ -29,7 +28,7 @@ import { db } from '~/db'
 import migrations from '~/drizzle/migrations'
 import { reactNavigationIntegration } from '~/index'
 import { setAndroidNavigationBar } from '~/lib/android-navigation-bar'
-import { NAV_THEME, reduceChroma, Shade, toRgbChannels, useColors } from '~/lib/constants'
+import { NAV_THEME, Shade, toRgbChannels, useColors, usePalette } from '~/lib/constants'
 import { getDownloadQueueManager } from '~/lib/downloadQueue'
 import { useFileImportListener } from '~/lib/import'
 import { useColorScheme } from '~/lib/useColorScheme'
@@ -77,21 +76,16 @@ export default function RootLayout() {
 	const colors = useColors()
 	const insets = useSafeAreaInsets()
 
-	const accentHue = usePreferencesStore((state) => state.accentHue)
-	const accentChromaScale = usePreferencesStore((state) => state.accentChromaScale)
-	const palette = tailwindColors[accentHue]
+	const palette = usePalette()
 
 	const accentVars = React.useMemo(() => {
 		const shades: Shade[] = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950]
 		return vars(
 			Object.fromEntries(
-				shades.map((shade) => {
-					const color = toRgbChannels(reduceChroma(palette[shade], accentChromaScale))
-					return [`--accent-${shade}`, color]
-				}),
+				shades.map((shade) => [`--accent-${shade}`, toRgbChannels(palette[shade])]),
 			),
 		)
-	}, [palette, accentChromaScale])
+	}, [palette])
 
 	useFileImportListener()
 
