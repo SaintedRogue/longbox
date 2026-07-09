@@ -193,6 +193,7 @@ function Reader({ record, bookmarks, annotations }: ReaderProps) {
 			serverId,
 			...input
 		}: PagedProgressInput & { bookId: string; serverId: string }) => {
+			timer.popDeltaSeconds()
 			const totalSeconds = timer.getTotalSeconds()
 
 			const result = await db
@@ -237,6 +238,7 @@ function Reader({ record, bookmarks, annotations }: ReaderProps) {
 			percentage,
 			...epubProgress
 		}: ReadiumLocator & { bookId: string; serverId: string; percentage: number }) => {
+			timer.popDeltaSeconds()
 			const totalSeconds = timer.getTotalSeconds()
 
 			const result = await db

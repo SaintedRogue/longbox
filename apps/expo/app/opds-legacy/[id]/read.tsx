@@ -110,6 +110,7 @@ export default function Screen() {
 	const onPageChanged = useCallback(
 		async (pageNumber: number) => {
 			if (isLoadingRecord || !record) return
+			timer.popDeltaSeconds()
 			const totalSeconds = timer.getTotalSeconds()
 
 			return db
