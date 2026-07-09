@@ -674,6 +674,8 @@ export default function Screen() {
 				pageURL={(page: number) => sdk.media.bookPageURL(book.id, page)}
 				onPageChanged={onPageChanged}
 				timer={timer}
+				// TODO: Reset elapsed seconds for every reading session in the readthrough
+				// resetTimer={resetTimer}
 				nextInSeries={nextInSeries}
 				serverId={serverId}
 				requestHeaders={requestHeaders}

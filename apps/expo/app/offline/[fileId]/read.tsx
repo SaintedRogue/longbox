@@ -183,6 +183,31 @@ function Reader({ record, bookmarks, annotations }: ReaderProps) {
 		enabled: trackElapsedTime,
 	})
 
+	const { mutate: resetElapsedSeconds } = useMutation({
+		retry: (attempts) => attempts < 3,
+		onError: (error) => {
+			console.error('Failed to reset reading time:', error)
+		},
+		mutationFn: async ({ bookId, serverId }: { bookId: string; serverId: string }) => {
+			await db
+				.insert(readProgress)
+				.values({
+					bookId,
+					elapsedSeconds: 0,
+					lastModified: new Date(),
+					serverId,
+				})
+				.onConflictDoUpdate({
+					target: readProgress.bookId,
+					set: {
+						elapsedSeconds: 0,
+						lastModified: new Date(),
+						syncStatus: syncStatus.enum.UNSYNCED,
+					},
+				})
+		},
+	})
+
 	const { mutate: updatePagedProgress } = useMutation({
 		retry: (attempts) => attempts < 3,
 		onError: (error) => {
@@ -226,6 +251,11 @@ function Reader({ record, bookmarks, annotations }: ReaderProps) {
 		},
 		[book.id, downloadedFile.serverId, updatePagedProgress],
 	)
+
+	const resetTimer = useCallback(() => {
+		resetElapsedSeconds({ bookId: book.id, serverId: downloadedFile.serverId })
+		timer.clearTotalSeconds()
+	}, [book.id, downloadedFile.serverId, resetElapsedSeconds, timer])
 
 	const { mutate: updateEbookProgress } = useMutation({
 		retry: (attempts) => attempts < 3,
@@ -356,6 +386,7 @@ function Reader({ record, bookmarks, annotations }: ReaderProps) {
 				pageURL={pageURL}
 				onPageChanged={onPageChanged}
 				timer={timer}
+				resetTimer={resetTimer}
 				serverId={downloadedFile.serverId}
 			/>
 		)

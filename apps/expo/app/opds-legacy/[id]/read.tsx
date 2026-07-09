@@ -135,6 +135,24 @@ export default function Screen() {
 		[isLoadingRecord, record, timer],
 	)
 
+	const resetTimer = useCallback(() => {
+		db.insert(readProgress)
+			.values({
+				bookId: book.id,
+				elapsedSeconds: 0,
+				lastModified: new Date(),
+				serverId,
+			})
+			.onConflictDoUpdate({
+				target: readProgress.bookId,
+				set: {
+					elapsedSeconds: 0,
+					lastModified: new Date(),
+				},
+			})
+		timer.clearTotalSeconds()
+	}, [book.id, serverId, timer])
+
 	const setIsReading = useReaderStore((state) => state.setIsReading)
 	const setShowControls = useReaderStore((state) => state.setShowControls)
 
@@ -174,6 +192,7 @@ export default function Screen() {
 			pageURL={getStreamURLForPage}
 			requestHeaders={requestHeaders}
 			timer={timer}
+			resetTimer={resetTimer}
 			onPageChanged={onPageChanged}
 			isOPDS
 		/>

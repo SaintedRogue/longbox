@@ -114,6 +114,30 @@ export default function Screen() {
 	const queryClient = useQueryClient()
 	const lastPageRef = useRef<number | null>(null)
 
+	const { mutate: resetElapsedSeconds } = useMutation({
+		retry: (attempts) => attempts < 3,
+		onError: (error) => {
+			console.error('Failed to reset reading time:', error)
+		},
+		mutationFn: async ({ bookId, serverId }: { bookId: string; serverId: string }) => {
+			await db
+				.insert(readProgress)
+				.values({
+					bookId,
+					elapsedSeconds: 0,
+					lastModified: new Date(),
+					serverId,
+				})
+				.onConflictDoUpdate({
+					target: readProgress.bookId,
+					set: {
+						elapsedSeconds: 0,
+						lastModified: new Date(),
+					},
+				})
+		},
+	})
+
 	const { mutate: updateProgression } = useMutation({
 		retry: (attempts) => attempts < 3,
 		onError: (error) => {
@@ -191,6 +215,11 @@ export default function Screen() {
 		[progressionURL, deviceId, readingOrder, updateProgression, timer, id, serverId],
 	)
 
+	const resetTimer = useCallback(() => {
+		resetElapsedSeconds({ bookId: id, serverId: serverId })
+		timer.clearTotalSeconds()
+	}, [id, serverId, resetElapsedSeconds, timer])
+
 	useFocusEffect(
 		useCallback(() => {
 			return () => {
@@ -247,6 +276,7 @@ export default function Screen() {
 			pageURL={(page: number) => getPageURL(readingOrder![page - 1]?.href || '')}
 			requestHeaders={requestHeaders}
 			timer={timer}
+			resetTimer={resetTimer}
 			onPageChanged={progressionURL ? onPageChanged : undefined}
 			isOPDS
 		/>

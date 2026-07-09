@@ -1,12 +1,14 @@
 import { useRouter } from 'expo-router'
 import { X } from 'lucide-react-native'
-import { Platform, View } from 'react-native'
+import { Alert, Platform, View } from 'react-native'
 import Animated from 'react-native-reanimated'
 import { initialWindowMetrics, useSafeAreaInsets } from 'react-native-safe-area-context'
 
+import { useActiveServerSafe } from '~/components/activeServer'
 import { Heading } from '~/components/ui'
 import { HeaderButton } from '~/components/ui/header-button/header-button'
 import { COLORS, IS_IOS_26_PLUS } from '~/lib/constants'
+import { useTranslate } from '~/lib/hooks'
 
 import { PagedActionMenu } from '../shared/paged-action-menu/PagedActionMenu'
 import { useReaderAnimations } from '../shared/readerAnimations'
@@ -17,12 +19,26 @@ type Props = {
 }
 
 export default function Header({ onShowGlobalSettings }: Props) {
-	const { book, serverId } = useImageBasedReader()
+	const { t } = useTranslate()
+
+	const { book, resetTimer, serverId } = useImageBasedReader()
+	const activeServerCtx = useActiveServerSafe()
 
 	const insets = useSafeAreaInsets()
 	const { secondaryStyle } = useReaderAnimations()
 
 	const router = useRouter()
+
+	const confirmResetTimer = () => {
+		Alert.alert(
+			'Reset Timer',
+			`Are you sure you want to reset your reading time for '${book.name}' to 0 seconds?${activeServerCtx?.activeServer.kind === 'stump' ? '\n\nThis will set every reading session in this readthrough to 0 seconds.' : ''}`,
+			[
+				{ text: t('common.cancel'), style: 'cancel' },
+				{ text: 'Reset', style: 'destructive', onPress: resetTimer },
+			],
+		)
+	}
 
 	return (
 		<Animated.View
@@ -56,8 +72,7 @@ export default function Header({ onShowGlobalSettings }: Props) {
 				<PagedActionMenu
 					book={book}
 					serverId={serverId}
-					// TODO: how to deal with reset? especially with reading sesssions and delta seconds
-					// onResetTimer={timer.reset}
+					onResetTimer={confirmResetTimer}
 					onShowSettings={onShowGlobalSettings}
 				/>
 			</View>

@@ -68,6 +68,12 @@ export const useReadingTimer = ({ databaseSeconds, enabled = false }: Params) =>
 		return baseSecondsRef.current + cappedSeconds
 	}, [computePendingTime])
 
+	const clearTotalSeconds = useCallback(() => {
+		pageMsRef.current = 0
+		pageStartRef.current = isRunningRef.current ? performance.now() : null
+		baseSecondsRef.current = 0
+	}, [])
+
 	useEffect(() => {
 		if (!enabled) return
 		if (databaseSeconds == undefined) return
@@ -110,5 +116,7 @@ export const useReadingTimer = ({ databaseSeconds, enabled = false }: Params) =>
 
 	useAppState({ onStateChanged: handleFocusedChanged })
 
-	return { resume, pause, popDeltaSeconds, getTotalSeconds, isRunningRef }
+	return { resume, pause, popDeltaSeconds, getTotalSeconds, clearTotalSeconds, isRunningRef }
 }
+
+export type Timer = ReturnType<typeof useReadingTimer>
