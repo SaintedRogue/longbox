@@ -37,7 +37,7 @@ export default function TableOfContentsSheetContent({ goToPage, isOpen }: Props)
 	const insets = useSafeAreaInsets()
 	const keyboardVisible = useKeyboardState((state) => state.isVisible)
 
-	const selectionColor = usePalette({ light: 400, dark: 500 })
+	const selectionColor = usePalette('accent')
 
 	// FIXME: items behind the keyboard are viewableItems from the flashlist, but they shouldn't be counted
 	// and probably change to just use up and down arrows if keyboard is shown
@@ -343,7 +343,7 @@ const ScrollToChapterIndicator = ({
 }) => {
 	const { t } = useTranslate()
 
-	const textColor = usePalette({ light: 400, dark: 500 })
+	const textColor = usePalette('accent')
 
 	return (
 		<Animated.View

@@ -66,7 +66,7 @@ type Props = {
 const Switch = React.forwardRef<SwitchPrimitives.RootRef, Props>(
 	({ className, variant = 'brand', size = 'default', ...props }, ref) => {
 		const { colorScheme } = useColorScheme()
-		const tintColor = usePalette({ light: 400, dark: 500 })
+		const tintColor = usePalette('accent')
 		const xValue = SIZES[size]?.translateX || SIZES.default.translateX
 		const translateX = useDerivedValue(() => (props.checked ? xValue : 0))
 		const defaultColors = RGB_COLORS[variant][colorScheme]

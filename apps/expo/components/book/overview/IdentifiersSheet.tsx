@@ -32,7 +32,7 @@ export default function IdentifiersSheet({ identifiers }: Props) {
 	const [isOpen, setIsOpen] = useState(false)
 
 	const colors = useColors()
-	const textColor = usePalette({ light: 400, dark: 500, chromaScale: 0.8 })
+	const textColor = usePalette('muted')
 
 	return (
 		<Fragment>

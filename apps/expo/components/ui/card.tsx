@@ -159,7 +159,7 @@ function Row({ value, children, ...props }: RowProps) {
 function LongRow({ value, className, ...props }: Omit<RowProps, 'children'>) {
 	const colors = useColors()
 	const { isDarkColorScheme } = useColorScheme()
-	const accentColor = usePalette({ light: 400, dark: 500 })
+	const accentColor = usePalette('accent')
 
 	const [expanded, setExpanded] = useState(false)
 	const [isExpandable, setIsExpandable] = useState(false)

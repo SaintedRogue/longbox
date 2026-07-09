@@ -68,7 +68,9 @@ type ButtonProps = React.ComponentPropsWithoutRef<typeof Pressable> &
 
 const Button = React.forwardRef<React.ElementRef<typeof Pressable>, ButtonProps>(
 	({ className, variant, size, style, roundness, ...props }, ref) => {
-		const accentColor = usePalette({ light: 400, dark: 500, chromaScale: 0.8 })
+		// Note: It may or may not be better to have non-book overview buttons
+		// as the full accent color rather than this slightly muted accent colour
+		const accentColor = usePalette('muted')
 		const isBrand = variant === 'brand' || !variant
 
 		return (

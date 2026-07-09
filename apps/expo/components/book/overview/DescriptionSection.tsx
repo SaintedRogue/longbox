@@ -21,7 +21,7 @@ export default function DescriptionSection({ description }: Props) {
 	const sheetRef = useRef<TrueSheet | null>(null)
 
 	const colors = useColors()
-	const textColor = usePalette({ light: 400, dark: 500, chromaScale: 0.8 })
+	const textColor = usePalette('muted')
 
 	const strippedDescription = stripHtml(description).result
 

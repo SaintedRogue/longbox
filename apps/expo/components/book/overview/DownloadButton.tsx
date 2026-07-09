@@ -30,7 +30,7 @@ export default function DownloadButton({ bookId, serverId, onDownload }: Downloa
 	const isDownloading = useIsBookDownloading(bookId)
 	const isDownloaded = useIsBookDownloaded(bookId, serverId)
 
-	const accentColor = usePalette({ light: 400, dark: 500, chromaScale: 0.8 })
+	const accentColor = usePalette('muted')
 
 	const { activeItems, cancel } = useDownloadQueue({ serverId })
 

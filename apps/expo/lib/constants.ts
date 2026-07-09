@@ -300,7 +300,7 @@ export const useColors = () => {
 	const { isDarkColorScheme } = useColorScheme()
 	const resolvedTheme = clone(isDarkColorScheme ? dark : light)
 
-	const accentColor = usePalette({ light: 400, dark: 500 })
+	const accentColor = usePalette('accent')
 
 	if (accentColor) {
 		const color = getColor(accentColor)
@@ -331,14 +331,16 @@ const PRECOMPUTED_SHADES = [0, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 
 
 type BaseShadeConfig = { light: number; dark: number; opacity?: number; chromaScale?: number }
 type ShadeConfig = number | BaseShadeConfig
+type CommonConfig = 'accent' | 'muted'
 
 export function usePalette(): Record<Shade, string>
 export function usePalette(config: ShadeConfig): string
 export function usePalette<T extends Record<string, ShadeConfig>>(
 	config: T,
 ): Record<keyof T, string>
+export function usePalette(config: CommonConfig): string
 
-export function usePalette(config?: ShadeConfig | Record<string, ShadeConfig>) {
+export function usePalette(config?: ShadeConfig | CommonConfig | Record<string, ShadeConfig>) {
 	const accentHue = usePreferencesStore((state) => state.accentHue)
 	const accentChromaScale = usePreferencesStore((state) => state.accentChromaScale)
 	const palette: Record<number, string> = tailwindColors[accentHue]
@@ -381,6 +383,14 @@ export function usePalette(config?: ShadeConfig | Record<string, ShadeConfig>) {
 	// No config: return the 11-colour palette
 	if (config === undefined) {
 		return palette as Record<Shade, string>
+	}
+	// Common config 'accent': Accent colour
+	else if (config === 'accent') {
+		return resolveConfig({ light: 450, dark: 500 })
+	}
+	// Common config 'muted': Slightly muted accent colour
+	else if (config === 'muted') {
+		return resolveConfig({ light: 450, dark: 500, chromaScale: 0.9 })
 	}
 	// A simple config: e.g. 500 or { light: 500, dark: 600 } -> return the single colour
 	else if (typeof config === 'number' || ('light' in config && 'dark' in config)) {

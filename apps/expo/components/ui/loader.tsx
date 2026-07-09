@@ -37,7 +37,7 @@ const AndroidLoader = ({ color }: NativeLoaderProps) => {
 
 const WrappedLoader = ({ color }: Partial<NativeLoaderProps>) => {
 	const colors = useColors()
-	const accentColor = usePalette({ light: 400, dark: 500 })
+	const accentColor = usePalette('accent')
 
 	return Platform.select({
 		ios: <IosLoader color={color || accentColor || colors.fill.brand.DEFAULT} />,

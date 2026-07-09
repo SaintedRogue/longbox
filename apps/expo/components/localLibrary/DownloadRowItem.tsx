@@ -51,7 +51,7 @@ export default function DownloadRowItem({ downloadedFile }: Props) {
 	const { width, height } = useDownloadRowItemSize()
 	const { backgroundColor, iconColor } = usePalette({
 		iconColor: { light: 400, dark: 700 },
-		backgroundColor: { light: 80, dark: 950, chromaScale: 0.8 },
+		backgroundColor: { light: 150, dark: 950, chromaScale: 0.6 },
 	})
 
 	const selectionStore = useSelectionStore(

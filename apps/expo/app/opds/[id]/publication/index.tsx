@@ -192,7 +192,7 @@ export default function Screen() {
 
 	const isSupportedStream = readingOrder?.every((link) => link.type?.startsWith('image/'))
 
-	const accentColor = usePalette({ light: 400, dark: 500 })
+	const accentColor = usePalette('accent')
 
 	const renderModifiedStat = (progression: OPDSProgression) => {
 		if (!progression.modified) return null
@@ -300,14 +300,7 @@ export default function Screen() {
 								>
 									{isDownloading && (
 										<View className="animate-spin pointer-events-none">
-											<Icon
-												className="h-5 w-5"
-												as={Loader2}
-												style={{
-													// @ts-expect-error: It's fine
-													color: accentColor,
-												}}
-											/>
+											<Icon className="h-5 w-5" as={Loader2} color={accentColor} />
 										</View>
 									)}
 									<Text>Download</Text>
