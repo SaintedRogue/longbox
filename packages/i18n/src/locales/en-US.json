@@ -2921,6 +2921,7 @@
 			"readthrough": "Readthrough",
 			"readMore": "Read More",
 			"refresh": "Refresh",
+			"reset": "Reset",
 			"save": "Save",
 			"select": "Select",
 			"settings": "Settings",
@@ -3272,7 +3273,14 @@
 			},
 			"readingTimer": {
 				"label": "Reading Timer",
-				"resetTimer": "Reset Timer"
+				"resetTimer": "Reset Timer",
+				"confirmation": {
+					"message": "Are you sure you want to reset your reading time for '{{bookName}}'?\n\n{{action}}",
+					"action": {
+						"multi-session": "This will set every reading session in this readthrough to 0 seconds.",
+						"single-session": "This will set the reading time to 0 seconds."
+					}
+				}
 			},
 			"allSettings": "All Settings"
 		},
