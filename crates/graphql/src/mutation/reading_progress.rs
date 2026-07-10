@@ -14,8 +14,9 @@ use models::{
 	shared::enums::ReadingStatus,
 };
 use sea_orm::{
-	prelude::Decimal, ActiveModelTrait, ActiveValue::Set, ColumnTrait, EntityTrait,
-	IntoActiveModel, QueryFilter, QueryOrder, QuerySelect, QueryTrait, TransactionTrait,
+	prelude::Decimal, sea_query::Expr, ActiveModelTrait, ActiveValue::Set, ColumnTrait,
+	EntityTrait, IntoActiveModel, QueryFilter, QueryOrder, QuerySelect, QueryTrait,
+	TransactionTrait,
 };
 
 use crate::{
@@ -124,6 +125,54 @@ impl ReadProgressMutation {
 			?affected_rows,
 			readthrough_number = session.readthrough_number,
 			"Removed reading sessions for the book's current readthrough"
+		);
+
+		tx.commit().await?;
+
+		Ok(affected_rows > 0)
+	}
+
+	/// resets the elapsed seconds for all reading sessions in the current readthrough, if there is one
+	#[tracing::instrument(skip(self, ctx), fields(media_id = ?id))]
+	async fn reset_elapsed_seconds(&self, ctx: &Context<'_>, id: ID) -> Result<bool> {
+		let AuthContext { user, .. } = ctx.data::<AuthContext>()?;
+		let core = ctx.data::<CoreContext>()?;
+
+		let tx = core.conn.begin().await?;
+
+		let current_session = reading_session::Entity::find()
+			.filter(
+				reading_session::Column::UserId
+					.eq(user.id.clone())
+					.and(reading_session::Column::MediaId.eq(id.to_string())),
+			)
+			.order_by_desc(reading_session::Column::CreatedAt)
+			.one(&tx)
+			.await?;
+
+		let Some(session) = current_session else {
+			// no active session = no work to do
+			return Ok(false);
+		};
+
+		let affected_rows = reading_session::Entity::update_many()
+			.col_expr(reading_session::Column::ElapsedSeconds, Expr::value(0))
+			.filter(
+				reading_session::Column::UserId
+					.eq(user.id.clone())
+					.and(reading_session::Column::MediaId.eq(id.to_string())),
+			)
+			.filter(
+				reading_session::Column::ReadthroughNumber.eq(session.readthrough_number),
+			)
+			.exec(&tx)
+			.await?
+			.rows_affected;
+
+		tracing::debug!(
+			?affected_rows,
+			readthrough_number = session.readthrough_number,
+			"Reset elapsed seconds in all reading sessions of the book's current readthrough"
 		);
 
 		tx.commit().await?;

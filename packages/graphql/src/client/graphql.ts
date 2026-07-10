@@ -2089,6 +2089,8 @@ export type Mutation = {
   renameTag: Tag;
   /** Reorder uncompleted books in the club's queue. Completed books cannot be reordered since they are effectively archived */
   reorderBooks: BookClub;
+  /** resets the elapsed seconds for all reading sessions in the current readthrough, if there is one */
+  resetElapsedSeconds: Scalars['Boolean']['output'];
   resetLibraryMetadata: Library;
   resetSeriesMetadata: Series;
   respondToBookClubInvitation: BookClubInvitation;
@@ -2662,6 +2664,11 @@ export type MutationRenameTagArgs = {
 export type MutationReorderBooksArgs = {
   bookClubId: Scalars['ID']['input'];
   bookIds: Array<Scalars['String']['input']>;
+};
+
+
+export type MutationResetElapsedSecondsArgs = {
+  id: Scalars['ID']['input'];
 };
 
 
@@ -4892,6 +4899,13 @@ export type UpdateReadProgressionMutationVariables = Exact<{
 
 
 export type UpdateReadProgressionMutation = { __typename?: 'Mutation', updateMediaProgress: { __typename: 'ReadingSession' } };
+
+export type ResetElapsedSecondsMutationVariables = Exact<{
+  id: Scalars['ID']['input'];
+}>;
+
+
+export type ResetElapsedSecondsMutation = { __typename?: 'Mutation', resetElapsedSeconds: boolean };
 
 export type CreateBookmarkMobileMutationVariables = Exact<{
   input: BookmarkInput;
@@ -8339,6 +8353,11 @@ export const UpdateReadProgressionDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<UpdateReadProgressionMutation, UpdateReadProgressionMutationVariables>;
+export const ResetElapsedSecondsDocument = new TypedDocumentString(`
+    mutation ResetElapsedSeconds($id: ID!) {
+  resetElapsedSeconds(id: $id)
+}
+    `) as unknown as TypedDocumentString<ResetElapsedSecondsMutation, ResetElapsedSecondsMutationVariables>;
 export const CreateBookmarkMobileDocument = new TypedDocumentString(`
     mutation CreateBookmarkMobile($input: BookmarkInput!) {
   createBookmark(input: $input) {

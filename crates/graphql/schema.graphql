@@ -2096,6 +2096,8 @@ type Mutation {
 	updateMediaProgress(id: ID!, input: MediaProgressInput!): ReadingSession!
 	"trashes current readthrough, if there is one"
 	clearMediaProgress(id: ID!): Boolean!
+	"resets the elapsed seconds for all reading sessions in the current readthrough, if there is one"
+	resetElapsedSeconds(id: ID!): Boolean!
 	"""
 	marks current readthrough as complete:
 	- if no current readthrough, creates one

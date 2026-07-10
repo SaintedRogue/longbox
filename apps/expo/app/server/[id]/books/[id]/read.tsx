@@ -177,6 +177,12 @@ const mutation = graphql(`
 	}
 `)
 
+const resetElapsedSecondsMutation = graphql(`
+	mutation ResetElapsedSeconds($id: ID!) {
+		resetElapsedSeconds(id: $id)
+	}
+`)
+
 const createBookmarkMutation = graphql(`
 	mutation CreateBookmarkMobile($input: BookmarkInput!) {
 		createBookmark(input: $input) {
@@ -418,6 +424,17 @@ export default function Screen() {
 		},
 		[book.id, timer, updateProgress],
 	)
+
+	const { mutate: resetElapsedSeconds } = useGraphQLMutation(resetElapsedSecondsMutation, {
+		onError: (error) => {
+			console.error('Failed to reset elapsed seconds:', error)
+		},
+		onSuccess: timer.clearTotalSeconds,
+	})
+
+	const resetTimer = useCallback(() => {
+		resetElapsedSeconds({ id: book.id })
+	}, [resetElapsedSeconds, book.id])
 
 	const { syncCreate: syncBookmarkCreate, syncDelete: syncBookmarkDelete } =
 		useSyncOnlineToOfflineBookmarks({
@@ -674,8 +691,7 @@ export default function Screen() {
 				pageURL={(page: number) => sdk.media.bookPageURL(book.id, page)}
 				onPageChanged={onPageChanged}
 				timer={timer}
-				// TODO: Reset elapsed seconds for every reading session in the readthrough
-				// resetTimer={resetTimer}
+				resetTimer={resetTimer}
 				nextInSeries={nextInSeries}
 				serverId={serverId}
 				requestHeaders={requestHeaders}

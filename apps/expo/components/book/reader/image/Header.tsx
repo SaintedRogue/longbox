@@ -32,7 +32,11 @@ export default function Header({ onShowGlobalSettings }: Props) {
 	const confirmResetTimer = () => {
 		Alert.alert(
 			'Reset Timer',
-			`Are you sure you want to reset your reading time for '${book.name}' to 0 seconds?${activeServerCtx?.activeServer.kind === 'stump' ? '\n\nThis will set every reading session in this readthrough to 0 seconds.' : ''}`,
+			`Are you sure you want to reset your reading time for '${book.name}'?\n\n${
+				activeServerCtx?.activeServer.kind === 'stump'
+					? 'This will set every reading session in this readthrough to 0 seconds.'
+					: 'This will set the reading time to 0 seconds.'
+			}`,
 			[
 				{ text: t('common.cancel'), style: 'cancel' },
 				{ text: 'Reset', style: 'destructive', onPress: resetTimer },
