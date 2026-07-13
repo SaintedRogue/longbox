@@ -455,8 +455,8 @@
 			"description": "Indexar los archivos de la biblioteca para llenar la base de datos"
 		},
 		"errors": {
-			"failedToUpdate": "Failed to update library",
-			"failedToScan": "Failed to scan library"
+			"failedToUpdate": "Se ha encontrado un problema al actualizar la librería",
+			"failedToScan": "Se ha encontrado un problema al escanear la librería"
 		}
 	},
 	"createLibraryScene": {
@@ -544,9 +544,9 @@
 	},
 	"libraryHeader": {
 		"tabs": {
-			"books": "Books",
+			"books": "Libros",
 			"series": "Series",
-			"files": "Files"
+			"files": "Archivos"
 		}
 	},
 	"librarySettingsScene": {
@@ -690,14 +690,14 @@
 		},
 		"integrations/metadata": {
 			"title": "Metadatos",
-			"description": "Manage and review metadata matches for this library",
+			"description": "Gestiona y revisa las coincidencias de metadatos para esta librería",
 			"sections": {
 				"fetchMetadata": {
 					"heading": "Obtener metadatos",
 					"description": "Obtener metadatos para el medio en esta biblioteca",
 					"noProviders": {
 						"title": "No hay proveedores de metadatos disponibles",
-						"description": "You can configure metadata providers in the metadata integration settings"
+						"description": "Puedes configurar los proveedores de metadatos en las preferenciaón de integración de metadatos"
 					},
 					"fetchButton": "Comenzar búsqueda de fondo",
 					"fetchError": "Error al iniciar búsqueda de metadatos"
@@ -924,13 +924,13 @@
 	},
 	"seriesHeader": {
 		"tabs": {
-			"books": "Books",
-			"files": "Files"
+			"books": "Libros",
+			"files": "Archivos"
 		},
 		"actions": {
-			"markAsRead": "Mark series as read",
-			"markAsUnread": "Mark series as unread",
-			"goToLibrary": "Go to library"
+			"markAsRead": "Marcar estas series como leídas",
+			"markAsUnread": "Marcar estas series como no leídas",
+			"goToLibrary": "Ir a la librería"
 		},
 		"errors": {
 			"failedToUpdateCompletion": "Failed to update book completion status"
