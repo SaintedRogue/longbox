@@ -4,8 +4,6 @@ import Link from 'fumadocs-core/link'
 import { useTheme } from 'fumadocs-ui/provider/base'
 import { useEffect, useMemo } from 'react'
 
-import DownloadLinks from './DownloadLinks'
-
 const wordVariants = {
 	hidden: {
 		opacity: 0,
@@ -161,10 +159,6 @@ export default function Hero() {
 								<span>See on Github</span>
 							</Link>
 						</motion.div>
-					</div>
-
-					<div className="mt-5">
-						<DownloadLinks />
 					</div>
 				</div>
 			</div>

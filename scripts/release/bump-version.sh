@@ -4,7 +4,7 @@
 _BUMP=${BUMP:?bump is required}
 _GENERATE_CHANGELOG=${GENERATE_CHANGELOG:=1}
 
-# desktop, mobile, core -> default is core
+# core -> default is core
 _TARGETS=${TARGETS:=core}
 
 

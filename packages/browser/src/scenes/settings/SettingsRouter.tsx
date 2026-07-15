@@ -3,7 +3,6 @@ import { lazy } from 'react'
 import { Navigate, Route, Routes } from 'react-router'
 
 import { useAppContext } from '@/context'
-import { useAppStore } from '@/stores/app.ts'
 
 import EmailSettingsRouter from './server/email/EmailSettingsRouter.tsx'
 import UsersRouter from './server/users/UsersRouter.tsx'
@@ -12,7 +11,6 @@ import SettingsLayout from './SettingsLayout.tsx'
 const GeneralSettingsScene = lazy(() => import('./app/general/GeneralSettingsScene.tsx'))
 const AppearanceSettingsScene = lazy(() => import('./app/preferences/AppearanceSettingsScene.jsx'))
 const ReaderDefaultSettingsScene = lazy(() => import('./app/reader/ReaderDefaultSettingsScene.tsx'))
-const DesktopSettingsScene = lazy(() => import('./app/desktop'))
 const APIKeySettingsScene = lazy(() => import('./app/apiKeys'))
 
 const GeneralServerSettingsScene = lazy(
@@ -28,8 +26,6 @@ const TagSettingsScene = lazy(() => import('./server/tags'))
  */
 export default function SettingsRouter() {
 	const { checkPermission } = useAppContext()
-
-	const isDesktop = useAppStore((store) => store.platform !== 'browser')
 
 	const apiKeys = checkPermission(UserPermission.AccessApiKeys)
 	const canManageServer = checkPermission(UserPermission.ManageServer)
@@ -47,7 +43,6 @@ export default function SettingsRouter() {
 				<Route path="preferences" element={<AppearanceSettingsScene />} />
 				<Route path="reader" element={<ReaderDefaultSettingsScene />} />
 				{apiKeys && <Route path="api-keys" element={<APIKeySettingsScene />} />}
-				{isDesktop && <Route path="desktop" element={<DesktopSettingsScene />} />}
 
 				{canManageServer && <Route path="server" element={<GeneralServerSettingsScene />} />}
 				{canManageServer && <Route path="logs" element={<ServerLogsScene />} />}

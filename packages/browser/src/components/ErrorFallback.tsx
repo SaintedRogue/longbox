@@ -18,10 +18,7 @@ export function ErrorFallback({ error, resetErrorBoundary }: FallbackProps) {
 	}
 
 	return (
-		<div
-			data-tauri-drag-region
-			className="flex h-full w-full flex-col items-center justify-center overflow-hidden"
-		>
+		<div className="flex h-full w-full flex-col items-center justify-center overflow-hidden">
 			<img
 				src="/assets/svg/bomb.svg"
 				alt="Construction illustration"

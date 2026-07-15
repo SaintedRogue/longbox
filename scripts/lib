@@ -8,7 +8,6 @@ log_error() {
 workspaces_sed_correction() {
     set -ex; \
         sed -i '/core\/integration-tests/d' Cargo.toml; \
-        sed -i '/apps\/desktop\/src-tauri/d' Cargo.toml
 }
 
 # Change all versions in package.json files AND Cargo.toml files to 'nightly'

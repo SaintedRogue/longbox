@@ -1,6 +1,5 @@
 export * from './client'
 export * from './context'
-export * from './desktop'
 export * from './hooks'
 export { invalidateQueries } from './invalidate'
 export { StumpClientContextProvider } from './provider'

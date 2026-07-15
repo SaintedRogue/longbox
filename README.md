@@ -90,8 +90,6 @@ The repository is managed via yarn workspaces and cargo workspaces:
 ```bash
 # The primary applications all grouped together
 apps/
-  desktop/   # Tauri wrapping the web UI
-  expo/      # React Native app
   server/    # Axum server
   web/       # UI served by the server
 # The primary internals, like file processing etc
@@ -117,12 +115,8 @@ There are a number of other projects that are similar to Longbox, it certainly i
 
 ## License
 
-> If a package or subfolder has its own license file, that license takes precedence over the repository-level license and will be listed below.
-
-- The [expo application](./apps/expo/LICENSE) is licensed under [GPL-3.0](https://www.gnu.org/licenses/gpl-3.0.html)
-- All other code in the repository is licensed under [MIT License](https://www.tldrlegal.com/license/mit-license)
+All code in the repository is licensed under the [MIT License](https://www.tldrlegal.com/license/mit-license).
 
 ## Attribution
 
-- Some of the icons used in the web and mobile applications are from the [Spacedrive](https://github.com/spacedriveapp/spacedrive/tree/main/packages/assets/icons) repository, and are licensed under the [AGPL-3.0](<https://www.tldrlegal.com/license/gnu-affero-general-public-license-v3-(agpl-3.0)>) license.
-- The native Readium expo modules were adapted from [Storyteller](https://gitlab.com/storyteller-platform/storyteller)
+- Longbox is a fork of [Stump](https://github.com/stumpapp/stump) by Aaron Leopold and contributors.

@@ -58,15 +58,6 @@ const RouterContainer = (props: StumpClientProps) => {
 		thumbnailRoundness: userPreferences?.thumbnailRoundness,
 	})
 
-	const { setUseDiscordPresence, setDiscordPresence } = props.tauriRPC ?? {}
-	const discordPresenceEnabled = userPreferences?.enableDiscordPresence ?? false
-	useEffect(() => {
-		setUseDiscordPresence?.(discordPresenceEnabled)
-		if (discordPresenceEnabled) {
-			setDiscordPresence?.()
-		}
-	}, [setUseDiscordPresence, setDiscordPresence, discordPresenceEnabled])
-
 	const handleRedirect = (url: string) => {
 		navigate({
 			pathname: url,
@@ -96,7 +87,6 @@ const RouterContainer = (props: StumpClientProps) => {
 		<StumpClientContextProvider
 			onUnauthenticatedResponse={handleUnauthenticatedResponse}
 			onConnectionWithServerChanged={handleConnectionWithServerChanged}
-			tauriRPC={props.tauriRPC}
 			onAuthenticated={props.onAuthenticated}
 			onLogout={props.onLogout}
 		>

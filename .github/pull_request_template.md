@@ -31,5 +31,4 @@ Please read each item and check the boxes:
 
 By contributing to Stump, you agree that your contributions will be licensed under the following licenses (where applicable):
 
-- The [expo application](https://github.com/stumpapp/stump/blob/main/apps/expo/LICENSE) is licensed under [GPL-3.0](https://www.gnu.org/licenses/gpl-3.0.html)
 - All other code in the repository is licensed under [MIT License](https://www.tldrlegal.com/license/mit-license)

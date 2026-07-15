@@ -10,18 +10,8 @@ use tower_http::cors::{AllowOrigin, CorsLayer};
 
 use crate::middleware::auth::STUMP_SAVE_BASIC_SESSION_HEADER;
 
-const DEFAULT_ALLOWED_ORIGINS: &[&str] = &[
-	"tauri://localhost",
-	"https://tauri.localhost",
-	"http://tauri.localhost",
-];
-const DEBUG_ALLOWED_ORIGINS: &[&str] = &[
-	"tauri://localhost",
-	"https://tauri.localhost",
-	"http://tauri.localhost",
-	"http://localhost:3000",
-	"http://0.0.0.0:3000",
-];
+const DEFAULT_ALLOWED_ORIGINS: &[&str] = &[];
+const DEBUG_ALLOWED_ORIGINS: &[&str] = &["http://localhost:3000", "http://0.0.0.0:3000"];
 
 fn merge_origins(origins: &[&str], local_origins: Vec<String>) -> Vec<HeaderValue> {
 	origins

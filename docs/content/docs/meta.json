@@ -14,8 +14,6 @@
 		"guides/breaking-changes",
 
 		"---Apps---",
-		"apps/mobile",
-		"apps/desktop",
 		"apps/web",
 
 		"---Developer---",
