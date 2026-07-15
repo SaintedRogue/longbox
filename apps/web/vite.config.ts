@@ -52,6 +52,11 @@ export default defineConfig({
 			},
 			workbox: {
 				inlineWorkboxRuntime: true,
+				globPatterns: [
+					'**/*.{js,css,html,ico,png,svg}',
+					'assets/stump-splash.gif',
+					'assets/fonts/inter/**/*.woff2',
+				],
 				navigateFallbackDenylist: [
 					/^\/api(?:\/|$)/,
 					/^\/opds(?:\/|$)/,
