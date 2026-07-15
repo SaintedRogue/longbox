@@ -10,7 +10,7 @@ edition = "2021"
 tauri-build = { version = "2.0.1", features = [] }
 
 [dependencies]
-stump_server = { path = "../../server", optional = true }
+longbox_server = { path = "../../server", optional = true }
 chrono = { workspace = true }
 discord-rich-presence = "0.2.3"
 keyring = { workspace = true }
@@ -32,4 +32,4 @@ tokio = { workspace = true, features = ["full"] }
 [features]
 # This feature will bundle the Stump server with the desktop app, allowing the user to use the desktop app
 # as their dedicated server instance.
-bundled-server = [ "dep:stump_server" ] 
+bundled-server = [ "dep:longbox_server" ] 

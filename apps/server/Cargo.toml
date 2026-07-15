@@ -1,8 +1,11 @@
 [package]
-name = "stump_server"
+name = "longbox_server"
 version.workspace = true
 edition = "2021"
-default-run = "stump_server"
+default-run = "longbox_server"
+
+[lib]
+name = "stump_server"
 
 [dependencies]
 alphanumeric-sort.workspace = true
@@ -42,7 +45,7 @@ serde_qs = { version = "0.14.0", features = ["axum"] }
 serde-untagged = "0.1.2"
 serde_with.workspace = true
 sha2 = "0.10"
-stump_core = { path = "../../core" }
+longbox_core = { path = "../../core" }
 apalis.workspace = true
 apalis-cron.workspace = true
 tempfile = "3.13.0"

@@ -403,7 +403,7 @@ async fn catalog(
 		OPDSFeedBuilder::default()
 			.metadata(
 				OPDSMetadataBuilder::default()
-					.title("Stump OPDS V2 Catalog".to_string())
+					.title("Longbox OPDS V2 Catalog".to_string())
 					.modified(OPDSMetadata::generate_modified())
 					.build()?,
 			)

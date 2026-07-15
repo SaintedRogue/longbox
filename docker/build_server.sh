@@ -2,4 +2,4 @@
 
 set -ex; \
   ./scripts/release/utils.sh -w; \
-  cargo build --package stump_server --bin stump_server --release
+  cargo build --package longbox_server --bin longbox_server --release

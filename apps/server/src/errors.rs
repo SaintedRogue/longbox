@@ -49,7 +49,7 @@ pub enum ServerError {
 	// TODO: meh
 	#[error("{0}")]
 	ServerStartError(String),
-	#[error("Stump failed to parse the provided address: {0}")]
+	#[error("Longbox failed to parse the provided address: {0}")]
 	InvalidAddress(#[from] net::AddrParseError),
 	#[error("{0}")]
 	APIError(#[from] APIError),

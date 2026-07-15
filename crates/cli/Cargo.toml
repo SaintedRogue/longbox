@@ -8,7 +8,7 @@ name = "cli-bin"
 path = "bin/main.rs"
 
 [dependencies]
-stump_core = { path = "../../core" }
+longbox_core = { path = "../../core" }
 models = { path = "../models" }
 migrations = { path = "../migrations" }
 

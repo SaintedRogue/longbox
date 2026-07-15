@@ -259,7 +259,7 @@ async fn catalog(Extension(req): Extension<AuthContext>) -> APIResult<Xml> {
 
 	let feed = OpdsFeed::new(
 		"root".to_string(),
-		"Stump OPDS catalog".to_string(),
+		"Longbox OPDS catalog".to_string(),
 		Some(links),
 		entries,
 	);

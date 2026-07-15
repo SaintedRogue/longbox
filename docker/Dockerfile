@@ -89,7 +89,7 @@ COPY . .
 RUN --mount=type=cache,target=/usr/local/cargo/registry,id=${TARGETARCH} \
     --mount=type=cache,target=/app/target,id=${TARGETARCH} \
     ./docker/build_server.sh && \
-    cp ./target/release/stump_server ./stump_server
+    cp ./target/release/longbox_server ./longbox_server
 
 # ------------------------------------------------------------------------------
 # Final Stage
@@ -101,7 +101,7 @@ ARG PORT=10801
 
 LABEL org.opencontainers.image.title="Stump" \
       org.opencontainers.image.description="A free and open source comics, manga and digital book server with OPDS support" \
-      org.opencontainers.image.source="https://github.com/stumpapp/stump" \
+      org.opencontainers.image.source="https://github.com/SaintedRogue/longbox" \
       org.opencontainers.image.url="https://stumpapp.dev" \
       org.opencontainers.image.documentation="https://stumpapp.dev/guides" \
       org.opencontainers.image.licenses="MIT" \
@@ -114,7 +114,7 @@ RUN ln -s /busybox/env /usr/bin/env
 # RUN apt-get update && apt-get install -y locales-all && rm -rf /var/lib/apt/lists/*; \
 #     mkdir -p config && mkdir -p data && mkdir -p app
 
-COPY --from=builder /app/stump_server /app/stump
+COPY --from=builder /app/longbox_server /app/longbox
 COPY --from=pdfium /pdfium /opt/pdfium
 COPY --from=frontend /app/build /app/client
 COPY --chmod=755 docker/entrypoint.sh /entrypoint.sh

@@ -13,5 +13,5 @@ harness = true
 [dev-dependencies]
 serde = { workspace = true }
 tokio = { workspace = true }
-stump_core = { path = ".." }
+longbox_core = { path = ".." }
 tempfile = { workspace = true }

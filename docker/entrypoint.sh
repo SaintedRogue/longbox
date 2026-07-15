@@ -49,7 +49,7 @@ cd /app
 
 if [[ "$PUID" -eq 0 ]]; then
     # Run as root
-    /app/stump
+    /app/longbox
 else
     # Set ownership on config, app, and data dir
     chown -R "$PUID":"$PGID" /app
@@ -61,5 +61,5 @@ else
 
     # Run as non-root user
     # NOTE: Omit "-l" switch to keep env vars
-    exec su $USER -s /app/stump -- "$@"
+    exec su $USER -s /app/longbox -- "$@"
 fi
