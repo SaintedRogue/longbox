@@ -79,7 +79,7 @@ export default function SideBar({ asChild, hidden }: Props) {
 	const isMobile = useMediaMatch('(max-width: 768px)')
 
 	const renderHeader = () => {
-		if (!isBrowser && isAtLeastMedium) {
+		if (isAtLeastMedium) {
 			return (
 				<header className="gap-1 flex w-full justify-between">
 					<UserMenu />
