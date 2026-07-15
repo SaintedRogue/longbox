@@ -382,11 +382,62 @@ fn apply_media_fields(
 		active.cover_artists = Set(v);
 	}
 
+	// Comics providers (Metron) supply a dedicated `pencillers` field; when present it
+	// wins over the generic `artists` field Hardcover populates, but both map to the
+	// same `pencillers` column. The merge-strategy field key follows whichever source
+	// won so existing per-field locks/excludes on `Artists` keep working for Hardcover.
+	let pencillers_source = ext.pencillers.as_ref().or(ext.artists.as_ref()).cloned();
+	let pencillers_field = if ext.pencillers.is_some() {
+		MetadataField::Pencillers
+	} else {
+		MetadataField::Artists
+	};
 	if let Some(v) =
-		merger.merge_comma_list(MetadataField::Artists, &model.pencillers, &ext.artists)
+		merger.merge_comma_list(pencillers_field, &model.pencillers, &pencillers_source)
 	{
 		active.pencillers = Set(v);
 	}
+
+	if let Some(v) =
+		merger.merge_comma_list(MetadataField::Inkers, &model.inkers, &ext.inkers)
+	{
+		active.inkers = Set(v);
+	}
+
+	if let Some(v) =
+		merger.merge_comma_list(MetadataField::Editors, &model.editors, &ext.editors)
+	{
+		active.editors = Set(v);
+	}
+
+	if let Some(v) = merger.merge_comma_list(
+		MetadataField::Characters,
+		&model.characters,
+		&ext.characters,
+	) {
+		active.characters = Set(v);
+	}
+
+	if let Some(v) =
+		merger.merge_comma_list(MetadataField::Teams, &model.teams, &ext.teams)
+	{
+		active.teams = Set(v);
+	}
+
+	if let Some(v) =
+		merger.merge_scalar(MetadataField::StoryArc, &model.story_arc, &ext.story_arc)
+	{
+		active.story_arc = Set(v);
+	}
+
+	if let Some(v) =
+		merger.merge_scalar(MetadataField::Publisher, &model.publisher, &ext.publisher)
+	{
+		active.publisher = Set(v);
+	}
+
+	// Note: `ext.imprint` has no corresponding column on `media_metadata` (imprint only
+	// exists on `series_metadata`), so it is not applied here.
 
 	if let Some(v) = merger.apply_scalar_override::<String>(MetadataField::Title) {
 		active.title = Set(v);
@@ -425,6 +476,27 @@ fn apply_media_fields(
 	if let Some(v) = merger.apply_comma_list_override(MetadataField::Artists) {
 		active.pencillers = Set(v);
 	}
+	if let Some(v) = merger.apply_comma_list_override(MetadataField::Pencillers) {
+		active.pencillers = Set(v);
+	}
+	if let Some(v) = merger.apply_comma_list_override(MetadataField::Inkers) {
+		active.inkers = Set(v);
+	}
+	if let Some(v) = merger.apply_comma_list_override(MetadataField::Editors) {
+		active.editors = Set(v);
+	}
+	if let Some(v) = merger.apply_comma_list_override(MetadataField::Characters) {
+		active.characters = Set(v);
+	}
+	if let Some(v) = merger.apply_comma_list_override(MetadataField::Teams) {
+		active.teams = Set(v);
+	}
+	if let Some(v) = merger.apply_scalar_override::<String>(MetadataField::StoryArc) {
+		active.story_arc = Set(v);
+	}
+	if let Some(v) = merger.apply_scalar_override::<String>(MetadataField::Publisher) {
+		active.publisher = Set(v);
+	}
 }
 
 fn build_series_metadata_insert(
@@ -460,6 +532,9 @@ fn build_media_metadata_insert(
 	external_id: &str,
 ) -> media_metadata::ActiveModel {
 	let ext_isbn = ext.isbn.as_ref().or(ext.isbn_13.as_ref()).cloned();
+	// See the comment in `apply_media_fields`: an explicit `ext.pencillers` (Metron)
+	// wins over the generic `ext.artists` (Hardcover) when both are populated.
+	let ext_pencillers = ext.pencillers.as_ref().or(ext.artists.as_ref()).cloned();
 
 	media_metadata::ActiveModel {
 		media_id: Set(Some(media_id.to_string())),
@@ -475,7 +550,13 @@ fn build_media_metadata_insert(
 		colorists: Set(ext.colorists.as_ref().map(|c| c.join(", "))),
 		letterers: Set(ext.letterers.as_ref().map(|l| l.join(", "))),
 		cover_artists: Set(ext.cover_artists.as_ref().map(|c| c.join(", "))),
-		pencillers: Set(ext.artists.as_ref().map(|a| a.join(", "))),
+		pencillers: Set(ext_pencillers.map(|a| a.join(", "))),
+		inkers: Set(ext.inkers.as_ref().map(|i| i.join(", "))),
+		editors: Set(ext.editors.as_ref().map(|e| e.join(", "))),
+		characters: Set(ext.characters.as_ref().map(|c| c.join(", "))),
+		teams: Set(ext.teams.as_ref().map(|t| t.join(", "))),
+		story_arc: Set(ext.story_arc.clone()),
+		publisher: Set(ext.publisher.clone()),
 		metadata_source: Set(Some(provider.to_string())),
 		metadata_external_id: Set(Some(external_id.to_string())),
 		..Default::default()

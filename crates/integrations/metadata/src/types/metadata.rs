@@ -59,6 +59,16 @@ pub struct ExternalMediaMetadata {
 	pub letterers: Option<Vec<String>>,
 	pub cover_artists: Option<Vec<String>>,
 
+	// Comic-specific credit/entity fields (Metron)
+	pub pencillers: Option<Vec<String>>,
+	pub inkers: Option<Vec<String>>,
+	pub editors: Option<Vec<String>>,
+	pub characters: Option<Vec<String>>,
+	pub teams: Option<Vec<String>>,
+	pub story_arc: Option<String>,
+	pub imprint: Option<String>,
+	pub publisher: Option<String>,
+
 	pub cover_url: Option<String>,
 
 	pub provider_url: Option<String>,
