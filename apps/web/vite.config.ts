@@ -48,6 +48,11 @@ export default defineConfig({
 			// surface an update-available toast instead of silently activating a new SW.
 			injectRegister: null,
 			registerType: 'prompt',
+			// The png glob below already precaches the manifest icons (with real
+			// revisions); the plugin's default of also adding them revisionless
+			// creates conflicting duplicate entries that make workbox throw at SW
+			// evaluation time — i.e. a service worker that never installs.
+			includeManifestIcons: false,
 			devOptions: {
 				enabled: false,
 			},
