@@ -5,7 +5,8 @@ use async_graphql::SimpleObject;
 use metadata_integrations::{MatchCandidate, SearchQuery};
 use models::{
 	entity::{
-		library_config, media, metadata_fetch_record, metadata_provider_config, series,
+		library_config, media, media_metadata, metadata_fetch_record,
+		metadata_provider_config, series, series_metadata,
 	},
 	shared::enums::{LibraryType, MetadataFetchStatus},
 };
@@ -458,6 +459,10 @@ impl JobLifecycle for MetadataFetchJob {
 					}
 				}
 
+				let series_meta = series_metadata::Entity::find_by_id(&series_id)
+					.one(conn)
+					.await?;
+
 				let mut all_candidates: Vec<MatchCandidate> = Vec::new();
 				let mut was_rate_limited = false;
 
@@ -466,6 +471,7 @@ impl JobLifecycle for MetadataFetchJob {
 						Ok(provider) => {
 							let query = SearchQuery {
 								title: series_name.clone(),
+								series_year: series_meta.as_ref().and_then(|m| m.year),
 								limit: Some(10),
 								..Default::default()
 							};
@@ -636,6 +642,11 @@ impl JobLifecycle for MetadataFetchJob {
 					}
 				}
 
+				let metadata = media_metadata::Entity::find()
+					.filter(media_metadata::Column::MediaId.eq(&media_id))
+					.one(conn)
+					.await?;
+
 				let mut all_candidates: Vec<MatchCandidate> = Vec::new();
 				let mut was_rate_limited = false;
 
@@ -644,6 +655,20 @@ impl JobLifecycle for MetadataFetchJob {
 						Ok(provider) => {
 							let query = SearchQuery {
 								title: media_name.clone(),
+								series_name: metadata
+									.as_ref()
+									.and_then(|m| m.series.clone()),
+								number: metadata
+									.as_ref()
+									.and_then(|m| m.number)
+									.map(|n| n.normalize().to_string()),
+								publisher: metadata
+									.as_ref()
+									.and_then(|m| m.publisher.clone()),
+								year: metadata.as_ref().and_then(|m| m.year),
+								comicvine_id: metadata
+									.as_ref()
+									.and_then(|m| m.comicvine_id.clone()),
 								limit: Some(10),
 								..Default::default()
 							};

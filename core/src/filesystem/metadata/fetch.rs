@@ -1,7 +1,8 @@
 use metadata_integrations::{MatchCandidate, SearchQuery};
 use models::{
 	entity::{
-		library_config, media, metadata_fetch_record, metadata_provider_config, series,
+		library_config, media, media_metadata, metadata_fetch_record,
+		metadata_provider_config, series, series_metadata,
 	},
 	shared::enums::{LibraryType, MetadataFetchStatus},
 };
@@ -84,6 +85,10 @@ pub async fn fetch_series_metadata(
 		));
 	}
 
+	let series_meta = series_metadata::Entity::find_by_id(series_id)
+		.one(conn)
+		.await?;
+
 	let mut all_candidates: Vec<MatchCandidate> = Vec::new();
 	let mut was_rate_limited = false;
 
@@ -92,6 +97,7 @@ pub async fn fetch_series_metadata(
 			Ok(provider) => {
 				let query = SearchQuery {
 					title: series_name.to_string(),
+					series_year: series_meta.as_ref().and_then(|m| m.year),
 					limit: Some(10),
 					..Default::default()
 				};
@@ -187,6 +193,36 @@ pub async fn fetch_series_metadata(
 	Ok(all_candidates)
 }
 
+/// Fill in comic-issue matching signals (series name, number, publisher, year,
+/// ComicVine ID) on a [`SearchQuery`] from the media's parsed metadata, without
+/// clobbering any values the caller already set explicitly
+fn enrich_query_with_media_metadata(
+	mut search: SearchQuery,
+	metadata: Option<&media_metadata::Model>,
+) -> SearchQuery {
+	let Some(metadata) = metadata else {
+		return search;
+	};
+
+	if search.series_name.is_none() {
+		search.series_name = metadata.series.clone();
+	}
+	if search.number.is_none() {
+		search.number = metadata.number.map(|n| n.normalize().to_string());
+	}
+	if search.publisher.is_none() {
+		search.publisher = metadata.publisher.clone();
+	}
+	if search.year.is_none() {
+		search.year = metadata.year;
+	}
+	if search.comicvine_id.is_none() {
+		search.comicvine_id = metadata.comicvine_id.clone();
+	}
+
+	search
+}
+
 /// Fetch metadata candidates for a media item from all enabled providers
 pub async fn fetch_media_metadata(
 	conn: &DatabaseConnection,
@@ -209,6 +245,12 @@ pub async fn fetch_media_metadata(
 			"No enabled metadata providers configured for this library type".to_string(),
 		));
 	}
+
+	let media_meta = media_metadata::Entity::find()
+		.filter(media_metadata::Column::MediaId.eq(media_id))
+		.one(conn)
+		.await?;
+	let search = enrich_query_with_media_metadata(search, media_meta.as_ref());
 
 	let mut all_candidates: Vec<MatchCandidate> = Vec::new();
 	let mut was_rate_limited = false;
