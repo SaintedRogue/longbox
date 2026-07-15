@@ -37,7 +37,7 @@ export default function ReaderDefaultSettingsScene() {
 	return (
 		<Container>
 			<Helmet>
-				<title>Stump | {t('settingsScene.app/reader.helmet')}</title>
+				<title>Longbox | {t('settingsScene.app/reader.helmet')}</title>
 			</Helmet>
 
 			<ContentContainer>

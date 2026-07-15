@@ -31,7 +31,7 @@ export default function AppearanceSettingsScene() {
 	return (
 		<Container>
 			<Helmet>
-				<title>Stump | {t('settingsScene.app/preferences.helmet')}</title>
+				<title>Longbox | {t('settingsScene.app/preferences.helmet')}</title>
 			</Helmet>
 
 			<ContentContainer>

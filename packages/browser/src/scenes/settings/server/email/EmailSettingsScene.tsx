@@ -12,7 +12,7 @@ export default function EmailSettingsScene() {
 	return (
 		<SceneContainer>
 			<Helmet>
-				<title>Stump | {t('settingsScene.server/email.helmet')}</title>
+				<title>Longbox | {t('settingsScene.server/email.helmet')}</title>
 			</Helmet>
 
 			<ContentContainer>

@@ -64,9 +64,9 @@ export default defineConfig({
 			base: '/',
 			// TODO(pwa): Add more manifest definitions for better overall experience
 			manifest: {
-				id: 'stump',
-				name: 'Stump PWA',
-				short_name: 'Stump',
+				id: 'longbox',
+				name: 'Longbox',
+				short_name: 'Longbox',
 				theme_color: '#161719',
 				icons: [
 					{

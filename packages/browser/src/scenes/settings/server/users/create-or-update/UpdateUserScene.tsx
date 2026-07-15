@@ -78,7 +78,7 @@ export default function UpdateUserScene() {
 	return (
 		<SceneContainer className="-mt-4">
 			<Helmet>
-				<title>Stump | {t('settingsScene.server/users.updateUser.helmet')}</title>
+				<title>Longbox | {t('settingsScene.server/users.updateUser.helmet')}</title>
 			</Helmet>
 
 			<ContentContainer>

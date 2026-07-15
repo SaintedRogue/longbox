@@ -21,7 +21,7 @@ export default function JobSettingsScene() {
 	return (
 		<SceneContainer>
 			<Helmet>
-				<title>Stump | {t('settingsScene.server/jobs.helmet')}</title>
+				<title>Longbox | {t('settingsScene.server/jobs.helmet')}</title>
 			</Helmet>
 
 			{/* 

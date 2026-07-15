@@ -413,7 +413,7 @@ export default function LibrarySeriesScene() {
 		>
 			<div className="pb-4 md:pb-0 flex flex-1 flex-col">
 				<Helmet>
-					<title>Stump | {name}</title>
+					<title>Longbox | {name}</title>
 				</Helmet>
 
 				<section ref={containerRef} id="grid-top-indicator" className="h-0" />

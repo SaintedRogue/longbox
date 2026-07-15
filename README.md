@@ -1,28 +1,19 @@
+<h1 align="center">Longbox</h1>
+
 <p align="center">
-  <img alt="Stump's logo. It depicts a young individual sitting on a tree stump reading a book. Inspired by the developer's childhood, where they spent a significant amount of time reading on a tree stump in their backyard" src="./.github/images/logo.png" style="width: 30%" />
-  <br />
-  <a href="https://github.com/awesome-selfhosted/awesome-selfhosted#document-management---e-books">
-    <img src="https://cdn.rawgit.com/sindresorhus/awesome/d7305f38d29fed78fa85652e3a63e154dd8e8829/media/badge.svg" alt="Awesome Self-Hosted">
-  </a>
-  <a href="https://discord.gg/63Ybb7J3as">
-    <img src="https://img.shields.io/discord/972593831172272148?label=Discord&color=5865F2" />
-  </a>
-  <a href="https://github.com/stumpapp/stump/blob/main/LICENSE">
+  <a href="https://github.com/SaintedRogue/longbox/blob/main/LICENSE">
     <img src="https://img.shields.io/static/v1?label=License&message=MIT&color=CF9977" />
   </a>
-  <a href="https://hub.docker.com/r/aaronleopold/stump">
-    <img src="https://img.shields.io/docker/pulls/aaronleopold/stump?logo=docker&color=0aa8d2&logoColor=fff" alt="Docker Pulls">
-  </a>
 </p>
 
 <p align='center'>
 
-Stump is a free and open source comics, manga, and digital book server with OPDS support, created with <a href="https://www.rust-lang.org/">Rust</a>, <a href='https://github.com/tokio-rs/axum'>Axum</a>, <a href='https://www.sea-ql.org/SeaORM/'>SeaORM</a> and <a href='https://reactjs.org/'>React</a>.
+Longbox is a free and open source comics, manga, and digital book server with OPDS support, created with <a href="https://www.rust-lang.org/">Rust</a>, <a href='https://github.com/tokio-rs/axum'>Axum</a>, <a href='https://www.sea-ql.org/SeaORM/'>SeaORM</a> and <a href='https://reactjs.org/'>React</a>. It is a fork of <a href="https://github.com/stumpapp/stump">Stump</a> by Aaron Leopold.
 
 </p>
 
 <p align='center'>
-<img alt="Screenshot of Stump" src="./docs/public/images/landing-dark.png" style="width: 90%" />
+<img alt="Screenshot of Longbox" src="./docs/public/images/landing-dark.png" style="width: 90%" />
 </p>
 
 <!-- prettier-ignore: I hate you sometimes prettier -->
@@ -44,9 +35,9 @@ Stump is a free and open source comics, manga, and digital book server with OPDS
 
 ## Disclaimer
 
-Stump is under active development and should be treated as **beta software** until it reaches a stable `1.0` release. I do my best to avoid breaking changes, or changes which might cause data loss, but there are no guarantees.
+Longbox is under active development and should be treated as **beta software** until it reaches a stable `1.0` release. I do my best to avoid breaking changes, or changes which might cause data loss, but there are no guarantees.
 
-I develop and maintain Stump in my free time. In other words, this is not my job and there is no guarantee of any timeline for features or bug fixes.
+I develop and maintain Longbox in my free time. In other words, this is not my job and there is no guarantee of any timeline for features or bug fixes.
 
 ## Features
 
@@ -85,7 +76,7 @@ I recommend taking a look at [open issues](https://github.com/stumpapp/stump/iss
 
 In general, the following areas could always use help:
 
-- Translations, so Stump is accessible to as many people as possible
+- Translations, so Longbox is accessible to as many people as possible
   - You can translate through [Crowdin](https://crowdin.com/project/stump) or help find/fix areas of the app that need better translation coverage
 - Writing comprehensive tests
 - Improving the UI/UX, even small changes can go a long way
@@ -116,7 +107,7 @@ packages/
 
 ## Similar Projects
 
-There are a number of other projects that are similar to Stump, it certainly isn't the first or only digital book media server out there. If Stump isn't for you, or you want to check out similar projects in this space, here are some other projects you might be interested in:
+There are a number of other projects that are similar to Longbox, it certainly isn't the first or only digital book media server out there. If Longbox isn't for you, or you want to check out similar projects in this space, here are some other projects you might be interested in:
 
 - [audiobookshelf](https://github.com/advplyr/audiobookshelf) (_Audiobooks, Podcasts_)
 - [Codex](https://github.com/ajslater/codex)

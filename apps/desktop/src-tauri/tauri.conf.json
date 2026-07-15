@@ -22,8 +22,8 @@
 			"timestampUrl": null
 		}
 	},
-	"productName": "Stump",
-	"mainBinaryName": "Stump",
+	"productName": "Longbox",
+	"mainBinaryName": "Longbox",
 	"version": "0.0.0",
 	"identifier": "com.oromei.stump",
 	"plugins": {},
@@ -34,7 +34,7 @@
 				"fullscreen": false,
 				"height": 700,
 				"resizable": true,
-				"title": "Stump",
+				"title": "Longbox",
 				"width": 1200,
 				"decorations": true,
 				"transparent": false,

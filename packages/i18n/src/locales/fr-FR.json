@@ -7,7 +7,7 @@
 	},
 	"authScene": {
 		"claimHeading": "Initialisez votre serveur",
-		"claimText": "Le serveur Stump n'est pas encore initialisé. Remplissez le formulaire pour créer votre compte. Une fois créé, vous aurez accès à toutes les fonctionnalités du serveur.",
+		"claimText": "Le serveur Longbox n'est pas encore initialisé. Remplissez le formulaire pour créer votre compte. Une fois créé, vous aurez accès à toutes les fonctionnalités du serveur.",
 		"form": {
 			"validation": {
 				"missingUsername": "Le nom d'utilisateur est requis",
@@ -387,7 +387,7 @@
 			"convertOptions": {
 				"section": {
 					"heading": "Conversion de fichier",
-					"description": "Stump est capable de convertir certains formats de fichiers en formats plus compatibles"
+					"description": "Longbox est capable de convertir certains formats de fichiers en formats plus compatibles"
 				},
 				"rarToZip": {
 					"label": "Convertir RAR en ZIP",
@@ -428,14 +428,14 @@
 					"docs": [
 						"Vous ne savez pas quoi choisir ? Cliquez",
 						"ici",
-						"Le paramètre qui détermi.ne la façon dont Stump organisera votre bibliothèque",
+						"Le paramètre qui détermi.ne la façon dont Longbox organisera votre bibliothèque",
 						"Vous ne pourrez pas modifier ce paramètre plus tard"
 					],
 					"disabled": "Vous ne pourrez pas modifier ce paramètre"
 				},
 				"options": {
 					"label": "Modèle de bibliothèque",
-					"description": "Le paramètre qui détermine la façon dont Stump organisera votre bibliothèque",
+					"description": "Le paramètre qui détermine la façon dont Longbox organisera votre bibliothèque",
 					"collectionPriority": {
 						"label": "Priorité de la collection",
 						"description": "Chaque dossier au niveau le plus haut de la racine de la bibliothèque correspond à une série unique"
@@ -474,12 +474,12 @@
 				{
 					"label": "Scan",
 					"heading": "Scan",
-					"description": "Paramètres relatifs à la façon dont Stump analyse cette bibliothèque"
+					"description": "Paramètres relatifs à la façon dont Longbox analyse cette bibliothèque"
 				},
 				{
 					"label": "Vignettes",
 					"heading": "Vignettes",
-					"description": "Les options concernant la façon dont Stump génère les vignettes pour cette bibliothèque"
+					"description": "Les options concernant la façon dont Longbox génère les vignettes pour cette bibliothèque"
 				},
 				{
 					"label": "Vérification",
@@ -580,7 +580,7 @@
 		},
 		"options/scanning": {
 			"title": "Scan",
-			"description": "Paramètres relatifs à la façon dont Stump scanne cette bibliothèque",
+			"description": "Paramètres relatifs à la façon dont Longbox scanne cette bibliothèque",
 			"sections": {
 				"configureScan": {
 					"heading": "Configurer le scan",
@@ -1283,7 +1283,7 @@
 					"description": "Changer les filtres pour cette session affichée",
 					"rawData": {
 						"heading": "Données du filtre brut",
-						"description": "Voici comment Stump traitera les filtres"
+						"description": "Voici comment Longbox traitera les filtres"
 					},
 					"buttons": {
 						"save": "Sauvegarder",
@@ -1386,7 +1386,7 @@
 					"avatarPicker": {
 						"label": "Avatar",
 						"heading": "Upload avatar",
-						"subtitle": "You can upload any image to use as your avatar for social features in Stump",
+						"subtitle": "You can upload any image to use as your avatar for social features in Longbox",
 						"dropzone": "Drop an image or click to select",
 						"changeImage": "Change Image",
 						"removeImage": "Remove Image",
@@ -1404,8 +1404,8 @@
 					},
 					"heading": "Langue",
 					"subtitle": [
-						"Stump prend en charge plusieurs langues, définissez vos préférences ci-dessous. Pensez à aider à améliorer la qualité des",
-						"traductions de Stump",
+						"Longbox prend en charge plusieurs langues, définissez vos préférences ci-dessous. Pensez à aider à améliorer la qualité des",
+						"traductions de Longbox",
 						"si vous le pouvez !"
 					]
 				}
@@ -1418,7 +1418,7 @@
 			"sections": {
 				"themeAndAppearance": {
 					"label": "Theme and appearance",
-					"description": "The basic look and feel options for Stump"
+					"description": "The basic look and feel options for Longbox"
 				},
 				"interface": {
 					"title": "Interface",
@@ -1490,7 +1490,7 @@
 				},
 				"layoutAndArrangement": {
 					"label": "Layout and arrangement",
-					"description": "Customize how Stump displays information and organizes content"
+					"description": "Customize how Longbox displays information and organizes content"
 				},
 				"primaryNavigation": {
 					"label": "Primary navigation",
@@ -1548,7 +1548,7 @@
 				},
 				"maxWidthPreference": {
 					"label": "Adjusted width",
-					"description": "Stump applies a max-width to the viewport. This setting allows you to adjust or remove this limit",
+					"description": "Longbox applies a max-width to the viewport. This setting allows you to adjust or remove this limit",
 					"tooltip": "This setting is not currently supported when the primary navigation is set to sidebar",
 					"options": {
 						"noLimit": "No limit"
@@ -1556,7 +1556,7 @@
 				},
 				"additionalPreferences": {
 					"label": "Additional preferences",
-					"description": "Customize the appearance and behavior of Stump with these additional settings"
+					"description": "Customize the appearance and behavior of Longbox with these additional settings"
 				},
 				"showThumbnailsInHeader": {
 					"label": "Show thumbnails in headers",
@@ -1607,7 +1607,7 @@
 		"app/apiKeys": {
 			"helmet": "Clés API",
 			"title": "Clés API",
-			"description": "Gérer vos clés API Stump",
+			"description": "Gérer vos clés API Longbox",
 			"shared": {
 				"fields": {
 					"name": "Nom",
@@ -1719,11 +1719,11 @@
 		"app/desktop": {
 			"helmet": "Paramètres du bureau",
 			"title": "Paramètres du bureau",
-			"description": "Paramètres liés à l'application de bureau Stump",
+			"description": "Paramètres liés à l'application de bureau Longbox",
 			"sections": {
 				"configuredServers": {
 					"label": "Serveurs configurés",
-					"description": "La liste des serveurs Stump auxquels vous pouvez vous connecter",
+					"description": "La liste des serveurs Longbox auxquels vous pouvez vous connecter",
 					"getStarted": "Ajouter un serveur pour commencer",
 					"unreachableServer": {
 						"tooltip": "Serveur introuvable"
@@ -1745,7 +1745,7 @@
 							},
 							"uri": {
 								"label": "URI",
-								"description": "L'URL du serveur Stump",
+								"description": "L'URL du serveur Longbox",
 								"placeholder": "https://stump.exemple.com"
 							}
 						}
@@ -1753,7 +1753,7 @@
 					"addServer": {
 						"trigger": "Ajouter un serveur",
 						"title": "Ajouter un nouveau serveur",
-						"description": "Ajouter un nouveau serveur Stump à l’application de bureau",
+						"description": "Ajouter un nouveau serveur Longbox à l’application de bureau",
 						"confirm": "Ajouter un serveur"
 					},
 					"editServer": {
@@ -1819,7 +1819,7 @@
 					},
 					"discordPresence": {
 						"label": "Activité Discord",
-						"description": "Afficher votre activité Stump dans Discord",
+						"description": "Afficher votre activité Longbox dans Discord",
 						"reconnect": "Se reconnecter à Discord"
 					}
 				}
@@ -1828,14 +1828,14 @@
 		"server/general": {
 			"helmet": "Paramètres généraux du serveur",
 			"title": "Paramètres généraux",
-			"description": "Paramètres généraux liés à l'instance de votre serveur Stump",
+			"description": "Paramètres généraux liés à l'instance de votre serveur Longbox",
 			"sections": {
 				"updateAvailable": {
 					"message": "Votre serveur n'est pas à jour. Veuillez le mettre à jour vers la dernière version !"
 				},
 				"serverInfo": {
 					"title": "Informations du serveur",
-					"description": "Détails de base sur l'instance de votre serveur Stump",
+					"description": "Détails de base sur l'instance de votre serveur Longbox",
 					"build": {
 						"label": "Version",
 						"description": "Détails à propos de la version",
@@ -1846,7 +1846,7 @@
 						}
 					},
 					"nonStableChannel": {
-						"title": "You are running a non-stable build of Stump",
+						"title": "You are running a non-stable build of Longbox",
 						"description": [
 							"It looks like you are running the",
 							"build channel"
@@ -1855,7 +1855,7 @@
 				},
 				"helpfulLinks": {
 					"title": "Helpful links",
-					"description": "Links to resources that may be helpful for managing your Stump server instance",
+					"description": "Links to resources that may be helpful for managing your Longbox server instance",
 					"links": {
 						"documentation": "Documentation",
 						"changelog": "Changelog"
@@ -1891,7 +1891,7 @@
 		"server/logs": {
 			"helmet": "Journaux",
 			"title": "Journaux",
-			"description": "Les journaux générés par votre instance de serveur Stump",
+			"description": "Les journaux générés par votre instance de serveur Longbox",
 			"sections": {
 				"persistedLogs": {
 					"title": "Journaux persistants",
@@ -1914,14 +1914,14 @@
 				},
 				"liveLogs": {
 					"title": "Flux des journaux en direct",
-					"description": "Diffusion directe depuis votre instance de serveur Stump en temps réel"
+					"description": "Diffusion directe depuis votre instance de serveur Longbox en temps réel"
 				}
 			}
 		},
 		"server/jobs": {
 			"helmet": "Tâches",
 			"title": "Tâches",
-			"description": "Tâches en arrière-plan qui s'exécutent sur l'instance de votre serveur Stump",
+			"description": "Tâches en arrière-plan qui s'exécutent sur l'instance de votre serveur Longbox",
 			"sections": {
 				"scheduling": {
 					"title": "Planification",
@@ -1997,7 +1997,7 @@
 				},
 				"history": {
 					"title": "Historique",
-					"description": "Un enregistrement des tâches qui ont été exécutées sur l'instance de votre serveur Stump",
+					"description": "Un enregistrement des tâches qui ont été exécutées sur l'instance de votre serveur Longbox",
 					"table": {
 						"columns": {
 							"name": "Type",
@@ -2205,12 +2205,12 @@
 		"server/email": {
 			"helmet": "Paramètres de messagerie",
 			"title": "Messagerie",
-			"description": "Settings related to configuring an SMTP emailer for your Stump server instance",
+			"description": "Settings related to configuring an SMTP emailer for your Longbox server instance",
 			"sections": {
 				"emailers": {
 					"title": "Expéditeurs SMTP",
-					"description": "Les clients que vous avez configurés pour l’envoi d’e-mails depuis votre serveur Stump",
-					"singleInstanceDisclaimer": "Bien que Stump prenne en charge plusieurs configurations SMTP en arrière-plan, une seule peut être configurée via l’interface utilisateur. Cela sera amélioré à l’avenir",
+					"description": "Les clients que vous avez configurés pour l’envoi d’e-mails depuis votre serveur Longbox",
+					"singleInstanceDisclaimer": "Bien que Longbox prenne en charge plusieurs configurations SMTP en arrière-plan, une seule peut être configurée via l’interface utilisateur. Cela sera amélioré à l’avenir",
 					"list": {
 						"emptyHeading": "Aucun expéditeur configuré",
 						"primaryEmailer": "Expéditeur principal",
@@ -2232,7 +2232,7 @@
 				},
 				"devices": {
 					"title": "Appareils de messagerie",
-					"description": "Les alias d’appareils que vous avez configurés pour recevoir des e-mails depuis votre instance de serveur Stump",
+					"description": "Les alias d’appareils que vous avez configurés pour recevoir des e-mails depuis votre instance de serveur Longbox",
 					"addDevice": "Ajouter un alias",
 					"addOrUpdateDevice": {
 						"title": {
@@ -2333,7 +2333,7 @@
 			"createEmailer": {
 				"helmet": "Créer l'expéditeur",
 				"title": "Créer l'expéditeur",
-				"description": "Créer un nouvel expéditeur SMTP pour votre instance de serveur Stump"
+				"description": "Créer un nouvel expéditeur SMTP pour votre instance de serveur Longbox"
 			},
 			"updateEmailer": {
 				"helmet": "Créer un expéditeur",
@@ -2531,10 +2531,10 @@
 	"serverSOS": {
 		"heading": "Serveur non disponible",
 		"desktop": {
-			"message": "Une erreur de réseau s'est produite indiquant que votre serveur Stump est actuellement indisponible. Veuillez vous assurer qu'il est en cours d'exécution et accessible depuis cet appareil.\nSi l'URL de votre serveur a changé, vous pouvez la mettre à jour à l'aide du formulaire ci-dessous"
+			"message": "Une erreur de réseau s'est produite indiquant que votre serveur Longbox est actuellement indisponible. Veuillez vous assurer qu'il est en cours d'exécution et accessible depuis cet appareil.\nSi l'URL de votre serveur a changé, vous pouvez la mettre à jour à l'aide du formulaire ci-dessous"
 		},
 		"web": {
-			"message": "Une erreur de réseau s'est produite indiquant que votre serveur Stump est actuellement indisponible. Veuillez vous assurer qu'il est en cours d'exécution et accessible depuis cet appareil"
+			"message": "Une erreur de réseau s'est produite indiquant que votre serveur Longbox est actuellement indisponible. Veuillez vous assurer qu'il est en cours d'exécution et accessible depuis cet appareil"
 		},
 		"reconnected": "Reconnecté au serveur ! Redirection...",
 		"reconnectionFailed": "Quelque chose s'est mal passé!"
@@ -2928,7 +2928,7 @@
 			"unknownSeriesName": "series"
 		},
 		"emptyState": {
-			"noStumpServers": "No Stump servers added",
+			"noStumpServers": "No Longbox servers added",
 			"noOPDSServers": "No OPDS servers added",
 			"noServers": "No Servers Configured",
 			"cta": "Get started by adding a server to access your book collections",
@@ -3066,8 +3066,8 @@
 				"incognitoReading": "Incognito Reading"
 			},
 			"stump": {
-				"label": "Stump",
-				"description": "Stump features are optional and can be turned off if you do not need them",
+				"label": "Longbox",
+				"description": "Longbox features are optional and can be turned off if you do not need them",
 				"bookClubsEnabled": "Book Club Features"
 			},
 			"autoSyncLocalData": "Auto-Sync Local Data",
@@ -3084,7 +3084,7 @@
 				"label": "Management",
 				"dataUsage": {
 					"label": "Data Usage",
-					"nonStumpData": "Non-Stump Data",
+					"nonStumpData": "Non-Longbox Data",
 					"serversTotal": "Servers Total",
 					"totalFiles": "Total Files",
 					"totalSize": "Total Size",

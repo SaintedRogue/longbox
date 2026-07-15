@@ -7,7 +7,7 @@
 	},
 	"authScene": {
 		"claimHeading": "Initiera din server",
-		"claimText": "Denna Stump-server är inte initierad. Använd formuläret nedan för att skapa ditt konto. När det är skapat kommer du ha full tillgång till alla serverfunktioner.",
+		"claimText": "Denna Longbox-server är inte initierad. Använd formuläret nedan för att skapa ditt konto. När det är skapat kommer du ha full tillgång till alla serverfunktioner.",
 		"form": {
 			"validation": {
 				"missingUsername": "Användarnamn krävs",
@@ -387,7 +387,7 @@
 			"convertOptions": {
 				"section": {
 					"heading": "Filkonvertering",
-					"description": "Stump kan konvertera vissa filformat till mer kompatibla filer"
+					"description": "Longbox kan konvertera vissa filformat till mer kompatibla filer"
 				},
 				"rarToZip": {
 					"label": "Konvertera RAR till ZIP",
@@ -435,7 +435,7 @@
 				},
 				"options": {
 					"label": "Biblioteksmönster",
-					"description": "Den inställning som avgör hur Stump kommer att organisera ditt bibliotek",
+					"description": "Den inställning som avgör hur Longbox kommer att organisera ditt bibliotek",
 					"collectionPriority": {
 						"label": "Samlingsprioritet",
 						"description": "Varje mapp på översta nivån av bibliotekets rot är en enda serie"
@@ -474,12 +474,12 @@
 				{
 					"label": "Skanning",
 					"heading": "Skanning",
-					"description": "Inställningar relaterade till hur Stump skannar detta bibliotek"
+					"description": "Inställningar relaterade till hur Longbox skannar detta bibliotek"
 				},
 				{
 					"label": "Miniatyrbilder",
 					"heading": "Miniatyrbilder",
-					"description": "Alternativen för om och hur Stump genererar miniatyrbilder för detta bibliotek"
+					"description": "Alternativen för om och hur Longbox genererar miniatyrbilder för detta bibliotek"
 				},
 				{
 					"label": "Granska",
@@ -580,7 +580,7 @@
 		},
 		"options/scanning": {
 			"title": "Skanning",
-			"description": "Inställningar relaterade till hur Stump skannar detta bibliotek",
+			"description": "Inställningar relaterade till hur Longbox skannar detta bibliotek",
 			"sections": {
 				"configureScan": {
 					"heading": "Konfigurera skanning",
@@ -1283,7 +1283,7 @@
 					"description": "Ändra filtren för denna visning",
 					"rawData": {
 						"heading": "Rå filterdata",
-						"description": "Detta är hur Stump kommer att behandla filtren"
+						"description": "Detta är hur Longbox kommer att behandla filtren"
 					},
 					"buttons": {
 						"save": "Spara",
@@ -1386,7 +1386,7 @@
 					"avatarPicker": {
 						"label": "Avatar",
 						"heading": "Upload avatar",
-						"subtitle": "You can upload any image to use as your avatar for social features in Stump",
+						"subtitle": "You can upload any image to use as your avatar for social features in Longbox",
 						"dropzone": "Drop an image or click to select",
 						"changeImage": "Change Image",
 						"removeImage": "Remove Image",
@@ -1404,8 +1404,8 @@
 					},
 					"heading": "Språk och lokalisering",
 					"subtitle": [
-						"Stump stöder flera språk och lokaliseringar, ange dina inställningar nedan. Överväg att hjälpa till att förbättra kvaliteten på",
-						"Stumps översättningar",
+						"Longbox stöder flera språk och lokaliseringar, ange dina inställningar nedan. Överväg att hjälpa till att förbättra kvaliteten på",
+						"Longboxs översättningar",
 						"om du kan göra det!"
 					]
 				}
@@ -1418,7 +1418,7 @@
 			"sections": {
 				"themeAndAppearance": {
 					"label": "Theme and appearance",
-					"description": "The basic look and feel options for Stump"
+					"description": "The basic look and feel options for Longbox"
 				},
 				"interface": {
 					"title": "Interface",
@@ -1490,7 +1490,7 @@
 				},
 				"layoutAndArrangement": {
 					"label": "Layout and arrangement",
-					"description": "Customize how Stump displays information and organizes content"
+					"description": "Customize how Longbox displays information and organizes content"
 				},
 				"primaryNavigation": {
 					"label": "Primary navigation",
@@ -1548,7 +1548,7 @@
 				},
 				"maxWidthPreference": {
 					"label": "Adjusted width",
-					"description": "Stump applies a max-width to the viewport. This setting allows you to adjust or remove this limit",
+					"description": "Longbox applies a max-width to the viewport. This setting allows you to adjust or remove this limit",
 					"tooltip": "This setting is not currently supported when the primary navigation is set to sidebar",
 					"options": {
 						"noLimit": "No limit"
@@ -1556,7 +1556,7 @@
 				},
 				"additionalPreferences": {
 					"label": "Additional preferences",
-					"description": "Customize the appearance and behavior of Stump with these additional settings"
+					"description": "Customize the appearance and behavior of Longbox with these additional settings"
 				},
 				"showThumbnailsInHeader": {
 					"label": "Show thumbnails in headers",
@@ -1607,7 +1607,7 @@
 		"app/apiKeys": {
 			"helmet": "API-nycklar",
 			"title": "API-nycklar",
-			"description": "Hantera dina genererade API-nycklar för Stump",
+			"description": "Hantera dina genererade API-nycklar för Longbox",
 			"shared": {
 				"fields": {
 					"name": "Namn",
@@ -1719,11 +1719,11 @@
 		"app/desktop": {
 			"helmet": "Skrivbordsinställningar",
 			"title": "Skrivbordsinställningar",
-			"description": "Inställningar relaterade till Stump-skrivbordsprogrammet",
+			"description": "Inställningar relaterade till Longbox-skrivbordsprogrammet",
 			"sections": {
 				"configuredServers": {
 					"label": "Konfigurerade servrar",
-					"description": "Listan över Stump-servrar som du kan ansluta till",
+					"description": "Listan över Longbox-servrar som du kan ansluta till",
 					"getStarted": "Lägg till en server för att komma igång",
 					"unreachableServer": {
 						"tooltip": "Servern kan inte nås"
@@ -1745,7 +1745,7 @@
 							},
 							"uri": {
 								"label": "URI",
-								"description": "Webbadressen till Stump-servern",
+								"description": "Webbadressen till Longbox-servern",
 								"placeholder": "https://stump.exempel.se"
 							}
 						}
@@ -1753,7 +1753,7 @@
 					"addServer": {
 						"trigger": "Lägg till server",
 						"title": "Lägg till en ny server",
-						"description": "Lägg till en ny Stump-server till skrivbordsprogrammet",
+						"description": "Lägg till en ny Longbox-server till skrivbordsprogrammet",
 						"confirm": "Lägg till server"
 					},
 					"editServer": {
@@ -1819,7 +1819,7 @@
 					},
 					"discordPresence": {
 						"label": "Närvaro i Discord",
-						"description": "Visa din Stump-aktivitet i Discord med Discord Rich Presence",
+						"description": "Visa din Longbox-aktivitet i Discord med Discord Rich Presence",
 						"reconnect": "Återanslut till Discord"
 					}
 				}
@@ -1828,14 +1828,14 @@
 		"server/general": {
 			"helmet": "Allmänna serverinställningar",
 			"title": "Allmänna inställningar",
-			"description": "Allmänna inställningar relaterade till din Stump-serverinstans",
+			"description": "Allmänna inställningar relaterade till din Longbox-serverinstans",
 			"sections": {
 				"updateAvailable": {
 					"message": "Din server är inte uppdaterad. Vänligen uppdatera till senaste versionen!"
 				},
 				"serverInfo": {
 					"title": "Serverinformation",
-					"description": "Grundläggande information om din Stump-serverinstans",
+					"description": "Grundläggande information om din Longbox-serverinstans",
 					"build": {
 						"label": "Bygge",
 						"description": "Detaljer om versionen och bygget",
@@ -1846,7 +1846,7 @@
 						}
 					},
 					"nonStableChannel": {
-						"title": "Du kör en icke-stabil version av Stump",
+						"title": "Du kör en icke-stabil version av Longbox",
 						"description": [
 							"Det ser ut som du kör",
 							"byggversionen"
@@ -1855,7 +1855,7 @@
 				},
 				"helpfulLinks": {
 					"title": "Helpful links",
-					"description": "Links to resources that may be helpful for managing your Stump server instance",
+					"description": "Links to resources that may be helpful for managing your Longbox server instance",
 					"links": {
 						"documentation": "Documentation",
 						"changelog": "Changelog"
@@ -1891,7 +1891,7 @@
 		"server/logs": {
 			"helmet": "Loggar",
 			"title": "Loggar",
-			"description": "Loggarna som genereras av din Stump-serverinstans",
+			"description": "Loggarna som genereras av din Longbox-serverinstans",
 			"sections": {
 				"persistedLogs": {
 					"title": "Bestående loggar",
@@ -1914,14 +1914,14 @@
 				},
 				"liveLogs": {
 					"title": "Live logg-flöde",
-					"description": "Strömmas direkt från din Stump-serverinstans i realtid"
+					"description": "Strömmas direkt från din Longbox-serverinstans i realtid"
 				}
 			}
 		},
 		"server/jobs": {
 			"helmet": "Jobb",
 			"title": "Jobb",
-			"description": "Jobb som körs i bakgrunden på din Stump-serverinstans",
+			"description": "Jobb som körs i bakgrunden på din Longbox-serverinstans",
 			"sections": {
 				"scheduling": {
 					"title": "Schemaläggning",
@@ -1997,7 +1997,7 @@
 				},
 				"history": {
 					"title": "Historik",
-					"description": "Ett arkiv av jobb som har körts på din Stump-serverinstans",
+					"description": "Ett arkiv av jobb som har körts på din Longbox-serverinstans",
 					"table": {
 						"columns": {
 							"name": "Typ",
@@ -2205,12 +2205,12 @@
 		"server/email": {
 			"helmet": "E-postinställningar",
 			"title": "E-post",
-			"description": "Settings related to configuring an SMTP emailer for your Stump server instance",
+			"description": "Settings related to configuring an SMTP emailer for your Longbox server instance",
 			"sections": {
 				"emailers": {
 					"title": "SMTP e-postare",
-					"description": "De klienter du har konfigurerat för att skicka e-post från din Stump-serverinstans",
-					"singleInstanceDisclaimer": "Medan Stump stöder flera SMTP-konfigurationer i backend, kan endast en konfigureras grafiskt. Detta kommer att förbättras i framtiden",
+					"description": "De klienter du har konfigurerat för att skicka e-post från din Longbox-serverinstans",
+					"singleInstanceDisclaimer": "Medan Longbox stöder flera SMTP-konfigurationer i backend, kan endast en konfigureras grafiskt. Detta kommer att förbättras i framtiden",
 					"list": {
 						"emptyHeading": "Inga SMTP e-postare konfigurerade",
 						"primaryEmailer": "Primär e-postare",
@@ -2232,7 +2232,7 @@
 				},
 				"devices": {
 					"title": "E-postenheter",
-					"description": "De enhetsalias du har konfigurerat för att motta e-post från din Stump-serverinstans",
+					"description": "De enhetsalias du har konfigurerat för att motta e-post från din Longbox-serverinstans",
 					"addDevice": "Lägg till enhetsalias",
 					"addOrUpdateDevice": {
 						"title": {
@@ -2333,7 +2333,7 @@
 			"createEmailer": {
 				"helmet": "Skapa e-postare",
 				"title": "Skapa e-postare",
-				"description": "Skapa en ny SMTP-e-postare för din Stump-serverinstans"
+				"description": "Skapa en ny SMTP-e-postare för din Longbox-serverinstans"
 			},
 			"updateEmailer": {
 				"helmet": "Uppdatera e-postare",
@@ -2531,10 +2531,10 @@
 	"serverSOS": {
 		"heading": "Otillgänglig Server",
 		"desktop": {
-			"message": "Ett nätverksfel som uppstod tyder på att din Stump-server för närvarande inte är tillgänglig. Se till att den körs och är tillgänglig från denna enhet.\nOm din serverlänk har ändrats, kan du uppdatera den med formuläret nedan"
+			"message": "Ett nätverksfel som uppstod tyder på att din Longbox-server för närvarande inte är tillgänglig. Se till att den körs och är tillgänglig från denna enhet.\nOm din serverlänk har ändrats, kan du uppdatera den med formuläret nedan"
 		},
 		"web": {
-			"message": "Ett nätverksfel som uppstod tyder på att din Stump-server inte är tillgänglig. Se till att den körs och är tillgänglig från denna enhet"
+			"message": "Ett nätverksfel som uppstod tyder på att din Longbox-server inte är tillgänglig. Se till att den körs och är tillgänglig från denna enhet"
 		},
 		"reconnected": "Återansluten till servern! Omdirigerar...",
 		"reconnectionFailed": "Någonting gick fel!"
@@ -2928,7 +2928,7 @@
 			"unknownSeriesName": "series"
 		},
 		"emptyState": {
-			"noStumpServers": "No Stump servers added",
+			"noStumpServers": "No Longbox servers added",
 			"noOPDSServers": "No OPDS servers added",
 			"noServers": "No Servers Configured",
 			"cta": "Get started by adding a server to access your book collections",
@@ -3066,8 +3066,8 @@
 				"incognitoReading": "Incognito Reading"
 			},
 			"stump": {
-				"label": "Stump",
-				"description": "Stump features are optional and can be turned off if you do not need them",
+				"label": "Longbox",
+				"description": "Longbox features are optional and can be turned off if you do not need them",
 				"bookClubsEnabled": "Book Club Features"
 			},
 			"autoSyncLocalData": "Auto-Sync Local Data",
@@ -3084,7 +3084,7 @@
 				"label": "Management",
 				"dataUsage": {
 					"label": "Data Usage",
-					"nonStumpData": "Non-Stump Data",
+					"nonStumpData": "Non-Longbox Data",
 					"serversTotal": "Servers Total",
 					"totalFiles": "Total Files",
 					"totalSize": "Total Size",

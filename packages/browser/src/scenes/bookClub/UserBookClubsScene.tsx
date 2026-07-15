@@ -108,7 +108,7 @@ export default function UserBookClubsScene() {
 			className={cx({ 'flex h-full items-center justify-center': !bookClubs?.length })}
 		>
 			<Helmet>
-				<title>Stump | Book Clubs</title>
+				<title>Longbox | Book Clubs</title>
 			</Helmet>
 
 			{renderContent()}

@@ -7,7 +7,7 @@
 	},
 	"authScene": {
 		"claimHeading": "Inicializovat váš server",
-		"claimText": "Tento server Stump není inicializovaný. Pro vytvoření účtu použijte níže uvedený formulář. Po vytvoření budete mít plný přístup ke všem funkcím serveru.",
+		"claimText": "Tento server Longbox není inicializovaný. Pro vytvoření účtu použijte níže uvedený formulář. Po vytvoření budete mít plný přístup ke všem funkcím serveru.",
 		"form": {
 			"validation": {
 				"missingUsername": "Jméno uživatele je vyžadováno",
@@ -387,7 +387,7 @@
 			"convertOptions": {
 				"section": {
 					"heading": "Konverze souboru",
-					"description": "Stump je schopný převádět určité formáty souborů do více kompatibilních"
+					"description": "Longbox je schopný převádět určité formáty souborů do více kompatibilních"
 				},
 				"rarToZip": {
 					"label": "Převést RAR na ZIP",
@@ -435,7 +435,7 @@
 				},
 				"options": {
 					"label": "Vzor knihovny",
-					"description": "Nastavení, které určuje, jak bude Stump organizovat vaši knihovnu",
+					"description": "Nastavení, které určuje, jak bude Longbox organizovat vaši knihovnu",
 					"collectionPriority": {
 						"label": "Priorita sbírky",
 						"description": "Každá složka na nejvyšší úrovni kořene knihovny je jedna série"
@@ -1283,7 +1283,7 @@
 					"description": "Změnit filtry pro tuto relaci zobrazení",
 					"rawData": {
 						"heading": "Syrová data filtru",
-						"description": "Stump zpracuje filtry takto"
+						"description": "Longbox zpracuje filtry takto"
 					},
 					"buttons": {
 						"save": "Uložit",
@@ -1386,7 +1386,7 @@
 					"avatarPicker": {
 						"label": "Avatar",
 						"heading": "Upload avatar",
-						"subtitle": "You can upload any image to use as your avatar for social features in Stump",
+						"subtitle": "You can upload any image to use as your avatar for social features in Longbox",
 						"dropzone": "Drop an image or click to select",
 						"changeImage": "Change Image",
 						"removeImage": "Remove Image",
@@ -1404,8 +1404,8 @@
 					},
 					"heading": "Jazyk a lokalizace",
 					"subtitle": [
-						"Stump podporuje více jazyků a místních jazykových mutací, nastavte si je níže. Prosím, zvažte pomoc při zlepšování kvality",
-						"Přeložte Stump",
+						"Longbox podporuje více jazyků a místních jazykových mutací, nastavte si je níže. Prosím, zvažte pomoc při zlepšování kvality",
+						"Přeložte Longbox",
 						"pokud můžete!"
 					]
 				}
@@ -1418,7 +1418,7 @@
 			"sections": {
 				"themeAndAppearance": {
 					"label": "Theme and appearance",
-					"description": "The basic look and feel options for Stump"
+					"description": "The basic look and feel options for Longbox"
 				},
 				"interface": {
 					"title": "Interface",
@@ -1490,7 +1490,7 @@
 				},
 				"layoutAndArrangement": {
 					"label": "Layout and arrangement",
-					"description": "Customize how Stump displays information and organizes content"
+					"description": "Customize how Longbox displays information and organizes content"
 				},
 				"primaryNavigation": {
 					"label": "Primary navigation",
@@ -1548,7 +1548,7 @@
 				},
 				"maxWidthPreference": {
 					"label": "Adjusted width",
-					"description": "Stump applies a max-width to the viewport. This setting allows you to adjust or remove this limit",
+					"description": "Longbox applies a max-width to the viewport. This setting allows you to adjust or remove this limit",
 					"tooltip": "This setting is not currently supported when the primary navigation is set to sidebar",
 					"options": {
 						"noLimit": "No limit"
@@ -1556,7 +1556,7 @@
 				},
 				"additionalPreferences": {
 					"label": "Additional preferences",
-					"description": "Customize the appearance and behavior of Stump with these additional settings"
+					"description": "Customize the appearance and behavior of Longbox with these additional settings"
 				},
 				"showThumbnailsInHeader": {
 					"label": "Show thumbnails in headers",
@@ -1607,7 +1607,7 @@
 		"app/apiKeys": {
 			"helmet": "API klíče",
 			"title": "API klíče",
-			"description": "Spravujte vygenerované API klíče Stump",
+			"description": "Spravujte vygenerované API klíče Longbox",
 			"shared": {
 				"fields": {
 					"name": "Název",
@@ -1719,11 +1719,11 @@
 		"app/desktop": {
 			"helmet": "Nastavení plochy",
 			"title": "Nastavení plochy",
-			"description": "Nastavení vztahující se k aplikaci Stump",
+			"description": "Nastavení vztahující se k aplikaci Longbox",
 			"sections": {
 				"configuredServers": {
 					"label": "Nastavené servery",
-					"description": "Seznam serverů Stump, ke kterým se můžete připojit",
+					"description": "Seznam serverů Longbox, ke kterým se můžete připojit",
 					"getStarted": "Přidejte server pro začátek",
 					"unreachableServer": {
 						"tooltip": "Server je nedostupný"
@@ -1745,7 +1745,7 @@
 							},
 							"uri": {
 								"label": "URI",
-								"description": "URL serveru Stump",
+								"description": "URL serveru Longbox",
 								"placeholder": "https://stump.example.com"
 							}
 						}
@@ -1753,7 +1753,7 @@
 					"addServer": {
 						"trigger": "Přidat server",
 						"title": "Přidat nový server",
-						"description": "Přidat nový server Stump do aplikace",
+						"description": "Přidat nový server Longbox do aplikace",
 						"confirm": "Přidat server"
 					},
 					"editServer": {
@@ -1828,14 +1828,14 @@
 		"server/general": {
 			"helmet": "Obecné nastavení serveru",
 			"title": "Obecná nastavení",
-			"description": "Obecná nastavení týkající se instance serveru Stump",
+			"description": "Obecná nastavení týkající se instance serveru Longbox",
 			"sections": {
 				"updateAvailable": {
 					"message": "Váš server není aktualizován. Aktualizujte prosím na nejnovější verzi!"
 				},
 				"serverInfo": {
 					"title": "Informace o serveru",
-					"description": "Základní podrobnosti o instanci serveru Stump",
+					"description": "Základní podrobnosti o instanci serveru Longbox",
 					"build": {
 						"label": "Sestavení",
 						"description": "Podrobnosti o verzi a sestavení",
@@ -1846,7 +1846,7 @@
 						}
 					},
 					"nonStableChannel": {
-						"title": "You are running a non-stable build of Stump",
+						"title": "You are running a non-stable build of Longbox",
 						"description": [
 							"It looks like you are running the",
 							"build channel"
@@ -1855,7 +1855,7 @@
 				},
 				"helpfulLinks": {
 					"title": "Helpful links",
-					"description": "Links to resources that may be helpful for managing your Stump server instance",
+					"description": "Links to resources that may be helpful for managing your Longbox server instance",
 					"links": {
 						"documentation": "Documentation",
 						"changelog": "Changelog"
@@ -1914,7 +1914,7 @@
 				},
 				"liveLogs": {
 					"title": "Kanál živých logů",
-					"description": "Streamováno přímo z instance vašeho serveru Stump v reálném čase"
+					"description": "Streamováno přímo z instance vašeho serveru Longbox v reálném čase"
 				}
 			}
 		},
@@ -1997,7 +1997,7 @@
 				},
 				"history": {
 					"title": "Historie",
-					"description": "Záznam úloh, které byly spuštěny na instanci serveru Stump",
+					"description": "Záznam úloh, které byly spuštěny na instanci serveru Longbox",
 					"table": {
 						"columns": {
 							"name": "Název",
@@ -2205,12 +2205,12 @@
 		"server/email": {
 			"helmet": "Nastavení e-mailu",
 			"title": "E-mail",
-			"description": "Settings related to configuring an SMTP emailer for your Stump server instance",
+			"description": "Settings related to configuring an SMTP emailer for your Longbox server instance",
 			"sections": {
 				"emailers": {
 					"title": "SMTP e-mailery",
-					"description": "Klienti, které jste nakonfigurovali pro odesílání e-mailů z instance serveru Stump",
-					"singleInstanceDisclaimer": "Zatímco Stump podporuje více SMTP konfigurací v pozadí, pouze jedna může být nakonfigurována v uživatelském rozhraní. To bude v budoucnu vylepšeno",
+					"description": "Klienti, které jste nakonfigurovali pro odesílání e-mailů z instance serveru Longbox",
+					"singleInstanceDisclaimer": "Zatímco Longbox podporuje více SMTP konfigurací v pozadí, pouze jedna může být nakonfigurována v uživatelském rozhraní. To bude v budoucnu vylepšeno",
 					"list": {
 						"emptyHeading": "Nejsou nakonfigurovány žádné SMTP e-mailery",
 						"primaryEmailer": "Primární e-mailer",
@@ -2232,7 +2232,7 @@
 				},
 				"devices": {
 					"title": "E-mailová zařízení",
-					"description": "Aliasy zařízení, které jste nakonfigurovali pro příjem e-mailů z instance serveru Stump",
+					"description": "Aliasy zařízení, které jste nakonfigurovali pro příjem e-mailů z instance serveru Longbox",
 					"addDevice": "Přidat alias zařízení",
 					"addOrUpdateDevice": {
 						"title": {
@@ -2333,7 +2333,7 @@
 			"createEmailer": {
 				"helmet": "Vytvořit e-mailer",
 				"title": "Vytvořit e-mailer",
-				"description": "Vytvořit nový SMTP e-mailer pro instanci vašeho serveru Stump"
+				"description": "Vytvořit nový SMTP e-mailer pro instanci vašeho serveru Longbox"
 			},
 			"updateEmailer": {
 				"helmet": "Upravit e-mailer",
@@ -2928,7 +2928,7 @@
 			"unknownSeriesName": "series"
 		},
 		"emptyState": {
-			"noStumpServers": "No Stump servers added",
+			"noStumpServers": "No Longbox servers added",
 			"noOPDSServers": "No OPDS servers added",
 			"noServers": "No Servers Configured",
 			"cta": "Get started by adding a server to access your book collections",
@@ -3066,8 +3066,8 @@
 				"incognitoReading": "Incognito Reading"
 			},
 			"stump": {
-				"label": "Stump",
-				"description": "Stump features are optional and can be turned off if you do not need them",
+				"label": "Longbox",
+				"description": "Longbox features are optional and can be turned off if you do not need them",
 				"bookClubsEnabled": "Book Club Features"
 			},
 			"autoSyncLocalData": "Auto-Sync Local Data",
@@ -3084,7 +3084,7 @@
 				"label": "Management",
 				"dataUsage": {
 					"label": "Data Usage",
-					"nonStumpData": "Non-Stump Data",
+					"nonStumpData": "Non-Longbox Data",
 					"serversTotal": "Servers Total",
 					"totalFiles": "Total Files",
 					"totalSize": "Total Size",
