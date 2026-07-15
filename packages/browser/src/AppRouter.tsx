@@ -1,7 +1,7 @@
 import { LocaleProvider } from '@stump/i18n'
 import { type AllowedLocale } from '@stump/i18n'
 import { lazy } from 'react'
-import { Route, Routes } from 'react-router-dom'
+import { Location, Route, Routes, useLocation } from 'react-router-dom'
 
 import { AppLayout } from './AppLayout.tsx'
 import { RouterProvider } from './context/RouterContext.tsx'
@@ -29,6 +29,15 @@ export function AppRouter({ basePath }: AppRouterProps = {}) {
 	const baseUrl = useAppStore((state) => state.baseUrl)
 	const resolvedLocale = (locale as AllowedLocale) || 'en-US'
 
+	// The real browser location. When a peek overlay (e.g. the book detail
+	// sheet) is open, `state.backgroundLocation` holds the location the main
+	// route tree should keep rendering "behind" the overlay, while this
+	// (true) location is what the overlay itself matches against. See
+	// BookPeekSheet / BookCard for producers of this state contract.
+	const location = useLocation()
+	const backgroundLocation = (location.state as { backgroundLocation?: Location } | null)
+		?.backgroundLocation
+
 	if (!baseUrl) {
 		throw new Error('Base URL is not set')
 	}
@@ -36,8 +45,11 @@ export function AppRouter({ basePath }: AppRouterProps = {}) {
 	return (
 		<LocaleProvider locale={resolvedLocale}>
 			<RouterProvider basePath={basePath}>
-				<Routes>
-					<Route path="/" element={<AppLayout />}>
+				<Routes location={backgroundLocation ?? location}>
+					<Route
+						path="/"
+						element={<AppLayout overlayLocation={backgroundLocation ? location : undefined} />}
+					>
 						<Route path="" element={<HomeScene />} />
 						<Route path="libraries/*" element={<LibraryRouter />} />
 						<Route path="series/*" element={<SeriesRouter />} />

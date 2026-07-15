@@ -4,10 +4,10 @@ import { UserPermission, UserPreferences } from '@stump/graphql'
 import { isAxiosError } from '@stump/sdk'
 import { useQueryClient } from '@tanstack/react-query'
 import { useOverlayScrollbars } from 'overlayscrollbars-react'
-import { Suspense, useCallback, useEffect, useMemo, useRef } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef } from 'react'
 import Confetti from 'react-confetti'
 import { useErrorBoundary } from 'react-error-boundary'
-import { Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { Location, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { useMediaMatch, useWindowSize } from 'rooks'
 import { toast } from 'sonner'
 
@@ -21,7 +21,22 @@ import { useTheme } from './hooks'
 import { useCoreEvent } from './hooks/useCoreEvent'
 import { useAppStore, useUserStore } from './stores'
 
-export function AppLayout() {
+const BookPeekSheet = lazy(() => import('./scenes/book/BookPeekSheet'))
+
+type AppLayoutProps = {
+	/**
+	 * The real browser location, set only while a peek overlay (e.g. the book
+	 * detail sheet) should be open. Rendered inside this component's own
+	 * AppContext.Provider (rather than back up in AppRouter) so overlay
+	 * content has access to the same permission/user context as the rest of
+	 * the app -- the main route tree here is matched against
+	 * `state.backgroundLocation` instead, so `useLocation()` in this
+	 * component does not reflect the real URL while peeking.
+	 */
+	overlayLocation?: Location
+}
+
+export function AppLayout({ overlayLocation }: AppLayoutProps) {
 	const location = useLocation()
 	const navigate = useNavigate()
 
@@ -256,6 +271,14 @@ export function AppLayout() {
 				</div>
 
 				{showJobOverlay && <JobOverlay />}
+
+				{overlayLocation && (
+					<Suspense fallback={null}>
+						<Routes location={overlayLocation}>
+							<Route path="/books/:id" element={<BookPeekSheet />} />
+						</Routes>
+					</Suspense>
+				)}
 			</Suspense>
 		</AppContext.Provider>
 	)
