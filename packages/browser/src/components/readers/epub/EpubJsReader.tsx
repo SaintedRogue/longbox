@@ -218,22 +218,42 @@ export default function EpubJsReader({ id, isIncognito }: EpubJsReaderProps) {
 	})
 
 	const lastSyncedElapsedRef = useRef(ebook.media?.readProgress?.elapsedSeconds ?? 0)
+	// Sequence number of the most recently *fired* progress mutation — see
+	// BookReaderScene's identical comment for why stale retries must check this before
+	// each backoff attempt.
+	const latestProgressSeqRef = useRef(0)
 
 	const client = useQueryClient()
 	const { mutate } = useGraphQLMutation(mutation, {
-		retry: 3,
-		retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 15_000),
-		onError: (err) => {
-			console.error(err)
-			toast.error(t('readerToasts.progressSyncFailed'))
-		},
 		onSuccess: () => {
-			lastSyncedElapsedRef.current = timer.getCurrentTime()
 			client.invalidateQueries({
 				queryKey: ['epubJsReader', id],
 			})
 		},
 	})
+
+	const fireProgressMutation = useCallback(
+		(variables: Parameters<typeof mutate>[0], seq: number, retryCount: number) => {
+			mutate(variables, {
+				onError: (err) => {
+					const supersededByNewerUpdate = seq !== latestProgressSeqRef.current
+					if (!supersededByNewerUpdate && retryCount < 3) {
+						const delay = Math.min(1000 * 2 ** retryCount, 15_000)
+						setTimeout(() => fireProgressMutation(variables, seq, retryCount + 1), delay)
+						return
+					}
+
+					console.error(err)
+					// Only the newest in-flight mutation's terminal failure is worth surfacing;
+					// an older, superseded one silently gives up in favor of the newer attempt.
+					if (!supersededByNewerUpdate) {
+						toast.error(t('readerToasts.progressSyncFailed'))
+					}
+				},
+			})
+		},
+		[mutate, t],
+	)
 
 	const updateProgress = useCallback(
 		(input: EpubProgressInput) => {
@@ -241,18 +261,28 @@ export default function EpubJsReader({ id, isIncognito }: EpubJsReaderProps) {
 
 			const totalSeconds = timer.getCurrentTime()
 			const delta = Math.max(0, totalSeconds - lastSyncedElapsedRef.current)
+			// Advance the baseline optimistically at fire time rather than in onSuccess: if
+			// this mutation ultimately fails, its delta is undercounted instead of being
+			// double-counted by a concurrent in-flight mutation. A durable offline outbox
+			// (Wave 3) will remove the need for this tradeoff.
+			lastSyncedElapsedRef.current = totalSeconds
 
-			mutate({
-				id: ebook.media?.id || '',
-				input: {
-					epub: {
-						...input,
-						elapsedSecondsDelta: delta > 0 ? delta : undefined,
+			const seq = ++latestProgressSeqRef.current
+			fireProgressMutation(
+				{
+					id: ebook.media?.id || '',
+					input: {
+						epub: {
+							...input,
+							elapsedSecondsDelta: delta > 0 ? delta : undefined,
+						},
 					},
 				},
-			})
+				seq,
+				0,
+			)
 		},
-		[mutate, ebook, isIncognito, timer],
+		[fireProgressMutation, ebook, isIncognito, timer],
 	)
 
 	const existingBookmarks = useMemo(
