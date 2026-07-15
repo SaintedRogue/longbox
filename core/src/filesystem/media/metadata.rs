@@ -98,9 +98,20 @@ pub struct ProcessedMediaMetadata {
 		default = "Option::default"
 	)]
 	pub tags: Option<Vec<String>>,
-	/// The language of the media
-	#[serde(alias = "Language")]
+	/// The language of the media. ComicInfo uses LanguageISO; the bare
+	/// Language alias is kept for non-standard files already in the wild.
+	#[serde(alias = "Language", alias = "LanguageISO")]
 	pub language: Option<String>,
+	/// GTIN (ISBN/EAN/UPC) — ComicInfo v2.1
+	#[serde(alias = "GTIN")]
+	pub gtin: Option<String>,
+	/// The translator(s) of the associated media — ComicInfo v2.1
+	#[serde(
+		alias = "Translator",
+		deserialize_with = "string_list_deserializer",
+		default = "Option::default"
+	)]
+	pub translators: Option<Vec<String>>,
 
 	/// The year the media was published.
 	#[serde(
@@ -255,9 +266,12 @@ impl ProcessedMediaMetadata {
 			identifier_amazon: Set(self.identifier_amazon),
 			identifier_calibre: Set(self.identifier_calibre),
 			identifier_google: Set(self.identifier_google),
-			identifier_isbn: Set(self.identifier_isbn),
+			// GTIN is a superset of ISBN — mapping to the ISBN identifier column
+			// follows Kavita/Komga precedent, but never clobbers an explicit ISBN.
+			identifier_isbn: Set(self.identifier_isbn.or(self.gtin)),
 			identifier_mobi_asin: Set(self.identifier_mobi_asin),
 			identifier_uuid: Set(self.identifier_uuid),
+			translators: Set(self.translators.map(|v| v.join(", "))),
 			..Default::default()
 		}
 	}
@@ -525,5 +539,37 @@ mod tests {
 		let metadata = ProcessedMediaMetadata::from(map);
 
 		assert_eq!(metadata.age_rating, Some(13));
+	}
+
+	#[test]
+	fn test_parse_language_iso() {
+		let xml = r#"<?xml version="1.0"?><ComicInfo><LanguageISO>en</LanguageISO></ComicInfo>"#;
+		let meta: ProcessedMediaMetadata = quick_xml::de::from_str(xml).unwrap();
+		assert_eq!(meta.language, Some("en".to_string()));
+	}
+
+	#[test]
+	fn test_parse_gtin_and_translator() {
+		let xml = r#"<?xml version="1.0"?><ComicInfo><GTIN>9781779501127</GTIN><Translator>Jocelyne Allen, Zack Davisson</Translator></ComicInfo>"#;
+		let meta: ProcessedMediaMetadata = quick_xml::de::from_str(xml).unwrap();
+		assert_eq!(meta.gtin, Some("9781779501127".to_string()));
+		assert_eq!(
+			meta.translators,
+			Some(vec![
+				"Jocelyne Allen".to_string(),
+				"Zack Davisson".to_string()
+			])
+		);
+	}
+
+	#[test]
+	fn test_gtin_does_not_clobber_isbn() {
+		let meta = ProcessedMediaMetadata {
+			identifier_isbn: Some("1234".to_string()),
+			gtin: Some("5678".to_string()),
+			..Default::default()
+		};
+		let active = meta.into_active_model();
+		assert_eq!(active.identifier_isbn.unwrap(), Some("1234".to_string()));
 	}
 }
