@@ -8,7 +8,7 @@ mod utils;
 
 pub use crate::filesystem::media::epub::EpubProcessor;
 pub(crate) use builder::{BuiltMedia, MediaBuilder};
-pub use comic_info::ComicInfoXml;
+pub use comic_info::{write_comic_info_to_zip, ComicInfoXml};
 pub use format::*;
 pub use metadata::*;
 pub use process::*;

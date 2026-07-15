@@ -70,10 +70,10 @@ kmeans_colors = "0.7.1"
 palette = "0.7.6"
 thumbhash = "0.1.0"
 base64.workspace = true
+tempfile.workspace = true # used by filesystem::media::comic_info write-back (atomic temp-file + rename)
 
 [dev-dependencies]
 temp-env = "0.3.6"
-tempfile.workspace = true
 criterion = { version = "0.5.1", features = ["html_reports", "async_tokio"] }
 tests = { path = "../crates/tests" }
 
