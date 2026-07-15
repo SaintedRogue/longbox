@@ -44,14 +44,20 @@ export default defineConfig({
 			],
 		}),
 		VitePWA({
-			// We manually register in src/index.tsx to add idle scheduling and script preflight checks.
+			// We register via the useRegisterSW hook (see PWAUpdatePrompt.tsx) so we can
+			// surface an update-available toast instead of silently activating a new SW.
 			injectRegister: null,
-			registerType: 'autoUpdate',
+			registerType: 'prompt',
 			devOptions: {
 				enabled: false,
 			},
 			workbox: {
 				inlineWorkboxRuntime: true,
+				globPatterns: [
+					'**/*.{js,css,html,ico,png,svg}',
+					'assets/stump-splash.gif',
+					'assets/fonts/inter/**/*.woff2',
+				],
 				navigateFallbackDenylist: [
 					/^\/api(?:\/|$)/,
 					/^\/opds(?:\/|$)/,

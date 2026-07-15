@@ -7,9 +7,11 @@ import {
 	useSuspenseGraphQL,
 } from '@stump/client'
 import { BookReaderSceneQuery, graphql, ReadingMode } from '@stump/graphql'
+import { useLocaleContext } from '@stump/i18n'
 import { useQueryClient } from '@tanstack/react-query'
 import { Suspense, useCallback, useEffect, useMemo, useRef } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { toast } from 'sonner'
 
 import { ImageBasedReader } from '@/components/readers/imageBased'
 import paths from '@/paths'
@@ -98,21 +100,44 @@ function BookReaderScene({ book }: Props) {
 	const [search] = useSearchParams()
 
 	const { sdk } = useSDK()
+	const { t } = useLocaleContext()
 
 	const page = search.get('page')
 	const isIncognito = search.get('incognito') === 'true'
 	const isStreaming = !search.get('stream') || search.get('stream') === 'true'
 	const lastSyncedElapsedRef = useRef(book?.readProgress?.elapsedSeconds ?? 0)
-	const pendingSyncedElapsedRef = useRef(book?.readProgress?.elapsedSeconds ?? 0)
+	// Sequence number of the most recently *fired* progress mutation. A mutation still
+	// retrying after backoff checks this before each retry: if a newer page's mutation has
+	// since fired, the stale one gives up instead of risking landing after — and
+	// regressing — the newer page on the server, which does an absolute overwrite of
+	// end_page with no ordering guard.
+	const latestProgressSeqRef = useRef(0)
 
-	const { mutate } = useGraphQLMutation(mutation, {
-		onError: (err) => {
-			console.error(err)
+	const { mutate } = useGraphQLMutation(mutation)
+
+	const fireProgressMutation = useCallback(
+		(variables: Parameters<typeof mutate>[0], seq: number, retryCount: number) => {
+			mutate(variables, {
+				onError: (err) => {
+					const supersededByNewerUpdate = seq !== latestProgressSeqRef.current
+					if (!supersededByNewerUpdate && retryCount < 3) {
+						const delay = Math.min(1000 * 2 ** retryCount, 15_000)
+						setTimeout(() => fireProgressMutation(variables, seq, retryCount + 1), delay)
+						return
+					}
+
+					console.error(err)
+					// Only the newest in-flight mutation's terminal failure is worth surfacing;
+					// an older, superseded one silently gives up in favor of the newer attempt.
+					if (!supersededByNewerUpdate) {
+						toast.error(t('readerToasts.progressSyncFailed'))
+					}
+				},
+			})
 		},
-		onSuccess: () => {
-			lastSyncedElapsedRef.current = pendingSyncedElapsedRef.current
-		},
-	})
+		[mutate, t],
+	)
+
 	const updateProgress = useCallback(
 		(page: number, elapsedSeconds: number) => {
 			if (!book) return
@@ -120,19 +145,28 @@ function BookReaderScene({ book }: Props) {
 			if (book.readProgress?.page === page) return
 
 			const delta = Math.max(0, elapsedSeconds - lastSyncedElapsedRef.current)
-			pendingSyncedElapsedRef.current = elapsedSeconds
+			// Advance the baseline optimistically at fire time rather than in onSuccess: if
+			// this mutation ultimately fails, its delta is undercounted instead of being
+			// double-counted by a concurrent in-flight mutation for a different page. A
+			// durable offline outbox (Wave 3) will remove the need for this tradeoff.
+			lastSyncedElapsedRef.current = elapsedSeconds
 
-			mutate({
-				id: book.id,
-				input: {
-					paged: {
-						page,
-						elapsedSecondsDelta: delta > 0 ? delta : undefined,
+			const seq = ++latestProgressSeqRef.current
+			fireProgressMutation(
+				{
+					id: book.id,
+					input: {
+						paged: {
+							page,
+							elapsedSecondsDelta: delta > 0 ? delta : undefined,
+						},
 					},
 				},
-			})
+				seq,
+				0,
+			)
 		},
-		[book, mutate, isIncognito],
+		[book, isIncognito, fireProgressMutation],
 	)
 
 	const {
