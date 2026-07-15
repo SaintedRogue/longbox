@@ -44,6 +44,10 @@ type Props = {
 	 * Whether the card is a cover variant. If `true`, the card will be sized explicitly to the cover size.
 	 */
 	isCover?: boolean
+	/**
+	 * Optional navigation state, forwarded to the underlying react-router `Link` when `href` is set.
+	 */
+	state?: unknown
 } & ContainerProps
 
 /**

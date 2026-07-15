@@ -2,6 +2,7 @@ import { useSDK } from '@stump/client'
 import { Text } from '@stump/components'
 import { FileStatus } from '@stump/graphql'
 import { useCallback } from 'react'
+import { useLocation } from 'react-router-dom'
 
 import { usePrefetchSeries } from '@/scenes/series'
 import { usePrefetchSeriesBooks } from '@/scenes/series/tabs/books/SeriesBooksScene'
@@ -26,6 +27,7 @@ export type SeriesCardProps = {
 
 export default function SeriesCard({ data, fullWidth, variant = 'default' }: SeriesCardProps) {
 	const { sdk } = useSDK()
+	const location = useLocation()
 
 	const isCoverOnly = variant === 'cover'
 
@@ -81,6 +83,7 @@ export default function SeriesCard({ data, fullWidth, variant = 'default' }: Ser
 		<EntityCard
 			title={data.resolvedName}
 			href={paths.seriesOverview(data.id)}
+			state={{ from: `${location.pathname}${location.search}` }}
 			imageUrl={sdk.series.thumbnailURL(data.id)}
 			progress={getProgress()}
 			subtitle={getSubtitle()}

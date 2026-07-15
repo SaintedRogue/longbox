@@ -4,6 +4,7 @@ import { cn, ProgressBar, Text } from '@stump/components'
 import { FragmentType, graphql, useFragment } from '@stump/graphql'
 import pluralize from 'pluralize'
 import { memo, useCallback, useMemo } from 'react'
+import { useLocation } from 'react-router-dom'
 
 import { Link } from '@/context'
 import { usePreferences } from '@/hooks/usePreferences'
@@ -67,6 +68,7 @@ const BookCard = memo(function BookCard({
 }: Props) {
 	const data = useFragment(BookCardFragment, fragment)
 	const paths = usePaths()
+	const location = useLocation()
 
 	const {
 		preferences: { thumbnailRatio },
@@ -169,7 +171,7 @@ const BookCard = memo(function BookCard({
 	const handleClick = onSelect ? () => onSelect() : undefined
 
 	const Comp = href ? Link : 'div'
-	const props = href ? { to: href } : {}
+	const props = href ? { to: href, state: { from: `${location.pathname}${location.search}` } } : {}
 
 	const thumbnailAverageColor = placeholderData?.averageColor
 	const backgroundColor = useMemo(() => {
