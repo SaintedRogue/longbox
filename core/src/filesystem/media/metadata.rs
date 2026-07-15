@@ -6,6 +6,7 @@ use pdf::{
 	object::InfoDict,
 	primitive::{Dictionary, PdfString},
 };
+use regex::Regex;
 use sea_orm::{prelude::*, Set};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
@@ -227,6 +228,33 @@ pub struct ProcessedMediaMetadata {
 		deserialize_with = "optional_i32_deserializer"
 	)]
 	pub page_count: Option<i32>,
+	/// ComicVine issue ID recovered from ComicTagger's Notes convention
+	/// ("[Issue ID N]") or a comicvine.gamespot.com Web URL ("/4000-N/").
+	/// Not a ComicInfo element; derived post-parse.
+	#[serde(skip)]
+	pub comicvine_id: Option<String>,
+}
+
+/// Recover a ComicVine issue ID from ComicTagger's conventions: either the
+/// "[Issue ID N]" marker it appends to Notes, or a comicvine.gamespot.com Web
+/// URL of the form ".../4000-N/". Notes wins when both are present.
+pub fn extract_comicvine_id(notes: Option<&str>, links: &[String]) -> Option<String> {
+	static NOTES_RE: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
+	static WEB_RE: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
+
+	let notes_re =
+		NOTES_RE.get_or_init(|| Regex::new(r"\[Issue ID (\d+)\]").expect("valid regex"));
+	let web_re = WEB_RE.get_or_init(|| {
+		Regex::new(r"comicvine\.gamespot\.com/[^\s]*?/4000-(\d+)").expect("valid regex")
+	});
+
+	if let Some(caps) = notes.and_then(|n| notes_re.captures(n)) {
+		return Some(caps[1].to_string());
+	}
+
+	links
+		.iter()
+		.find_map(|link| web_re.captures(link).map(|caps| caps[1].to_string()))
 }
 
 impl ProcessedMediaMetadata {
@@ -272,6 +300,7 @@ impl ProcessedMediaMetadata {
 			identifier_mobi_asin: Set(self.identifier_mobi_asin),
 			identifier_uuid: Set(self.identifier_uuid),
 			translators: Set(self.translators.map(|v| v.join(", "))),
+			comicvine_id: Set(self.comicvine_id),
 			..Default::default()
 		}
 	}
@@ -571,5 +600,61 @@ mod tests {
 		};
 		let active = meta.into_active_model();
 		assert_eq!(active.identifier_isbn.unwrap(), Some("1234".to_string()));
+	}
+
+	#[test]
+	fn test_extract_comicvine_id_from_notes() {
+		let notes = "Tagged with ComicTagger 1.3.0-alpha.0 using info from Comic Vine on 2021-12-01 20:34:52.  [Issue ID 517895]";
+		assert_eq!(
+			extract_comicvine_id(Some(notes), &[]),
+			Some("517895".to_string())
+		);
+	}
+
+	#[test]
+	fn test_extract_comicvine_id_from_web_url() {
+		let links =
+			vec!["https://comicvine.gamespot.com/delete-1/4000-517895/".to_string()];
+		assert_eq!(
+			extract_comicvine_id(None, &links),
+			Some("517895".to_string())
+		);
+	}
+
+	#[test]
+	fn test_extract_comicvine_id_notes_wins_over_web() {
+		let links = vec!["https://comicvine.gamespot.com/x/4000-999999/".to_string()];
+		assert_eq!(
+			extract_comicvine_id(Some("blah [Issue ID 517895]"), &links),
+			Some("517895".to_string())
+		);
+	}
+
+	#[test]
+	fn test_extract_comicvine_id_malformed() {
+		assert_eq!(extract_comicvine_id(Some("[Issue ID ]"), &[]), None);
+		assert_eq!(extract_comicvine_id(Some("[Issue ID abc]"), &[]), None);
+		assert_eq!(
+			extract_comicvine_id(None, &["https://example.com/4000-not-cv/".to_string()]),
+			None
+		);
+		assert_eq!(extract_comicvine_id(None, &[]), None);
+	}
+
+	#[test]
+	fn test_extract_comicvine_id_multiple_takes_first() {
+		assert_eq!(
+			extract_comicvine_id(Some("[Issue ID 111] and [Issue ID 222]"), &[]),
+			Some("111".to_string())
+		);
+	}
+
+	#[test]
+	fn test_metadata_from_buf_hydrates_comicvine_id() {
+		let metadata = crate::filesystem::media::utils::metadata_from_buf(
+			crate::filesystem::media::utils::tests::INCOMPLETE_METADATA_FIXTURE,
+		)
+		.unwrap();
+		assert_eq!(metadata.comicvine_id, Some("517895".to_string()));
 	}
 }
