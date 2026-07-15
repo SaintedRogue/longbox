@@ -2,6 +2,7 @@ import { EBOOK_EXTENSION } from '@stump/client'
 import { ButtonOrLink } from '@stump/components'
 import { BookCardFragment } from '@stump/graphql'
 import { useMemo } from 'react'
+import { useLocation } from 'react-router-dom'
 
 import { usePaths } from '@/paths'
 
@@ -11,6 +12,7 @@ type Props = {
 
 export default function BookReaderLink({ book }: Props) {
 	const paths = usePaths()
+	const location = useLocation()
 
 	const isReadAgain = useMemo(() => isReadAgainPrompt(book), [book])
 
@@ -41,7 +43,12 @@ export default function BookReaderLink({ book }: Props) {
 	}, [book, isReadAgain, paths])
 
 	return (
-		<ButtonOrLink className="w-full" href={readUrl} title={title}>
+		<ButtonOrLink
+			className="w-full"
+			href={readUrl}
+			title={title}
+			state={{ from: `${location.pathname}${location.search}` }}
+		>
 			{title}
 		</ButtonOrLink>
 	)

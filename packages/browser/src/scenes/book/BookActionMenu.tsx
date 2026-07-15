@@ -18,7 +18,7 @@ import {
 	Settings,
 } from 'lucide-react'
 import { useCallback, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useLocation, useNavigate } from 'react-router'
 import { toast } from 'sonner'
 
 import { useAppContext } from '@/context'
@@ -105,6 +105,11 @@ export default function BookActionMenu({ book }: Props) {
 	const downloadRef = useRef<HTMLAnchorElement>(null)
 	const paths = usePaths()
 	const navigate = useNavigate()
+	const location = useLocation()
+	const navigateState = useMemo(
+		() => ({ from: `${location.pathname}${location.search}` }),
+		[location.pathname, location.search],
+	)
 
 	const canDownload = checkPermission(UserPermission.DownloadFile)
 
@@ -140,19 +145,19 @@ export default function BookActionMenu({ book }: Props) {
 									{
 										label: 'Continue reading',
 										leftIcon: <Play className="mr-2 h-4 w-4" />,
-										onClick: () => navigate(continueReadingLink),
+										onClick: () => navigate(continueReadingLink, { state: navigateState }),
 									},
 								]
 							: []),
 						{
 							label: 'Read from beginning',
 							leftIcon: <BookOpen className="mr-2 h-4 w-4" />,
-							onClick: () => navigate(getReadFromBeginningLink(false)),
+							onClick: () => navigate(getReadFromBeginningLink(false), { state: navigateState }),
 						},
 						{
 							label: 'Incognito mode',
 							leftIcon: <EyeOff className="mr-2 h-4 w-4" />,
-							onClick: () => navigate(getReadFromBeginningLink(true)),
+							onClick: () => navigate(getReadFromBeginningLink(true), { state: navigateState }),
 						},
 						...(book.extension?.match(PDF_EXTENSION)
 							? [
@@ -160,7 +165,9 @@ export default function BookActionMenu({ book }: Props) {
 										label: 'Native PDF viewer',
 										leftIcon: <FileText className="mr-2 h-4 w-4" />,
 										onClick: () =>
-											navigate(paths.bookReader(book.id, { isPdf: true, isStreaming: false })),
+											navigate(paths.bookReader(book.id, { isPdf: true, isStreaming: false }), {
+												state: navigateState,
+											}),
 									},
 								]
 							: []),
@@ -239,6 +246,7 @@ export default function BookActionMenu({ book }: Props) {
 			actions,
 			continueReadingLink,
 			getReadFromBeginningLink,
+			navigateState,
 		],
 	)
 

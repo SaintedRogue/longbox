@@ -1,6 +1,7 @@
 import { cn, Spacer, Text } from '@stump/components'
 import { ArrowLeft } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { useState } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 
 import { useBookPreferences } from '@/scenes/book/reader/useBookPreferences'
 
@@ -23,11 +24,18 @@ export default function EpubReaderHeader() {
 	const {
 		bookPreferences: { fontFamily },
 	} = useBookPreferences({ book: bookEntity })
+	const location = useLocation()
+
+	const [exitTo] = useState(
+		() =>
+			(location.state as { from?: string } | null)?.from ??
+			paths.bookOverview(bookEntity?.id || ''),
+	)
 
 	return (
 		<ControlsContainer position="top">
 			<div className="gap-x-2 flex items-center">
-				<Link to={paths.bookOverview(bookEntity?.id || '')} title="Book Overview">
+				<Link to={exitTo} title="Book Overview">
 					<ControlButton>
 						<ArrowLeft className="h-4 w-4" />
 					</ControlButton>

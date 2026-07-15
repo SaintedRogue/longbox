@@ -2,6 +2,7 @@ import { Button, ButtonOrLink, cn, HoverCard, Label, Popover, Text } from '@stum
 import { ReadingDirection } from '@stump/graphql'
 import { ArrowRight, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { useMediaMatch } from 'rooks'
 
 import { EntityImage } from '@/components/entity'
@@ -19,6 +20,7 @@ export default function NextInSeries() {
 	} = useBookPreferences({ book })
 
 	const paths = usePaths()
+	const location = useLocation()
 	const isMobile = useMediaMatch('(max-width: 640px)')
 
 	const nextInSeries = useMemo(() => {
@@ -56,7 +58,11 @@ export default function NextInSeries() {
 						src={nextInSeries.thumbnailUrl}
 					/>
 
-					<ButtonOrLink variant="secondary" href={paths.bookReader(nextInSeries.id)}>
+					<ButtonOrLink
+						variant="secondary"
+						href={paths.bookReader(nextInSeries.id)}
+						state={{ from: `${location.pathname}${location.search}` }}
+					>
 						Read
 					</ButtonOrLink>
 				</div>

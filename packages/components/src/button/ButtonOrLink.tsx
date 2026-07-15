@@ -7,6 +7,10 @@ type BaseProps = React.ComponentProps<'button'> & React.ComponentProps<'a'> & Bu
 export type ButtonOrLinkProps = {
 	// TODO: this is a bit of a hack
 	forceAnchor?: boolean
+	/**
+	 * Optional navigation state, forwarded to the underlying react-router `Link` when `href` is set.
+	 */
+	state?: unknown
 } & BaseProps
 
 export function ButtonOrLink({

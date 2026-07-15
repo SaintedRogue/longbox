@@ -1,6 +1,8 @@
 import { Link, Text } from '@stump/components'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Fullscreen, Shrink } from 'lucide-react'
+import { useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { useFullscreen } from 'rooks'
 
 import { usePaths } from '@/paths'
@@ -17,8 +19,13 @@ export default function ReaderHeader() {
 		settings: { showToolBar },
 	} = useBookPreferences({ book })
 	const paths = usePaths()
+	const location = useLocation()
 
 	const { id, resolvedName } = book
+
+	const [exitTo] = useState(
+		() => (location.state as { from?: string } | null)?.from ?? paths.bookOverview(id),
+	)
 
 	const { isFullscreenAvailable, isFullscreenEnabled, toggleFullscreen } = useFullscreen()
 
@@ -38,7 +45,7 @@ export default function ReaderHeader() {
 					<Link
 						className="flex items-center text-foreground hover:text-foreground/80"
 						title="Go to media overview"
-						to={paths.bookOverview(id)}
+						to={exitTo}
 					>
 						<ArrowLeft size={'1.25rem'} />
 					</Link>
