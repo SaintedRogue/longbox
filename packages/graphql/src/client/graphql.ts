@@ -1859,7 +1859,9 @@ export type MetadataFieldOverride = {
 /** The supported external metadata providers */
 export enum MetadataProvider {
   /** Hardcover (https://hardcover.app) */
-  Hardcover = 'HARDCOVER'
+  Hardcover = 'HARDCOVER',
+  /** Metron (https://metron.cloud) — comics; data CC BY-SA 4.0 */
+  Metron = 'METRON'
 }
 
 export type MetadataProviderConfigModel = {

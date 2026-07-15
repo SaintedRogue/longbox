@@ -136,4 +136,7 @@ const validateHardcoverApiKey: Validator = async (apiKey, t) => {
 
 const PROVIDER_VALIDATORS: Record<MetadataProvider, Validator | null> = {
 	HARDCOVER: validateHardcoverApiKey,
+	// No client-side validation for Metron: validating `username:password` would require
+	// a CORS-enabled request straight to metron.cloud from the browser, which isn't guaranteed
+	METRON: null,
 }

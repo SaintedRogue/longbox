@@ -20,4 +20,5 @@ export function ProviderLogo({ provider, className }: Props) {
 
 const LOGOS: Record<MetadataProvider, string> = {
 	[MetadataProvider.Hardcover]: '/assets/logos/hardcover.png',
+	[MetadataProvider.Metron]: '/assets/logos/metron.png',
 }

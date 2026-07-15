@@ -19,7 +19,7 @@ pub use types::{
 	MatchCandidate, MediaType, MetadataField, PublicationStatus, SearchQuery,
 };
 
-use providers::HardcoverClient;
+use providers::{HardcoverClient, MetronClient};
 
 pub fn create_provider(
 	provider_type: &str,
@@ -27,6 +27,7 @@ pub fn create_provider(
 ) -> MetadataResult<Box<dyn MetadataProvider + Send + Sync>> {
 	match provider_type {
 		"HARDCOVER" => Ok(Box::new(HardcoverClient::new(api_token, None))),
+		"METRON" => Ok(Box::new(MetronClient::new(api_token, None)?)),
 		_ => Err(MetadataProviderError::UnsupportedProvider(
 			provider_type.to_string(),
 		)),

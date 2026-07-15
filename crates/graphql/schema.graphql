@@ -1747,6 +1747,8 @@ input MetadataFieldOverride {
 enum MetadataProvider {
 	"Hardcover (https://hardcover.app)"
 	HARDCOVER
+	"Metron (https://metron.cloud) — comics; data CC BY-SA 4.0"
+	METRON
 }
 
 type MetadataProviderConfigModel {
