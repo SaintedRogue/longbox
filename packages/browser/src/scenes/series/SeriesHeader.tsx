@@ -1,5 +1,6 @@
 import { useGraphQLMutation, usePrefetchFiles } from '@stump/client'
 import { formatBytesSeparate } from '@stump/client'
+import { Breadcrumbs } from '@stump/components'
 import { DropdownItemGroup } from '@stump/components/dropdown/DropdownMenu'
 import { extractErrorMessage, graphql, UserPermission } from '@stump/graphql'
 import { formatHumanDurationSeparate, useLocaleContext } from '@stump/i18n'
@@ -32,7 +33,7 @@ export default function SeriesHeader() {
 			resolvedName,
 			path,
 			stats,
-			library: { id: libraryId },
+			library: { id: libraryId, name: libraryName },
 		},
 	} = useSeriesContext()
 	const { t } = useLocaleContext()
@@ -163,6 +164,16 @@ export default function SeriesHeader() {
 					setShowCompleteSeriesConfirmation(false)
 				}}
 			/>
+
+			<div className="px-4 pt-2">
+				<Breadcrumbs
+					segments={[
+						{ label: 'Libraries', to: paths.libraries(), noShrink: true },
+						{ label: libraryName, to: paths.librarySeries(libraryId), noShrink: true },
+						{ label: resolvedName },
+					]}
+				/>
+			</div>
 
 			<EntityHeader
 				name={resolvedName}
