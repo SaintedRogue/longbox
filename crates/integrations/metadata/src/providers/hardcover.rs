@@ -112,7 +112,6 @@ impl HardcoverClient {
 			limit,
 		);
 		tracing::trace!(?graphql_query, "Searching Hardcover...");
-		dbg!(&graphql_query);
 
 		let data: SearchData = self.execute_graphql(&graphql_query).await?;
 		Ok(data.search)
