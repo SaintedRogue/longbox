@@ -1,4 +1,4 @@
-import { Heading } from '@stump/components'
+import { cn, Heading } from '@stump/components'
 import { useFragment, UserPermission } from '@stump/graphql'
 import sortBy from 'lodash/sortBy'
 import { Suspense, useMemo } from 'react'
@@ -39,12 +39,24 @@ export default function BookOverviewContent({ id, variant }: Props) {
 		[media.readHistory],
 	)
 
+	const isSheet = variant === 'sheet'
+
 	return (
 		<>
 			<Suspense>
-				<div className="gap-4 flex h-full w-full flex-col">
-					<div className="gap-3 tablet:mb-2 flex flex-col items-center tablet:flex-row tablet:items-start">
-						<div className="max-w-sm gap-3 sm:max-w-50 flex w-full shrink-0 flex-col items-center">
+				<div className={cn('gap-4 flex h-full w-full flex-col', isSheet && 'px-1 pt-1')}>
+					<div
+						className={cn(
+							'gap-3 tablet:mb-2 flex flex-col items-center tablet:flex-row tablet:items-start',
+							isSheet && 'tablet:flex-col tablet:items-center',
+						)}
+					>
+						<div
+							className={cn(
+								'max-w-sm gap-3 sm:max-w-50 flex w-full shrink-0 flex-col items-center',
+								isSheet && 'max-w-56 gap-4 sm:max-w-56',
+							)}
+						>
 							<ProminentThumbnailImage
 								src={fragmentData.thumbnail.url}
 								alt={media.resolvedName}
@@ -61,7 +73,7 @@ export default function BookOverviewContent({ id, variant }: Props) {
 
 					{variant === 'page' && <BooksAfterCursor cursor={media.id} />}
 
-					<div className="gap-y-2 flex flex-col">
+					<div className={cn('gap-y-2 flex flex-col', isSheet && 'pt-4 border-t border-border')}>
 						<Heading size="sm">Metadata</Heading>
 						<MediaMetadataEditor mediaId={media.id} data={media.metadata} />
 					</div>

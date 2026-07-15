@@ -1,4 +1,4 @@
-import { SheetPrimitive } from '@stump/components'
+import { cn, SheetPrimitive } from '@stump/components'
 import { Suspense, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 
@@ -35,7 +35,19 @@ export default function BookPeekSheet() {
 
 	return (
 		<SheetPrimitive open={open} onOpenChange={handleOpenChange}>
-			<SheetPrimitive.Content position="right" size="xl" closeIcon className="overflow-y-auto">
+			<SheetPrimitive.Content
+				position="right"
+				size="xl"
+				closeIcon
+				className={cn(
+					'overflow-y-auto border-l-2 border-l-brand-500/70',
+					// A restrained "pulled from the box" entrance: the default
+					// slide-in-from-right/fade stay, plus a couple of degrees of
+					// settle-in rotation -- composed with tw-animate-css's enter
+					// keyframe rather than a bespoke one.
+					'data-[state=open]:spin-in-2',
+				)}
+			>
 				<SheetPrimitive.Header>
 					<Suspense
 						fallback={<SheetPrimitive.Title className="sr-only">Book details</SheetPrimitive.Title>}
