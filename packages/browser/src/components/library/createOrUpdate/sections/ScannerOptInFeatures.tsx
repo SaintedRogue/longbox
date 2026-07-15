@@ -13,7 +13,11 @@ type Props = {
 	onDidChange?: (
 		values: Pick<
 			CreateOrUpdateLibrarySchema,
-			'processMetadata' | 'watch' | 'generateFileHashes' | 'generateKoreaderHashes'
+			| 'processMetadata'
+			| 'writeComicinfo'
+			| 'watch'
+			| 'generateFileHashes'
+			| 'generateKoreaderHashes'
 		>,
 	) => void
 }
@@ -23,19 +27,26 @@ export default function ScannerOptInFeatures({ onDidChange }: Props) {
 	const ctx = useLibraryManagementSafe()
 	const isCreating = !ctx?.library
 
-	const [processMetadata, watch, generateFileHashes, koreaderHashes] = useWatch({
+	const [processMetadata, writeComicinfo, watch, generateFileHashes, koreaderHashes] = useWatch({
 		control: form.control,
-		name: ['processMetadata', 'watch', 'generateFileHashes', 'generateKoreaderHashes'],
+		name: [
+			'processMetadata',
+			'writeComicinfo',
+			'watch',
+			'generateFileHashes',
+			'generateKoreaderHashes',
+		],
 	})
 
 	const params = useMemo(
 		() => ({
 			processMetadata,
+			writeComicinfo,
 			watch,
 			generateFileHashes,
 			generateKoreaderHashes: koreaderHashes,
 		}),
-		[processMetadata, watch, generateFileHashes, koreaderHashes],
+		[processMetadata, writeComicinfo, watch, generateFileHashes, koreaderHashes],
 	)
 
 	const handleProcessMetadataChange = useCallback(() => {
@@ -47,6 +58,16 @@ export default function ScannerOptInFeatures({ onDidChange }: Props) {
 			})
 		}
 	}, [form, processMetadata, params, onDidChange])
+
+	const handleWriteComicinfoChange = useCallback(() => {
+		form.setValue('writeComicinfo', !writeComicinfo)
+		if (onDidChange) {
+			onDidChange({
+				...params,
+				writeComicinfo: !writeComicinfo,
+			})
+		}
+	}, [form, writeComicinfo, params, onDidChange])
 
 	const handleWatchChange = useCallback(() => {
 		form.setValue('watch', !watch)
@@ -102,6 +123,15 @@ export default function ScannerOptInFeatures({ onDidChange }: Props) {
 				checked={processMetadata}
 				onClick={handleProcessMetadataChange}
 				{...form.register('processMetadata')}
+			/>
+
+			<CheckBox
+				id="writeComicinfo"
+				label="Write metadata edits back to ComicInfo.xml (CBZ only)"
+				description="When enabled, saving metadata edits rewrites the ComicInfo.xml inside the archive. The file on disk is modified."
+				checked={writeComicinfo}
+				onClick={handleWriteComicinfoChange}
+				{...form.register('writeComicinfo')}
 			/>
 
 			<CheckBox

@@ -1085,6 +1085,7 @@ type LibraryConfig {
 	generateFileHashes: Boolean!
 	generateKoreaderHashes: Boolean!
 	processMetadata: Boolean!
+	writeComicinfo: Boolean!
 	watch: Boolean!
 	libraryPattern: LibraryPattern!
 	defaultLibraryViewMode: LibraryViewMode!
@@ -1103,6 +1104,7 @@ input LibraryConfigInput {
 	generateFileHashes: Boolean!
 	generateKoreaderHashes: Boolean!
 	processMetadata: Boolean!
+	writeComicinfo: Boolean!
 	watch: Boolean!
 	libraryPattern: LibraryPattern!
 	libraryType: LibraryType!
@@ -1438,6 +1440,8 @@ type MediaMetadata {
 	metadataSource: String
 	"The external ID on the metadata provider's system"
 	metadataExternalId: String
+	"ComicVine issue ID parsed from embedded ComicTagger metadata (Notes/Web)"
+	comicvineId: String
 	writers: [String!]!
 	genres: [String!]!
 	characters: [String!]!
@@ -1449,6 +1453,7 @@ type MediaMetadata {
 	links: [String!]!
 	pencillers: [String!]!
 	teams: [String!]!
+	translators: [String!]!
 	lockedFields: [MetadataField!]!
 }
 
@@ -1556,6 +1561,8 @@ enum MediaMetadataModelOrdering {
 	METADATA_SOURCE
 	METADATA_EXTERNAL_ID
 	LOCKED_FIELDS
+	COMICVINE_ID
+	TRANSLATORS
 }
 
 input MediaMetadataOrderByField {

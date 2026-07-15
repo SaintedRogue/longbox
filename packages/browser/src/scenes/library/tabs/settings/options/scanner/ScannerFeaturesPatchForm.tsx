@@ -25,17 +25,23 @@ export default function ScannerFeaturesPatchForm() {
 	const handleSubmit = useCallback(
 		({
 			processMetadata,
+			writeComicinfo,
 			watch,
 			generateFileHashes,
 			generateKoreaderHashes,
 		}: Pick<
 			CreateOrUpdateLibrarySchema,
-			'processMetadata' | 'watch' | 'generateFileHashes' | 'generateKoreaderHashes'
+			| 'processMetadata'
+			| 'writeComicinfo'
+			| 'watch'
+			| 'generateFileHashes'
+			| 'generateKoreaderHashes'
 		>) => {
 			patch({
 				config: {
 					generateFileHashes,
 					processMetadata,
+					writeComicinfo,
 					watch,
 					generateKoreaderHashes,
 				},

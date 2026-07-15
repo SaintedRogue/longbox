@@ -267,6 +267,7 @@ mod tests {
 			library_id: Some("library_id".to_string()),
 			library_pattern: LibraryPattern::SeriesBased,
 			process_metadata: true,
+			write_comicinfo: false,
 			thumbnail_config: None,
 			process_thumbnail_colors_even_without_config: false,
 			watch: false,

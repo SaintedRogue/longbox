@@ -193,6 +193,7 @@ export const buildSchema = (
 				}
 			}),
 		processMetadata: z.boolean().default(true),
+		writeComicinfo: z.boolean().default(false),
 		scanAfterPersist: z.boolean().default(true),
 		tags: z
 			.array(
@@ -232,6 +233,7 @@ export const formDefaults = (
 	name: library?.name || '',
 	path: library?.path || '',
 	processMetadata: library?.config.processMetadata ?? true,
+	writeComicinfo: library?.config.writeComicinfo ?? false,
 	scanAfterPersist: true,
 	tags: library?.tags?.map((t) => ({ label: t.name, value: t.name.toLowerCase() })),
 	thumbnailConfig: intoFormThumbnailConfig(library?.config.thumbnailConfig),

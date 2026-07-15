@@ -31,6 +31,7 @@ pub struct Model {
 	pub generate_file_hashes: bool,
 	pub generate_koreader_hashes: bool,
 	pub process_metadata: bool,
+	pub write_comicinfo: bool,
 	pub watch: bool,
 	#[sea_orm(column_type = "Text")]
 	pub library_pattern: LibraryPattern,
@@ -120,6 +121,10 @@ impl ActiveModelBehavior for ActiveModel {
 
 		if self.process_metadata.is_not_set() {
 			self.process_metadata = Set(false);
+		}
+
+		if self.write_comicinfo.is_not_set() {
+			self.write_comicinfo = Set(false);
 		}
 
 		if self.watch.is_not_set() {

@@ -9,11 +9,39 @@ use metadata_integrations::{
 	MatchCandidate, MergeStrategy, MetadataField, MetadataFieldOverride, SearchQuery,
 };
 use models::{
-	entity::{media, media_metadata, metadata_fetch_record},
+	entity::{library_config, media, media_metadata, metadata_fetch_record, series},
 	shared::enums::{MetadataFetchStatus, UserPermission},
 };
 use sea_orm::{prelude::*, ActiveValue::Set, IntoActiveModel};
 use stump_core::filesystem::metadata::ProviderClientCache;
+
+/// Resolve the [`library_config::Model`] that governs the library a piece of
+/// media belongs to, via media -> series -> library_config. Returns `None`
+/// if any hop is missing (e.g. orphaned media, or a library with no config
+/// row yet) rather than erroring, since write-back is best-effort.
+async fn library_config_for_media(
+	conn: &DatabaseConnection,
+	media: &media::Model,
+) -> Result<Option<library_config::Model>> {
+	let Some(series_id) = media.series_id.clone() else {
+		return Ok(None);
+	};
+
+	let Some(series) = series::Entity::find_by_id(series_id).one(conn).await? else {
+		return Ok(None);
+	};
+
+	let Some(library_id) = series.library_id else {
+		return Ok(None);
+	};
+
+	let config = library_config::Entity::find()
+		.filter(library_config::Column::LibraryId.eq(library_id))
+		.one(conn)
+		.await?;
+
+	Ok(config)
+}
 
 #[derive(Default)]
 pub struct MediaMetadataMutation;
@@ -52,6 +80,64 @@ impl MediaMetadataMutation {
 			media: model.media,
 			metadata: Some(updated_metadata),
 		};
+
+		// Best-effort ComicInfo.xml write-back for opt-in libraries.
+		// Failure is logged, never fails the mutation: the DB row is the
+		// source of truth and the next successful edit will retry.
+		let should_write_back =
+			matches!(model.media.extension.to_lowercase().as_str(), "cbz" | "zip");
+		if should_write_back {
+			let config = match library_config_for_media(conn, &model.media).await {
+				Ok(config) => config,
+				Err(e) => {
+					tracing::error!(
+						error = ?e,
+						media_id = %model.media.id,
+						"Failed to load library config for ComicInfo write-back"
+					);
+					None
+				},
+			};
+			if let Some(config) = config {
+				if config.write_comicinfo {
+					let metadata_model = model
+						.metadata
+						.as_ref()
+						.expect("metadata was just set to Some above");
+					let xml =
+						stump_core::filesystem::media::ComicInfoXml::from(metadata_model)
+							.to_xml_string();
+					let path = std::path::PathBuf::from(&model.media.path);
+					match xml {
+						Ok(xml) => {
+							let result = tokio::task::spawn_blocking(move || {
+								stump_core::filesystem::media::write_comic_info_to_zip(
+									&path, &xml,
+								)
+							})
+							.await;
+							if let Err(e) = result
+								.map_err(|e| e.to_string())
+								.and_then(|r| r.map_err(|e| e.to_string()))
+							{
+								tracing::error!(
+									error = %e,
+									media_id = %model.media.id,
+									"ComicInfo write-back failed"
+								);
+							}
+						},
+						Err(e) => {
+							tracing::error!(
+								error = %e,
+								media_id = %model.media.id,
+								"ComicInfo serialization failed"
+							);
+						},
+					}
+				}
+			}
+		}
 
 		Ok(model.into())
 	}

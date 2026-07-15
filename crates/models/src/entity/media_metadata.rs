@@ -111,6 +111,12 @@ pub struct Model {
 	#[sea_orm(column_type = "Json", nullable)]
 	#[graphql(skip)]
 	pub locked_fields: Option<serde_json::Value>,
+	/// ComicVine issue ID parsed from embedded ComicTagger metadata (Notes/Web)
+	#[sea_orm(column_type = "Text", nullable)]
+	pub comicvine_id: Option<String>,
+	#[sea_orm(column_type = "Text", nullable)]
+	#[graphql(skip)]
+	pub translators: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
