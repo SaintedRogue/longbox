@@ -7,9 +7,11 @@ import {
 	useSuspenseGraphQL,
 } from '@stump/client'
 import { BookReaderSceneQuery, graphql, ReadingMode } from '@stump/graphql'
+import { useLocaleContext } from '@stump/i18n'
 import { useQueryClient } from '@tanstack/react-query'
 import { Suspense, useCallback, useEffect, useMemo, useRef } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { toast } from 'sonner'
 
 import { ImageBasedReader } from '@/components/readers/imageBased'
 import paths from '@/paths'
@@ -98,6 +100,7 @@ function BookReaderScene({ book }: Props) {
 	const [search] = useSearchParams()
 
 	const { sdk } = useSDK()
+	const { t } = useLocaleContext()
 
 	const page = search.get('page')
 	const isIncognito = search.get('incognito') === 'true'
@@ -106,8 +109,11 @@ function BookReaderScene({ book }: Props) {
 	const pendingSyncedElapsedRef = useRef(book?.readProgress?.elapsedSeconds ?? 0)
 
 	const { mutate } = useGraphQLMutation(mutation, {
+		retry: 3,
+		retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 15_000),
 		onError: (err) => {
 			console.error(err)
+			toast.error(t('readerToasts.progressSyncFailed'))
 		},
 		onSuccess: () => {
 			lastSyncedElapsedRef.current = pendingSyncedElapsedRef.current

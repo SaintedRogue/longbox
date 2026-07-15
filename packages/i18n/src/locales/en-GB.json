@@ -2766,6 +2766,9 @@
 			"description": "Allows the user to edit thumbnails for books and series"
 		}
 	},
+	"readerToasts": {
+		"progressSyncFailed": "Failed to save reading progress. Your position may not be synced."
+	},
 	"mobileApp": {
 		"addOrEditServer": {
 			"addServer": {
