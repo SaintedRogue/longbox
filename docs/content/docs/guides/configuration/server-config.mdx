@@ -4,12 +4,12 @@ title: Server Config
 
 
 <Callout type="info">
-Stump will use default options if you don't manually configure them. When following this guide, keep in mind you only need to provide values for things you wish to override
+Longbox will use default options if you don't manually configure them. When following this guide, keep in mind you only need to provide values for things you wish to override
 </Callout>
 
-There are a number of configuration options that you can set to customize Stump's behavior. You will be setting these options in the `Stump.toml` file, located within your configured config directory, but you can also set them as environment variables.
+There are a number of configuration options that you can set to customize Longbox's behavior. You will be setting these options in the `Longbox.toml` file, located within your configured config directory, but you can also set them as environment variables.
 
-If you're using Stump with Docker, you'll want to specify environment variables in either the `docker run` or `docker-compose.yml` file to override the default configuration. See the [Docker](/docs/getting-started/installation/docker) guide for more information.
+If you're using Longbox with Docker, you'll want to specify environment variables in either the `docker run` or `docker-compose.yml` file to override the default configuration. See the [Docker](/docs/getting-started/installation/docker) guide for more information.
 
 Below are the available configuration options, loosely grouped by category. If you encounter any values which are not documented, please open an issue or submit a pull request to add them to the documentation.
 
@@ -17,7 +17,7 @@ Below are the available configuration options, loosely grouped by category. If y
 
 ### STUMP_IP
 
-The OP address that the Stump server listens on.
+The OP address that the Longbox server listens on.
 
 | Type    | Default Value | TOML Key |
 | ------- | ------------- | -------- |
@@ -25,7 +25,7 @@ The OP address that the Stump server listens on.
 
 ### STUMP_PORT
 
-The port for the Stump server.
+The port for the Longbox server.
 
 | Type    | Default Value | TOML Key |
 | ------- | ------------- | -------- |
@@ -33,7 +33,7 @@ The port for the Stump server.
 
 ### STUMP_CONFIG_DIR
 
-The directory where Stump will look for its configuration file.
+The directory where Longbox will look for its configuration file.
 
 | Type   | Default Value | TOML Key     |
 | ------ | ------------- | ------------ |
@@ -49,7 +49,7 @@ The directory the contains the web bundle for the web UI
 
 ### STUMP_DB_PATH
 
-Overrides the path where Stump stores its database file. By default this path is same as parent directory of `STUMP_CONFIG_DIR`. If set the database would be put at `STUMP_DB_PATH/stump.db`.
+Overrides the path where Longbox stores its database file. By default this path is same as parent directory of `STUMP_CONFIG_DIR`. If set the database would be put at `STUMP_DB_PATH/stump.db`.
 
 | Type   | Default Value | TOML Key  |
 | ------ | ------------- | --------- |
@@ -57,7 +57,7 @@ Overrides the path where Stump stores its database file. By default this path is
 
 ### STUMP_ALLOWED_ORIGINS
 
-A **comma-delineated** list of allowed origins for the Stump API. If you're trying to access the API from a different domain, you'll need to add it to this list. By default, origins corresponding to the Tauri desktop application are allowed, and the host machine's IP address with the configured port is allowed for both HTTP and HTTPS.
+A **comma-delineated** list of allowed origins for the Longbox API. If you're trying to access the API from a different domain, you'll need to add it to this list. By default, origins corresponding to the Tauri desktop application are allowed, and the host machine's IP address with the configured port is allowed for both HTTP and HTTPS.
 
 | Type   | Default Value                                                                              | TOML Key          |
 | ------ | ------------------------------------------------------------------------------------------ | ----------------- |
@@ -69,7 +69,7 @@ Stored as a valid array in the configuration file.
 
 ### STUMP_TRUST_PROXY_HEADERS
 
-Whether or not to trust proxy headers like `X-Forwarded-For` and `X-Real-IP` for determining the client's IP address. This should only be set to `true` if Stump is running behind a reverse proxy that is properly configured to set these headers, since it increases the risk of IP spoofing.
+Whether or not to trust proxy headers like `X-Forwarded-For` and `X-Real-IP` for determining the client's IP address. This should only be set to `true` if Longbox is running behind a reverse proxy that is properly configured to set these headers, since it increases the risk of IP spoofing.
 
 | Type    | Default Value | TOML Key              |
 | ------- | ------------- | --------------------- |
@@ -79,11 +79,11 @@ Whether or not to trust proxy headers like `X-Forwarded-For` and `X-Real-IP` for
 
 ### STUMP_VERBOSITY
 
-The verbosity level for Stump logs. Verbosity levels are integers that correspond to a list of log levels that will be visible, and are inclusive of all the levels below them.
+The verbosity level for Longbox logs. Verbosity levels are integers that correspond to a list of log levels that will be visible, and are inclusive of all the levels below them.
 
 For example, if you set the verbosity level to `1`, you will see `INFO`, `WARN`, and `ERROR` messages. If you set the verbosity level to `2`, you will see `DEBUG`, `INFO`, `WARN`, and `ERROR` messages, and so on. The default verbosity level is `1`.
 
-You may turn off logging entirely by setting the verbosity level to `0`. However, this is not recommended, as it will make it difficult to debug issues with Stump if they arise. I generally recommend setting the verbosity to `1`, as it allows you to see info-level messages, warnings, and errors.
+You may turn off logging entirely by setting the verbosity level to `0`. However, this is not recommended, as it will make it difficult to debug issues with Longbox if they arise. I generally recommend setting the verbosity to `1`, as it allows you to see info-level messages, warnings, and errors.
 
 The available verbosity levels are:
 
@@ -135,7 +135,7 @@ The time (_in seconds_) between each session expiry cleanup check. The check wil
 ## OpenID Connect (OIDC)
 
 <Callout>
-In `Stump.toml`, all keys are nested under an `[oidc]` table. For example:
+In `Longbox.toml`, all keys are nested under an `[oidc]` table. For example:
 
 ```toml
 port = 10801
@@ -170,7 +170,7 @@ The base URL of your OIDC provider. This should be the URL where the provider's 
 
 ### STUMP_OIDC_CLIENT_ID
 
-The client ID provided by your OIDC provider for the Stump application
+The client ID provided by your OIDC provider for the Longbox application
 
 **Required when `STUMP_OIDC_ENABLED` is `true`.**
 
@@ -180,7 +180,7 @@ The client ID provided by your OIDC provider for the Stump application
 
 ### STUMP_OIDC_CLIENT_SECRET
 
-The client secret provided by your OIDC provider for the Stump application
+The client secret provided by your OIDC provider for the Longbox application
 
 **Required when `STUMP_OIDC_ENABLED` is `true`.**
 
@@ -236,7 +236,7 @@ Whether or not to enable the Kobo sync integration. To learn more about this int
 
 ### ENABLE_KOREADER_SYNC
 
-Whether or not to enable the KoReader sync integration. This is a special integration that allows KoReader to sync with Stump. To learn more about this integration, visit the [KoReader](/docs/guides/integrations/koreader) guide.
+Whether or not to enable the KoReader sync integration. This is a special integration that allows KoReader to sync with Longbox. To learn more about this integration, visit the [KoReader](/docs/guides/integrations/koreader) guide.
 
 | Type    | Default Value | TOML Key               |
 | ------- | ------------- | ---------------------- |
@@ -254,7 +254,7 @@ Whether or not OPDS page access should automatically track reading progression. 
 
 ### PDFIUM_PATH
 
-The path to the PDFium binary. This is only required if you want PDF support and you're running Stump outside of Docker, since the PDFium binary is included in the Docker image. You'll want to find and download the PDFium binary for your platform from [here](https://github.com/bblanchon/pdfium-binaries/releases), and then set this environment variable to the path of the binary.
+The path to the PDFium binary. This is only required if you want PDF support and you're running Longbox outside of Docker, since the PDFium binary is included in the Docker image. You'll want to find and download the PDFium binary for your platform from [here](https://github.com/bblanchon/pdfium-binaries/releases), and then set this environment variable to the path of the binary.
 
 | Type   | Default Value                 | TOML Key       |
 | ------ | ----------------------------- | -------------- |
@@ -356,7 +356,7 @@ The number of seconds after which a book can be re-completed.
 
 ### STUMP_ENABLE_PLAYGROUND
 
-Whether or not to enable the GraphQL playground. The playground is an interactive in-browser IDE for exploring the Stump GraphQL API. It is always enabled in development builds.
+Whether or not to enable the GraphQL playground. The playground is an interactive in-browser IDE for exploring the Longbox GraphQL API. It is always enabled in development builds.
 
 | Type    | Default Value | TOML Key            |
 | ------- | ------------- | ------------------- |
@@ -364,7 +364,7 @@ Whether or not to enable the GraphQL playground. The playground is an interactiv
 
 ### API_VERSION
 
-The version of the Stump API to use. This should really be left alone and **not** manually set.
+The version of the Longbox API to use. This should really be left alone and **not** manually set.
 
 | Type    | Default Value | TOML Key      |
 | ------- | ------------- | ------------- |
@@ -372,7 +372,7 @@ The version of the Stump API to use. This should really be left alone and **not*
 
 ### STUMP_PROFILE
 
-The profile to use when running Stump. This should really be left alone and **not** manually set.
+The profile to use when running Longbox. This should really be left alone and **not** manually set.
 
 | Type   | Default Value | TOML Key  |
 | ------ | ------------- | --------- |

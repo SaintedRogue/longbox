@@ -11,22 +11,22 @@ import { Step, Steps } from 'fumadocs-ui/components/steps';
 	[permissions](/docs/guides/access-control/permissions) guide.
 </Callout>
 
-KoReader is an open-source e-reader application that supports a variety of devices. Stump has a built-in implementation of the [sync API](https://github.com/koreader/koreader-sync-server) that enables KoReader to sync read progress with Stump.
+KoReader is an open-source e-reader application that supports a variety of devices. Longbox has a built-in implementation of the [sync API](https://github.com/koreader/koreader-sync-server) that enables KoReader to sync read progress with Longbox.
 
 ## How it works
 
-KoReader sync works by sending read progress updates to Stump. When you open and progress through a book in KoReader, it will send a request to Stump with KoReader-specific information for tracking your progress:
+KoReader sync works by sending read progress updates to Longbox. When you open and progress through a book in KoReader, it will send a request to Longbox with KoReader-specific information for tracking your progress:
 
-- A hash of the book, which is used to identify the book between KoReader and Stump
+- A hash of the book, which is used to identify the book between KoReader and Longbox
 - The progress string (x-pointer) that KoReader uses for tracking where you are in a book with more precision for DOM-based documents
 - A percentage of how far you are through the book
 - The ID of the device you are using
 
-Stump will store this information to perform various progress-related lookups when KoReader issues requests.
+Longbox will store this information to perform various progress-related lookups when KoReader issues requests.
 
 ## Setup
 
-To set up KoReader sync with Stump, you need to:
+To set up KoReader sync with Longbox, you need to:
 
 <Steps>
 
@@ -36,9 +36,9 @@ To set up KoReader sync with Stump, you need to:
 </Step>
 
 <Step>
-### Enable the KoReader routes on your Stump instance
+### Enable the KoReader routes on your Longbox instance
 
-The KoReader router is disabled by default. To enable it, you need to set the `ENABLE_KOREADER_SYNC` environment variable to `true`, or directly set `enable_koreader_sync=true` in the `Stump.toml` configuration file.
+The KoReader router is disabled by default. To enable it, you need to set the `ENABLE_KOREADER_SYNC` environment variable to `true`, or directly set `enable_koreader_sync=true` in the `Longbox.toml` configuration file.
 
 See the [configuration guide](/docs/guides/configuration/server-config) for more information.
 </Step>
@@ -51,7 +51,7 @@ KoReader supports two methods for matching books:
 1. A hash of the file
 2. The name of the file
 
-Stump **only supports hash-based book matching** at this time. This means you will need to ensure Stump generates KoReader-specific hashes for library content for the integration to work.
+Longbox **only supports hash-based book matching** at this time. This means you will need to ensure Longbox generates KoReader-specific hashes for library content for the integration to work.
 
 To enable this feature, be sure the `KoReader-compatible hashes` setting is enabled for a library. For more information, see the [scanner configuration](/docs/guides/fundamentals/scanner) guide.
 
@@ -93,7 +93,7 @@ The API key should have at least the `ACCESS_KOREADER_SYNC` permission:
 KoReader requires you to login before it can sync progress. This is a bit unintuitive since you are using an API key, but the login step is necessary. You just need to enter any username and password (they are not validated).
 
 <Callout>
-	Stump does not currently support anything other than the API key authentication method. If you
+	Longbox does not currently support anything other than the API key authentication method. If you
 	would like to see support for the username/password method, please open a feature request
 </Callout>
 
@@ -102,7 +102,7 @@ KoReader requires you to login before it can sync progress. This is a bit unintu
 <Step>
 ### Ensure binary hash is enabled in KoReader
 
-KoReader might default to using a filename-based matching strategy for identifying books with the server. Stump only supports the binary hash method, so you need to ensure that KoReader is set to use this method:
+KoReader might default to using a filename-based matching strategy for identifying books with the server. Longbox only supports the binary hash method, so you need to ensure that KoReader is set to use this method:
 
 1. Navigate to `Progress sync` > `Document matching method`
 2. Select `Binary`
@@ -118,19 +118,19 @@ This section provides explanations for possible errors you may encounter while s
 
 ### 404 Not Found
 
-If KoReader is recieving 404 errors from your Stump instance while trying to `PUT` progress data, it most likely means that the book hash was not generated for that book.
+If KoReader is recieving 404 errors from your Longbox instance while trying to `PUT` progress data, it most likely means that the book hash was not generated for that book.
 
-KoReader uses a specific algorithm to generate hashes of books, and it uses this hash as the primary identifer when sending progress payloads to the sync API. So when the hash has not been generated in Stump, the lookup will fail. Follow the steps in the setup guide to generate hashes for your library.
+KoReader uses a specific algorithm to generate hashes of books, and it uses this hash as the primary identifer when sending progress payloads to the sync API. So when the hash has not been generated in Longbox, the lookup will fail. Follow the steps in the setup guide to generate hashes for your library.
 
 ## Future improvements
 
 While the KoReader sync integration is functional, there are a few improvements that could be made:
 
 1. **Device management**: The devices are not surfaced on the UI yet. I'd like to add functions to attach friendly names to devices so you can easily identify them (e.g. `Aaron's Kobo Clara`)
-2. **Progress translation**: The progress data which gets stored is primarily for KoReader's use, with the exception of the percentage. I'd like to add a feature to translate the x-pointer into a proper epubcfi so the native Stump reader can pick up where you left off
+2. **Progress translation**: The progress data which gets stored is primarily for KoReader's use, with the exception of the percentage. I'd like to add a feature to translate the x-pointer into a proper epubcfi so the native Longbox reader can pick up where you left off
 
 <Callout type="idea">
-	Have you set up KoReader sync with Stump? I'd love to hear about your experience! This is a very
+	Have you set up KoReader sync with Longbox? I'd love to hear about your experience! This is a very
 	new integration, so if you have any feedback or run into any issues, please let me know by opening
 	an [issue](https://github.com/stumpapp/stump/issues)
 </Callout>

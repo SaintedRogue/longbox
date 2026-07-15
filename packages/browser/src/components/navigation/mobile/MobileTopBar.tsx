@@ -19,7 +19,7 @@ export default function TopBar() {
 				</div>
 				<div className="gap-2 col-span-6 flex h-full items-center justify-center">
 					<Link to="/" className="gap-2 flex shrink-0 items-center justify-start">
-						<img src="/assets/favicon.ico" className="h-6 w-6 object-scale-down" />
+						<img src="/assets/longbox.ico" className="h-6 w-6 object-scale-down" />
 						<Heading variant="gradient" size="xs">
 							Longbox
 						</Heading>

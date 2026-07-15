@@ -1,15 +1,15 @@
 ---
 title: Contributing
-description: Information about contributing to Stump
+description: Information about contributing to Longbox
 ---
 
-If you're interested in supporting Stump's development, and you know how to code, follow the steps outlined in the [developer guide](#developer-guide) for information about setting up your development environment. If you want to improve Stump's language support, visit the Crowdin project page [here](https://crowdin.com/project/stump).
+If you're interested in supporting Longbox's development, and you know how to code, follow the steps outlined in the [developer guide](#developer-guide) for information about setting up your development environment. If you want to improve Longbox's language support, visit the Crowdin project page [here](https://crowdin.com/project/stump).
 
 ## Developer Guide
 
 Contributions are very **encouraged** and **welcome**! Be sure to review the [CONTRIBUTING.md](https://github.com/stumpapp/stump/blob/main/.github/CONTRIBUTING.md) before getting started with your contribution.
 
-If you're completely new to rust and/or web development, I put together a small set of [resources](#developer-resources) to get you started with Stump.
+If you're completely new to rust and/or web development, I put together a small set of [resources](#developer-resources) to get you started with Longbox.
 
 **Ensure you are on the `nightly` branch before continuing.**
 
@@ -30,7 +30,7 @@ You need to install [yarn](https://yarnpkg.com), [rust](https://www.rust-lang.or
 yarn run setup
 ```
 
-### Running Stump
+### Running Longbox
 
 I use [yarn workspaces](https://yarnpkg.com/features/workspaces) and [cargo workspaces](https://doc.rust-lang.org/cargo/reference/workspaces.html):
 
@@ -59,7 +59,7 @@ yarn graphql-codegen --watch
 
 ## Notes and Tips
 
-Stump has gotten quite large and complex, so I've put together a few notes and tips to help you get started.
+Longbox has gotten quite large and complex, so I've put together a few notes and tips to help you get started.
 
 ### Where to start?
 
@@ -67,7 +67,7 @@ If you aren't sure what to work on, I recommend taking a look at some of the ope
 
 In general, some good places to start might be:
 
-- Translations, so Stump is accessible to as many people as possible
+- Translations, so Longbox is accessible to as many people as possible
   - You can translate through [Crowdin](https://crowdin.com/project/stump) or help find/fix areas of the app that need better translation coverage
 - Writing comprehensive tests
 - Improving the UI/UX, even small changes can go a long way
@@ -76,7 +76,7 @@ In general, some good places to start might be:
 
 ### Code Style, Formatting, and Linting
 
-Stump is developed using primarily [Rust](https://www.rust-lang.org/) and [TypeScript](https://www.typescriptlang.org/).
+Longbox is developed using primarily [Rust](https://www.rust-lang.org/) and [TypeScript](https://www.typescriptlang.org/).
 
 For Rust, I use [rustfmt](https://github.com/rust-lang/rustfmt) for formatting, and [clippy](https://github.com/rust-lang/clippy) for linting. For TypeScript, I use [Prettier](https://prettier.io/) for formatting, and [ESLint](https://eslint.org/) for linting. While I definitely recommend using these tools as you develop, there is a pre-commit hook that will lint and format your code before committing.
 
@@ -84,7 +84,7 @@ I also want to point out that this repository uses 4 tab spaces for indentation.
 
 ### Component Library
 
-Stump has a custom component library used throughout the `browser` package (the web UI and desktop app). This library can be found at `packages/components`, and was developed with Storybook in mind. For getting started building out designs and components in Stump, I highly recommend going through the stories available in the Storybook UI:
+Longbox has a custom component library used throughout the `browser` package (the web UI and desktop app). This library can be found at `packages/components`, and was developed with Storybook in mind. For getting started building out designs and components in Longbox, I highly recommend going through the stories available in the Storybook UI:
 
 ```bash
 yarn storybook
@@ -94,7 +94,7 @@ This will give you a good idea of what components are available and how they can
 
 ### Developer Resources
 
-Below is a list of resources that I've found helpful in developing Stump. I'll try to keep this list up to date as I find new resources.
+Below is a list of resources that I've found helpful in developing Longbox. I'll try to keep this list up to date as I find new resources.
 
 - [Rust Book](https://doc.rust-lang.org/book/)
 - [Axum documentation](https://docs.rs/axum/latest/axum/)
@@ -107,7 +107,7 @@ Below is a list of resources that I've found helpful in developing Stump. I'll t
 
 ## Translations
 
-If you'd like to help translate Stump into other languages, you can do so [here](https://crowdin.com/project/stump). You can do as little or as much as you'd like at a time! If you don't see your language listed, please open an issue on GitHub.
+If you'd like to help translate Longbox into other languages, you can do so [here](https://crowdin.com/project/stump). You can do as little or as much as you'd like at a time! If you don't see your language listed, please open an issue on GitHub.
 
 ## Financial Contributions
 

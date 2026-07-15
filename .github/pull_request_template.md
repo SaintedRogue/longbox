@@ -27,8 +27,8 @@ Please read each item and check the boxes:
 - [ ] This PR is based into `nightly` and not `main`
 - [ ] I added tests and/or documentation for my changes if applicable
 
-## Stump Contributor License Agreement
+## Longbox Contributor License Agreement
 
-By contributing to Stump, you agree that your contributions will be licensed under the following licenses (where applicable):
+By contributing to Longbox, you agree that your contributions will be licensed under the following licenses (where applicable):
 
 - All other code in the repository is licensed under [MIT License](https://www.tldrlegal.com/license/mit-license)

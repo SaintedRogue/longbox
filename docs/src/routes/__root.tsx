@@ -14,7 +14,7 @@ export const Route = createRootRoute({
 				content: 'width=device-width, initial-scale=1',
 			},
 			{
-				title: 'Stump Docs',
+				title: 'Longbox Docs',
 			},
 			{
 				name: 'robots',
@@ -27,7 +27,7 @@ export const Route = createRootRoute({
 			},
 			{
 				property: 'og:title',
-				content: 'Stump',
+				content: 'Longbox',
 			},
 			{
 				property: 'og:description',
@@ -48,7 +48,7 @@ export const Route = createRootRoute({
 			},
 			{
 				property: 'og:image:alt',
-				content: 'Stump OG Image',
+				content: 'Longbox OG Image',
 			},
 			{
 				property: 'og:image:type',
@@ -75,10 +75,10 @@ export const Route = createRootRoute({
 				property: 'og:image',
 				content: 'https://stumpapp.dev/og.png',
 			},
-			{ property: 'og:image:alt', content: 'Stump OG Image' },
+			{ property: 'og:image:alt', content: 'Longbox OG Image' },
 			{
 				property: 'og:site_name',
-				content: 'Stump',
+				content: 'Longbox',
 			},
 			{
 				rel: 'canonical',

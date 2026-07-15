@@ -70,7 +70,7 @@ export default function LibraryPatternRadioGroup() {
 						{t(getKey('section.docs.0'))}{' '}
 						<Link
 							target="_blank"
-							href="https://stumpapp.dev/docs/guides/fundamentals/libraries#supported-patterns"
+							href="https://github.com/SaintedRogue/longbox/blob/main/docs/content/docs/guides/fundamentals/libraries.mdx#supported-patterns"
 						>
 							{t(getKey('section.docs.1'))}
 						</Link>{' '}

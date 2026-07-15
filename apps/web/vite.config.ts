@@ -60,7 +60,7 @@ export default defineConfig({
 				inlineWorkboxRuntime: true,
 				globPatterns: [
 					'**/*.{js,css,html,ico,png,svg}',
-					'assets/stump-splash.gif',
+					'assets/longbox-splash.svg',
 					'assets/fonts/inter/**/*.woff2',
 				],
 				navigateFallbackDenylist: [
@@ -81,20 +81,20 @@ export default defineConfig({
 				theme_color: '#161719',
 				icons: [
 					{
-						src: '/assets/favicon-16x16.png',
-						sizes: '16x16',
-						type: 'image/png',
-					},
-					{
-						src: '/assets/favicon-192x192.png',
+						src: '/assets/longbox-192.png',
 						sizes: '192x192',
 						type: 'image/png',
 					},
 					{
-						src: '/assets/favicon-512x512.png',
+						src: '/assets/longbox-512.png',
 						sizes: '512x512',
 						type: 'image/png',
-						purpose: 'any maskable',
+					},
+					{
+						src: '/assets/longbox-512-maskable.png',
+						sizes: '512x512',
+						type: 'image/png',
+						purpose: 'maskable',
 					},
 				],
 			},

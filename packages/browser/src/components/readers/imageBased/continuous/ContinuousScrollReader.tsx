@@ -175,7 +175,7 @@ const Page = ({ page, src, imageScaling: { scaleToFit }, onPageClick }: PageProp
 		src={src}
 		onError={(err) => {
 			// @ts-expect-error: is oke
-			err.target.src = '/favicon.png'
+			err.target.src = '/assets/longbox-mark.png'
 		}}
 		onClick={onPageClick}
 	/>

@@ -1,11 +1,11 @@
 ---
 title: Source
-description: Installing Stump from the source code by building it locally on your machine
+description: Installing Longbox from the source code by building it locally on your machine
 ---
 
 ## Download the source code
 
-You can download the source code for Stump from the [GitHub repository](https://github.com/stumpapp/stump). You can either clone the repository using Git or download it as a ZIP file and extract it.
+You can download the source code for Longbox from the [GitHub repository](https://github.com/stumpapp/stump). You can either clone the repository using Git or download it as a ZIP file and extract it.
 
 ### Dedicated release channels
 
@@ -15,27 +15,27 @@ Any other branch is likely to be unstable and not recommended for installation.
 
 ## Install dependencies
 
-The [contributing guide](/docs/developer/contributing) provides detailed instructions on installing the necessary dependencies for building Stump from source. Please follow those instructions to set up your development environment.
+The [contributing guide](/docs/developer/contributing) provides detailed instructions on installing the necessary dependencies for building Longbox from source. Please follow those instructions to set up your development environment.
 
-## Build Stump locally
+## Build Longbox locally
 
-Afterwards, you can run the following command to build Stump locally:
+Afterwards, you can run the following command to build Longbox locally:
 
 ```bash copy
 yarn web build && cargo build --package stump_server --release
 ```
 
-This will bundle the web application and build the Stump server. The server binary is located at `target/release/stump_server`, and the web bundle at `apps/web/dist`. You can place those two items anywhere you'd like, just be sure they are either next to each other or you have set the appropriate [environment variable](/docs/guides/configuration/server-config#stump_client_dir).
+This will bundle the web application and build the Longbox server. The server binary is located at `target/release/stump_server`, and the web bundle at `apps/web/dist`. You can place those two items anywhere you'd like, just be sure they are either next to each other or you have set the appropriate [environment variable](/docs/guides/configuration/server-config#stump_client_dir).
 
 ## Community packages
 
 <Callout type="warn">
-  The packages listed here are maintained by community members, not the Stump developer. Use them at your own discretion and please report any packaging issues to the respective maintainers
+  The packages listed here are maintained by community members, not the Longbox developer. Use them at your own discretion and please report any packaging issues to the respective maintainers
 </Callout>
 
 ### Arch Linux (AUR)
 
-An [AUR package](https://aur.archlinux.org/packages/stump) is available for Arch-based Linux distributions. It compiles Stump from source and installs a systemd service for you. You can install it using your preferred AUR helper:
+An [AUR package](https://aur.archlinux.org/packages/stump) is available for Arch-based Linux distributions. It compiles Longbox from source and installs a systemd service for you. You can install it using your preferred AUR helper:
 
 ```bash copy
 yay -S stump

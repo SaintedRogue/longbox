@@ -1,4 +1,4 @@
-export const appName = 'Stump'
+export const appName = 'Longbox'
 export const docsRoute = '/docs'
 export const docsImageRoute = '/og/docs'
 

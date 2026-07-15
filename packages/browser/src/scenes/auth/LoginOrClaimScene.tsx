@@ -110,7 +110,7 @@ export default function LoginOrClaimScene() {
 		if (isClaimed) {
 			return (
 				<div className="gap-4 px-2 flex shrink-0 items-center justify-center">
-					<img src="/assets/favicon.png" width="80" height="80" />
+					<img src="/assets/longbox-mark.png" width="80" height="80" />
 					<Heading variant="gradient" size="3xl" className="font-bold">
 						Longbox
 					</Heading>

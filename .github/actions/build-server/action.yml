@@ -1,5 +1,5 @@
-name: Build Stump server
-description: Compile the Stump Rust server
+name: Build Longbox server
+description: Compile the Longbox Rust server
 
 runs:
   using: composite

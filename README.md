@@ -1,3 +1,6 @@
+<p align="center">
+  <img alt="The Longbox logo: a minimalist comic longbox with bagged issues, one pulled for reading" src="./.github/images/logo.svg" width="128" />
+</p>
 <h1 align="center">Longbox</h1>
 
 <p align="center">
@@ -46,38 +49,38 @@ I develop and maintain Longbox in my free time. In other words, this is not my j
 - Built-in readers for all supported formats
 - Annotations and highlights for EPUB books
 - OIDC authentication
-- Translations with [Crowdin](https://crowdin.com/project/stump)
+- Translations (32 locales inherited from upstream)
 - Multi-user account management with permissions, age restrictions, and other access control features
-- Theming support with a handful of [built-in themes](https://www.stumpapp.dev/docs/apps/web/themes)
-- [Kobo](https://www.stumpapp.dev/docs/guides/integrations/kobo) and [KoReader](https://www.stumpapp.dev/docs/guides/integrations/koreader) sync integrations
+- Theming support with a handful of [built-in themes](/docs/content/docs/apps/web/themes.mdx)
+- [Kobo](/docs/content/docs/guides/integrations/kobo.mdx) and [KoReader](/docs/content/docs/guides/integrations/koreader.mdx) sync integrations
 - Multiple different installation methods, including Docker and pre-built binaries
 
-And more not mentioned. The [documentation](https://www.stumpapp.dev) will provide additional details about features, installation, and usage guides.
+And more not mentioned. The [documentation](/docs/content/docs) provides additional details about features, installation, and usage guides.
 
 ## Roadmap
 
-You can track the [project boards](https://github.com/stumpapp/stump/projects?query=is%3Aopen) to see what efforts are currently being worked on or planned.
+You can track [open issues](https://github.com/SaintedRogue/longbox/issues) to see what efforts are currently being worked on or planned.
 
 Feel free to create an issue or discussion if you have anything else you'd like to see!
 
 ## Getting Started
 
-The installation guides are available in the [documentation](https://www.stumpapp.dev/docs/getting-started/installation) (or [the markdown](/docs/content/docs/getting-started/installation/index.mdx), if you prefer).
+The installation guides are available in [the docs](/docs/content/docs/getting-started/installation/index.mdx).
 
 ## Developer Guide
 
-The developer guide is available in the [documentation](https://www.stumpapp.dev/docs/developer/contributing) (or [the markdown](/docs/content/docs/developer/contributing.mdx), if you prefer). To not have to maintain two copies of the same information, please refer to those links for the most up-to-date information.
+The developer guide is available in [the docs](/docs/content/docs/developer/contributing.mdx).
 
 ### Contributing
 
 Contributions are very **welcome**! Please review the [CONTRIBUTING.md](./.github/CONTRIBUTING.md) before getting started.
 
-I recommend taking a look at [open issues](https://github.com/stumpapp/stump/issues). You can also check out the [project boards](https://github.com/stumpapp/stump/projects?query=is%3Aopen) to see what efforts are active or planned.
+I recommend taking a look at [open issues](https://github.com/SaintedRogue/longbox/issues).
 
 In general, the following areas could always use help:
 
 - Translations, so Longbox is accessible to as many people as possible
-  - You can translate through [Crowdin](https://crowdin.com/project/stump) or help find/fix areas of the app that need better translation coverage
+  - Help find/fix areas of the app that need better translation coverage
 - Writing comprehensive tests
 - Improving the UI/UX, even small changes can go a long way
 - CI pipelines, automated release processes, and other devops-related efforts

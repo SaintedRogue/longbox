@@ -4,15 +4,15 @@ title: OpenID Connect (OIDC)
 
 import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
 
-Stump supports OpenID Connect (OIDC) authentication, allowing users to sign in using external identity providers like Authelia, Keycloak, PocketID, and others.
+Longbox supports OpenID Connect (OIDC) authentication, allowing users to sign in using external identity providers like Authelia, Keycloak, PocketID, and others.
 
 ## Provider Configuration
 
-This section provides general guidance for configuring popular OIDC providers to work with Stump. I cannot feasibly cover every provider, however the below examples should give you a good starting point.
+This section provides general guidance for configuring popular OIDC providers to work with Longbox. I cannot feasibly cover every provider, however the below examples should give you a good starting point.
 
 ### Callback URL
 
-When configuring your OIDC provider, you will need to set the callback (redirect) URL to point to your Stump instance. The format is:
+When configuring your OIDC provider, you will need to set the callback (redirect) URL to point to your Longbox instance. The format is:
 
 `https://<your-stump-domain>/api/v2/auth/oidc/callback`
 
@@ -25,7 +25,7 @@ If needed, you may also specify the logout URL as:
 1. In the Authelia admin interface, navigate to "Applications" and create a new application
 2. Set the "Redirect URIs" to the callback URL according to [above](#callback-url)
 3. Configure the scopes (required `openid` and `email`, optionally `profile`)
-4. Save the application and copy the client ID and secret for use in the [Stump configuration](#required-settings)
+4. Save the application and copy the client ID and secret for use in the [Longbox configuration](#required-settings)
 
 #### Authelia YAML
 
@@ -53,7 +53,7 @@ identity_providers:
     # --------------------------------------------------------------------------
     # Claims Policies
     # --------------------------------------------------------------------------
-    # Describes how claims are mapped from the identity provider to Stump
+    # Describes how claims are mapped from the identity provider to Longbox
     claims_policies:
       stump_policy:
         id_token:
@@ -72,7 +72,7 @@ identity_providers:
     # --------------------------------------------------------------------------
     clients:
       - client_id: 'Stump_OIDC' # Corresponds to STUMP_OIDC_CLIENT_ID
-        client_name: 'Stump'
+        client_name: 'Longbox'
         # Client secret (stored hashed in the system)
         # Recommended to not store directly in YAML, this is just for example purposes
         client_secret: 'supersecret2' # Corresponds to STUMP_OIDC_CLIENT_SECRET
@@ -84,18 +84,18 @@ identity_providers:
 
 ### PocketID
 
-1. In Pocket-ID create a new OIDC Client, name it, for example `Stump`
-2. Set the launch URL if you would like to route to Stump from your PocketID dashboard
+1. In Pocket-ID create a new OIDC Client, name it, for example `Longbox`
+2. Set the launch URL if you would like to route to Longbox from your PocketID dashboard
 3. Set a logo for this OIDC Client if you would like to
 4. Set the callback URLs according to [above](#callback-url)
-5. Copy the Client ID and Client Secret for use in the [Stump configuration](#required-settings)
+5. Copy the Client ID and Client Secret for use in the [Longbox configuration](#required-settings)
 
 ### Zitadel
 
 1. In the Zitadel Console, navigate to your project and create a new **Web** application with authentication method **Code**
 2. Set the redirect URI to the callback URL according to [above](#callback-url)
 3. Note the **Project ID** shown at the top of the project page (a numeric string like `360960386461073457`)
-4. Copy the **Client ID** from the application detail page (this is _not_ the project ID or application ID) and the **Client Secret** generated when you create the application for use in the [Stump configuration](#required-settings)
+4. Copy the **Client ID** from the application detail page (this is _not_ the project ID or application ID) and the **Client Secret** generated when you create the application for use in the [Longbox configuration](#required-settings)
 5. Set `STUMP_OIDC_EXTRA_AUDIENCES` to the **Project ID** from step 3 — this is required because Zitadel adds the project ID to the JWT `aud` claim by default.
 
 #### Zitadel Docker Compose Example
@@ -114,12 +114,12 @@ services:
       - '10801:10801'
 ```
 
-## Stump Configuration
+## Longbox Configuration
 
 OIDC can be configured using either environment variables or the TOML configuration file. See [server configuration](/docs/guides/configuration/server-config) for more details.
 
 <Callout type="warning">
-	When using the `Stump.toml` configuration file, OIDC settings must be placed under an `[oidc]`
+	When using the `Longbox.toml` configuration file, OIDC settings must be placed under an `[oidc]`
 	table section, **not** as flat keys with an `oidc_` prefix. See the [TOML example](#toml-example)
 	below.
 </Callout>
@@ -171,9 +171,9 @@ services:
 
 #### TOML Example
 
-When configuring OIDC in your `Stump.toml` file, you must use the `[oidc]` table section:
+When configuring OIDC in your `Longbox.toml` file, you must use the `[oidc]` table section:
 
-```toml filename="Stump.toml"
+```toml filename="Longbox.toml"
 # other configurations...
 port = 10801
 
@@ -199,7 +199,7 @@ disable_local_auth = false
 
 ### Setting Passwords for OIDC Users
 
-OIDC users may optionally set a local password in Stump. This can be useful for accessing features that require password-based authentication (such as OPDS feeds). Users with the appropriate permissions can set their own passwords through the Stump interface.
+OIDC users may optionally set a local password in Longbox. This can be useful for accessing features that require password-based authentication (such as OPDS feeds). Users with the appropriate permissions can set their own passwords through the Longbox interface.
 
 <Callout type="info">
 	For information about user permissions and managing who can set passwords, see the [User
@@ -221,7 +221,7 @@ You can disable local username/password authentication globally by setting `STUM
 
 ### Account Migration
 
-Stump does not support automatic linking of existing local accounts to OIDC accounts. If you have existing users with read history, preferences, or other data that you want to migrate to OIDC accounts, you can use the Stump CLI migration tool.
+Longbox does not support automatic linking of existing local accounts to OIDC accounts. If you have existing users with read history, preferences, or other data that you want to migrate to OIDC accounts, you can use the Longbox CLI migration tool.
 
 <Callout type="info">
 	For instructions on migrating existing accounts to OIDC, see the [CLI](/docs/developer/cli) guide

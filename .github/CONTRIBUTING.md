@@ -19,9 +19,9 @@ I want to emphasize the first two points in this list. The last thing I want is 
 
 ### LLM-Generated Contributions (AI)
 
-Stump is **not** a vibecoded project. I understand some people see the emojis and think it is, but really they just bring a silliness into the project that I enjoy (more people should embrace more silliness).
+Longbox is **not** a vibecoded project. I understand some people see the emojis and think it is, but really they just bring a silliness into the project that I enjoy (more people should embrace more silliness).
 
-I write good (and bad) code with my own two hands. There are some areas of the code where AI was used at points in Stump's history, but after bettering my understanding of the ecological and ethical implications of using LLMs I have not used generative AI tools in the development of Stump since.
+I write good (and bad) code with my own two hands. There are some areas of the code where AI was used at points in Longbox's history, but after bettering my understanding of the ecological and ethical implications of using LLMs I have not used generative AI tools in the development of Longbox since.
 
 I understand that LLM-assisted contributions are a reality in the open source ecosystem today and largely unavoidable. While I will not outright reject contributions that have been generated with the help of LLMs, I ask that you please:
 
@@ -54,4 +54,4 @@ PRs will be merged once the following criteria are met:
 
 If you do not wish for me to merge your PR after approval, please communicate that in the PR. Otherwise, I try to merge approved PRs in a timely manner.
 
-Thanks for considering contributing to Stump! 🫶
+Thanks for considering contributing to Longbox! 🫶

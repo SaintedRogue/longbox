@@ -126,7 +126,7 @@
 - 💄 (expo): Add blur to progress bars and smart list stats ([#1120](https://github.com/stumpapp/stump/issues/1120)) [[50ef3c3](https://github.com/stumpapp/stump/commit/50ef3c398d817654dd04e8a8e8cc3eaaf181556b)]
 - 🚨 Fix i18n type issues [[f69b999](https://github.com/stumpapp/stump/commit/f69b999987ed9712be9d40a87f7815dbabdb7d3a)]
 - ♻️ Prefer semantic content types when possible ([#1088](https://github.com/stumpapp/stump/issues/1088)) [[ee18114](https://github.com/stumpapp/stump/commit/ee18114f31a80033adadc4d26058e520e524e629)]
-- 🔧 Add optional env var to configure directory for Stump.log ([#1082](https://github.com/stumpapp/stump/issues/1082)) [[042111a](https://github.com/stumpapp/stump/commit/042111ae03c6957480bca1f2bb5742ee7442e444)]
+- 🔧 Add optional env var to configure directory for Longbox.log ([#1082](https://github.com/stumpapp/stump/issues/1082)) [[042111a](https://github.com/stumpapp/stump/commit/042111ae03c6957480bca1f2bb5742ee7442e444)]
 - ⬆️ (expo): Upgrade to expo SDK 55 ([#1076](https://github.com/stumpapp/stump/issues/1076)) [[6d78e9c](https://github.com/stumpapp/stump/commit/6d78e9cc495514533198956cf8c2a2780e3cac86)]
 - 🔧 (expo): Change configured orientation ([#1060](https://github.com/stumpapp/stump/issues/1060)) [[a4bc3b5](https://github.com/stumpapp/stump/commit/a4bc3b50c6f90b5e840dd209e294ea278b33f7a6)]
 - ♻️ Refactor IP extraction to account for proxies better ([#1053](https://github.com/stumpapp/stump/issues/1053)) [[099f733](https://github.com/stumpapp/stump/commit/099f7332410591fb39084fd8014c46a8c8ca0b5f)]

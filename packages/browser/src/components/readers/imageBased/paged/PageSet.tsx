@@ -122,7 +122,7 @@ const _Page = ({
 			}}
 			onError={(err) => {
 				// @ts-expect-error: is oke
-				err.target.src = '/favicon.png'
+				err.target.src = '/assets/longbox-mark.png'
 			}}
 			onClick={onPageClick}
 		/>

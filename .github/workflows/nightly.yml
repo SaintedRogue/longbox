@@ -1,4 +1,4 @@
-name: 'Stump Nightly CI'
+name: 'Longbox Nightly CI'
 
 on:
   pull_request:

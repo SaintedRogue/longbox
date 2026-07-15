@@ -16,7 +16,10 @@ export default function LocalePreferences() {
 
 		return (
 			<Text size="sm" variant="muted" className="mt-1.5">
-				{pieces[0]} <Link href="https://stumpapp.dev/contributing#translation">{pieces[1]}</Link>{' '}
+				{pieces[0]}{' '}
+				<Link href="https://github.com/SaintedRogue/longbox/blob/main/.github/CONTRIBUTING.md">
+					{pieces[1]}
+				</Link>{' '}
 				{pieces[2]}
 			</Text>
 		)

@@ -1,4 +1,4 @@
-name: 'Stump Unstable CI'
+name: 'Longbox Unstable CI'
 
 on:
   pull_request:

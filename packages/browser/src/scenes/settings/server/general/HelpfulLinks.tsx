@@ -16,7 +16,7 @@ export default function HelpfulLinks() {
 
 			<div className="gap-12 md:gap-8 flex flex-row flex-wrap">
 				<Link
-					href="https://www.stumpapp.dev/guides"
+					href="https://github.com/SaintedRogue/longbox/tree/main/docs/content/docs/guides"
 					target="__blank"
 					rel="noopener noreferrer"
 					className={cn('space-x-2 text-sm flex items-center hover:underline', TEXT_VARIANTS.label)}

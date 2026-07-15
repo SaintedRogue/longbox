@@ -1,11 +1,11 @@
 ---
 title: Binaries
-description: Installing Stump using the distributable executables from the GitHub releases page
+description: Installing Longbox using the distributable executables from the GitHub releases page
 ---
 
 import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
 
-Stump is available as a standalone executable for macOS, Linux, and Windows
+Longbox is available as a standalone executable for macOS, Linux, and Windows
 
 <Callout type="info">
   Make sure to select the correct platform in the instructions below
@@ -73,7 +73,7 @@ These can live wherever you'd like, so long as they are adjacent to each other.
 Open a terminal and navigate to the folder containing the `stump` binary. Run the following command to make the binary executable:
 
 ```bash copy
-# Navigate to the folder containing the stump binary, e.g., ~/Stump
+# Navigate to the folder containing the stump binary, e.g., ~/Longbox
 sudo chmod +x stump_server
 ```
 
@@ -84,7 +84,7 @@ sudo chmod +x stump_server
     You can now run the `stump` binary from the terminal:
     
     ```bash copy
-    # Navigate to the folder containing the stump binary, e.g., ~/Stump, or be sure to include the full path to the binary
+    # Navigate to the folder containing the stump binary, e.g., ~/Longbox, or be sure to include the full path to the binary
     ./stump_server
     ```
   </Tab>
@@ -92,7 +92,7 @@ sudo chmod +x stump_server
     You can run the `stump_server.exe` file by double clicking it in the file explorer, or by running it from the command prompt:
     
     ```cmd copy
-    # Navigate to the folder containing the stump binary, e.g., C:\Stump, or be sure to include the full path to the binary
+    # Navigate to the folder containing the stump binary, e.g., C:\Longbox, or be sure to include the full path to the binary
     stump_server.exe
     ```
   </Tab>
@@ -106,11 +106,11 @@ sudo chmod +x stump_server
   This section is only relevant for Windows users
 </Callout>
 
-You can optionally setup a Windows service to run Stump in the background. Here's an example of a Windows service file (provided by [@KrautByte](https://github.com/KrautByte)):
+You can optionally setup a Windows service to run Longbox in the background. Here's an example of a Windows service file (provided by [@KrautByte](https://github.com/KrautByte)):
 
 ```ini copy
 [Unit]
-Description=Stump Book Server
+Description=Longbox Book Server
 After=network.target
 StartLimitIntervalSec=0
 [Service]
