@@ -99,10 +99,19 @@ pub struct ProcessedMediaMetadata {
 		default = "Option::default"
 	)]
 	pub tags: Option<Vec<String>>,
-	/// The language of the media. ComicInfo uses LanguageISO; the bare
-	/// Language alias is kept for non-standard files already in the wild.
-	#[serde(alias = "Language", alias = "LanguageISO")]
+	/// The language of the media. ComicInfo's standard element is LanguageISO.
+	#[serde(alias = "LanguageISO")]
 	pub language: Option<String>,
+	/// Non-standard `Language` element kept for files already in the wild that
+	/// use it instead of (or alongside) `LanguageISO`. Deliberately a separate
+	/// field: serde's `alias` gives one "seen" slot per *field*, not per alias,
+	/// so aliasing both elements onto `language` would hard-fail the entire
+	/// parse (serde-rs/serde#2380) whenever both elements are present in the
+	/// same document. Never serialized; only `language` (LanguageISO) is
+	/// written back. Merged into `language` in `into_active_model` when
+	/// LanguageISO was absent.
+	#[serde(alias = "Language", skip_serializing)]
+	pub language_non_standard: Option<String>,
 	/// GTIN (ISBN/EAN/UPC) — ComicInfo v2.1
 	#[serde(alias = "GTIN")]
 	pub gtin: Option<String>,
@@ -290,7 +299,8 @@ impl ProcessedMediaMetadata {
 			characters: Set(self.characters.map(|v| v.join(", "))),
 			teams: Set(self.teams.map(|v| v.join(", "))),
 			page_count: Set(self.page_count),
-			language: Set(self.language),
+			// LanguageISO (the standard element) wins when both are present.
+			language: Set(self.language.or(self.language_non_standard)),
 			identifier_amazon: Set(self.identifier_amazon),
 			identifier_calibre: Set(self.identifier_calibre),
 			identifier_google: Set(self.identifier_google),
@@ -575,6 +585,23 @@ mod tests {
 		let xml = r#"<?xml version="1.0"?><ComicInfo><LanguageISO>en</LanguageISO></ComicInfo>"#;
 		let meta: ProcessedMediaMetadata = quick_xml::de::from_str(xml).unwrap();
 		assert_eq!(meta.language, Some("en".to_string()));
+	}
+
+	#[test]
+	fn test_parse_both_language_elements_prefers_iso() {
+		let xml = r#"<?xml version="1.0"?><ComicInfo><Language>English</Language><LanguageISO>en</LanguageISO><Series>X</Series></ComicInfo>"#;
+		let meta: ProcessedMediaMetadata = quick_xml::de::from_str(xml).unwrap();
+		let active = meta.into_active_model();
+		assert_eq!(active.language.unwrap(), Some("en".to_string()));
+	}
+
+	#[test]
+	fn test_parse_legacy_language_only() {
+		let xml =
+			r#"<?xml version="1.0"?><ComicInfo><Language>English</Language></ComicInfo>"#;
+		let meta: ProcessedMediaMetadata = quick_xml::de::from_str(xml).unwrap();
+		let active = meta.into_active_model();
+		assert_eq!(active.language.unwrap(), Some("English".to_string()));
 	}
 
 	#[test]

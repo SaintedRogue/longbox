@@ -87,7 +87,18 @@ impl MediaMetadataMutation {
 		let should_write_back =
 			matches!(model.media.extension.to_lowercase().as_str(), "cbz" | "zip");
 		if should_write_back {
-			if let Some(config) = library_config_for_media(conn, &model.media).await? {
+			let config = match library_config_for_media(conn, &model.media).await {
+				Ok(config) => config,
+				Err(e) => {
+					tracing::error!(
+						error = ?e,
+						media_id = %model.media.id,
+						"Failed to load library config for ComicInfo write-back"
+					);
+					None
+				},
+			};
+			if let Some(config) = config {
 				if config.write_comicinfo {
 					let metadata_model = model
 						.metadata
