@@ -111,20 +111,23 @@ const BookCard = memo(function BookCard({
 		}
 	}, [data.thumbnail.metadata])
 
+	const isReaderLink = useMemo(() => {
+		const shouldSkipOverview = data.libraryConfig?.skipBookOverview === true
+		return readingLink || shouldSkipOverview
+	}, [readingLink, data.libraryConfig])
+
 	const href = useMemo(() => {
 		if (onSelect) {
 			return undefined
 		}
 
-		const shouldSkipOverview = data.libraryConfig?.skipBookOverview === true
-
-		return readingLink || shouldSkipOverview
+		return isReaderLink
 			? paths.bookReader(data.id, {
 					epubcfi: data.readProgress?.epubcfi,
 					page: data.readProgress?.page ?? undefined,
 				})
 			: paths.bookOverview(data.id)
-	}, [readingLink, data.id, onSelect, data.readProgress, data.libraryConfig, paths])
+	}, [isReaderLink, data.id, onSelect, data.readProgress, paths])
 
 	const isMissing = data.status === 'MISSING'
 	const isEbookProgress = !!data.readProgress?.epubcfi
@@ -171,7 +174,17 @@ const BookCard = memo(function BookCard({
 	const handleClick = onSelect ? () => onSelect() : undefined
 
 	const Comp = href ? Link : 'div'
-	const props = href ? { to: href, state: { from: `${location.pathname}${location.search}` } } : {}
+	const props = href
+		? {
+				to: href,
+				state: {
+					from: `${location.pathname}${location.search}`,
+					// Readers are always full-page by design -- only the overview
+					// link opens as a peek overlay over the current browse context.
+					...(isReaderLink ? {} : { backgroundLocation: location }),
+				},
+			}
+		: {}
 
 	const thumbnailAverageColor = placeholderData?.averageColor
 	const backgroundColor = useMemo(() => {
