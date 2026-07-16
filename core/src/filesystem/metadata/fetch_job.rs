@@ -653,6 +653,13 @@ impl JobLifecycle for MetadataFetchJob {
 				for config in &provider_configs {
 					match provider_cache.get_or_create(config).await {
 						Ok(provider) => {
+							// Note: `year` here is the *issue's own* year
+							// (media_metadata.year), not the series' start year —
+							// providers should treat it as a per-issue disambiguation
+							// signal. `series_year` is intentionally left unpopulated:
+							// `MetadataFetchTask::FetchMedia` doesn't carry a series_id,
+							// so getting series_metadata.year would require a new
+							// query/join that isn't already at hand here.
 							let query = SearchQuery {
 								title: media_name.clone(),
 								series_name: metadata

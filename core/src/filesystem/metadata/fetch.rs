@@ -196,6 +196,15 @@ pub async fn fetch_series_metadata(
 /// Fill in comic-issue matching signals (series name, number, publisher, year,
 /// ComicVine ID) on a [`SearchQuery`] from the media's parsed metadata, without
 /// clobbering any values the caller already set explicitly
+///
+/// Note: `search.year` here is the *issue's own* year (`media_metadata.year`,
+/// e.g. a cover/release year), not the series' start year — providers should
+/// treat it as a per-issue disambiguation signal (Metron maps it to `cover_year`),
+/// not a series-start-year signal. `search.series_year` is intentionally left
+/// unpopulated on this path: `media_metadata` doesn't carry the series' start
+/// year, and `series_metadata` isn't loaded here (only looked up transitively,
+/// and discarded, inside `library_type_for_media`) — fetching it would mean a
+/// new query/join, so it's skipped rather than speculatively added.
 fn enrich_query_with_media_metadata(
 	mut search: SearchQuery,
 	metadata: Option<&media_metadata::Model>,

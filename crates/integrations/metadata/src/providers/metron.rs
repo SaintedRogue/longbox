@@ -93,10 +93,7 @@ impl MetadataProvider for MetronClient {
 		&self,
 		query: &SearchQuery,
 	) -> Result<Vec<MatchCandidate>, MetadataProviderError> {
-		let mut params: Vec<(&str, String)> = vec![("name", query.title.clone())];
-		if let Some(year) = query.year {
-			params.push(("year_began", year.to_string()));
-		}
+		let params = build_series_search_params(query);
 
 		let response: Paginated<SeriesListItem> =
 			self.get_json("series", &params).await?;
@@ -133,7 +130,7 @@ impl MetadataProvider for MetronClient {
 		// A known ComicVine issue ID lets us skip fuzzy search entirely: a unique hit
 		// is treated as an exact match with confidence 1.0
 		if let Some(cv_id) = &query.comicvine_id {
-			let params = [("cv_id", cv_id.clone())];
+			let params = build_cv_id_params(cv_id);
 			let response: Paginated<IssueListItem> =
 				self.get_json("issue", &params).await?;
 			if response.count == 1 {
@@ -155,21 +152,7 @@ impl MetadataProvider for MetronClient {
 			// Ambiguous (0 or >1 hits) — fall through to the fuzzy search below
 		}
 
-		let mut params: Vec<(&str, String)> = Vec::new();
-		let series_name = query
-			.series_name
-			.clone()
-			.filter(|s| !s.is_empty())
-			.unwrap_or_else(|| query.title.clone());
-		if !series_name.is_empty() {
-			params.push(("series_name", series_name));
-		}
-		if let Some(number) = &query.number {
-			params.push(("number", number.clone()));
-		}
-		if let Some(series_year) = query.series_year {
-			params.push(("series_year_began", series_year.to_string()));
-		}
+		let params = build_issue_search_params(query);
 
 		let response: Paginated<IssueListItem> = self.get_json("issue", &params).await?;
 		let limit = query.limit.unwrap_or(10) as usize;
@@ -241,6 +224,57 @@ impl MetadataProvider for MetronClient {
 
 		Ok(map_issue_detail(detail, self.id()))
 	}
+}
+
+/// Build the query params for a direct ComicVine-ID issue lookup
+fn build_cv_id_params(cv_id: &str) -> Vec<(&'static str, String)> {
+	vec![("cv_id", cv_id.to_string())]
+}
+
+/// Build the query params for `GET series/` fuzzy search.
+///
+/// `year_began` is sourced from `query.series_year` (the semantically-correct
+/// signal for "when did this series start"), falling back to `query.year` when
+/// `series_year` isn't set — a harmless fallback for callers that only know a
+/// generic year.
+fn build_series_search_params(query: &SearchQuery) -> Vec<(&'static str, String)> {
+	let mut params: Vec<(&'static str, String)> = vec![("name", query.title.clone())];
+	if let Some(year) = query.series_year.or(query.year) {
+		params.push(("year_began", year.to_string()));
+	}
+	params
+}
+
+/// Build the query params for `GET issue/` fuzzy search.
+///
+/// `series_year_began` is sourced from `query.series_year` — mapping the issue's
+/// own release year (`query.year`) into `series_year_began` would be semantically
+/// wrong (e.g. issue #300 of a series that began in 1963 can have a 1990 cover
+/// date). Instead, `query.year` (the issue's own year) is sent as `cover_year`,
+/// which Metron's issue filter supports as an exact per-issue disambiguation
+/// signal — the strongest one available short of a ComicVine ID.
+fn build_issue_search_params(query: &SearchQuery) -> Vec<(&'static str, String)> {
+	let mut params: Vec<(&'static str, String)> = Vec::new();
+
+	let series_name = query
+		.series_name
+		.clone()
+		.filter(|s| !s.is_empty())
+		.unwrap_or_else(|| query.title.clone());
+	if !series_name.is_empty() {
+		params.push(("series_name", series_name));
+	}
+	if let Some(number) = &query.number {
+		params.push(("number", number.clone()));
+	}
+	if let Some(series_year) = query.series_year {
+		params.push(("series_year_began", series_year.to_string()));
+	}
+	if let Some(year) = query.year {
+		params.push(("cover_year", year.to_string()));
+	}
+
+	params
 }
 
 /// Map a Metron issue detail response into [`ExternalMediaMetadata`]
@@ -465,6 +499,154 @@ struct SeriesDetail {
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	#[test]
+	fn test_build_series_search_params_year_began_from_series_year() {
+		let query = SearchQuery {
+			title: "Harley Quinn".to_string(),
+			series_year: Some(2016),
+			..Default::default()
+		};
+
+		let params = build_series_search_params(&query);
+
+		assert_eq!(
+			params,
+			vec![
+				("name", "Harley Quinn".to_string()),
+				("year_began", "2016".to_string()),
+			]
+		);
+	}
+
+	#[test]
+	fn test_build_series_search_params_falls_back_to_year() {
+		let query = SearchQuery {
+			title: "Harley Quinn".to_string(),
+			series_year: None,
+			year: Some(1990),
+			..Default::default()
+		};
+
+		let params = build_series_search_params(&query);
+
+		assert!(params.contains(&("year_began", "1990".to_string())));
+	}
+
+	#[test]
+	fn test_build_series_search_params_series_year_wins_over_year() {
+		let query = SearchQuery {
+			title: "Harley Quinn".to_string(),
+			series_year: Some(2016),
+			year: Some(1990),
+			..Default::default()
+		};
+
+		let params = build_series_search_params(&query);
+
+		assert!(params.contains(&("year_began", "2016".to_string())));
+		assert!(!params.contains(&("year_began", "1990".to_string())));
+	}
+
+	#[test]
+	fn test_build_series_search_params_no_year_no_param() {
+		let query = SearchQuery {
+			title: "Harley Quinn".to_string(),
+			series_year: None,
+			year: None,
+			..Default::default()
+		};
+
+		let params = build_series_search_params(&query);
+
+		assert!(params.iter().all(|(k, _)| *k != "year_began"));
+	}
+
+	#[test]
+	fn test_build_issue_search_params_cover_year_from_year() {
+		let query = SearchQuery {
+			title: "Harley Quinn".to_string(),
+			series_name: Some("Harley Quinn".to_string()),
+			year: Some(1990),
+			..Default::default()
+		};
+
+		let params = build_issue_search_params(&query);
+
+		assert!(params.contains(&("cover_year", "1990".to_string())));
+		// The issue's own year must never be sent as series_year_began — that would
+		// misrepresent when the series itself began (see the cross-wiring this fixes)
+		assert!(params.iter().all(|(k, _)| *k != "series_year_began"));
+	}
+
+	#[test]
+	fn test_build_issue_search_params_series_year_began_from_series_year() {
+		let query = SearchQuery {
+			title: "Harley Quinn".to_string(),
+			series_name: Some("Harley Quinn".to_string()),
+			series_year: Some(2016),
+			..Default::default()
+		};
+
+		let params = build_issue_search_params(&query);
+
+		assert!(params.contains(&("series_year_began", "2016".to_string())));
+	}
+
+	#[test]
+	fn test_build_issue_search_params_both_years_send_both_params() {
+		let query = SearchQuery {
+			title: "Harley Quinn".to_string(),
+			series_name: Some("Harley Quinn".to_string()),
+			series_year: Some(2016),
+			year: Some(1990),
+			..Default::default()
+		};
+
+		let params = build_issue_search_params(&query);
+
+		assert!(params.contains(&("series_year_began", "2016".to_string())));
+		assert!(params.contains(&("cover_year", "1990".to_string())));
+	}
+
+	#[test]
+	fn test_build_issue_search_params_no_years_no_year_params() {
+		let query = SearchQuery {
+			title: "Harley Quinn".to_string(),
+			series_name: Some("Harley Quinn".to_string()),
+			series_year: None,
+			year: None,
+			..Default::default()
+		};
+
+		let params = build_issue_search_params(&query);
+
+		assert!(params
+			.iter()
+			.all(|(k, _)| *k != "series_year_began" && *k != "cover_year"));
+	}
+
+	#[test]
+	fn test_build_issue_search_params_includes_series_name_and_number() {
+		let query = SearchQuery {
+			title: "Harley Quinn".to_string(),
+			series_name: Some("Harley Quinn".to_string()),
+			number: Some("1".to_string()),
+			..Default::default()
+		};
+
+		let params = build_issue_search_params(&query);
+
+		assert!(params.contains(&("series_name", "Harley Quinn".to_string())));
+		assert!(params.contains(&("number", "1".to_string())));
+	}
+
+	#[test]
+	fn test_build_cv_id_params() {
+		let params = build_cv_id_params("555444");
+
+		assert_eq!(params, vec![("cv_id", "555444".to_string())]);
+	}
 
 	const ISSUE_DETAIL_FIXTURE: &str = r#"
 	{
