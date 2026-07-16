@@ -29,6 +29,7 @@ import { useScrollRestoration, useTheme } from './hooks'
 import { useCoreEvent } from './hooks/useCoreEvent'
 import { useOfflineDownloads } from './offline/useDownloads'
 import { useProgressOutbox } from './offline/useProgressOutbox'
+import { OfflineAppShell } from './OfflineAppShell'
 import { useAppStore, useUserStore } from './stores'
 
 const BookPeekSheet = lazy(() => import('./scenes/book/BookPeekSheet'))
@@ -231,21 +232,29 @@ export function AppLayout({ overlayLocation, navigationType }: AppLayoutProps) {
 		}
 	}, [user, setUser])
 
+	const axiosError = isAxiosError(error) ? error : null
+	const isUnauthorized = axiosError?.response?.status === 401
+	const isNetworkError = axiosError?.code === 'ERR_NETWORK'
+	// Cold offline load: server unreachable AND we have no cached identity to render the full
+	// app with. A reachability failure is not an identity failure -- degrade to the offline shell
+	// (local, downloads-backed content) instead of blocking the whole app behind a redirect.
+	const isOffline = isNetworkError && !storeUser
+
 	// FIXME(desktop): There is a bug somewhere here that causes a network error to be thrown before the auth takes effect.
 	// It happens intermittently, annoyingly. I'm not sure what's causing it, but it would be nice to fix it
 	useEffect(() => {
-		const axiosError = isAxiosError(error) ? error : null
-		const isUnauthorized = axiosError?.response?.status === 401
-		const isNetworkError = axiosError?.code === 'ERR_NETWORK'
-
-		if (isNetworkError || isUnauthorized) {
-			const to = isNetworkError ? '/server-connection-error' : '/auth'
-			navigate(to, { state: { from: location } })
-		} else if (error) {
+		if (isUnauthorized) {
+			navigate('/auth', { state: { from: location } })
+		} else if (error && !isNetworkError) {
 			console.error('An unknown error occurred:', error)
 			showBoundary(error)
 		}
-	}, [error, showBoundary, location, navigate])
+		// ERR_NETWORK: do NOT redirect -- render the offline shell (below) instead.
+	}, [isUnauthorized, isNetworkError, error, showBoundary, location, navigate])
+
+	if (isOffline) {
+		return <OfflineAppShell />
+	}
 
 	if (!storeUser || error) {
 		return null
