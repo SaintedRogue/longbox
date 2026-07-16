@@ -58,12 +58,36 @@ describe('synthesizeReaderBook', () => {
 		expect(book.readProgress).toBeNull()
 	})
 
-	it('defaults libraryConfig to a continuous reading mode so offline paging never navigates (ContinuousVertical / LTR / Height)', () => {
+	it('defaults libraryConfig to a continuous reading mode when no prefs are passed (ContinuousVertical / LTR / Height)', () => {
 		const book = synthesizeReaderBook(makeRecord())
 
 		expect(book.libraryConfig).toEqual({
 			defaultReadingImageScaleFit: ReadingImageScaleFit.Height,
 			defaultReadingMode: ReadingMode.ContinuousVertical,
+			defaultReadingDir: ReadingDirection.Ltr,
+		})
+	})
+
+	it('uses the passed reading prefs for libraryConfig when provided', () => {
+		const book = synthesizeReaderBook(makeRecord(), {
+			readingMode: ReadingMode.Paged,
+			imageScaleFit: ReadingImageScaleFit.Width,
+			readingDir: ReadingDirection.Rtl,
+		})
+
+		expect(book.libraryConfig).toEqual({
+			defaultReadingImageScaleFit: ReadingImageScaleFit.Width,
+			defaultReadingMode: ReadingMode.Paged,
+			defaultReadingDir: ReadingDirection.Rtl,
+		})
+	})
+
+	it('falls back to the current defaults for any prefs field left absent', () => {
+		const book = synthesizeReaderBook(makeRecord(), { readingMode: ReadingMode.Paged })
+
+		expect(book.libraryConfig).toEqual({
+			defaultReadingImageScaleFit: ReadingImageScaleFit.Height,
+			defaultReadingMode: ReadingMode.Paged,
 			defaultReadingDir: ReadingDirection.Ltr,
 		})
 	})

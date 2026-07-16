@@ -16,10 +16,14 @@ import type { DownloadRecord } from '@/offline/db'
  *   legitimate value, not a fabrication. `ImageBasedReader`/`useBookTimer` read
  *   `media?.readProgress?.elapsedSeconds` and tolerate this.
  * - `libraryConfig`: required (non-nullable) on the real type, but a `DownloadRecord` has no library
- *   association carried offline. Defaulted to the same values `DEFAULT_BOOK_PREFERENCES`
- *   (packages/client/src/stores/reader.ts) uses, so `useBookPreferences`'s
- *   `defaultsFromLibraryConfig` produces the app's normal out-of-the-box reading experience rather
- *   than an arbitrary guess.
+ *   association carried offline. Populated from the caller-supplied `prefs` (the user's persisted
+ *   reading settings, see `OfflineBookReaderScene`) so the offline reader renders in the user's
+ *   preferred mode; any `prefs` field left unset falls back to the same values
+ *   `DEFAULT_BOOK_PREFERENCES` (packages/client/src/stores/reader.ts) uses, less `readingMode`, which
+ *   falls back to `ContinuousVertical` -- the safe default if paging's URL-sync were ever re-enabled
+ *   for this route. `ImageBasedReader`'s `syncPageToUrl={false}` prop (passed by
+ *   `OfflineBookReaderScene`) is what actually keeps paged mode on the offline route; this default is
+ *   just a defense-in-depth fallback for callers that pass no prefs.
  * - `analysisData`: `null` -- optional/nullable on the real type; `useImageSizes` treats a missing
  *   `dimensions` array as "measure pages as they load", which is the correct offline fallback (no
  *   pre-computed page dimensions are cached in a `DownloadRecord`).
@@ -27,7 +31,22 @@ import type { DownloadRecord } from '@/offline/db'
  *   the series" is server-side series knowledge with no offline equivalent. `NextInSeries.tsx`
  *   treats an empty `nodes` array as "nothing to show" and renders null.
  */
-export function synthesizeReaderBook(record: DownloadRecord): ImageReaderBookRef {
+
+/**
+ * The subset of the user's persisted reading preferences relevant to the synthesized book's
+ * `libraryConfig`. Field names deliberately mirror `ReaderSettings` (packages/client/src/stores/reader.ts)
+ * so callers can map `useReaderStore(s => s.settings)` straight across (see `OfflineBookReaderScene`).
+ */
+export type SynthesizedReaderPrefs = {
+	readingMode?: ReadingMode
+	imageScaleFit?: ReadingImageScaleFit
+	readingDir?: ReadingDirection
+}
+
+export function synthesizeReaderBook(
+	record: DownloadRecord,
+	prefs?: SynthesizedReaderPrefs,
+): ImageReaderBookRef {
 	return {
 		id: record.bookId,
 		resolvedName: record.title,
@@ -35,13 +54,9 @@ export function synthesizeReaderBook(record: DownloadRecord): ImageReaderBookRef
 		extension: record.format,
 		readProgress: null,
 		libraryConfig: {
-			defaultReadingImageScaleFit: ReadingImageScaleFit.Height,
-			// Offline reading must use a continuous mode: ImageBasedReader's paged
-			// `handleChangePage` navigates to the server-dependent `/books/:id/reader` route on every
-			// page turn, which fails once the server is stopped. Continuous modes just update local
-			// state instead, so paging stays on the offline route.
-			defaultReadingMode: ReadingMode.ContinuousVertical,
-			defaultReadingDir: ReadingDirection.Ltr,
+			defaultReadingImageScaleFit: prefs?.imageScaleFit ?? ReadingImageScaleFit.Height,
+			defaultReadingMode: prefs?.readingMode ?? ReadingMode.ContinuousVertical,
+			defaultReadingDir: prefs?.readingDir ?? ReadingDirection.Ltr,
 		},
 		analysisData: null,
 		nextInSeries: {
