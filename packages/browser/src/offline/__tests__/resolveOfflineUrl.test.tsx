@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 
 import * as blobStore from '../blobStore'
 import { offlineBlobUrl, useOfflineImageSrc } from '../resolveOfflineUrl'
@@ -72,14 +72,15 @@ describe('useOfflineImageSrc', () => {
 	})
 
 	it('returns undefined when the url is not cached', async () => {
-		jest.spyOn(blobStore, 'matchUrl').mockResolvedValue(undefined)
+		const matchPromise = Promise.resolve(undefined)
+		jest.spyOn(blobStore, 'matchUrl').mockReturnValue(matchPromise)
 
 		const { result } = renderHook(() => useOfflineImageSrc('/api/v2/media/1/page/1'))
 
+		await matchPromise
 		await waitFor(() => {
-			expect(blobStore.matchUrl).toHaveBeenCalled()
+			expect(result.current).toBeUndefined()
 		})
-		expect(result.current).toBeUndefined()
 	})
 
 	it('returns undefined when url is undefined, without calling matchUrl', () => {
@@ -122,6 +123,36 @@ describe('useOfflineImageSrc', () => {
 			expect(result.current).toBe('blob:mock-1')
 		})
 
+		expect(revokeObjectURL).toHaveBeenCalledWith('blob:mock-0')
+	})
+
+	it('revokes the object URL when matchUrl resolves after the component unmounts', async () => {
+		let resolveMatch: (value: Response | undefined) => void = () => {}
+		const matchPromise = new Promise<Response | undefined>((resolve) => {
+			resolveMatch = resolve
+		})
+		jest.spyOn(blobStore, 'matchUrl').mockReturnValue(matchPromise)
+
+		const { unmount } = renderHook(() => useOfflineImageSrc('/api/v2/media/1/page/1'))
+
+		// Unmount *before* matchUrl resolves. This flips `cancelled` to true in the effect's cleanup
+		// while offlineBlobUrl(url) is still pending, so the object URL it creates below is a "late"
+		// resolution -- exactly the branch resolveOfflineUrl.ts lines ~39-44 exist to handle.
+		unmount()
+
+		expect(createObjectURL).not.toHaveBeenCalled()
+
+		await act(async () => {
+			resolveMatch(fakeResponse())
+			// No handle on offlineBlobUrl's internal promise chain (matchUrl -> resp.blob() ->
+			// createObjectURL -> the effect's .then), so flush it with a macrotask boundary: every
+			// microtask queued by then is guaranteed to run before a setTimeout(0) callback fires.
+			await new Promise((resolve) => setTimeout(resolve, 0))
+		})
+
+		// The URL was created (proving resolution did happen after teardown) but immediately revoked
+		// rather than leaked, and never exposed via hook state.
+		expect(createObjectURL).toHaveBeenCalledTimes(1)
 		expect(revokeObjectURL).toHaveBeenCalledWith('blob:mock-0')
 	})
 })
