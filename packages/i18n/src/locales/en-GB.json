@@ -2452,6 +2452,14 @@
 			}
 		}
 	},
+	"downloadsScene": {
+		"title": "Downloads",
+		"subtitle": "Books saved on this device for offline reading",
+		"emptyState": {
+			"heading": "No downloads yet",
+			"message": "Books you download for offline reading will appear here."
+		}
+	},
 	"jobOverlay": {
 		"backupHeading": "Job in Progress"
 	},
@@ -2471,6 +2479,14 @@
 			"create": "Create library",
 			"settings": "Go to settings"
 		}
+	},
+	"offlineDownload": {
+		"download": "Download for offline",
+		"downloading": "Downloading…",
+		"remove": "Remove download",
+		"retry": "Retry download",
+		"cancel": "Cancel",
+		"downloaded": "Downloaded"
 	},
 	"pagination": {
 		"buttons": {
@@ -2510,7 +2526,8 @@
 			"smartlists": "Smart lists",
 			"noSmartlists": "No smart lists",
 			"createSmartlist": "Create smart list",
-			"seeAll": "See all"
+			"seeAll": "See all",
+			"downloads": "Downloads"
 		},
 		"libraryOptions": {
 			"scanLibrary": "Scan",

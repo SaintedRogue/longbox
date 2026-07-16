@@ -8,7 +8,7 @@ import {
 } from '@stump/graphql'
 import { useLocaleContext } from '@stump/i18n'
 import { motion } from 'framer-motion'
-import { Book, Home } from 'lucide-react'
+import { Book, Download, Home } from 'lucide-react'
 import { Suspense, useCallback, useMemo } from 'react'
 import { useLocation } from 'react-router'
 import { useMediaMatch } from 'rooks'
@@ -177,6 +177,15 @@ export default function SideBar({ asChild, hidden }: Props) {
 					{isAtLeastMedium && isBrowser && <UserMenu />}
 
 					{sections}
+
+					<SideBarButtonLink
+						key="downloads-sidebar-navlink"
+						to={paths.downloads()}
+						isActive={location.pathname === paths.downloads()}
+					>
+						<Download className="mr-2 h-4 w-4 shrink-0" />
+						{t('sidebar.buttons.downloads')}
+					</SideBarButtonLink>
 				</div>
 				<Spacer />
 

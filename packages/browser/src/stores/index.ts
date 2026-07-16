@@ -1,3 +1,4 @@
+export { useDownloadStore } from '../offline/downloadStore'
 export { useAppStore } from './app'
 export * from './debug'
 export { useReaderStore } from './reader'

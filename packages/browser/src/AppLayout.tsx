@@ -27,6 +27,7 @@ import RouteLoadingIndicator from '@/components/RouteLoadingIndicator'
 import { AppContext, PermissionEnforcerOptions } from './context'
 import { useScrollRestoration, useTheme } from './hooks'
 import { useCoreEvent } from './hooks/useCoreEvent'
+import { useOfflineDownloads } from './offline/useDownloads'
 import { useProgressOutbox } from './offline/useProgressOutbox'
 import { useAppStore, useUserStore } from './stores'
 
@@ -133,6 +134,10 @@ export function AppLayout({ overlayLocation, navigationType }: AppLayoutProps) {
 	// Flush any durable reading-progress rows queued while offline (see the readers'
 	// terminal onError branches) on mount and on every `online` event.
 	useProgressOutbox()
+
+	// Register the SDK-backed download fetcher (so enqueue() can actually fetch bytes) and
+	// hydrate the durable-records projection from IndexedDB (so past downloads appear on load).
+	useOfflineDownloads()
 
 	/**
 	 * If the user prefers the top bar, we hide the sidebar

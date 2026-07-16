@@ -14,6 +14,7 @@ import { SmartListRouter } from './scenes/smartList'
 import { useAppStore, useUserStore } from './stores'
 
 const HomeScene = lazy(() => import('./scenes/home'))
+const DownloadsScene = lazy(() => import('./scenes/downloads'))
 const FourOhFour = lazy(() => import('./scenes/error/FourOhFour.tsx'))
 const ServerConnectionErrorScene = lazy(
 	() => import('./scenes/error/ServerConnectionErrorScene.tsx'),
@@ -93,6 +94,7 @@ export function AppRouter({ basePath }: AppRouterProps = {}) {
 						<Route path="books/*" element={<BookRouter />} />
 						<Route path="clubs/*" element={<BookClubRouter />} />
 						<Route path="/smart-lists/*" element={<SmartListRouter />} />
+						<Route path="downloads" element={<DownloadsScene />} />
 						<Route path="settings/*" element={<SettingsRouter />} />
 					</Route>
 

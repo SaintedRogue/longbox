@@ -26,6 +26,7 @@ import { usePaths } from '@/paths'
 
 import DeleteHistoryConfirmation from './DeleteHistoryConfirmation'
 import EmailBookDialog from './EmailBookDialog'
+import OfflineDownloadButton from './OfflineDownloadButton'
 
 const completedMutation = graphql(`
 	mutation BookActionMenuComplete($id: ID!) {
@@ -286,6 +287,8 @@ export default function BookActionMenu({ book }: Props) {
 						Download
 					</ButtonOrLink>
 				)}
+
+				{canDownload && <OfflineDownloadButton book={book} />}
 
 				<DropdownMenu
 					align="end"
