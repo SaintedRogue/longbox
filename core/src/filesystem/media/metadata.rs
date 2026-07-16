@@ -237,22 +237,25 @@ pub struct ProcessedMediaMetadata {
 		deserialize_with = "optional_i32_deserializer"
 	)]
 	pub page_count: Option<i32>,
-	/// ComicVine issue ID recovered from ComicTagger's Notes convention
-	/// ("[Issue ID N]") or a comicvine.gamespot.com Web URL ("/4000-N/").
+	/// ComicVine issue ID recovered from a Notes marker ("[Issue ID N]" or
+	/// "[CVDB N]") or a comicvine.gamespot.com Web URL ("/4000-N/").
 	/// Not a ComicInfo element; derived post-parse.
 	#[serde(skip)]
 	pub comicvine_id: Option<String>,
 }
 
-/// Recover a ComicVine issue ID from ComicTagger's conventions: either the
-/// "[Issue ID N]" marker it appends to Notes, or a comicvine.gamespot.com Web
-/// URL of the form ".../4000-N/". Notes wins when both are present.
+/// Recover a ComicVine issue ID from the conventions taggers embed in metadata:
+/// a Notes marker — either the older ComicTagger "[Issue ID N]" or the current
+/// "[CVDB N]" form (also emitted by Kavita/komf) — or a comicvine.gamespot.com
+/// Web URL of the form ".../4000-N/". Notes wins when both are present. The
+/// Amazon "[ASIN...]" marker that often sits beside it in Notes is ignored,
+/// since the digits must immediately follow the ComicVine prefix.
 pub fn extract_comicvine_id(notes: Option<&str>, links: &[String]) -> Option<String> {
 	static NOTES_RE: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
 	static WEB_RE: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
 
-	let notes_re =
-		NOTES_RE.get_or_init(|| Regex::new(r"\[Issue ID (\d+)\]").expect("valid regex"));
+	let notes_re = NOTES_RE
+		.get_or_init(|| Regex::new(r"\[(?:Issue ID |CVDB)(\d+)\]").expect("valid regex"));
 	let web_re = WEB_RE.get_or_init(|| {
 		Regex::new(r"comicvine\.gamespot\.com/[^\s]*?/4000-(\d+)").expect("valid regex")
 	});
@@ -673,6 +676,31 @@ mod tests {
 		assert_eq!(
 			extract_comicvine_id(Some("[Issue ID 111] and [Issue ID 222]"), &[]),
 			Some("111".to_string())
+		);
+	}
+
+	#[test]
+	fn test_extract_comicvine_id_from_cvdb_notes() {
+		// ComicTagger's current default (and Kavita/komf) tag as "[CVDB<id>]"
+		// rather than the older "[Issue ID <id>]". Real fixture observed in the
+		// wild (DC All In Special 01, Marika-Empire release).
+		let notes = "Scraped metadata from Amazon [ASINB0DGVTQGQJ]\nScraped metadata from ComicVine [CVDB1072173].";
+		assert_eq!(
+			extract_comicvine_id(Some(notes), &[]),
+			Some("1072173".to_string())
+		);
+	}
+
+	#[test]
+	fn test_extract_comicvine_id_ignores_asin() {
+		// The Amazon ASIN marker also lives in brackets — must not be mistaken
+		// for a ComicVine ID, and with no CV marker at all we get None.
+		assert_eq!(
+			extract_comicvine_id(
+				Some("Scraped metadata from Amazon [ASINB0DGVTQGQJ]"),
+				&[]
+			),
+			None
 		);
 	}
 
