@@ -27,6 +27,7 @@ import RouteLoadingIndicator from '@/components/RouteLoadingIndicator'
 import { AppContext, PermissionEnforcerOptions } from './context'
 import { useScrollRestoration, useTheme } from './hooks'
 import { useCoreEvent } from './hooks/useCoreEvent'
+import { useProgressOutbox } from './offline/useProgressOutbox'
 import { useAppStore, useUserStore } from './stores'
 
 const BookPeekSheet = lazy(() => import('./scenes/book/BookPeekSheet'))
@@ -128,6 +129,10 @@ export function AppLayout({ overlayLocation, navigationType }: AppLayoutProps) {
 	// Restore scroll position on back/forward, reset to top on new navigations.
 	// Mounted after the OverlayScrollbars setup so the viewport it targets exists.
 	useScrollRestoration(navigationType)
+
+	// Flush any durable reading-progress rows queued while offline (see the readers'
+	// terminal onError branches) on mount and on every `online` event.
+	useProgressOutbox()
 
 	/**
 	 * If the user prefers the top bar, we hide the sidebar

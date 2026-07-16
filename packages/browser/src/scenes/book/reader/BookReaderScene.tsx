@@ -14,6 +14,8 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 
 import { ImageBasedReader } from '@/components/readers/imageBased'
+import { UPDATE_READ_PROGRESS } from '@/offline/progressMutation'
+import { enqueueProgress } from '@/offline/progressOutbox'
 import paths from '@/paths'
 
 import { useBookPreferences } from './useBookPreferences'
@@ -83,14 +85,6 @@ export default function BookReaderSceneContainer() {
 	)
 }
 
-const mutation = graphql(`
-	mutation UpdateReadProgress($id: ID!, $input: MediaProgressInput!) {
-		updateMediaProgress(id: $id, input: $input) {
-			__typename
-		}
-	}
-`)
-
 type Props = {
 	book: NonNullable<BookReaderSceneQuery['mediaById']>
 }
@@ -113,16 +107,24 @@ function BookReaderScene({ book }: Props) {
 	// end_page with no ordering guard.
 	const latestProgressSeqRef = useRef(0)
 
-	const { mutate } = useGraphQLMutation(mutation)
+	const { mutate } = useGraphQLMutation(UPDATE_READ_PROGRESS)
 
 	const fireProgressMutation = useCallback(
-		(variables: Parameters<typeof mutate>[0], seq: number, retryCount: number) => {
+		(
+			variables: Parameters<typeof mutate>[0],
+			outboxRecord: Parameters<typeof enqueueProgress>[0],
+			seq: number,
+			retryCount: number,
+		) => {
 			mutate(variables, {
 				onError: (err) => {
 					const supersededByNewerUpdate = seq !== latestProgressSeqRef.current
 					if (!supersededByNewerUpdate && retryCount < 3) {
 						const delay = Math.min(1000 * 2 ** retryCount, 15_000)
-						setTimeout(() => fireProgressMutation(variables, seq, retryCount + 1), delay)
+						setTimeout(
+							() => fireProgressMutation(variables, outboxRecord, seq, retryCount + 1),
+							delay,
+						)
 						return
 					}
 
@@ -130,7 +132,13 @@ function BookReaderScene({ book }: Props) {
 					// Only the newest in-flight mutation's terminal failure is worth surfacing;
 					// an older, superseded one silently gives up in favor of the newer attempt.
 					if (!supersededByNewerUpdate) {
-						toast.error(t('readerToasts.progressSyncFailed'))
+						// Retries are exhausted -- durably queue the update so it isn't lost; the
+						// outbox flush hook (useProgressOutbox, mounted in AppLayout) replays it
+						// once the app is back online.
+						enqueueProgress(outboxRecord).catch((enqueueError) =>
+							console.error('Failed to enqueue offline reading progress', enqueueError),
+						)
+						toast.error(t('readerToasts.progressSavedOffline'))
 					}
 				},
 			})
@@ -147,10 +155,13 @@ function BookReaderScene({ book }: Props) {
 			const delta = Math.max(0, elapsedSeconds - lastSyncedElapsedRef.current)
 			// Advance the baseline optimistically at fire time rather than in onSuccess: if
 			// this mutation ultimately fails, its delta is undercounted instead of being
-			// double-counted by a concurrent in-flight mutation for a different page. A
-			// durable offline outbox (Wave 3) will remove the need for this tradeoff.
+			// double-counted by a concurrent in-flight mutation for a different page. The
+			// offline outbox (see fireProgressMutation's onError below) only durably queues a
+			// *terminal* failure's own delta -- a superseded, still-retrying mutation's delta
+			// is not folded in and remains undercounted by this tradeoff.
 			lastSyncedElapsedRef.current = elapsedSeconds
 
+			const elapsedSecondsDelta = delta > 0 ? delta : undefined
 			const seq = ++latestProgressSeqRef.current
 			fireProgressMutation(
 				{
@@ -158,9 +169,15 @@ function BookReaderScene({ book }: Props) {
 					input: {
 						paged: {
 							page,
-							elapsedSecondsDelta: delta > 0 ? delta : undefined,
+							elapsedSecondsDelta,
 						},
 					},
+				},
+				{
+					bookId: book.id,
+					kind: 'paged',
+					page,
+					elapsedSecondsDelta: elapsedSecondsDelta ?? 0,
 				},
 				seq,
 				0,

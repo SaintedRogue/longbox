@@ -18,6 +18,8 @@ import { toast } from 'sonner'
 
 import Spinner from '@/components/Spinner'
 import { useTheme } from '@/hooks'
+import { UPDATE_READ_PROGRESS } from '@/offline/progressMutation'
+import { enqueueProgress } from '@/offline/progressOutbox'
 import { useBookPreferences } from '@/scenes/book/reader/useBookPreferences'
 import { useBookTimer } from '@/stores/reader'
 
@@ -152,14 +154,6 @@ const query = graphql(`
 	}
 `)
 
-const mutation = graphql(`
-	mutation UpdateEpubProgress($id: ID!, $input: MediaProgressInput!) {
-		updateMediaProgress(id: $id, input: $input) {
-			__typename
-		}
-	}
-`)
-
 const injectFontStylesheet = (rendition: Rendition) => {
 	const doc = Object.values(rendition.getContents())[0]?.document
 	if (!doc) return
@@ -224,7 +218,7 @@ export default function EpubJsReader({ id, isIncognito }: EpubJsReaderProps) {
 	const latestProgressSeqRef = useRef(0)
 
 	const client = useQueryClient()
-	const { mutate } = useGraphQLMutation(mutation, {
+	const { mutate } = useGraphQLMutation(UPDATE_READ_PROGRESS, {
 		onSuccess: () => {
 			client.invalidateQueries({
 				queryKey: ['epubJsReader', id],
@@ -233,13 +227,21 @@ export default function EpubJsReader({ id, isIncognito }: EpubJsReaderProps) {
 	})
 
 	const fireProgressMutation = useCallback(
-		(variables: Parameters<typeof mutate>[0], seq: number, retryCount: number) => {
+		(
+			variables: Parameters<typeof mutate>[0],
+			outboxRecord: Parameters<typeof enqueueProgress>[0],
+			seq: number,
+			retryCount: number,
+		) => {
 			mutate(variables, {
 				onError: (err) => {
 					const supersededByNewerUpdate = seq !== latestProgressSeqRef.current
 					if (!supersededByNewerUpdate && retryCount < 3) {
 						const delay = Math.min(1000 * 2 ** retryCount, 15_000)
-						setTimeout(() => fireProgressMutation(variables, seq, retryCount + 1), delay)
+						setTimeout(
+							() => fireProgressMutation(variables, outboxRecord, seq, retryCount + 1),
+							delay,
+						)
 						return
 					}
 
@@ -247,7 +249,13 @@ export default function EpubJsReader({ id, isIncognito }: EpubJsReaderProps) {
 					// Only the newest in-flight mutation's terminal failure is worth surfacing;
 					// an older, superseded one silently gives up in favor of the newer attempt.
 					if (!supersededByNewerUpdate) {
-						toast.error(t('readerToasts.progressSyncFailed'))
+						// Retries are exhausted -- durably queue the update so it isn't lost; the
+						// outbox flush hook (useProgressOutbox, mounted in AppLayout) replays it
+						// once the app is back online.
+						enqueueProgress(outboxRecord).catch((enqueueError) =>
+							console.error('Failed to enqueue offline reading progress', enqueueError),
+						)
+						toast.error(t('readerToasts.progressSavedOffline'))
 					}
 				},
 			})
@@ -263,20 +271,32 @@ export default function EpubJsReader({ id, isIncognito }: EpubJsReaderProps) {
 			const delta = Math.max(0, totalSeconds - lastSyncedElapsedRef.current)
 			// Advance the baseline optimistically at fire time rather than in onSuccess: if
 			// this mutation ultimately fails, its delta is undercounted instead of being
-			// double-counted by a concurrent in-flight mutation. A durable offline outbox
-			// (Wave 3) will remove the need for this tradeoff.
+			// double-counted by a concurrent in-flight mutation. The offline outbox (see
+			// fireProgressMutation's onError below) only durably queues a *terminal*
+			// failure's own delta -- a superseded, still-retrying mutation's delta is not
+			// folded in and remains undercounted by this tradeoff.
 			lastSyncedElapsedRef.current = totalSeconds
 
+			const elapsedSecondsDelta = delta > 0 ? delta : undefined
+			const bookId = ebook.media?.id || ''
 			const seq = ++latestProgressSeqRef.current
 			fireProgressMutation(
 				{
-					id: ebook.media?.id || '',
+					id: bookId,
 					input: {
 						epub: {
 							...input,
-							elapsedSecondsDelta: delta > 0 ? delta : undefined,
+							elapsedSecondsDelta,
 						},
 					},
+				},
+				{
+					bookId,
+					kind: 'epub',
+					epubcfi: input.locator?.epubcfi ?? undefined,
+					percentage: input.percentage ?? undefined,
+					isComplete: input.isComplete ?? undefined,
+					elapsedSecondsDelta: elapsedSecondsDelta ?? 0,
 				},
 				seq,
 				0,

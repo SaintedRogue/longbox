@@ -2767,7 +2767,8 @@
 		}
 	},
 	"readerToasts": {
-		"progressSyncFailed": "Failed to save reading progress. Your position may not be synced."
+		"progressSyncFailed": "Failed to save reading progress. Your position may not be synced.",
+		"progressSavedOffline": "Saved offline — we'll sync it when you reconnect."
 	},
 	"mobileApp": {
 		"addOrEditServer": {
