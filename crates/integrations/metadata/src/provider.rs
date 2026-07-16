@@ -4,7 +4,7 @@ use crate::{
 	error::MetadataProviderError,
 	types::{
 		ExternalMediaMetadata, ExternalSeriesMetadata, MatchCandidate, MediaType,
-		SearchQuery,
+		ProviderValidationResult, ProviderValidationStatus, SearchQuery,
 	},
 	MatchScorer,
 };
@@ -55,6 +55,22 @@ pub trait MetadataProvider: Send + Sync {
 		&self,
 		external_id: &str,
 	) -> Result<ExternalMediaMetadata, MetadataProviderError>;
+
+	/// Cheaply verify that the configured credentials work against the provider's
+	/// live API, returning a granular [`ProviderValidationResult`].
+	///
+	/// Default implementation reports [`ProviderValidationStatus::Unsupported`] for
+	/// providers that validate elsewhere (e.g. Hardcover, which validates client-side
+	/// because it supports CORS). Providers without CORS — like Metron — override this
+	/// so the browser never has to reach the provider directly.
+	async fn validate_credentials(
+		&self,
+	) -> Result<ProviderValidationResult, MetadataProviderError> {
+		Ok(ProviderValidationResult::new(
+			ProviderValidationStatus::Unsupported,
+			"This provider does not support server-side validation.",
+		))
+	}
 
 	//// Fetch cover image URL
 	// async fn fetch_cover_url(

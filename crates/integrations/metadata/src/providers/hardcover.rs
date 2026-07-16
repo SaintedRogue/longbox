@@ -3,7 +3,7 @@ use reqwest_middleware::ClientWithMiddleware;
 use serde::Deserialize;
 
 use crate::{
-	client::{build_client_with_retry, RetryClientConfig},
+	client::{build_client_with_retry, default_metadata_client, RetryClientConfig},
 	error::MetadataProviderError,
 	serde_utils::string_or_number,
 	types::{
@@ -44,7 +44,7 @@ impl HardcoverClient {
 	pub fn new(api_token: String, rate_limit: Option<u32>) -> Self {
 		Self {
 			client: build_client_with_retry(
-				reqwest::Client::new(),
+				default_metadata_client(),
 				RetryClientConfig::default(),
 			),
 			api_token: Some(api_token),

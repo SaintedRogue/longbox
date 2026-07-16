@@ -2070,6 +2070,19 @@ type Mutation {
 	createMetadataProvider(input: CreateMetadataProviderConfigInput!): MetadataProviderConfigModel!
 	updateMetadataProvider(id: Int!, input: PatchMetadataProviderConfigInput!): MetadataProviderConfigModel!
 	deleteMetadataProvider(id: Int!): MetadataProviderConfigModel!
+	"""
+	Validate raw provider credentials *before* saving them, by making a live
+	authenticated request to the provider. Used by the create/edit dialog so the
+	user gets feedback without the browser ever contacting the provider (Metron
+	has no CORS, so client-side validation is impossible).
+	"""
+	validateMetadataProviderCredentials(providerType: MetadataProvider!, apiToken: String!): ProviderValidationResult!
+	"""
+	Validate the credentials of an already-saved provider config by id. Decrypts
+	the stored token and runs the same live check as
+	[`validate_metadata_provider_credentials`](Self::validate_metadata_provider_credentials).
+	"""
+	testMetadataProvider(id: Int!): ProviderValidationResult!
 	"Accept the top-ranked candidate for all pending metadata matches"
 	acceptAllPendingMatches(strategy: MergeStrategy, excludeFields: [MetadataField!]): Int!
 	"Reject all pending metadata matches, setting their status to NoMatch"
@@ -2382,6 +2395,43 @@ type PlaceholderGenerationOutput {
 	skippedEntities: Int!
 	"The number of placeholder metadata entries that were generated"
 	generatedMetadata: Int!
+}
+
+"""
+The result of a credential-validation attempt: a machine-readable
+[`ProviderValidationStatus`] plus a human-readable message for display.
+"""
+type ProviderValidationResult {
+	status: ProviderValidationStatus!
+	message: String!
+}
+
+"""
+Outcome of validating a provider's credentials against its live API.
+
+The variants deliberately keep failure modes distinct — most importantly
+`InvalidCredentials` (the user's username:password is wrong) versus `Forbidden`
+(the request was rejected by the provider's bot/AI filter, or the account is
+inactive). Those need opposite user actions and used to be indistinguishable.
+"""
+enum ProviderValidationStatus {
+	"Credentials work — the API accepted an authenticated request."
+	VALID
+	"Authentication failed (e.g. HTTP 401): wrong username/password or token."
+	INVALID_CREDENTIALS
+	"""
+	Access denied (e.g. HTTP 403 or a non-JSON bot-filter response): the account
+	may be filtered, banned, or inactive.
+	"""
+	FORBIDDEN
+	"The provider's rate limit was hit (HTTP 429)."
+	RATE_LIMITED
+	"The provider returned a server-side error (HTTP 5xx) or an unexpected status."
+	PROVIDER_ERROR
+	"The provider host could not be reached (connection error / timeout)."
+	NETWORK_ERROR
+	"This provider does not support server-side credential validation."
+	UNSUPPORTED
 }
 
 enum PublicationStatus {

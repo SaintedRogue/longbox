@@ -6,12 +6,16 @@ use crate::{
 	},
 };
 use async_graphql::{Context, Object, Result};
-use metadata_integrations::{MatchCandidate, MergeStrategy, MetadataField};
+use metadata_integrations::{
+	create_provider, MatchCandidate, MergeStrategy, MetadataField,
+	ProviderValidationResult, ProviderValidationStatus,
+};
 use models::{
 	entity::{metadata_fetch_record, metadata_provider_config},
-	shared::enums::{MetadataFetchStatus, UserPermission},
+	shared::enums::{MetadataFetchStatus, MetadataProvider, UserPermission},
 };
 use sea_orm::{prelude::*, IntoActiveModel, Set, TransactionTrait, TryIntoModel};
+use stump_core::utils::encryption::decrypt_string;
 
 #[derive(Default)]
 pub struct MetadataProviderMutation;
@@ -76,6 +80,51 @@ impl MetadataProviderMutation {
 			.await?;
 
 		Ok(model)
+	}
+
+	/// Validate raw provider credentials *before* saving them, by making a live
+	/// authenticated request to the provider. Used by the create/edit dialog so the
+	/// user gets feedback without the browser ever contacting the provider (Metron
+	/// has no CORS, so client-side validation is impossible).
+	#[graphql(guard = "PermissionGuard::one(UserPermission::MetadataProviderManage)")]
+	async fn validate_metadata_provider_credentials(
+		&self,
+		_ctx: &Context<'_>,
+		provider_type: MetadataProvider,
+		api_token: String,
+	) -> Result<ProviderValidationResult> {
+		run_validation(&provider_type.to_string(), api_token).await
+	}
+
+	/// Validate the credentials of an already-saved provider config by id. Decrypts
+	/// the stored token and runs the same live check as
+	/// [`validate_metadata_provider_credentials`](Self::validate_metadata_provider_credentials).
+	#[graphql(guard = "PermissionGuard::one(UserPermission::MetadataProviderManage)")]
+	async fn test_metadata_provider(
+		&self,
+		ctx: &Context<'_>,
+		id: i32,
+	) -> Result<ProviderValidationResult> {
+		let core_ctx = ctx.data::<CoreContext>()?;
+		let conn = core_ctx.conn.as_ref();
+		let encryption_key = core_ctx.get_encryption_key().await?;
+
+		let config = metadata_provider_config::Entity::find_by_id(id)
+			.one(conn)
+			.await?
+			.ok_or("Metadata provider config not found")?;
+
+		let Some(encrypted) = config.encrypted_api_token.as_ref() else {
+			return Ok(ProviderValidationResult::new(
+				ProviderValidationStatus::InvalidCredentials,
+				"No API token configured for this provider.",
+			));
+		};
+
+		let token = decrypt_string(encrypted, &encryption_key)
+			.map_err(|e| async_graphql::Error::new(e.to_string()))?;
+
+		run_validation(&config.provider_type.to_string(), token).await
 	}
 
 	/// Accept the top-ranked candidate for all pending metadata matches
@@ -182,4 +231,19 @@ impl MetadataProviderMutation {
 
 		Ok(count)
 	}
+}
+
+/// Build a provider client for `provider_type` with `token` and run its live
+/// credential check. Shared by the raw-credentials and by-id validation resolvers.
+async fn run_validation(
+	provider_type: &str,
+	token: String,
+) -> Result<ProviderValidationResult> {
+	let provider = create_provider(provider_type, token)
+		.map_err(|e| async_graphql::Error::new(e.to_string()))?;
+
+	provider
+		.validate_credentials()
+		.await
+		.map_err(|e| async_graphql::Error::new(e.to_string()))
 }

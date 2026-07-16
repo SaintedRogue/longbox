@@ -3,11 +3,11 @@ use reqwest_middleware::ClientWithMiddleware;
 use serde::Deserialize;
 
 use crate::{
-	client::{build_client_with_retry, RetryClientConfig},
+	client::{build_client_with_retry, default_metadata_client, RetryClientConfig},
 	error::MetadataProviderError,
 	types::{
 		ConfidenceFactor, ExternalMediaMetadata, ExternalSeriesMetadata, MatchCandidate,
-		MediaType, SearchQuery,
+		MediaType, ProviderValidationResult, ProviderValidationStatus, SearchQuery,
 	},
 	ExternalMetadata, MetadataProvider, RateLimiter,
 };
@@ -22,9 +22,17 @@ const METRON_RATE_LIMIT_PER_MINUTE: u32 = 20;
 /// in that one token field (see [`MetronClient::new`]). This is an accepted tradeoff
 /// (see the security self-audit in E6) rather than a schema migration.
 pub struct MetronClient {
+	/// Data-fetch client: carries retry/backoff middleware (retries 429/5xx).
 	client: ClientWithMiddleware,
+	/// Probe client for [`validate_credentials`](MetronClient::validate_credentials):
+	/// the same UA-bearing reqwest client *without* the retry middleware, so a 429
+	/// surfaces immediately instead of blocking on backoff.
+	probe_client: reqwest::Client,
 	username: String,
 	password: String,
+	/// API base URL. Real usage is [`METRON_API_URL`]; tests override it to point at
+	/// a mock server (see [`MetronClient::with_base_url`]).
+	base_url: String,
 	rate_limiter: RateLimiter,
 }
 
@@ -33,18 +41,31 @@ impl MetronClient {
 		token: String,
 		rate_limit: Option<u32>,
 	) -> Result<Self, MetadataProviderError> {
+		Self::with_base_url(token, rate_limit, METRON_API_URL.to_string())
+	}
+
+	/// Construct a client against an explicit base URL. Used by [`new`](Self::new)
+	/// with [`METRON_API_URL`] and by tests with a mock-server URI.
+	fn with_base_url(
+		token: String,
+		rate_limit: Option<u32>,
+		base_url: String,
+	) -> Result<Self, MetadataProviderError> {
 		let (username, password) = token.split_once(':').ok_or_else(|| {
 			MetadataProviderError::Other(
 				"Metron credentials must be 'username:password'".to_string(),
 			)
 		})?;
+		// One underlying reqwest client (with the mandatory UA) shared by both the
+		// retrying data-fetch client and the non-retrying probe client. `Client` is
+		// cheap to clone — it's `Arc`-backed internally.
+		let base = default_metadata_client();
 		Ok(Self {
-			client: build_client_with_retry(
-				reqwest::Client::new(),
-				RetryClientConfig::default(),
-			),
+			client: build_client_with_retry(base.clone(), RetryClientConfig::default()),
+			probe_client: base,
 			username: username.to_string(),
 			password: password.to_string(),
+			base_url,
 			rate_limiter: RateLimiter::per_minute(
 				rate_limit.unwrap_or(METRON_RATE_LIMIT_PER_MINUTE),
 			),
@@ -64,7 +85,7 @@ impl MetronClient {
 		self.rate_limiter.until_ready().await;
 		let response = self
 			.client
-			.get(format!("{METRON_API_URL}/{path}/"))
+			.get(format!("{}/{path}/", self.base_url))
 			.basic_auth(&self.username, Some(&self.password))
 			.query(params)
 			.send()
@@ -223,6 +244,87 @@ impl MetadataProvider for MetronClient {
 		let detail: IssueDetail = self.get_json(&format!("issue/{id}"), &[]).await?;
 
 		Ok(map_issue_detail(detail, self.id()))
+	}
+
+	/// Verify the configured `username:password` with one authenticated
+	/// `GET /series/?page=1`. Only the HTTP status (and, on 200, the content type)
+	/// is inspected — the body is discarded. Uses the non-retrying [`probe_client`]
+	/// so a 429 is reported immediately rather than blocking on backoff.
+	///
+	/// [`probe_client`]: MetronClient::probe_client
+	#[tracing::instrument(skip(self))]
+	async fn validate_credentials(
+		&self,
+	) -> Result<ProviderValidationResult, MetadataProviderError> {
+		self.rate_limiter.until_ready().await;
+
+		let send_result = self
+			.probe_client
+			.get(format!("{}/series/", self.base_url))
+			.basic_auth(&self.username, Some(&self.password))
+			.query(&[("page", "1")])
+			.send()
+			.await;
+
+		let response = match send_result {
+			Ok(response) => response,
+			Err(e) => {
+				tracing::warn!(error = ?e, "Metron validation could not reach the host");
+				return Ok(ProviderValidationResult::new(
+					ProviderValidationStatus::NetworkError,
+					"Couldn't reach metron.cloud.",
+				));
+			},
+		};
+
+		let status = response.status();
+		let result = match status.as_u16() {
+			200 => {
+				// A bot/AI filter can answer 200 with an HTML challenge page. The real
+				// API always returns JSON, so a non-JSON 200 means we were filtered,
+				// not authenticated.
+				let is_json = response
+					.headers()
+					.get(reqwest::header::CONTENT_TYPE)
+					.and_then(|v| v.to_str().ok())
+					.map(|ct| ct.contains("json"))
+					.unwrap_or(false);
+				if is_json {
+					ProviderValidationResult::new(
+						ProviderValidationStatus::Valid,
+						"Credentials verified.",
+					)
+				} else {
+					ProviderValidationResult::new(
+						ProviderValidationStatus::Forbidden,
+						"Unexpected non-JSON response from Metron — the request may \
+						 have been intercepted by a bot filter.",
+					)
+				}
+			},
+			401 => ProviderValidationResult::new(
+				ProviderValidationStatus::InvalidCredentials,
+				"Username or password rejected.",
+			),
+			403 => ProviderValidationResult::new(
+				ProviderValidationStatus::Forbidden,
+				"Access denied — account may be filtered, banned, or inactive.",
+			),
+			429 => ProviderValidationResult::new(
+				ProviderValidationStatus::RateLimited,
+				"Metron rate limit hit (20/min, 5,000/day). Try again shortly.",
+			),
+			500..=599 => ProviderValidationResult::new(
+				ProviderValidationStatus::ProviderError,
+				"Metron is having server issues. Try again later.",
+			),
+			other => ProviderValidationResult::new(
+				ProviderValidationStatus::ProviderError,
+				format!("Unexpected response from Metron (HTTP {other})."),
+			),
+		};
+
+		Ok(result)
 	}
 }
 
@@ -499,6 +601,85 @@ struct SeriesDetail {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use serde_json::json;
+	use wiremock::{
+		matchers::{method, path},
+		Mock, MockServer, ResponseTemplate,
+	};
+
+	/// Build a client pointed at a mock server with throwaway credentials.
+	fn validation_client(base_url: String) -> MetronClient {
+		MetronClient::with_base_url("user:pass".to_string(), None, base_url)
+			.expect("valid credentials")
+	}
+
+	/// Mount a single `GET /series/` response and validate against it.
+	async fn validate_against(response: ResponseTemplate) -> ProviderValidationResult {
+		let server = MockServer::start().await;
+		Mock::given(method("GET"))
+			.and(path("/series/"))
+			.respond_with(response)
+			.mount(&server)
+			.await;
+		validation_client(server.uri())
+			.validate_credentials()
+			.await
+			.expect("validation should not error")
+	}
+
+	#[tokio::test]
+	async fn validate_json_200_is_valid() {
+		let response = ResponseTemplate::new(200)
+			.set_body_json(json!({ "count": 0, "results": [] }));
+		let result = validate_against(response).await;
+		assert_eq!(result.status, ProviderValidationStatus::Valid);
+	}
+
+	#[tokio::test]
+	async fn validate_html_200_is_forbidden_bot_filter() {
+		// A 200 that isn't JSON means a bot filter answered, not the API.
+		let response = ResponseTemplate::new(200)
+			.insert_header("content-type", "text/html")
+			.set_body_string("<html><body>Are you human?</body></html>");
+		let result = validate_against(response).await;
+		assert_eq!(result.status, ProviderValidationStatus::Forbidden);
+	}
+
+	#[tokio::test]
+	async fn validate_401_is_invalid_credentials() {
+		let result = validate_against(ResponseTemplate::new(401)).await;
+		assert_eq!(result.status, ProviderValidationStatus::InvalidCredentials);
+	}
+
+	#[tokio::test]
+	async fn validate_403_is_forbidden() {
+		let result = validate_against(ResponseTemplate::new(403)).await;
+		assert_eq!(result.status, ProviderValidationStatus::Forbidden);
+	}
+
+	#[tokio::test]
+	async fn validate_429_is_rate_limited() {
+		let result = validate_against(ResponseTemplate::new(429)).await;
+		assert_eq!(result.status, ProviderValidationStatus::RateLimited);
+	}
+
+	#[tokio::test]
+	async fn validate_500_is_provider_error() {
+		let result = validate_against(ResponseTemplate::new(500)).await;
+		assert_eq!(result.status, ProviderValidationStatus::ProviderError);
+	}
+
+	#[tokio::test]
+	async fn validate_unreachable_host_is_network_error() {
+		// Port 1 is not listenable — the connection is refused, exercising the
+		// send-error branch.
+		let client = validation_client("http://127.0.0.1:1".to_string());
+		let result = client
+			.validate_credentials()
+			.await
+			.expect("network failure should be a result, not an Err");
+		assert_eq!(result.status, ProviderValidationStatus::NetworkError);
+	}
 
 	#[test]
 	fn test_build_series_search_params_year_began_from_series_year() {
