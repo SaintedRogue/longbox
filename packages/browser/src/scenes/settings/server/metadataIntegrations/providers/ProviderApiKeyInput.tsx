@@ -1,5 +1,6 @@
+import { useGraphQLMutation } from '@stump/client'
 import { Alert, AlertDescription, AlertTitle, PasswordInput, Text } from '@stump/components'
-import { MetadataProvider } from '@stump/graphql'
+import { graphql, MetadataProvider, ProviderValidationStatus } from '@stump/graphql'
 import { useLocaleContext } from '@stump/i18n'
 import { useMutation } from '@tanstack/react-query'
 import getProperty from 'lodash/get'
@@ -9,6 +10,18 @@ import { useFormContext, useFormState, useWatch } from 'react-hook-form'
 import { useDebouncedValue } from 'rooks'
 
 import { CreateProviderConfigSchema } from './schema'
+
+const validateCredentialsMutation = graphql(`
+	mutation ProviderApiKeyInputValidateCredentials(
+		$providerType: MetadataProvider!
+		$apiToken: String!
+	) {
+		validateMetadataProviderCredentials(providerType: $providerType, apiToken: $apiToken) {
+			status
+			message
+		}
+	}
+`)
 
 export function ProviderApiKeyInput() {
 	const form = useFormContext<CreateProviderConfigSchema>()
@@ -22,13 +35,35 @@ export function ProviderApiKeyInput() {
 
 	const [debouncedValue] = useDebouncedValue(value, 500)
 
+	// Metron has no CORS, so it can't be validated from the browser. Instead we ask
+	// our server to make the authenticated request (with a proper non-browser
+	// User-Agent) and report a granular status back.
+	const { mutateAsync: validateOnServer } = useGraphQLMutation(validateCredentialsMutation)
+
 	const {
 		mutate,
 		isPending,
 		error: fetchError,
 	} = useMutation({
 		mutationKey: ['validateApiKey', provider, debouncedValue],
-		mutationFn: async ({ apiKey, validator }: { apiKey: string; validator: Validator }) => {
+		mutationFn: async ({ apiKey }: { apiKey: string }) => {
+			if (provider === MetadataProvider.Metron) {
+				const { validateMetadataProviderCredentials: result } = await validateOnServer({
+					providerType: provider,
+					apiToken: apiKey,
+				})
+				if (result.status === ProviderValidationStatus.Valid) {
+					form.clearErrors('apiToken')
+				} else {
+					// The server owns the granular, human-readable message per status.
+					form.setError('apiToken', { type: 'validate', message: result.message })
+				}
+				return
+			}
+
+			const validator = PROVIDER_VALIDATORS[provider]
+			if (!validator) return
+
 			const isValid = await validator(apiKey, t)
 			if (!isValid) {
 				form.setError('apiToken', {
@@ -44,9 +79,16 @@ export function ProviderApiKeyInput() {
 	const validateKey = useCallback(
 		async (apiKey: string) => {
 			if (isPending || !apiKey) return
+			if (provider === MetadataProvider.Metron) {
+				// Only validate once it looks like a full `username:password`, so idle
+				// typing doesn't burn Metron's tight request budget (20/min).
+				if (!apiKey.includes(':')) return
+				mutate({ apiKey })
+				return
+			}
 			const validator = PROVIDER_VALIDATORS[provider]
 			if (!validator) return
-			mutate({ apiKey, validator })
+			mutate({ apiKey })
 		},
 		[provider, mutate, isPending],
 	)
@@ -152,7 +194,8 @@ const validateHardcoverApiKey: Validator = async (apiKey, t) => {
 
 const PROVIDER_VALIDATORS: Record<MetadataProvider, Validator | null> = {
 	HARDCOVER: validateHardcoverApiKey,
-	// No client-side validation for Metron: validating `username:password` would require
-	// a CORS-enabled request straight to metron.cloud from the browser, which isn't guaranteed
+	// Metron has no client-side validator: metron.cloud provides no CORS, so a browser
+	// request can't work. It's validated server-side instead (see `validateOnServer`
+	// above, backed by the `validateMetadataProviderCredentials` mutation).
 	METRON: null,
 }

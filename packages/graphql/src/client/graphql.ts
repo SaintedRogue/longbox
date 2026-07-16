@@ -2141,6 +2141,12 @@ export type Mutation = {
   /** Send a test email to verify the SMTP configuration is working */
   testEmailer: Scalars['Boolean']['output'];
   /**
+   * Validate the credentials of an already-saved provider config by id. Decrypts
+   * the stored token and runs the same live check as
+   * [`validate_metadata_provider_credentials`](Self::validate_metadata_provider_credentials).
+   */
+  testMetadataProvider: ProviderValidationResult;
+  /**
    * Toggle a reaction on a message
    *
    * Returns true if the reaction was added, false if removed
@@ -2239,6 +2245,13 @@ export type Mutation = {
    * called by a server owner
    */
   uploadUserAvatar: User;
+  /**
+   * Validate raw provider credentials *before* saving them, by making a live
+   * authenticated request to the provider. Used by the create/edit dialog so the
+   * user gets feedback without the browser ever contacting the provider (Metron
+   * has no CORS, so client-side validation is impossible).
+   */
+  validateMetadataProviderCredentials: ProviderValidationResult;
   /**
    * "Visit" a library, which will upsert a record of the user's last visit to the library.
    * This is used to inform the UI of the last library which was visited by the user
@@ -2770,6 +2783,11 @@ export type MutationTestEmailerArgs = {
 };
 
 
+export type MutationTestMetadataProviderArgs = {
+  id: Scalars['Int']['input'];
+};
+
+
 export type MutationToggleReactionArgs = {
   customEmojiId?: InputMaybe<Scalars['Int']['input']>;
   emoji?: InputMaybe<Scalars['String']['input']>;
@@ -2999,6 +3017,12 @@ export type MutationUploadSeriesThumbnailBase64Args = {
 export type MutationUploadUserAvatarArgs = {
   id?: InputMaybe<Scalars['ID']['input']>;
   upload: Scalars['Upload']['input'];
+};
+
+
+export type MutationValidateMetadataProviderCredentialsArgs = {
+  apiToken: Scalars['String']['input'];
+  providerType: MetadataProvider;
 };
 
 
@@ -3257,6 +3281,44 @@ export type PlaceholderGenerationOutput = {
   /** The total number of entities that were visited */
   visitedEntities: Scalars['Int']['output'];
 };
+
+/**
+ * The result of a credential-validation attempt: a machine-readable
+ * [`ProviderValidationStatus`] plus a human-readable message for display.
+ */
+export type ProviderValidationResult = {
+  __typename?: 'ProviderValidationResult';
+  message: Scalars['String']['output'];
+  status: ProviderValidationStatus;
+};
+
+/**
+ * Outcome of validating a provider's credentials against its live API.
+ *
+ * The variants deliberately keep failure modes distinct — most importantly
+ * `InvalidCredentials` (the user's username:password is wrong) versus `Forbidden`
+ * (the request was rejected by the provider's bot/AI filter, or the account is
+ * inactive). Those need opposite user actions and used to be indistinguishable.
+ */
+export enum ProviderValidationStatus {
+  /**
+   * Access denied (e.g. HTTP 403 or a non-JSON bot-filter response): the account
+   * may be filtered, banned, or inactive.
+   */
+  Forbidden = 'FORBIDDEN',
+  /** Authentication failed (e.g. HTTP 401): wrong username/password or token. */
+  InvalidCredentials = 'INVALID_CREDENTIALS',
+  /** The provider host could not be reached (connection error / timeout). */
+  NetworkError = 'NETWORK_ERROR',
+  /** The provider returned a server-side error (HTTP 5xx) or an unexpected status. */
+  ProviderError = 'PROVIDER_ERROR',
+  /** The provider's rate limit was hit (HTTP 429). */
+  RateLimited = 'RATE_LIMITED',
+  /** This provider does not support server-side credential validation. */
+  Unsupported = 'UNSUPPORTED',
+  /** Credentials work — the API accepted an authenticated request. */
+  Valid = 'VALID'
+}
 
 export enum PublicationStatus {
   Cancelled = 'CANCELLED',
@@ -5105,14 +5167,6 @@ export type EpubJsReaderQueryVariables = Exact<{
 
 export type EpubJsReaderQuery = { __typename?: 'Query', epubById: { __typename?: 'Epub', mediaId: string, rootBase: string, rootFile: string, extraCss: Array<string>, toc: Array<string>, resources: any, metadata: any, spine: Array<{ __typename?: 'SpineItem', id?: string | null, idref: string, properties?: string | null, linear: boolean }>, bookmarks: Array<{ __typename?: 'Bookmark', id: string, userId: string, epubcfi?: string | null, mediaId: string, createdAt: any }>, media: { __typename?: 'Media', id: string, resolvedName: string, pages: number, extension: string, readProgress?: { __typename?: 'ResumeReadingCursor', percentageCompleted?: any | null, epubcfi?: string | null, page?: number | null, elapsedSeconds: number } | null, libraryConfig: { __typename?: 'LibraryConfig', defaultReadingImageScaleFit: ReadingImageScaleFit, defaultReadingMode: ReadingMode, defaultReadingDir: ReadingDirection }, nextInSeries: { __typename?: 'PaginatedMediaResponse', nodes: Array<{ __typename?: 'Media', id: string, name: string, thumbnail: { __typename?: 'ImageRef', url: string } }> } } } };
 
-export type UpdateEpubProgressMutationVariables = Exact<{
-  id: Scalars['ID']['input'];
-  input: MediaProgressInput;
-}>;
-
-
-export type UpdateEpubProgressMutation = { __typename?: 'Mutation', updateMediaProgress: { __typename: 'ReadingSession' } };
-
 export type CreateBookmarkMutationVariables = Exact<{
   input: BookmarkInput;
 }>;
@@ -5166,6 +5220,14 @@ export type UsePreferencesMutationVariables = Exact<{
 
 
 export type UsePreferencesMutation = { __typename?: 'Mutation', updateViewerPreferences: { __typename: 'UserPreferences' } };
+
+export type UpdateReadProgressMutationVariables = Exact<{
+  id: Scalars['ID']['input'];
+  input: MediaProgressInput;
+}>;
+
+
+export type UpdateReadProgressMutation = { __typename?: 'Mutation', updateMediaProgress: { __typename: 'ReadingSession' } };
 
 export type BookActionMenuCompleteMutationVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -5234,14 +5296,6 @@ export type BookReaderSceneQueryVariables = Exact<{
 
 
 export type BookReaderSceneQuery = { __typename?: 'Query', mediaById?: { __typename?: 'Media', id: string, resolvedName: string, pages: number, extension: string, readProgress?: { __typename?: 'ResumeReadingCursor', percentageCompleted?: any | null, epubcfi?: string | null, page?: number | null, elapsedSeconds: number } | null, libraryConfig: { __typename?: 'LibraryConfig', defaultReadingImageScaleFit: ReadingImageScaleFit, defaultReadingMode: ReadingMode, defaultReadingDir: ReadingDirection }, analysisData?: { __typename?: 'MediaAnalysisData', dimensions: Array<{ __typename?: 'PageDimension', height: number, width: number }> } | null, nextInSeries: { __typename?: 'PaginatedMediaResponse', nodes: Array<{ __typename?: 'Media', id: string, name: string, thumbnail: { __typename?: 'ImageRef', url: string } }> } } | null };
-
-export type UpdateReadProgressMutationVariables = Exact<{
-  id: Scalars['ID']['input'];
-  input: MediaProgressInput;
-}>;
-
-
-export type UpdateReadProgressMutation = { __typename?: 'Mutation', updateMediaProgress: { __typename: 'ReadingSession' } };
 
 export type BookManagementSceneQueryVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -6051,6 +6105,21 @@ export type DeleteProviderDialogMutationVariables = Exact<{
 export type DeleteProviderDialogMutation = { __typename?: 'Mutation', deleteMetadataProvider: { __typename?: 'MetadataProviderConfigModel', id: number } };
 
 export type ExistingProviderCardFragment = { __typename?: 'MetadataProviderConfigModel', id: number, providerType: MetadataProvider, enabled: boolean, apiTokenExpiresAt?: any | null, autoApplyConfig?: any | null, createdAt: any, updatedAt?: any | null } & { ' $fragmentName'?: 'ExistingProviderCardFragment' };
+
+export type ExistingProviderCardTestProviderMutationVariables = Exact<{
+  id: Scalars['Int']['input'];
+}>;
+
+
+export type ExistingProviderCardTestProviderMutation = { __typename?: 'Mutation', testMetadataProvider: { __typename?: 'ProviderValidationResult', status: ProviderValidationStatus, message: string } };
+
+export type ProviderApiKeyInputValidateCredentialsMutationVariables = Exact<{
+  providerType: MetadataProvider;
+  apiToken: Scalars['String']['input'];
+}>;
+
+
+export type ProviderApiKeyInputValidateCredentialsMutation = { __typename?: 'Mutation', validateMetadataProviderCredentials: { __typename?: 'ProviderValidationResult', status: ProviderValidationStatus, message: string } };
 
 export type ProvidersSectionGetProvidersQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -7821,13 +7890,6 @@ export const EpubJsReaderDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<EpubJsReaderQuery, EpubJsReaderQueryVariables>;
-export const UpdateEpubProgressDocument = new TypedDocumentString(`
-    mutation UpdateEpubProgress($id: ID!, $input: MediaProgressInput!) {
-  updateMediaProgress(id: $id, input: $input) {
-    __typename
-  }
-}
-    `) as unknown as TypedDocumentString<UpdateEpubProgressMutation, UpdateEpubProgressMutationVariables>;
 export const CreateBookmarkDocument = new TypedDocumentString(`
     mutation CreateBookmark($input: BookmarkInput!) {
   createBookmark(input: $input) {
@@ -7951,6 +8013,13 @@ export const UsePreferencesDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<UsePreferencesMutation, UsePreferencesMutationVariables>;
+export const UpdateReadProgressDocument = new TypedDocumentString(`
+    mutation UpdateReadProgress($id: ID!, $input: MediaProgressInput!) {
+  updateMediaProgress(id: $id, input: $input) {
+    __typename
+  }
+}
+    `) as unknown as TypedDocumentString<UpdateReadProgressMutation, UpdateReadProgressMutationVariables>;
 export const BookActionMenuCompleteDocument = new TypedDocumentString(`
     mutation BookActionMenuComplete($id: ID!) {
   finishMediaProgress(id: $id)
@@ -8089,13 +8158,6 @@ export const BookReaderSceneDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<BookReaderSceneQuery, BookReaderSceneQueryVariables>;
-export const UpdateReadProgressDocument = new TypedDocumentString(`
-    mutation UpdateReadProgress($id: ID!, $input: MediaProgressInput!) {
-  updateMediaProgress(id: $id, input: $input) {
-    __typename
-  }
-}
-    `) as unknown as TypedDocumentString<UpdateReadProgressMutation, UpdateReadProgressMutationVariables>;
 export const BookManagementSceneDocument = new TypedDocumentString(`
     query BookManagementScene($id: ID!) {
   mediaById(id: $id) {
@@ -9748,6 +9810,25 @@ export const DeleteProviderDialogDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<DeleteProviderDialogMutation, DeleteProviderDialogMutationVariables>;
+export const ExistingProviderCardTestProviderDocument = new TypedDocumentString(`
+    mutation ExistingProviderCardTestProvider($id: Int!) {
+  testMetadataProvider(id: $id) {
+    status
+    message
+  }
+}
+    `) as unknown as TypedDocumentString<ExistingProviderCardTestProviderMutation, ExistingProviderCardTestProviderMutationVariables>;
+export const ProviderApiKeyInputValidateCredentialsDocument = new TypedDocumentString(`
+    mutation ProviderApiKeyInputValidateCredentials($providerType: MetadataProvider!, $apiToken: String!) {
+  validateMetadataProviderCredentials(
+    providerType: $providerType
+    apiToken: $apiToken
+  ) {
+    status
+    message
+  }
+}
+    `) as unknown as TypedDocumentString<ProviderApiKeyInputValidateCredentialsMutation, ProviderApiKeyInputValidateCredentialsMutationVariables>;
 export const ProvidersSectionGetProvidersDocument = new TypedDocumentString(`
     query ProvidersSectionGetProviders {
   metadataProviderConfigs {

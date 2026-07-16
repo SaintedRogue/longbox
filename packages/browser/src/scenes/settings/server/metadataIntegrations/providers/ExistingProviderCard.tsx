@@ -1,5 +1,13 @@
-import { Badge, Card, Text, ToolTip } from '@stump/components'
-import { FragmentType, graphql, useFragment, UserPermission } from '@stump/graphql'
+import { useGraphQLMutation } from '@stump/client'
+import { Badge, Button, Card, Text, ToolTip } from '@stump/components'
+import {
+	FragmentType,
+	graphql,
+	MetadataProvider,
+	ProviderValidationStatus,
+	useFragment,
+	UserPermission,
+} from '@stump/graphql'
 import { useLocaleContext } from '@stump/i18n'
 import { intlFormat } from 'date-fns'
 import { BadgeAlert, BadgeCheck, BadgeX } from 'lucide-react'
@@ -22,6 +30,15 @@ const fragment = graphql(`
 	}
 `)
 
+const testProviderMutation = graphql(`
+	mutation ExistingProviderCardTestProvider($id: Int!) {
+		testMetadataProvider(id: $id) {
+			status
+			message
+		}
+	}
+`)
+
 type Props = {
 	data: FragmentType<typeof fragment>
 }
@@ -33,6 +50,17 @@ export function ExistingProviderCard({ data }: Props) {
 	const { checkPermission } = useAppContext()
 
 	const canEdit = checkPermission(UserPermission.MetadataProviderManage)
+	// Only Metron supports server-side validation today (Hardcover validates in the
+	// create/edit dialog client-side, and other providers report Unsupported).
+	const canTest = canEdit && provider.providerType === MetadataProvider.Metron
+
+	const {
+		mutate: testProvider,
+		isPending: isTesting,
+		data: testData,
+	} = useGraphQLMutation(testProviderMutation)
+	const testResult = testData?.testMetadataProvider
+
 	const expiresSoon = provider.apiTokenExpiresAt
 		? getDoesExpireSoon(new Date(provider.apiTokenExpiresAt))
 		: false
@@ -48,6 +76,17 @@ export function ExistingProviderCard({ data }: Props) {
 				</div>
 
 				<div className="gap-2 flex items-center">
+					{canTest && (
+						<Button
+							size="xs"
+							variant="outline"
+							onClick={() => testProvider({ id: provider.id })}
+							disabled={isTesting}
+						>
+							{isTesting ? 'Testing…' : 'Test'}
+						</Button>
+					)}
+
 					{canEdit && <EditProviderDialog provider={provider} />}
 
 					{expiresSoon && (
@@ -85,6 +124,19 @@ export function ExistingProviderCard({ data }: Props) {
 					{t(provider.autoApplyConfig?.enabled ? getKey('autoApplyOn') : getKey('autoApplyOff'))}
 				</Badge>
 			</div>
+
+			{testResult && (
+				<Text
+					size="xs"
+					className={
+						testResult.status === ProviderValidationStatus.Valid
+							? 'text-success'
+							: 'text-destructive'
+					}
+				>
+					{testResult.message}
+				</Text>
+			)}
 		</Card>
 	)
 }
