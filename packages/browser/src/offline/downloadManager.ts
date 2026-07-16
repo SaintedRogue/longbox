@@ -112,7 +112,7 @@ async function pump(): Promise<void> {
 			// 'downloading' transition immediately, without waiting on startJob's own DB write.
 			useDownloadStore.getState().upsert(next.bookId, {
 				status: 'downloading',
-				receivedBytes: next.receivedBytes,
+				receivedBytes: next.receivedBytes ?? 0,
 				totalBytes: next.totalBytes,
 			})
 
@@ -132,7 +132,16 @@ async function startJob(item: DownloadQueueItem, controller: AbortController): P
 	const queueId = item.id as number
 
 	try {
-		await updateQueueItem(queueId, { status: 'downloading' })
+		// cancel() can race pump()'s claim of a pending item: it may delete this queue row (and,
+		// as a fallback, abort us -- see cancel()'s own recheck) between pump() setting the
+		// controller and this write landing. `updateQueueItem` reports whether the row was still
+		// there to patch (no extra round-trip); if not, honor the cancel and bail out via the same
+		// cleanup path as an aborted fetch -- no fetcher call, no DownloadRecord.
+		const stillQueued = await updateQueueItem(queueId, { status: 'downloading' })
+		if (!stillQueued) {
+			useDownloadStore.getState().remove(bookId)
+			return
+		}
 
 		const job: DownloadJob = {
 			bookId,
@@ -176,7 +185,7 @@ async function startJob(item: DownloadQueueItem, controller: AbortController): P
 			await updateQueueItem(queueId, { status: 'failed', failureReason })
 			useDownloadStore
 				.getState()
-				.upsert(bookId, { status: 'failed', failureReason, receivedBytes: item.receivedBytes })
+				.upsert(bookId, { status: 'failed', failureReason, receivedBytes: item.receivedBytes ?? 0 })
 		}
 	} finally {
 		controllers.delete(bookId)
@@ -225,6 +234,21 @@ export async function cancel(bookId: string): Promise<void> {
 	if (item && item.id !== undefined) {
 		await deleteQueueItem(item.id)
 	}
+
+	// pump() can race this: it may claim the (still-pending, per our first check above) item
+	// while we were awaiting the reads/deletes above, starting a job whose AbortController we
+	// never saw. If that happened, abort it now -- startJob's own abort branch does the rest of
+	// the cleanup -- instead of just removing the store entry and letting the now-orphaned job
+	// run to completion and silently resurrect it as 'completed'. (And if the claim instead landed
+	// *after* this check, startJob's own `updateQueueItem` call -- see its bail-out above -- will
+	// find the row we just deleted already gone and bail out on its own, so either ordering closes
+	// the race.)
+	const racedController = controllers.get(bookId)
+	if (racedController) {
+		racedController.abort()
+		return
+	}
+
 	useDownloadStore.getState().remove(bookId)
 }
 

@@ -21,7 +21,12 @@ import {
 	isDownloaded,
 	listQueueItems,
 	putDownloadRecord,
+	updateQueueItem,
 } from '../downloadRecords'
+// Namespace import (alongside the named imports above) so we can `jest.spyOn` the module object
+// that `downloadManager.ts` itself calls through -- Babel's CJS interop means both bindings point
+// at the same exports object, so the spy intercepts downloadManager's internal calls too.
+import * as downloadRecordsModule from '../downloadRecords'
 import { useDownloadStore } from '../downloadStore'
 
 /** Lightweight fake "response": just enough shape for blobStore's `.blob().size` usage. */
@@ -304,5 +309,91 @@ describe('downloadManager', () => {
 		await waitFor(() => {
 			expect(useDownloadStore.getState().downloads['b1']?.status).toBe('completed')
 		})
+	})
+
+	it('11. cancel of a pending item is honored even when pump claims it during the race window (regression)', async () => {
+		// Fill both concurrency slots, leaving b3 merely 'pending'.
+		await enqueue({ bookId: 'b1', title: 'Book One', format: 'epub' })
+		await enqueue({ bookId: 'b2', title: 'Book Two', format: 'epub' })
+		await enqueue({ bookId: 'b3', title: 'Book Three', format: 'epub' })
+		expect(useDownloadStore.getState().downloads['b3']?.status).toBe('pending')
+
+		// Stall cancel()'s `getQueueItemByBook('b3')` read so we can force pump() to claim b3
+		// while cancel() is mid-await -- reproducing the exact interleaving from the review:
+		// cancel() takes the "delete the pending queue item" branch, then a racing pump() claim
+		// slips in underneath it before the delete lands.
+		let releaseCancelRead: () => void = () => {}
+		const stalled = new Promise<void>((resolve) => {
+			releaseCancelRead = resolve
+		})
+		const realGetQueueItemByBook = downloadRecordsModule.getQueueItemByBook
+		const spy = jest
+			.spyOn(downloadRecordsModule, 'getQueueItemByBook')
+			.mockImplementation(async (bookId: string) => {
+				if (bookId === 'b3') {
+					await stalled
+				}
+				return realGetQueueItemByBook(bookId)
+			})
+
+		try {
+			// cancel('b3') sees no controller yet (b3 is still pending) and blocks on the stalled read.
+			const cancelPromise = cancel('b3')
+
+			// Finish b1 -- its finally-block pump() call is now free to claim b3 for the open slot.
+			stub.resolveJob('b1', { fileUrl: 'u1', sizeBytes: 10 })
+
+			// Wait until pump() has claimed b3 AND startJob has reached the fetcher call (i.e. past
+			// its own `updateQueueItem` write), so the racing job is genuinely in flight.
+			await waitFor(() => {
+				expect(stub.isPending('b3')).toBe(true)
+			})
+
+			// Now let cancel()'s stalled read resolve; it proceeds to delete the (now-claimed) queue
+			// row. The fix must notice the racing claim and abort it instead of just deleting quietly.
+			releaseCancelRead()
+			await cancelPromise
+
+			// Simulate the racing fetcher completing anyway, exactly as the review describes -- if
+			// cancel failed to abort it, this would write a DownloadRecord and resurrect the store
+			// entry as 'completed'. (If the fix already aborted the racing job, this is a no-op:
+			// the stub's abort listener already dropped it from `pending`.)
+			stub.resolveJob('b3', { fileUrl: 'u3', sizeBytes: 30 })
+
+			// Let any (buggy) still-racing async cascade -- putDownloadRecord + the store upsert --
+			// fully settle before asserting the terminal state. A `waitFor` that only checks once
+			// can otherwise pass on a stale snapshot taken before those writes land, since the
+			// `startJob` continuation for b3 is a fire-and-forget promise the test isn't awaiting.
+			await new Promise((resolve) => setTimeout(resolve, 50))
+
+			expect(await isDownloaded('b3')).toBe(false)
+			expect(useDownloadStore.getState().downloads['b3']).toBeUndefined()
+			const items = await listQueueItems()
+			expect(items.map((i) => i.bookId)).not.toContain('b3')
+			expect(stub.isPending('b3')).toBe(false)
+		} finally {
+			spy.mockRestore()
+		}
+	})
+
+	it('12. receivedBytes never lands as undefined/NaN in the store on the pending->downloading transition', async () => {
+		await enqueue({ bookId: 'b1', title: 'Book One', format: 'epub' })
+		await enqueue({ bookId: 'b2', title: 'Book Two', format: 'epub' })
+		await enqueue({ bookId: 'b3', title: 'Book Three', format: 'epub' }) // stays pending
+
+		const [b3Item] = (await listQueueItems()).filter((i) => i.bookId === 'b3')
+		expect(b3Item?.id).toBeDefined()
+		// Corrupt the persisted row the way a stale/legacy write could -- `receivedBytes` is
+		// typed `number` but `Partial` + no `exactOptionalPropertyTypes` lets `undefined` through.
+		await updateQueueItem(b3Item!.id as number, { receivedBytes: undefined })
+
+		// Free a slot so pump() claims b3 and runs the pending->downloading upsert under test.
+		stub.resolveJob('b1', { fileUrl: 'u1', sizeBytes: 10 })
+
+		await waitFor(() => {
+			expect(useDownloadStore.getState().downloads['b3']?.status).toBe('downloading')
+		})
+		expect(typeof useDownloadStore.getState().downloads['b3']?.receivedBytes).toBe('number')
+		expect(useDownloadStore.getState().downloads['b3']?.receivedBytes).toBe(0)
 	})
 })

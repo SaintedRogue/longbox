@@ -112,20 +112,25 @@ export async function listQueueItemsByStatus(status: QueueStatus): Promise<Downl
 	return db.getAllFromIndex('downloadQueue', 'by-status', status)
 }
 
-/** Read-modify-write inside one readwrite transaction so a partial patch doesn't clobber unspecified fields. */
+/**
+ * Read-modify-write inside one readwrite transaction so a partial patch doesn't clobber unspecified
+ * fields. Returns whether the item still existed to be patched (false if it was already deleted --
+ * e.g. by a racing `cancel()` -- so callers can detect that without a second round-trip read).
+ */
 export async function updateQueueItem(
 	id: number,
 	patch: Partial<Omit<DownloadQueueItem, 'id'>>,
-): Promise<void> {
+): Promise<boolean> {
 	const db = await getDB()
 	const tx = db.transaction('downloadQueue', 'readwrite')
 	const existing = await tx.store.get(id)
 	if (!existing) {
 		await tx.done
-		return
+		return false
 	}
 	await tx.store.put({ ...existing, ...patch, id })
 	await tx.done
+	return true
 }
 
 export async function deleteQueueItem(id: number): Promise<void> {
