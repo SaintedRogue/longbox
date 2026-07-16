@@ -1,6 +1,8 @@
 import { useSDK } from '@stump/client'
 import { forwardRef, Suspense, useCallback } from 'react'
 
+import { useOfflineImageSrc } from '@/offline/resolveOfflineUrl'
+
 import { AuthImage } from './AuthImage'
 
 type Props = {
@@ -9,6 +11,14 @@ type Props = {
 
 const EntityImage = forwardRef<HTMLImageElement, Props>(({ src, onLoad, ...props }, ref) => {
 	const { sdk } = useSDK()
+
+	// Checked above the token/session split: session-mode's plain <img> is browser-fetched (no JS
+	// to intercept at the network layer), so the only way to serve cached bytes there is to swap
+	// `src` for an object URL before render -- which also means offline must win in token mode too,
+	// since AuthImage would otherwise re-fetch over the network. useOfflineImageSrc resolves to
+	// `undefined` until checked and for non-downloaded images, so the common (non-downloaded) path
+	// still renders the network image immediately with no blank flash.
+	const offlineSrc = useOfflineImageSrc(typeof src === 'string' ? src : undefined)
 
 	const handleImageLoad = useCallback(
 		(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
@@ -21,7 +31,9 @@ const EntityImage = forwardRef<HTMLImageElement, Props>(({ src, onLoad, ...props
 	)
 
 	const renderImage = () => {
-		if (sdk.isTokenAuth) {
+		if (offlineSrc) {
+			return <img {...props} src={offlineSrc} ref={ref} onLoad={handleImageLoad} />
+		} else if (sdk.isTokenAuth) {
 			return (
 				<AuthImage
 					src={src || ''}
