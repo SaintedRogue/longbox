@@ -155,8 +155,10 @@ function BookReaderScene({ book }: Props) {
 			const delta = Math.max(0, elapsedSeconds - lastSyncedElapsedRef.current)
 			// Advance the baseline optimistically at fire time rather than in onSuccess: if
 			// this mutation ultimately fails, its delta is undercounted instead of being
-			// double-counted by a concurrent in-flight mutation for a different page. A
-			// durable offline outbox (Wave 3) will remove the need for this tradeoff.
+			// double-counted by a concurrent in-flight mutation for a different page. The
+			// offline outbox (see fireProgressMutation's onError below) only durably queues a
+			// *terminal* failure's own delta -- a superseded, still-retrying mutation's delta
+			// is not folded in and remains undercounted by this tradeoff.
 			lastSyncedElapsedRef.current = elapsedSeconds
 
 			const elapsedSecondsDelta = delta > 0 ? delta : undefined

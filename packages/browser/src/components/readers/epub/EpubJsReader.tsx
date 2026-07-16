@@ -271,8 +271,10 @@ export default function EpubJsReader({ id, isIncognito }: EpubJsReaderProps) {
 			const delta = Math.max(0, totalSeconds - lastSyncedElapsedRef.current)
 			// Advance the baseline optimistically at fire time rather than in onSuccess: if
 			// this mutation ultimately fails, its delta is undercounted instead of being
-			// double-counted by a concurrent in-flight mutation. A durable offline outbox
-			// (Wave 3) will remove the need for this tradeoff.
+			// double-counted by a concurrent in-flight mutation. The offline outbox (see
+			// fireProgressMutation's onError below) only durably queues a *terminal*
+			// failure's own delta -- a superseded, still-retrying mutation's delta is not
+			// folded in and remains undercounted by this tradeoff.
 			lastSyncedElapsedRef.current = totalSeconds
 
 			const elapsedSecondsDelta = delta > 0 ? delta : undefined
