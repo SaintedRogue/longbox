@@ -3,12 +3,14 @@ title: Providers
 ---
 
 <Callout title="Work in progress">
-	This integration is highly experimental and not fully implemented. Some information may be missing, and some features may not work as expected. Please report any issues you encounter.
+	This integration is highly experimental and not fully implemented. Some information may be
+	missing, and some features may not work as expected. Please report any issues you encounter.
 </Callout>
 
 While Longbox does not support every external metadata provider, it currently integrates with the following providers:
 
 - Hardcover
+- Metron
 - Open Library
 - Anilist
 - ComicVine
@@ -16,6 +18,14 @@ While Longbox does not support every external metadata provider, it currently in
 ## Hardcover
 
 > Not yet documented
+
+## Metron
+
+[Metron](https://metron.cloud) is a comics-focused metadata database (issues, series, and credits) and is currently the only provider Longbox recommends for comic libraries. Metron's data is licensed under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) — Longbox attributes Metron on the provider card in Settings.
+
+**Authentication.** Metron's API uses HTTP Basic auth (a username and password), not a bearer token. Longbox's provider configuration only has a single API-token field, so Metron credentials are entered as `username:password` in that one field (e.g. `my_metron_username:my_metron_password`). This is a deliberate tradeoff to avoid a schema migration for a single provider — the token field is still encrypted at rest the same way as every other provider's token.
+
+**Rate limits.** Metron enforces 20 requests/minute and 5,000 requests/day per account. Longbox enforces the per-minute limit locally before every request; the daily limit is not tracked locally and instead relies on Metron's `429 Too Many Requests` responses, which Longbox's retry middleware backs off and retries automatically. Authentication failures (401/403) are never retried.
 
 ## Open Library
 
