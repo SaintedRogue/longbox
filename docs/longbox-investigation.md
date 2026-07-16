@@ -302,3 +302,11 @@ Built manifest passes Chrome's minimum installability bar (`id`, `name`, `start_
 **(c) Background progress sync**: IndexedDB outbox for the two progress mutations, flushed on `online`/SW `sync`; replace silent `onError`; timestamped last-write-wins.
 
 **(d) Icons/splash**: single source-of-truth icon set (current assets are a mix of `favicon-*`/`stump-logo-*` legacy names, incl. a 373 KB `favicon.png` used as the page-error fallback); generate iOS startup images (pwa-asset-generator step); replace `stump-splash.gif` branding; add update-available toast (`useRegisterSW` + `onNeedRefresh`) or a chunk-load-error → reload handler.
+
+---
+
+## Appendix: post-Wave-2 hardening backlog
+
+- **At-rest key management (inherited, Medium):** `server_config.encryption_key` lives in the same SQLite DB as the ciphertexts it protects (`metadata_provider_config.encrypted_api_token`), and is held in memory as a plaintext String. Strong primitive (AES-256-GCM + Argon2 via simple_crypt), weak key location. Now carries a reusable Metron `username:password`, not just scoped API tokens. Fix direction: derive/load the key from an env var or server-side secret outside the DB. Flagged by the Stream E security audit (July 2026).
+- Response body-size cap on provider HTTP clients (Info): `response.json()` has no explicit size bound; low practical risk, cheap hardening.
+- `stump-logo` cleanup complete; remaining upstream-facing surfaces: crowdin.yml (upstream translation project config, unused by Longbox).
