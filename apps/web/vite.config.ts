@@ -78,7 +78,11 @@ export default defineConfig({
 				id: 'longbox',
 				name: 'Longbox',
 				short_name: 'Longbox',
+				description: 'A fast, self-hosted comics, manga, and digital book server.',
 				theme_color: '#161719',
+				// Brand ink — matches the app-icon tiles so the PWA launch/splash
+				// background does not flash white before the UI paints.
+				background_color: '#211d18',
 				icons: [
 					{
 						src: '/assets/longbox-192.png',

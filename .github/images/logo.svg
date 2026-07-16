@@ -1,24 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- Longbox logo: a comic longbox, side view, bagged issues peeking out,
-       one pulled for reading. Palette: cardboard amber, board cream,
-       terracotta accent, near-black badge. -->
-  <rect x="0" y="0" width="512" height="512" rx="116" fill="#161719"/>
-  <!-- issues inside the box -->
-  <g>
-    <rect x="112" y="188" width="54" height="140" rx="7" fill="#F2EAD9"/>
-    <rect x="178" y="156" width="54" height="172" rx="7" fill="#E6DCC3"/>
-    <rect x="244" y="176" width="54" height="152" rx="7" fill="#F2EAD9"/>
-    <!-- the pulled issue -->
-    <g transform="rotate(7 341 250)">
-      <rect x="314" y="118" width="54" height="200" rx="7" fill="#D9704C"/>
-    </g>
-  </g>
-  <!-- box body -->
-  <rect x="80" y="300" width="352" height="136" rx="20" fill="#E5A83B"/>
-  <!-- box rim -->
-  <path d="M80 320 q0 -20 20 -20 h312 q20 0 20 20 v12 h-352 z" fill="#B9822A"/>
-  <!-- label chip on the box front -->
-  <rect x="112" y="356" width="84" height="48" rx="10" fill="#F2EAD9"/>
-  <rect x="126" y="372" width="42" height="7" rx="3.5" fill="#B9822A"/>
-  <rect x="126" y="386" width="26" height="7" rx="3.5" fill="#D9C9A8"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" fill="none" stroke="currentColor" color="#211d18" stroke-width="4.5" stroke-linejoin="round" stroke-linecap="round" role="img" aria-label="Longbox">
+  
+  <path d="M60 92 L25 70 L25 126 L60 148 Z"></path>
+  
+  <path d="M60 92 L175 92 L175 148 L60 148 Z"></path>
+  
+  <path d="M56 94 L21 72 L21 60 L56 82 Z"></path>
+  
+  <path d="M56 94 L179 94 L179 82 L56 82 Z"></path>
+  
+  <path d="M56 82 L179 82 L144 60 L21 60 Z"></path>
+  
+  <path d="M35 96 L50 105 M35 96 Q32 96 32 99 L32 101 Q32 104 35 106 L48 114 Q51 114 51 111 L51 109 Q51 106 48 104 Z"></path>
 </svg>

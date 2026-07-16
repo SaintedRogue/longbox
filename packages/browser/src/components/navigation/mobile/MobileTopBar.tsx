@@ -1,6 +1,8 @@
 import { Heading } from '@stump/components'
 import { Link } from 'react-router-dom'
 
+import LongboxMark from '@/components/LongboxMark'
+
 import MobileSheet from './MobileSheet'
 
 export const TOPBAR_HEIGHT_PX = 53
@@ -19,7 +21,7 @@ export default function TopBar() {
 				</div>
 				<div className="gap-2 col-span-6 flex h-full items-center justify-center">
 					<Link to="/" className="gap-2 flex shrink-0 items-center justify-start">
-						<img src="/assets/longbox.ico" className="h-6 w-6 object-scale-down" />
+						<LongboxMark simplified className="h-6 w-6 text-foreground" />
 						<Heading variant="gradient" size="xs">
 							Longbox
 						</Heading>

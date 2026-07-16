@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 250" width="240" height="250" fill="none" role="img" aria-label="Longbox">
+  <g stroke="currentColor" color="#211d18" stroke-width="4.5" stroke-linejoin="round" stroke-linecap="round" transform="translate(20 20)">
+    <path d="M60 92 L25 70 L25 126 L60 148 Z"></path>
+    <path d="M60 92 L175 92 L175 148 L60 148 Z"></path>
+    <path d="M56 94 L21 72 L21 60 L56 82 Z"></path>
+    <path d="M56 94 L179 94 L179 82 L56 82 Z"></path>
+    <path d="M56 82 L179 82 L144 60 L21 60 Z"></path>
+    <path d="M35 96 L50 105 M35 96 Q32 96 32 99 L32 101 Q32 104 35 106 L48 114 Q51 114 51 111 L51 109 Q51 106 48 104 Z"></path>
+  </g>
+  
+  <text x="120" y="228" text-anchor="middle" fill="#211d18" stroke="none" font-family="Archivo, sans-serif" font-weight="800" font-size="52" letter-spacing="-1">longbox</text>
+</svg>

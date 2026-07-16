@@ -1,5 +1,5 @@
 <p align="center">
-  <img alt="The Longbox logo: a minimalist comic longbox with bagged issues, one pulled for reading" src="./.github/images/logo.svg" width="128" />
+  <img alt="The Longbox logo: a line-drawn comic longbox" src="./.github/images/logo.png" width="120" />
 </p>
 <h1 align="center">Longbox</h1>
 

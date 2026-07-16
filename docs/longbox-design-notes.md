@@ -1,55 +1,81 @@
 # Longbox visual identity notes
 
-Seeded at the Wave 1→2 boundary alongside the logo work. Stream D (peek overlay)
-and later UI work should extend this direction, not restart it.
+Later UI work should extend this direction, not restart it.
 
 ## Concept: "the longbox as physical object"
 
 The brand object is the comic longbox — the long cardboard box collectors store
-bagged-and-boarded issues in. The logo is a minimalist side view: an amber
-cardboard box with a label chip, cream boards/issues standing inside, and one
-terracotta issue pulled up at a slight tilt (the issue you're reading).
+bagged-and-boarded issues in. The logo is a hand-drawn **line-mark**: an
+isometric longbox rendered as a clean open wireframe (five visible faces — left
+end, front, lid top, lid front rim, lid left rim — plus a handle slot), no
+fills. It reads as a single crisp glyph at any size on any background.
+
+> Supersedes the earlier amber filled-box "badge" concept (Wave 1→2). The
+> line-mark is the canonical logo from the icon pack in
+> `~/Downloads/longbox_icon_design.zip`; the amber-cardboard _identity_ carries
+> forward, the specific filled artwork does not.
 
 ## Logo files
 
-- `.github/images/logo.svg` — master badge (512 viewBox, dark rounded square)
-- `.github/images/logo-small.svg` — simplified variant for ≤48px (three issues,
-  no label chip); used for favicon-16 and the .ico sizes
+- `.github/images/logo.svg` — master line-mark (200 viewBox, `stroke="currentColor"`,
+  no container). The one source of truth; recolor by setting `color`/`stroke`.
+- `.github/images/logo-lockup.svg` — mark + "longbox" wordmark stacked (Archivo
+  800). ⚠️ Uses live `<text>` — renders correctly only where Archivo is loaded.
+  **Outline the text before using in production** (no Archivo/fonttools was
+  available when this landed, so it stays as a live-text source asset; the app
+  itself never uses it — it renders "Longbox" as its own styled heading).
+- `.github/images/logo.png` — a self-contained ink-tile render for the README
+  (opaque, so it reads on both GitHub light/dark themes).
+- `packages/components`/`packages/browser` in-app glyph:
+  `packages/browser/src/components/LongboxMark.tsx` inlines the mark as
+  `stroke="currentColor"`, so login header + mobile top bar adopt the active
+  theme's foreground automatically — no per-theme asset. `simplified` drops the
+  handle slot for small sizes.
 - `packages/browser/public/assets/longbox-{16,180,192,512}.png`,
-  `longbox-mark.png`, `longbox.ico` — rasterized from the masters via
-  rsvg-convert; `longbox-512-maskable.png` shrinks the glyph to 80% so circular
-  Android masks don't clip the box corners. Named `longbox-*` (not `favicon-*`)
-  deliberately: `/assets` is served immutable for a year and these files aren't
-  content-hashed, so any future art change must also rename the files.
-- `packages/browser/public/assets/longbox-splash.svg` — badge with a SMIL
-  opacity pulse, used as the app-shell loading splash
+  `longbox-512-maskable.png`, `longbox-mark.png`, `longbox.ico` — filled app-icon
+  tiles rasterized from the mark via rsvg-convert: **ink `#211d18` rounded tile +
+  cream `#f3efe8` mark**. `longbox-16.png` and the small `.ico` sizes drop the
+  handle slot (illegible < ~24px); `-maskable` is full-bleed square with the
+  mark at ~60% (Android safe zone); `-180` is square (Apple applies its own
+  mask). Named `longbox-*` (not `favicon-*`) deliberately: `/assets` is served
+  immutable for a year and these files aren't content-hashed, so any future art
+  change must also **rename** the files to bust returning browsers' caches.
+- `packages/browser/public/assets/longbox-splash.svg` — the ink-tile mark with a
+  SMIL opacity pulse, used as the app-shell loading splash.
 
 ## Palette
 
-| Role                    | Hex       | Usage                                |
-| ----------------------- | --------- | ------------------------------------ |
-| Ink (badge/bg)          | `#161719` | matches the app's dark `theme_color` |
-| Cardboard               | `#E5A83B` | the box; primary brand accent        |
-| Cardboard shadow        | `#B9822A` | box rim, label text dashes           |
-| Board cream             | `#F2EAD9` | issues, label chip                   |
-| Board cream dim         | `#E6DCC3` | alternating issues                   |
-| Pulled-issue terracotta | `#D9704C` | the "currently reading" accent       |
+From the icon pack handoff. In-app UI keeps using the existing theme tokens; the
+palette below is for brand assets and may inform (not replace) accent choices.
 
-Amber-on-dark deliberately echoes the docs landing page's existing amber-500
-motifs. In-app UI must keep using the existing theme tokens — the palette above
-is for brand assets and may inform (not replace) accent choices in new surfaces.
+| Role              | Hex       | Usage                                                   |
+| ----------------- | --------- | ------------------------------------------------------- |
+| Ink               | `#211d18` | default mark on light bg; app-icon tile background      |
+| Cream             | `#f3efe8` | reversed mark on dark/brand bg; neutral tile background |
+| Amber (cardboard) | `#d98a3d` | primary brand accent; recommended alt tile background   |
+| Teal              | `#2f6f6a` | secondary accent; alt tile background                   |
 
-## Motifs for UI work (Stream D and beyond)
+Recommended container backgrounds (rounded square, radius ≈ 22% of size):
+neutral cream, amber, teal, or ink (use the reversed cream mark on amber/teal/ink).
+The shipped app-icon/favicon tiles use **ink + cream mark**; the manifest
+`background_color` matches (`#211d18`) so PWA launch doesn't flash white.
 
-- "Pulled issue": the peek overlay is the pulled issue — consider a subtle
-  top-edge accent or tilt-in entrance easing that echoes pulling a book from
-  the box. Keep it restrained; no skeuomorphic textures.
-- Label chip: rounded-rect chip with short dashes is the brand's "metadata"
-  shorthand; reusable for empty states or section badges.
-- Geometry: rounded rects only, radius scale ~7/10/20 at 512 (i.e. small,
-  medium, large), slight 7–9° tilts for "active" elements.
-- Both light and dark themes must work: brand assets carry their own dark
-  badge; never place cream-on-white without the badge.
+## Sizing & clear space
+
+- Legible down to ~24px; below that, drop the handle-slot detail (`simplified`
+  on `LongboxMark`, or the small `.svg` variants for rasters).
+- Keep clear space ≈ the lid height (~⅕ of icon height) on all sides.
+- Scale via `width`/`height` / `h-*`/`w-*`, never by editing paths.
+
+## Motifs for UI work
+
+- "Pulled issue": the peek overlay is the pulled issue — a restrained left-edge
+  accent + subtle tilt-in entrance (shipped in Stream D, below). No skeuomorphism.
+- Geometry: the mark is all straight strokes + rounded joins; echo that with
+  rounded-join line icons and clean isometric framing where a brand cue helps.
+- Both light and dark themes must work: the in-app glyph is `currentColor`, and
+  filled brand tiles carry their own ink background — never place a cream mark on
+  white without its tile.
 
 ## Applied: the book peek overlay (Stream D)
 

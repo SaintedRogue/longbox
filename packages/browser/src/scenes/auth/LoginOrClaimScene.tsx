@@ -21,6 +21,7 @@ import { useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { z } from 'zod'
 
+import LongboxMark from '@/components/LongboxMark'
 import { useAppStore, useUserStore } from '@/stores'
 
 // TODO: redirect away if the user is already logged in
@@ -110,7 +111,7 @@ export default function LoginOrClaimScene() {
 		if (isClaimed) {
 			return (
 				<div className="gap-4 px-2 flex shrink-0 items-center justify-center">
-					<img src="/assets/longbox-mark.png" width="80" height="80" />
+					<LongboxMark className="h-20 w-20 text-foreground" />
 					<Heading variant="gradient" size="3xl" className="font-bold">
 						Longbox
 					</Heading>
