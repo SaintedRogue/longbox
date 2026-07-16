@@ -58,12 +58,12 @@ describe('synthesizeReaderBook', () => {
 		expect(book.readProgress).toBeNull()
 	})
 
-	it('defaults libraryConfig to the reader defaults (Paged / LTR / Height)', () => {
+	it('defaults libraryConfig to a continuous reading mode so offline paging never navigates (ContinuousVertical / LTR / Height)', () => {
 		const book = synthesizeReaderBook(makeRecord())
 
 		expect(book.libraryConfig).toEqual({
 			defaultReadingImageScaleFit: ReadingImageScaleFit.Height,
-			defaultReadingMode: ReadingMode.Paged,
+			defaultReadingMode: ReadingMode.ContinuousVertical,
 			defaultReadingDir: ReadingDirection.Ltr,
 		})
 	})

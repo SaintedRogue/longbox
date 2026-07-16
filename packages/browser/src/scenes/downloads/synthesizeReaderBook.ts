@@ -36,7 +36,11 @@ export function synthesizeReaderBook(record: DownloadRecord): ImageReaderBookRef
 		readProgress: null,
 		libraryConfig: {
 			defaultReadingImageScaleFit: ReadingImageScaleFit.Height,
-			defaultReadingMode: ReadingMode.Paged,
+			// Offline reading must use a continuous mode: ImageBasedReader's paged
+			// `handleChangePage` navigates to the server-dependent `/books/:id/reader` route on every
+			// page turn, which fails once the server is stopped. Continuous modes just update local
+			// state instead, so paging stays on the offline route.
+			defaultReadingMode: ReadingMode.ContinuousVertical,
 			defaultReadingDir: ReadingDirection.Ltr,
 		},
 		analysisData: null,
