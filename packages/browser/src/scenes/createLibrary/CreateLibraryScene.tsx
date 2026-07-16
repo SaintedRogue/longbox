@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 
 import { SceneContainer } from '@/components/container'
+import { getAppScroller } from '@/hooks'
 import {
 	CreateOrUpdateLibrarySchema,
 	intoThumbnailConfig,
@@ -107,7 +108,8 @@ export default function CreateLibraryScene() {
 	 */
 	useEffect(() => {
 		if (createError) {
-			window.scrollTo({ behavior: 'smooth', top: 0 })
+			// The app scrolls a custom container, not the window — scroll that.
+			getAppScroller()?.scrollTo({ behavior: 'smooth', top: 0 })
 		}
 	}, [createError])
 

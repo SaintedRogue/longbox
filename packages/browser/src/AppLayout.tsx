@@ -17,7 +17,7 @@ import { MobileTopBar, SideBar, TopBar } from '@/components/navigation'
 import RouteLoadingIndicator from '@/components/RouteLoadingIndicator'
 
 import { AppContext, PermissionEnforcerOptions } from './context'
-import { useTheme } from './hooks'
+import { useScrollRestoration, useTheme } from './hooks'
 import { useCoreEvent } from './hooks/useCoreEvent'
 import { useAppStore, useUserStore } from './stores'
 
@@ -107,6 +107,10 @@ export function AppLayout({ overlayLocation }: AppLayoutProps) {
 			instantiatedInstance.destroy()
 		}
 	}, [instance, isRefSet, hideScrollBar])
+
+	// Restore scroll position on back/forward, reset to top on new navigations.
+	// Mounted after the OverlayScrollbars setup so the viewport it targets exists.
+	useScrollRestoration()
 
 	/**
 	 * If the user prefers the top bar, we hide the sidebar
