@@ -20,8 +20,10 @@ const withLocaleKey = (key: string) => `${LOCALE_BASE_KEY}.${key}`
  * Lists books that have been downloaded for offline reading (Task 4.4's `OfflineDownloadButton`
  * is how they get here), with their on-disk size and a way to remove them. Reads straight from
  * the local `useDownloadStore` records projection -- no server round-trip -- so this renders
- * correctly even with the server unreachable. Opening a book still uses the normal book route;
- * making that route itself work offline is Stream 5.
+ * correctly even with the server unreachable. Opening a book routes to the offline reader entry
+ * (`paths.offlineReader`, see OfflineBookReaderScene.tsx), which synthesizes the book from the
+ * local `DownloadRecord` instead of the normal book route's `mediaById` query -- it works whether
+ * the server is reachable or not.
  */
 export default function DownloadsScene() {
 	const { t } = useLocaleContext()
@@ -74,7 +76,7 @@ function DownloadRow({ record, onRemove }: DownloadRowProps) {
 	return (
 		<Card className="gap-3 p-3 flex w-full items-center">
 			<Link
-				to={paths.bookOverview(record.bookId)}
+				to={paths.offlineReader(record.bookId)}
 				className="gap-3 min-w-0 flex flex-1 items-center"
 			>
 				<DownloadThumbnail record={record} />
