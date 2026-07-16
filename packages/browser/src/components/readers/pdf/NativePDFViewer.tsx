@@ -2,6 +2,8 @@ import { useSDK } from '@stump/client'
 import { Link, Text } from '@stump/components'
 import { useEffect, useState } from 'react'
 
+import { offlineFileBlob } from '@/offline/resolveOfflineUrl'
+
 type Props = {
 	/**
 	 * The ID of the media
@@ -28,10 +30,15 @@ export default function NativePDFViewer({ id }: Props) {
 	 */
 	useEffect(() => {
 		async function fetchPdf() {
-			const response = await fetch(sdk.media.downloadURL(id), {
-				credentials: 'include',
-			})
-			const blob = await response.blob()
+			const url = sdk.media.downloadURL(id)
+			const cached = await offlineFileBlob(url)
+			let blob: Blob
+			if (cached) {
+				blob = cached
+			} else {
+				const response = await fetch(url, { credentials: 'include' })
+				blob = await response.blob()
+			}
 			const arrayBuffer = await blob.arrayBuffer()
 			setPdfObjectUrl(URL.createObjectURL(new Blob([arrayBuffer], { type: 'application/pdf' })))
 		}

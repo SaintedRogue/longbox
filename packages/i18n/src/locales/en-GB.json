@@ -2458,7 +2458,9 @@
 		"emptyState": {
 			"heading": "No downloads yet",
 			"message": "Books you download for offline reading will appear here."
-		}
+		},
+		"notDownloaded": "This book isn't downloaded",
+		"epubUnavailableOffline": "Offline reading for EPUB books isn't available yet"
 	},
 	"jobOverlay": {
 		"backupHeading": "Job in Progress"
