@@ -1,125 +1,128 @@
 <p align="center">
-  <img alt="The Longbox logo: a line-drawn comic longbox" src="./.github/images/logo.png" width="120" />
+  <img alt="Longbox — self-hosted comics, manga & digital books" src="./.github/images/banner.png" width="720" />
 </p>
-<h1 align="center">Longbox</h1>
 
 <p align="center">
-  <a href="https://github.com/SaintedRogue/longbox/blob/main/LICENSE">
-    <img src="https://img.shields.io/static/v1?label=License&message=MIT&color=CF9977" />
-  </a>
+  <a href="https://github.com/SaintedRogue/longbox/blob/main/LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-d98a3d?labelColor=211d18" /></a>
+  <a href="https://github.com/SaintedRogue/longbox/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/SaintedRogue/longbox?color=d98a3d&labelColor=211d18" /></a>
+  <a href="https://github.com/SaintedRogue/longbox/commits/main"><img alt="Last commit" src="https://img.shields.io/github/last-commit/SaintedRogue/longbox?color=2f6f6a&labelColor=211d18" /></a>
+  <img alt="Rust" src="https://img.shields.io/badge/Rust-211d18?logo=rust&logoColor=d98a3d" />
+  <img alt="React" src="https://img.shields.io/badge/React-211d18?logo=react&logoColor=61dafb" />
+  <img alt="PWA" src="https://img.shields.io/badge/PWA--first-211d18?logo=pwa&logoColor=f3efe8" />
 </p>
 
-<p align='center'>
-
-Longbox is a free and open source comics, manga, and digital book server with OPDS support, created with <a href="https://www.rust-lang.org/">Rust</a>, <a href='https://github.com/tokio-rs/axum'>Axum</a>, <a href='https://www.sea-ql.org/SeaORM/'>SeaORM</a> and <a href='https://reactjs.org/'>React</a>. It is a fork of <a href="https://github.com/stumpapp/stump">Stump</a> by Aaron Leopold.
-
+<p align="center">
+  A fast, self-hosted server for your comics, manga, and digital books — a Rust backend, an installable web app, and full <a href="https://opds.io/">OPDS</a> support. Longbox is a PWA-first fork of <a href="https://github.com/stumpapp/stump">Stump</a>.
 </p>
 
-<p align='center'>
-<img alt="Screenshot of Longbox" src="./docs/public/images/landing-dark.png" style="width: 90%" />
+<p align="center">
+  <img alt="Screenshot of Longbox" src="./docs/public/images/landing-dark.png" width="90%" />
 </p>
 
-<!-- prettier-ignore: I hate you sometimes prettier -->
+<!-- prettier-ignore -->
 <details>
   <summary><b>Table of Contents</b></summary>
-  <p>
 
-- [Disclaimer](#disclaimer)
+- [What is Longbox?](#what-is-longbox)
+- [What's different in this fork](#whats-different-in-this-fork)
 - [Features](#features)
-- [Roadmap](#roadmap)
 - [Getting Started](#getting-started)
 - [Developer Guide](#developer-guide)
-  - [Contributing](#contributing)
 - [Repository Structure](#repository-structure)
 - [Similar Projects](#similar-projects)
-- [License](#license)
-- [Attribution](#attribution)
+- [License & Attribution](#license--attribution)
+
 </details>
 
-## Disclaimer
+## What is Longbox?
 
-Longbox is under active development and should be treated as **beta software** until it reaches a stable `1.0` release. I do my best to avoid breaking changes, or changes which might cause data loss, but there are no guarantees.
+Longbox is a free and open-source media server for comics, manga, and ebooks. It scans your library, reads the metadata, and serves it to a fast built-in reader, to OPDS clients, and to e-ink devices — all from a single self-hosted binary. It's built with [Rust](https://www.rust-lang.org/) + [Axum](https://github.com/tokio-rs/axum) + [SeaORM](https://www.sea-ql.org/SeaORM/) on the backend and [React](https://react.dev/) on the front.
 
-I develop and maintain Longbox in my free time. In other words, this is not my job and there is no guarantee of any timeline for features or bug fixes.
+Longbox began as a fork of [Stump](https://github.com/stumpapp/stump) by Aaron Leopold, whose excellent Rust core and fast scanning we kept and built on. Where Stump ships desktop and mobile apps alongside the web UI, **Longbox goes all-in on a single installable PWA** — and uses that focus to invest in navigation, comic metadata, and offline reading.
+
+> **Beta software.** Longbox is under active development and should be treated as beta until a stable `1.0`. We avoid breaking or data-losing changes where we can, but make no guarantees — pin versions and keep backups.
+
+## What's different in this fork
+
+The things Longbox adds on top of the Stump core:
+
+- **🗂️ One PWA, everywhere.** The Tauri desktop and Expo mobile apps are gone — a single installable, offline-capable PWA covers desktop and mobile. Removing the native apps also makes the whole repository uniformly [MIT](./LICENSE).
+- **🧭 Navigation that keeps your place.** Scroll position is restored on back/forward, book details open as a **peek overlay** over the browse grid (so you never lose your spot), and breadcrumbs plus back/forward controls make it easy to find your way home. _(See [`docs/adr/0001`](./docs/adr/0001-router-and-scroll-restoration.md).)_
+- **🏷️ Deeper comic metadata.** A [Metron](https://metron.cloud) provider brings CC BY-SA metadata and ComicVine/GCD cross-references into the enrichment framework, ComicVine IDs are recovered from ComicTagger/Kavita tags (`[Issue ID N]` and `[CVDB N]`), and edits can be written **back to `ComicInfo.xml`** inside the archive (opt-in, CBZ).
+- **📥 Durable offline reading.** Reading progress made offline is queued locally (IndexedDB) and synced automatically on reconnect, so a dropped connection never loses your place. Full offline downloads are [on the roadmap](./docs/longbox-wave3b-offline-plan.md).
+- **📱 Proper installability.** Maskable icons, a full iOS launch-screen set, and a themed splash — Longbox installs and launches like a native app.
+- **📦 A fresh identity.** A hand-drawn line-mark and brand system (see [`docs/longbox-design-notes.md`](./docs/longbox-design-notes.md)).
 
 ## Features
 
-- [OPDS](https://opds.io/) [v1.2](https://specs.opds.io/opds-1.2) (including [OPDS PSE](https://github.com/anansi-project/opds-pse)) and [v2.0](https://specs.opds.io/opds-2.0.html) support
-- EPUB, PDF, CBZ/ZIP, and CBR/RAR support
-- Built-in readers for all supported formats
-- Annotations and highlights for EPUB books
-- OIDC authentication
-- Translations (32 locales inherited from upstream)
-- Multi-user account management with permissions, age restrictions, and other access control features
-- Theming support with a handful of [built-in themes](/docs/content/docs/apps/web/themes.mdx)
-- [Kobo](/docs/content/docs/guides/integrations/kobo.mdx) and [KoReader](/docs/content/docs/guides/integrations/koreader.mdx) sync integrations
-- Multiple different installation methods, including Docker and pre-built binaries
+Inherited from the Stump core and carried forward:
 
-And more not mentioned. The [documentation](/docs/content/docs) provides additional details about features, installation, and usage guides.
+- [OPDS](https://opds.io/) [v1.2](https://specs.opds.io/opds-1.2) (including [OPDS PSE](https://github.com/anansi-project/opds-pse)) and [v2.0](https://specs.opds.io/opds-2.0.html)
+- EPUB, PDF, CBZ/ZIP, and CBR/RAR — with a built-in reader for every format
+- Annotations and highlights for EPUB
+- OIDC authentication and multi-user accounts with permissions, age restrictions, and access control
+- [Kobo](/docs/content/docs/guides/integrations/kobo.mdx) and [KoReader](/docs/content/docs/guides/integrations/koreader.mdx) sync
+- A handful of [built-in themes](/docs/content/docs/apps/web/themes.mdx) (light, dark, and more)
+- 32 locales
+- Multiple installation methods, including Docker and pre-built binaries
 
-## Roadmap
-
-You can track [open issues](https://github.com/SaintedRogue/longbox/issues) to see what efforts are currently being worked on or planned.
-
-Feel free to create an issue or discussion if you have anything else you'd like to see!
+The [documentation](/docs/content/docs) has the full details.
 
 ## Getting Started
 
-The installation guides are available in [the docs](/docs/content/docs/getting-started/installation/index.mdx).
+Installation guides live in [the docs](/docs/content/docs/getting-started/installation/index.mdx) (Docker and pre-built binaries).
+
+For local development:
+
+```bash
+yarn install          # install JS deps
+yarn web build        # build the web app once
+cargo run -p longbox_server   # run the server (serves the built web app)
+# or, for hot-reloading the web UI:
+yarn dev:web
+```
 
 ## Developer Guide
 
-The developer guide is available in [the docs](/docs/content/docs/developer/contributing.mdx).
+The developer guide is in [the docs](/docs/content/docs/developer/contributing.mdx); please review [CONTRIBUTING.md](./.github/CONTRIBUTING.md) first.
 
-### Contributing
+Contributions are very welcome — good places to start:
 
-Contributions are very **welcome**! Please review the [CONTRIBUTING.md](./.github/CONTRIBUTING.md) before getting started.
+- **UI/UX** — even small polish goes a long way
+- **Tests** — broader coverage, especially around metadata and readers
+- **Translations** — help expand and fix locale coverage
+- **CI / release automation** and other devops
+- Chipping away at `TODO`/`FIXME` comments
 
-I recommend taking a look at [open issues](https://github.com/SaintedRogue/longbox/issues).
-
-In general, the following areas could always use help:
-
-- Translations, so Longbox is accessible to as many people as possible
-  - Help find/fix areas of the app that need better translation coverage
-- Writing comprehensive tests
-- Improving the UI/UX, even small changes can go a long way
-- CI pipelines, automated release processes, and other devops-related efforts
-- Addressing `TODO` or `FIXME` comments in the codebase
+Take a look at the [open issues](https://github.com/SaintedRogue/longbox/issues) to see what's active or planned.
 
 ## Repository Structure
 
-The repository is managed via yarn workspaces and cargo workspaces:
+Managed with yarn workspaces + cargo workspaces:
 
 ```bash
-# The primary applications all grouped together
 apps/
-  server/    # Axum server
-  web/       # UI served by the server
-# The primary internals, like file processing etc
-core/
-# Supporting Rust crates (cli, graphql, integrations, etc)
-crates/
-  migrations/  # Database migrations
-  models/      # Database models
-docs/
-# Shared TypeScript packages
-packages/
+  server/   # Axum server (also serves the web app)
+  web/      # installable React PWA
+core/       # file processing, scanning, metadata internals
+crates/     # supporting Rust crates
+  migrations/  models/  graphql/  integrations/  ...
+packages/   # shared TypeScript packages (browser UI, sdk, components, i18n, ...)
+docs/       # documentation + design notes, ADRs, and plans
 ```
 
 ## Similar Projects
 
-There are a number of other projects that are similar to Longbox, it certainly isn't the first or only digital book media server out there. If Longbox isn't for you, or you want to check out similar projects in this space, here are some other projects you might be interested in:
+Longbox is far from the only server in this space. If it isn't for you, these are worth a look:
 
-- [audiobookshelf](https://github.com/advplyr/audiobookshelf) (_Audiobooks, Podcasts_)
-- [Codex](https://github.com/ajslater/codex)
 - [Kavita](https://github.com/Kareadita/Kavita)
 - [Komga](https://github.com/gotson/komga)
+- [Codex](https://github.com/ajslater/codex)
 - [Storyteller](https://gitlab.com/storyteller-platform/storyteller)
+- [audiobookshelf](https://github.com/advplyr/audiobookshelf) (_audiobooks & podcasts_)
 
-## License
+## License & Attribution
 
-All code in the repository is licensed under the [MIT License](https://www.tldrlegal.com/license/mit-license).
+All code in this repository is licensed under the [MIT License](https://www.tldrlegal.com/license/mit-license).
 
-## Attribution
-
-- Longbox is a fork of [Stump](https://github.com/stumpapp/stump) by Aaron Leopold and contributors.
+Longbox is a fork of [**Stump**](https://github.com/stumpapp/stump) by Aaron Leopold and contributors — thank you for the Rust core and fast scanner this project is built on.
