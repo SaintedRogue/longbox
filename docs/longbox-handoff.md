@@ -1,6 +1,6 @@
 # Longbox — Workstream Handoff
 
-_Last updated: 2026-07-16. Written to kick off the next phase of work; read this first, then the referenced plans._
+_Last updated: 2026-07-16 (after Wave 3b completion). Read this first, then the referenced plans/memory._
 
 ## 0. Snapshot
 
@@ -8,119 +8,147 @@ _Last updated: 2026-07-16. Written to kick off the next phase of work; read this
 | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Repo root**       | `~/longbox` (relocated from `~/Downloads/longbox` on 2026-07-16)                                                                                                                                                                    |
 | **Origin**          | `https://github.com/SaintedRogue/longbox` (`upstream` = `stumpapp/stump`)                                                                                                                                                           |
-| **`main` HEAD**     | `7428c1c4` — `docs: rebrand README around the Longbox identity` (pushed; tree clean)                                                                                                                                                |
+| **`main` HEAD**     | `196ad835` — `Merge offline boot resilience: degrade to an offline shell on network error` (pushed)                                                                                                                                 |
 | **What Longbox is** | A PWA-first fork of [Stump](https://github.com/stumpapp/stump): a fast self-hosted comics/manga/ebook server. Rust (Axum + SeaORM) backend, React 19 installable PWA, OPDS. Desktop/mobile native apps removed → whole repo is MIT. |
 
-Everything through Wave 3b Stream 2 is merged, pushed, and live-verified. The next work is the **offline download subsystem (Wave 3b Streams 3–5)**, plus two deferred backlogs (Metron validation, security hardening).
+**The whole Wave 3b offline download + reading subsystem (Streams 3–5) is DONE, merged, pushed, and
+live-verified end-to-end** (download a real CBZ → read it with the server stopped). A follow-up to make
+**paged-mode** offline reading work is in progress. See §4 for what's actually next.
+
+⚠️ **Working-tree note:** two rebrand files are uncommitted from a concurrent session —
+`core/src/config/stump_shadow_text.txt` (startup banner) and `docker/Dockerfile` (LABELs). Not part of
+Wave 3b; leave for that session or commit separately.
 
 ---
 
 ## 1. What's already shipped
 
-| Area                                      | State                           | Key locations                                                                                                                                                                      |
-| ----------------------------------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Rebrand + identity**                    | ✅                              | `README.md`, `.github/images/banner.png` + `logo*.svg`, `packages/browser/src/components/LongboxMark.tsx` (inline line-mark), `docs/longbox-design-notes.md`                       |
-| **Fork mechanics**                        | ✅                              | cargo pkgs `longbox_core`/`longbox_server` (lib names kept `stump_core`/`stump_server` → zero source churn); `@stump/*` npm scopes intentionally unchanged (merge-noise avoidance) |
-| **Metron metadata provider**              | ✅ shipped, ⚠️ unvalidated      | `crates/integrations/metadata/src/providers/metron.rs` — Basic auth (`username:password` token), governor rate-limit, cv_id direct lookup. See §4B.                                |
-| **ComicVine ID recovery**                 | ✅                              | `core/src/filesystem/media/metadata.rs` — `[Issue ID N]` + `[CVDB N]` tag conventions, `4000-N` web fallback; language split; validated on real DC All In file                     |
-| **Wave 3a — navigation**                  | ✅ live-verified                | `useScrollRestoration.ts`, `AppRouter.tsx`, `AppLayout.tsx`, book-peek overlay. ADR: `docs/adr/0001-router-and-scroll-restoration.md`                                              |
-| **Wave 3b Stream 1 — progress outbox**    | ✅ live-verified offline→online | `packages/browser/src/offline/{db,progressOutbox,progressMutation,useProgressOutbox}.ts` + `__tests__` (17 blocks). Durable IndexedDB queue, flush on `online`/mount.              |
-| **Wave 3b Stream 2 — iOS splash/install** | ✅                              | `packages/browser/public/assets/splash/*`, `apps/web/src/index.html`                                                                                                               |
+| Area                                        | State                         | Key locations                                                                                                                                                                        |
+| ------------------------------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Rebrand + identity**                      | ✅                            | `README.md`, `.github/images/*`, `packages/browser/src/components/LongboxMark.tsx`, `docs/longbox-design-notes.md`                                                                   |
+| **Fork mechanics**                          | ✅                            | cargo `longbox_core`/`longbox_server` (lib names kept `stump_*` → zero churn); `@stump/*` npm scopes unchanged                                                                       |
+| **ComicVine ID recovery**                   | ✅                            | `core/src/filesystem/media/metadata.rs` — `[Issue ID N]`/`[CVDB N]` tags, `4000-N` web fallback                                                                                      |
+| **Wave 3a — navigation**                    | ✅ live-verified              | `useScrollRestoration.ts`, `AppRouter.tsx`. ADR `docs/adr/0001-*`                                                                                                                    |
+| **Wave 3b S1 — progress outbox**            | ✅ live-verified              | `packages/browser/src/offline/{db,progressOutbox,useProgressOutbox}.ts`                                                                                                              |
+| **Wave 3b S2 — iOS splash/install**         | ✅                            | `packages/browser/public/assets/splash/*`, `apps/web/src/index.html`                                                                                                                 |
+| **Wave 3b S3 — offline storage foundation** | ✅                            | `offline/{db.ts (DB v2),downloadRecords.ts,blobStore.ts,persist.ts}` — IndexedDB catalog + Cache-API blob store (`longbox-offline-v1`)                                               |
+| **Wave 3b S4 — download orchestration**     | ✅ live-verified              | `offline/{downloadManager.ts,downloadFetcher.ts,downloadStore.ts,useDownloads.ts}`, `scenes/book/OfflineDownloadButton.tsx`, `scenes/downloads/DownloadsScene.tsx` + route + sidebar |
+| **Wave 3b S5 — offline-aware readers**      | ✅ live-verified              | `offline/resolveOfflineUrl.ts`, `EntityImage.tsx` (cache-first), PDF/EPUB byte paths, `scenes/downloads/{OfflineBookReaderScene,synthesizeReaderBook,DownloadsRouter}.tsx`           |
+| **Offline boot resilience**                 | ✅ live-verified              | `AppLayout.tsx` (ERR_NETWORK → offline mode, not redirect) + `OfflineAppShell.tsx`                                                                                                   |
+| **Metron provider + validation**            | ✅ shipped, ⚠️ IP-banned live | `crates/integrations/metadata/src/providers/metron.rs`, `src/types/validation.rs` — honest UA + wiremock fixtures (53 tests). See §4B + memory `metron-ip-ban`.                      |
+
+**Offline subsystem architecture (as built):** app-layer storage — IndexedDB catalog (records + queue)
+
+- Cache API bytes keyed by real `/api/v2/media/*` URLs — NOT a service-worker rewrite (SW cache-first
+  would bypass token-mode `AuthImage`). Download fetches via `sdk.axios` (carries cookie OR bearer). The
+  offline reader synthesizes the book object from a `DownloadRecord`; progress writes fall through to the
+  S1 outbox. **Boot resilience:** a network failure (`ERR_NETWORK`) renders a chrome-less `OfflineAppShell`
+  (the `/downloads/*` routes read only local data); a 401 still redirects to login.
 
 ---
 
 ## 2. Build / test / run
 
-All commands from `~/longbox`. Yarn is invoked as `npx -y yarn@1.22.21` (no global yarn).
+All commands from `~/longbox`. Yarn is `npx -y yarn@1.22.21` (no global yarn).
 
 ```bash
 # JS
 npx -y yarn@1.22.21 install
-npx -y yarn@1.22.21 check-types              # full monorepo typecheck
-npx -y yarn@1.22.21 workspace @stump/browser test   # Jest (NOT vitest — see §3)
-npx -y yarn@1.22.21 web build                # build the PWA
+npx -y yarn@1.22.21 workspace @stump/browser test    # Jest (NOT vitest — see §3)
+npx -y yarn@1.22.21 web build                          # build the PWA -> apps/web/dist (a BUILD ARTIFACT)
+npx tsc -b packages/browser/tsconfig.json              # typecheck the browser pkg
 
 # Rust
 cargo build -p longbox_server
-cargo test -p longbox_core
 cargo test -p metadata_integrations
 
 # Run the server (debug): serves the built web app on :10801
-STUMP_CONFIG_DIR=<dir> ./target/debug/longbox_server
-# Hot-reload the web UI instead:
-npx -y yarn@1.22.21 dev:web
+STUMP_CONFIG_DIR=$HOME/.stump ./target/debug/longbox_server
 ```
 
-**Debug DB note:** in debug builds the DB path is baked at compile time from `env!("CARGO_MANIFEST_DIR")` (`core/src/database.rs:23` → `<root>/core/dev.db`). Because of that, **after the 2026-07-16 move the pre-existing binary pointed at the old path** — a rebuild re-bakes it. If a debug binary ever can't find `dev.db`, force a recompile: `touch core/src/database.rs && cargo build -p longbox_server` (a plain rebuild is a no-op when `mv` preserved mtimes).
+**Debug DB note:** debug builds bake the DB path at compile time = `<root>/core/dev.db`. If a binary
+can't find `dev.db` after a move, `touch core/src/database.rs && cargo build -p longbox_server` re-bakes it.
+
+**Live-verify recipe** (server + auth + /mnt/comics library + headless Playwright): saved to session
+**memory** `longbox-live-verify-setup` — read it before attempting a live verify. Key gotchas: the served
+app is `apps/web/dist`, so **rebuild `web build` after ANY packages/browser change** or you verify a stale
+app; the SW is `registerType:'prompt'` so it only controls the page after a reload — wait for
+`navigator.serviceWorker.controller` before simulating offline. Comics are at `/mnt/comics` (NFS `10.0.0.2`).
 
 ---
 
-## 3. Development workflow & known gotchas
+## 3. Development workflow & gotchas
 
-The waves so far used a **parallel worktree-agent** flow; keep it:
+**Flow used for Waves 3b S3–S6 (keep it):** subagent-driven (superpowers:subagent-driven-development) —
+one **feature branch per stream** off `main` (NOT worktrees — the lerna bug below made branch-per-stream
+cleaner), fresh implementer subagent per task, spec+quality review per task, fix loop, merge, then
+live-verify. Progress tracked in `.superpowers/sdd/progress.md` (gitignored; recover from `git log`).
 
-1. **Plan** lives in `docs/` (checkbox tasks, TDD). Spawn `worker-builder` agents in isolated git worktrees (one per independent stream).
-2. **Review** each stream with `feature-dev:code-reviewer` (or `superpowers:requesting-code-review`) → fix loop → merge to `main`.
-3. **Live-verify** the merged result — headless Playwright + a running server + real comics. Agents can write code and unit tests; **only the driver can do the offline→online / server-kill live tests.** Do them.
-
-**Gotchas that already bit us:**
-
-- **Test runner is Jest, not vitest.** `packages/browser` runs `jest`. The Wave 3b plan (`docs/longbox-wave3b-offline-plan.md`) says "vitest" in Streams 1–5 — that's wrong; Stream 1 shipped on Jest. Mentally substitute `jest` when executing Streams 3–5. Tests use `fake-indexeddb`; jsdom needs a `structuredClone` polyfill (already in the offline tests).
-- **Worktree + lerna bug:** from inside a worktree, `yarn check-types` / `yarn web build` resolve to the **main** checkout (lerna workspace-root bug). Inside a worktree use direct `npx tsc -b <pkg>/tsconfig.json` / `npx vite build`.
-- **Pre-commit hook** (husky + lint-staged): prettier `--check` on staged JS/TS/MD/JSON, `cargo fmt --check` on `.rs`. Run `cargo fmt` / prettier before committing or the commit is rejected.
-- **PWA service worker:** vite-plugin-pwa `generateSW`, `registerType: 'prompt'`. `includeManifestIcons: false` is load-bearing (a png-glob collision otherwise breaks SW install — only caught via live SW eval). Verify SW changes in a real browser, not just build output.
+- **Test runner is Jest, not vitest** (the wave3b plan says vitest — wrong). `packages/browser` uses `jest` + `fake-indexeddb`.
+- **Rebuild the web app after browser changes** — the server serves `apps/web/dist`; a stale dist silently verifies old code (this bit us twice mid-Wave-3b).
+- **Worktree + lerna bug:** inside a worktree, `yarn check-types`/`web build` resolve to the main checkout. Prefer branch-per-stream in the main checkout, or use direct `npx tsc -b`/`npx vite build` in a worktree.
+- **Pre-commit** (husky + lint-staged): prettier `--check` on staged JS/TS/MD/JSON, `cargo fmt --check` on `.rs`. Run prettier / `cargo fmt` first, or the commit is rejected. Generated `graphql.ts` and locale JSON must be prettier-clean too.
+- **PWA service worker:** vite-plugin-pwa `generateSW`, `registerType:'prompt'`, `includeManifestIcons:false` is load-bearing. Verify SW behavior in a real browser.
 - **Commit trailer:** `Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>`. Keep Rust and TS in separate commits.
 
 ---
 
 ## 4. Next workstreams (prioritized)
 
-### A. Wave 3b Streams 3–5 — offline download subsystem ⭐ main event
+### A. Paged-mode offline reading ⭐ IN PROGRESS (this session)
 
-**Plan:** `docs/longbox-wave3b-offline-plan.md` (Streams 3–5 are specified at task/interface level, ready to execute subagent-driven). This is the multi-day payload: it rebuilds, for the PWA, the offline downloads the deleted Expo app gave natively.
+The offline reader currently forces **continuous-vertical** mode: `ImageBasedReader`'s paged
+`handleChangePage` calls `navigate('/books/:id/reader?page=N')` on every page turn, which leaves the
+offline route for a server-dependent one. `synthesizeReaderBook.ts` sets `ReadingMode.ContinuousVertical`
+to sidestep it. Follow-up (branch off `196ad835`): add a prop to `ImageBasedReader` that suppresses the
+URL-page-sync navigation, have `OfflineBookReaderScene` pass it, and let the offline reader respect the
+user's persisted reading preferences (reader store `settings` — persisted, available offline) instead of
+forcing continuous. Re-verify paged offline with the live-verify recipe.
 
-- **Stream 3 — storage foundation:** bump `offline/db.ts` to `DB_VERSION 2`, add `downloads` + `downloadQueue` stores; `downloadRecords.ts` (CRUD), `blobStore.ts` (Cache API blob store keyed by real `/api/v2/media/*` URLs), `persist.ts` (`navigator.storage.persist()`). Ships with no UI — fine.
-- **Stream 4 — download orchestration:** `downloadManager.ts` singleton (enqueue/cancel/retry, concurrency 2, per-format fetch via `sdk.axios` so it works in both cookie- and token-auth), `useDownloads.ts` hooks, download button in `BookActionMenu.tsx`, `/downloads` scene + route + sidebar entry.
-- **Stream 5 — offline-aware readers:** `resolveOfflineUrl.ts`; make `EntityImage.tsx` / PDF / EPUB readers check the blob store before the network; an offline reader entry that synthesizes the book object from a `DownloadRecord` so a downloaded book reads with the server stopped (progress writes fall through to the Stream 1 outbox).
+### B. Deferred offline pieces
 
-**Design rationale (already decided):** app-layer storage (IndexedDB catalog + Cache API bytes), **not** a service-worker rewrite — the SW cache-first path would bypass token-mode `AuthImage`. Parity model is mapped to the old Expo `downloaded_files`/`download_queue`/`read_progress` schema in the plan's self-review.
+- **EPUB server-down reading:** `EpubJsReader` also needs the server-parsed `epubById` (spine/toc) which
+  isn't synthesizable from a `DownloadRecord`. S5 added the cached-BYTES path (loads a downloaded epub's
+  ArrayBuffer when online); full server-down EPUB needs client-side epub parsing. Comics + PDF work fully offline.
+- **Minor backlogs** from per-task reviews (in `.superpowers/sdd/progress.md`): S3 `persist.ts` try/catch
+  for a present-but-erroring API; blobStore DI-fallback/throw branch untested; `downloadRecords` stores
+  `totalBytes: undefined`; various test-hygiene items.
 
-**Recommended kickoff:** execute Stream 3 first (foundation, no user-facing risk), review + merge, then 4, then 5. Gate each with the plan's stated gate. Live-verify Stream 4 by downloading a real CBZ from the test library and Stream 5 by reading it with the server stopped.
+### C. Metron live validation — blocked on IP (deferred)
 
-**Test library / mount:** comics live on the Unraid NFS server `10.0.0.2` (`/mnt/comics`, read-only when mounted — ask the user to mount if needed). Sample comics with known CVDB tags were previously copied to the session scratchpad for parser/download tests.
+Provider now has an honest User-Agent + wiremock fixture tests (53 passing). **Live validation is blocked:**
+the real egress IP is firewall-banned by Metron (`metron.cloud` behind Anubis PoW). See memory `metron-ip-ban`
+— test via VPN, stay compliant (no rotating proxies). Creds in `~/metron.env` (never echo the password).
 
-### B. Metron validation — honest User-Agent + wiremock fixtures (deferred)
+### D. Post-Wave-2 hardening backlog
 
-The Metron provider shipped **without live validation** (user said "forget about the metron validation for right now"). Two pieces remain:
-
-1. **Honest User-Agent:** the client is `reqwest::Client::new()` (`metron.rs:43`) with no UA. Set a real identifying UA (e.g. `Longbox/<version> (+https://github.com/SaintedRogue/longbox)`) via `ClientBuilder::user_agent(...)`.
-2. **Fixture tests:** add `wiremock`-backed tests that replay recorded Metron responses (cv_id lookup, search, credit buckets) so the provider is testable without hitting the network.
-
-**Why decoupled from live hits:** `metron.cloud` sits behind **Anubis** (Xe Iaso's proof-of-work "AI firewall"); a burst of automated requests got the test IP challenged/blocked. Validate against fixtures, not the live API. Credentials are in `~/metron.env` (never echo the password). Task #12 tracks this.
-
-### C. Post-Wave-2 hardening backlog (from the Stream E security audit)
-
-Recorded in `docs/longbox-investigation.md` → "Appendix: post-Wave-2 hardening backlog":
-
-- **At-rest key management (Medium, inherited):** `server_config.encryption_key` lives in the same SQLite DB as the ciphertexts it protects and is held in memory as plaintext. Now guards a reusable Metron `username:password`. Fix direction: derive/load the key from an env var or server-side secret outside the DB.
-- **Response body-size cap (Info):** provider HTTP clients call `response.json()` with no size bound — cheap hardening.
-- **`crowdin.yml`** — upstream translation config, unused by Longbox; remove when convenient.
+`docs/longbox-investigation.md` → "post-Wave-2 hardening backlog": at-rest key management (encryption_key
+in the same DB as ciphertexts — now guards the Metron creds); provider `response.json()` size cap; remove
+unused `crowdin.yml`.
 
 ---
 
 ## 5. Orientation — where things live
 
 ```
-apps/server/     Axum server (also serves the web app)     core/            scanning, metadata, DB (dev.db lives in core/)
-apps/web/        PWA entry (index.html, App.tsx)           crates/          migrations, models, graphql, integrations/
-packages/browser React UI — scenes/, components/, offline/ docs/            design notes, ADRs, plans, THIS handoff
+apps/server/     Axum server (serves the web app)     core/            scanning, metadata, DB (dev.db in core/)
+apps/web/        PWA entry + build output (dist/)     crates/          migrations, models, graphql, integrations/metadata
+packages/browser React UI:                            docs/            design notes, ADRs, plans, THIS handoff
+  src/offline/          the whole offline subsystem (db, records, blobStore, manager, fetcher, store, hooks, resolveOfflineUrl)
+  src/scenes/downloads/ DownloadsScene, OfflineBookReaderScene, synthesizeReaderBook, DownloadsRouter
+  src/AppLayout.tsx + OfflineAppShell.tsx   offline boot resilience
 packages/{client,sdk,graphql,components,i18n}
 ```
 
-Design/context docs, in reading order for a newcomer: this file → `docs/longbox-design-notes.md` → `docs/longbox-investigation.md` → `docs/longbox-phase2-plan.md` → `docs/adr/0001-router-and-scroll-restoration.md` → `docs/longbox-wave3b-offline-plan.md`.
+Reading order for a newcomer: this file → `docs/longbox-design-notes.md` → `docs/longbox-investigation.md`
+→ `docs/longbox-wave3b-offline-plan.md` (Streams 3–5 spec; note the "vitest"→jest correction) → session
+memory (`longbox-live-verify-setup`, `metron-ip-ban`).
 
 ---
 
 ## 6. Open decision for the driver
 
-The only real fork in the road: **start Wave 3b Stream 3 (downloads) now**, or clear a smaller backlog item (Metron §4B or hardening §4C) first. Streams 3–5 are the larger, higher-value push and are fully specced — recommended default is to begin there subagent-driven, and slot the backlogs in between merges.
+Wave 3b's offline subsystem is complete and proven. The immediate thread is **paged-mode offline (§4A)**.
+After that, the biggest open choices are: **EPUB server-down reading** (needs client-side epub parsing —
+real effort), the **hardening backlog** (§4D), or resuming **Metron live validation** once a compliant
+egress path (VPN) is available. No item is blocking; pick by appetite.
