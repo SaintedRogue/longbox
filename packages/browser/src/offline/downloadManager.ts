@@ -158,7 +158,7 @@ async function startJob(item: DownloadQueueItem, controller: AbortController): P
 
 		const result = await currentFetcher(job, onProgress, controller.signal)
 
-		await putDownloadRecord({
+		const record = {
 			bookId,
 			title: item.title,
 			format: item.format,
@@ -168,7 +168,9 @@ async function startJob(item: DownloadQueueItem, controller: AbortController): P
 			thumbnailUrl: result.thumbnailUrl,
 			sizeBytes: result.sizeBytes,
 			downloadedAt: Date.now(),
-		})
+		}
+		await putDownloadRecord(record)
+		useDownloadStore.getState().setRecord(record)
 		await deleteQueueItem(queueId)
 		useDownloadStore.getState().upsert(bookId, {
 			status: 'completed',
@@ -275,6 +277,7 @@ export async function remove(bookId: string): Promise<void> {
 			await blobStore.deleteUrls(urls)
 		}
 		await deleteDownloadRecord(bookId)
+		useDownloadStore.getState().removeRecord(bookId)
 	}
 	useDownloadStore.getState().remove(bookId)
 }

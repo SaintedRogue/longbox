@@ -156,6 +156,11 @@ describe('downloadManager', () => {
 		expect(record).toMatchObject({ bookId: 'b1', sizeBytes: 100, fileUrl: 'u' })
 		expect(await listQueueItems()).toHaveLength(0)
 		expect(useDownloadStore.getState().downloads['b1']?.status).toBe('completed')
+		expect(useDownloadStore.getState().records['b1']).toMatchObject({
+			bookId: 'b1',
+			sizeBytes: 100,
+			fileUrl: 'u',
+		})
 	})
 
 	it('2. dedup already-queued: second enqueue for the same pending book is a no-op', async () => {
@@ -267,6 +272,9 @@ describe('downloadManager', () => {
 			makeRecord({ bookId: 'b1', pageUrls: ['/page/1', '/page/2'], fileUrl: undefined }),
 		)
 		useDownloadStore.getState().upsert('b1', { status: 'completed', receivedBytes: 20 })
+		useDownloadStore
+			.getState()
+			.setRecord(makeRecord({ bookId: 'b1', pageUrls: ['/page/1', '/page/2'], fileUrl: undefined }))
 
 		await remove('b1')
 
@@ -274,6 +282,7 @@ describe('downloadManager', () => {
 		expect(await matchUrl('/page/1')).toBeUndefined()
 		expect(await matchUrl('/page/2')).toBeUndefined()
 		expect(useDownloadStore.getState().downloads['b1']).toBeUndefined()
+		expect(useDownloadStore.getState().records['b1']).toBeUndefined()
 	})
 
 	it('9. ensurePersisted fires only once across multiple enqueues', async () => {

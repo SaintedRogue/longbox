@@ -2,7 +2,7 @@ import deepEqual from 'deep-equal'
 import { produce } from 'immer'
 import { createWithEqualityFn } from 'zustand/traditional'
 
-import type { QueueStatus } from './db'
+import type { DownloadRecord, QueueStatus } from './db'
 
 /** Live (in-memory) progress for one book's download. Durable state lives in IndexedDB (downloadRecords/downloadQueue). */
 export type LiveDownload = {
@@ -17,7 +17,16 @@ type DownloadStore = {
 	downloads: Record<string, LiveDownload>
 	upsert: (bookId: string, patch: Partial<LiveDownload> & { status: QueueStatus }) => void
 	remove: (bookId: string) => void
-	/** Test hygiene: clear all live entries. */
+	/** The durable catalog (completed downloads), keyed by bookId. Hydrated from IndexedDB at
+	 *  startup and kept in sync by the manager on completion/removal -- see `downloadManager.ts`. */
+	records: Record<string, DownloadRecord>
+	/** Replaces the records map wholesale. Called once at startup with the IndexedDB contents. */
+	hydrateRecords: (records: DownloadRecord[]) => void
+	/** Upserts a single record. Called by the manager right after `putDownloadRecord`. */
+	setRecord: (record: DownloadRecord) => void
+	/** Deletes a single record. Called by the manager right after `deleteDownloadRecord`. */
+	removeRecord: (bookId: string) => void
+	/** Test hygiene: clear all live entries (and the records projection). */
 	reset: () => void
 }
 
@@ -49,7 +58,26 @@ export const useDownloadStore = createWithEqualityFn<DownloadStore>(
 					delete draft.downloads[bookId]
 				}),
 			),
-		reset: () => set({ downloads: {} }),
+		records: {} as Record<string, DownloadRecord>,
+		hydrateRecords: (records) =>
+			set((state) =>
+				produce(state, (draft) => {
+					draft.records = Object.fromEntries(records.map((record) => [record.bookId, record]))
+				}),
+			),
+		setRecord: (record) =>
+			set((state) =>
+				produce(state, (draft) => {
+					draft.records[record.bookId] = record
+				}),
+			),
+		removeRecord: (bookId) =>
+			set((state) =>
+				produce(state, (draft) => {
+					delete draft.records[bookId]
+				}),
+			),
+		reset: () => set({ downloads: {}, records: {} }),
 	}),
 	deepEqual,
 )
