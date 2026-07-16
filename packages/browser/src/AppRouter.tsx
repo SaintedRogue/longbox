@@ -1,6 +1,6 @@
 import { LocaleProvider } from '@stump/i18n'
 import { type AllowedLocale } from '@stump/i18n'
-import { lazy } from 'react'
+import { lazy, useRef, useState } from 'react'
 import { Location, Route, Routes, useLocation } from 'react-router-dom'
 
 import { AppLayout } from './AppLayout.tsx'
@@ -35,8 +35,36 @@ export function AppRouter({ basePath }: AppRouterProps = {}) {
 	// (true) location is what the overlay itself matches against. See
 	// BookPeekSheet / BookCard for producers of this state contract.
 	const location = useLocation()
-	const backgroundLocation = (location.state as { backgroundLocation?: Location } | null)
+
+	// A backgroundLocation restored from a full page (re)load is stale: the
+	// background tree's data and scroll are gone, so the URL must resolve to
+	// its full-page scene instead (the deep-link contract) -- there'd
+	// otherwise be no in-app path back to it. `window.history.state` survives
+	// a same-document reload (F5), and @remix-run/router seeds the initial
+	// Location.state from `history.state.usr`, so a peek opened before a
+	// refresh would otherwise come back as a peek over a freshly-remounted
+	// (and therefore blank-scrolled) background. Strip it once, synchronously
+	// before first paint, from both the live render and history itself (so
+	// back/forward landing back on this entry stays stripped too).
+	const [strippedStaleBackground] = useState(() => {
+		const usr = (window.history.state as { usr?: { backgroundLocation?: Location } } | null)?.usr
+		if (usr?.backgroundLocation) {
+			window.history.replaceState(
+				{ ...window.history.state, usr: { ...usr, backgroundLocation: undefined } },
+				'',
+			)
+			return true
+		}
+		return false
+	})
+	const initialLocationKeyRef = useRef(location.key)
+
+	const rawBackgroundLocation = (location.state as { backgroundLocation?: Location } | null)
 		?.backgroundLocation
+	const backgroundLocation =
+		strippedStaleBackground && location.key === initialLocationKeyRef.current
+			? undefined
+			: rawBackgroundLocation
 
 	if (!baseUrl) {
 		throw new Error('Base URL is not set')
