@@ -2485,6 +2485,14 @@
 			"settings": "Go to settings"
 		}
 	},
+	"offlineDownload": {
+		"download": "Download for offline",
+		"downloading": "Downloading…",
+		"remove": "Remove download",
+		"retry": "Retry download",
+		"cancel": "Cancel",
+		"downloaded": "Downloaded"
+	},
 	"pagination": {
 		"buttons": {
 			"next": "Next",
