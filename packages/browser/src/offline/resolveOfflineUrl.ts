@@ -15,6 +15,16 @@ export async function offlineBlobUrl(url: string): Promise<string | null> {
 }
 
 /**
+ * Returns the cached file bytes for `url` if it's in the offline blob store, else null (the
+ * caller then does its own network fetch). Used by the PDF/EPUB readers to prefer cached bytes
+ * over a network request.
+ */
+export async function offlineFileBlob(url: string): Promise<Blob | null> {
+	const resp = await matchUrl(url)
+	return resp ? resp.blob() : null
+}
+
+/**
  * React hook: resolves `url` to an offline object URL when cached, else returns `undefined`
  * (so the caller falls back to its normal network src). Revokes the object URL on unmount and
  * whenever `url` changes. Never returns a revoked/stale URL.

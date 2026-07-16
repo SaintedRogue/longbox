@@ -1,11 +1,11 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 
 import * as blobStore from '../blobStore'
-import { offlineBlobUrl, useOfflineImageSrc } from '../resolveOfflineUrl'
+import { offlineBlobUrl, offlineFileBlob, useOfflineImageSrc } from '../resolveOfflineUrl'
 
 /** Fake "response": just enough shape for resolveOfflineUrl's `.blob()` usage. */
-function fakeResponse(): Response {
-	return { blob: () => Promise.resolve({} as Blob) } as unknown as Response
+function fakeResponse(blob: Blob = {} as Blob): Response {
+	return { blob: () => Promise.resolve(blob) } as unknown as Response
 }
 
 describe('offlineBlobUrl', () => {
@@ -41,6 +41,29 @@ describe('offlineBlobUrl', () => {
 
 		expect(result).toBeNull()
 		expect(createObjectURL).not.toHaveBeenCalled()
+	})
+})
+
+describe('offlineFileBlob', () => {
+	afterEach(() => {
+		jest.restoreAllMocks()
+	})
+
+	it('returns the cached blob when matchUrl resolves a response', async () => {
+		const fakeBlob = { size: 42 } as Blob
+		jest.spyOn(blobStore, 'matchUrl').mockResolvedValue(fakeResponse(fakeBlob))
+
+		const result = await offlineFileBlob('/api/v2/media/1/file')
+
+		expect(result).toBe(fakeBlob)
+	})
+
+	it('returns null when matchUrl resolves undefined, without fabricating a blob', async () => {
+		jest.spyOn(blobStore, 'matchUrl').mockResolvedValue(undefined)
+
+		const result = await offlineFileBlob('/api/v2/media/1/file')
+
+		expect(result).toBeNull()
 	})
 })
 

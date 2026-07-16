@@ -20,6 +20,7 @@ import Spinner from '@/components/Spinner'
 import { useTheme } from '@/hooks'
 import { UPDATE_READ_PROGRESS } from '@/offline/progressMutation'
 import { enqueueProgress } from '@/offline/progressOutbox'
+import { offlineFileBlob } from '@/offline/resolveOfflineUrl'
 import { useBookPreferences } from '@/scenes/book/reader/useBookPreferences'
 import { useBookTimer } from '@/stores/reader'
 
@@ -442,17 +443,32 @@ export default function EpubJsReader({ id, isIncognito }: EpubJsReaderProps) {
 	 * Note: epubjs uses the download endpoint from the Stump server to locally load the
 	 * epub file. This is why the requestCredentials option is set to true, as it would
 	 * otherwise not be able to authenticate with the server.
+	 *
+	 * Offline: if the file's bytes are already cached (the book was downloaded), epubjs is
+	 * handed the cached ArrayBuffer directly instead of the download URL, so no network
+	 * request is needed. This is a cached-BYTES optimization only -- `ebook` above still comes
+	 * from a `useSuspenseGraphQL` query for server-parsed spine/toc/resources, which cannot be
+	 * synthesized offline, so this reader still requires the server to be reachable. Full
+	 * server-down epub reading is deferred (see Stream 5 interface map, S3).
 	 */
 	useEffect(() => {
-		if (!book && ebook && ebook.media) {
-			setBook(
-				new Book(sdk.media.downloadURL(id), {
-					openAs: 'epub',
-					// @ts-expect-error: epubjs has incorrect types
-					requestCredentials: true,
-				}),
-			)
-		}
+		if (book || !ebook || !ebook.media) return
+		;(async () => {
+			const url = sdk.media.downloadURL(id)
+			const cached = await offlineFileBlob(url)
+			if (cached) {
+				// @ts-expect-error: epubjs has incorrect types -- Book's first arg also accepts an ArrayBuffer
+				setBook(new Book(await cached.arrayBuffer(), { openAs: 'epub' }))
+			} else {
+				setBook(
+					new Book(url, {
+						openAs: 'epub',
+						// @ts-expect-error: epubjs has incorrect types
+						requestCredentials: true,
+					}),
+				)
+			}
+		})()
 	}, [book, ebook, id, sdk])
 
 	/**
