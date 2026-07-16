@@ -1,7 +1,7 @@
 import { LocaleProvider } from '@stump/i18n'
 import { type AllowedLocale } from '@stump/i18n'
 import { lazy, useRef, useState } from 'react'
-import { Location, Route, Routes, useLocation } from 'react-router-dom'
+import { Location, Route, Routes, useLocation, useNavigationType } from 'react-router-dom'
 
 import { AppLayout } from './AppLayout.tsx'
 import { RouterProvider } from './context/RouterContext.tsx'
@@ -35,6 +35,10 @@ export function AppRouter({ basePath }: AppRouterProps = {}) {
 	// (true) location is what the overlay itself matches against. See
 	// BookPeekSheet / BookCard for producers of this state contract.
 	const location = useLocation()
+	// Read the true navigation type HERE, outside the `<Routes location={...}>`
+	// override below — inside it, React Router forces navigationType to POP.
+	// Threaded to AppLayout for scroll restoration (POP restores, PUSH resets).
+	const navigationType = useNavigationType()
 
 	// A backgroundLocation restored from a full page (re)load is stale: the
 	// background tree's data and scroll are gone, so the URL must resolve to
@@ -76,7 +80,12 @@ export function AppRouter({ basePath }: AppRouterProps = {}) {
 				<Routes location={backgroundLocation ?? location}>
 					<Route
 						path="/"
-						element={<AppLayout overlayLocation={backgroundLocation ? location : undefined} />}
+						element={
+							<AppLayout
+								overlayLocation={backgroundLocation ? location : undefined}
+								navigationType={navigationType}
+							/>
+						}
 					>
 						<Route path="" element={<HomeScene />} />
 						<Route path="libraries/*" element={<LibraryRouter />} />

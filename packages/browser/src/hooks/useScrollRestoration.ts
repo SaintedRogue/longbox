@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef } from 'react'
-import { useLocation, useNavigationType } from 'react-router-dom'
+import { type NavigationType, useLocation } from 'react-router-dom'
 
 /**
  * Per-session scroll offsets keyed by history `location.key`. Mirrors React
@@ -43,10 +43,14 @@ export function getAppScroller(): HTMLElement | null {
  * Peek overlays (Stream D) are unaffected: while a peek is open, AppLayout's
  * `location` reflects the *background* entry, so `location.key` does not change and
  * the restore effect does not re-run — the background scroll is preserved natively.
+ *
+ * `navigationType` is passed in rather than read via `useNavigationType()`: this
+ * hook runs under AppRouter's `<Routes location={...}>`, whose LocationContext
+ * hardcodes the type to POP, so a local read would always report POP. AppRouter
+ * reads the true type (outside that override) and threads it through AppLayout.
  */
-export function useScrollRestoration() {
+export function useScrollRestoration(navigationType: NavigationType) {
 	const { key } = useLocation()
-	const navigationType = useNavigationType()
 
 	const keyRef = useRef(key)
 	keyRef.current = key
@@ -103,8 +107,9 @@ export function useScrollRestoration() {
 		apply()
 
 		return () => cancelAnimationFrame(raf)
-		// navigationType is intentionally omitted: restoration keys on the entry
-		// (`key`), and a given entry's nav type is stable for its mount.
+		// navigationType is intentionally omitted from deps: it is constant for a
+		// given entry (`key`), so keying on `key` alone is sufficient and avoids a
+		// redundant re-run if the prop identity changes without the entry changing.
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [key])
 }

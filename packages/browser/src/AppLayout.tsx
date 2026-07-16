@@ -7,7 +7,15 @@ import { useOverlayScrollbars } from 'overlayscrollbars-react'
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef } from 'react'
 import Confetti from 'react-confetti'
 import { useErrorBoundary } from 'react-error-boundary'
-import { Location, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import {
+	Location,
+	NavigationType,
+	Outlet,
+	Route,
+	Routes,
+	useLocation,
+	useNavigate,
+} from 'react-router-dom'
 import { useMediaMatch, useWindowSize } from 'rooks'
 import { toast } from 'sonner'
 
@@ -34,9 +42,18 @@ type AppLayoutProps = {
 	 * component does not reflect the real URL while peeking.
 	 */
 	overlayLocation?: Location
+	/**
+	 * The real navigation type (POP/PUSH/REPLACE), read in AppRouter. It must be
+	 * threaded in rather than read here via `useNavigationType()`: AppRouter
+	 * renders the main tree through `<Routes location={...}>` (always set, for the
+	 * peek overlay), which wraps this subtree in a LocationContext that hardcodes
+	 * navigationType to POP — so a local `useNavigationType()` would always report
+	 * POP. Scroll restoration needs the true type.
+	 */
+	navigationType: NavigationType
 }
 
-export function AppLayout({ overlayLocation }: AppLayoutProps) {
+export function AppLayout({ overlayLocation, navigationType }: AppLayoutProps) {
 	const location = useLocation()
 	const navigate = useNavigate()
 
@@ -110,7 +127,7 @@ export function AppLayout({ overlayLocation }: AppLayoutProps) {
 
 	// Restore scroll position on back/forward, reset to top on new navigations.
 	// Mounted after the OverlayScrollbars setup so the viewport it targets exists.
-	useScrollRestoration()
+	useScrollRestoration(navigationType)
 
 	/**
 	 * If the user prefers the top bar, we hide the sidebar
