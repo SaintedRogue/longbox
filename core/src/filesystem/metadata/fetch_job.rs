@@ -5,7 +5,8 @@ use async_graphql::SimpleObject;
 use metadata_integrations::{MatchCandidate, SearchQuery};
 use models::{
 	entity::{
-		library_config, media, metadata_fetch_record, metadata_provider_config, series,
+		library_config, media, media_metadata, metadata_fetch_record,
+		metadata_provider_config, series, series_metadata,
 	},
 	shared::enums::{LibraryType, MetadataFetchStatus},
 };
@@ -458,6 +459,10 @@ impl JobLifecycle for MetadataFetchJob {
 					}
 				}
 
+				let series_meta = series_metadata::Entity::find_by_id(&series_id)
+					.one(conn)
+					.await?;
+
 				let mut all_candidates: Vec<MatchCandidate> = Vec::new();
 				let mut was_rate_limited = false;
 
@@ -466,6 +471,7 @@ impl JobLifecycle for MetadataFetchJob {
 						Ok(provider) => {
 							let query = SearchQuery {
 								title: series_name.clone(),
+								series_year: series_meta.as_ref().and_then(|m| m.year),
 								limit: Some(10),
 								..Default::default()
 							};
@@ -636,14 +642,40 @@ impl JobLifecycle for MetadataFetchJob {
 					}
 				}
 
+				let metadata = media_metadata::Entity::find()
+					.filter(media_metadata::Column::MediaId.eq(&media_id))
+					.one(conn)
+					.await?;
+
 				let mut all_candidates: Vec<MatchCandidate> = Vec::new();
 				let mut was_rate_limited = false;
 
 				for config in &provider_configs {
 					match provider_cache.get_or_create(config).await {
 						Ok(provider) => {
+							// Note: `year` here is the *issue's own* year
+							// (media_metadata.year), not the series' start year —
+							// providers should treat it as a per-issue disambiguation
+							// signal. `series_year` is intentionally left unpopulated:
+							// `MetadataFetchTask::FetchMedia` doesn't carry a series_id,
+							// so getting series_metadata.year would require a new
+							// query/join that isn't already at hand here.
 							let query = SearchQuery {
 								title: media_name.clone(),
+								series_name: metadata
+									.as_ref()
+									.and_then(|m| m.series.clone()),
+								number: metadata
+									.as_ref()
+									.and_then(|m| m.number)
+									.map(|n| n.normalize().to_string()),
+								publisher: metadata
+									.as_ref()
+									.and_then(|m| m.publisher.clone()),
+								year: metadata.as_ref().and_then(|m| m.year),
+								comicvine_id: metadata
+									.as_ref()
+									.and_then(|m| m.comicvine_id.clone()),
 								limit: Some(10),
 								..Default::default()
 							};

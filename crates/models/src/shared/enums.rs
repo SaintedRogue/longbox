@@ -467,6 +467,8 @@ pub enum MetadataFetchStatus {
 pub enum MetadataProvider {
 	/// Hardcover (https://hardcover.app)
 	Hardcover,
+	/// Metron (https://metron.cloud) — comics; data CC BY-SA 4.0
+	Metron,
 }
 
 impl MetadataProvider {
@@ -479,6 +481,7 @@ impl MetadataProvider {
 				LibraryType::Manga,
 				LibraryType::LightNovel,
 			],
+			Self::Metron => &[LibraryType::Comic],
 		}
 	}
 }

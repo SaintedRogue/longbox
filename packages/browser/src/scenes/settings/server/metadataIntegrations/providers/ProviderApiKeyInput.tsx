@@ -1,4 +1,4 @@
-import { Alert, AlertDescription, AlertTitle, PasswordInput } from '@stump/components'
+import { Alert, AlertDescription, AlertTitle, PasswordInput, Text } from '@stump/components'
 import { MetadataProvider } from '@stump/graphql'
 import { useLocaleContext } from '@stump/i18n'
 import { useMutation } from '@tanstack/react-query'
@@ -64,16 +64,32 @@ export function ProviderApiKeyInput() {
 		[debouncedValue],
 	)
 
+	const isMetron = provider === MetadataProvider.Metron
+
 	return (
 		<>
 			<PasswordInput
 				label={t(getKey('apiToken.label'))}
-				description={t(getKey('apiToken.description'))}
+				// Note: Metron uses HTTP Basic auth (username + password), not a bearer token, so
+				// it gets bespoke helper text here rather than the shared i18n copy. This is a
+				// literal, not a new locale key (see Stream A's 'Libraries' precedent) — locale
+				// files are Stream B's exclusive territory for this phase.
+				description={
+					isMetron
+						? 'Metron username and password, entered as username:password'
+						: t(getKey('apiToken.description'))
+				}
 				type="password"
 				{...form.register('apiToken')}
 				errorMessage={errors.apiToken?.message}
 				fullWidth
 			/>
+
+			{isMetron && (
+				<Text size="xs" variant="muted">
+					Metadata provided by metron.cloud, CC BY-SA 4.0
+				</Text>
+			)}
 
 			{fetchError && (
 				<Alert variant="destructive">
@@ -136,4 +152,7 @@ const validateHardcoverApiKey: Validator = async (apiKey, t) => {
 
 const PROVIDER_VALIDATORS: Record<MetadataProvider, Validator | null> = {
 	HARDCOVER: validateHardcoverApiKey,
+	// No client-side validation for Metron: validating `username:password` would require
+	// a CORS-enabled request straight to metron.cloud from the browser, which isn't guaranteed
+	METRON: null,
 }

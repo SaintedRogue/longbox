@@ -765,6 +765,14 @@ type ExternalMediaMetadata {
 	colorists: [String!]
 	letterers: [String!]
 	coverArtists: [String!]
+	pencillers: [String!]
+	inkers: [String!]
+	editors: [String!]
+	characters: [String!]
+	teams: [String!]
+	storyArc: String
+	imprint: String
+	publisher: String
 	coverUrl: String
 	providerUrl: String
 }
@@ -1747,6 +1755,8 @@ input MetadataFieldOverride {
 enum MetadataProvider {
 	"Hardcover (https://hardcover.app)"
 	HARDCOVER
+	"Metron (https://metron.cloud) — comics; data CC BY-SA 4.0"
+	METRON
 }
 
 type MetadataProviderConfigModel {

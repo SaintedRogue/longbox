@@ -810,24 +810,32 @@ export type ExactDimensionResizeInput = {
 export type ExternalMediaMetadata = {
   __typename?: 'ExternalMediaMetadata';
   artists?: Maybe<Array<Scalars['String']['output']>>;
+  characters?: Maybe<Array<Scalars['String']['output']>>;
   colorists?: Maybe<Array<Scalars['String']['output']>>;
   coverArtists?: Maybe<Array<Scalars['String']['output']>>;
   coverUrl?: Maybe<Scalars['String']['output']>;
   day?: Maybe<Scalars['Int']['output']>;
+  editors?: Maybe<Array<Scalars['String']['output']>>;
   externalId: Scalars['String']['output'];
   genres?: Maybe<Array<Scalars['String']['output']>>;
+  imprint?: Maybe<Scalars['String']['output']>;
+  inkers?: Maybe<Array<Scalars['String']['output']>>;
   isbn?: Maybe<Scalars['String']['output']>;
   isbn13?: Maybe<Scalars['String']['output']>;
   letterers?: Maybe<Array<Scalars['String']['output']>>;
   month?: Maybe<Scalars['Int']['output']>;
   number?: Maybe<Scalars['Float']['output']>;
   pageCount?: Maybe<Scalars['Int']['output']>;
+  pencillers?: Maybe<Array<Scalars['String']['output']>>;
   provider: Scalars['String']['output'];
   providerUrl?: Maybe<Scalars['String']['output']>;
+  publisher?: Maybe<Scalars['String']['output']>;
   seriesExternalId?: Maybe<Scalars['String']['output']>;
   seriesName?: Maybe<Scalars['String']['output']>;
+  storyArc?: Maybe<Scalars['String']['output']>;
   summary?: Maybe<Scalars['String']['output']>;
   tags?: Maybe<Array<Scalars['String']['output']>>;
+  teams?: Maybe<Array<Scalars['String']['output']>>;
   title?: Maybe<Scalars['String']['output']>;
   writers?: Maybe<Array<Scalars['String']['output']>>;
   year?: Maybe<Scalars['Int']['output']>;
@@ -1859,7 +1867,9 @@ export type MetadataFieldOverride = {
 /** The supported external metadata providers */
 export enum MetadataProvider {
   /** Hardcover (https://hardcover.app) */
-  Hardcover = 'HARDCOVER'
+  Hardcover = 'HARDCOVER',
+  /** Metron (https://metron.cloud) — comics; data CC BY-SA 4.0 */
+  Metron = 'METRON'
 }
 
 export type MetadataProviderConfigModel = {
