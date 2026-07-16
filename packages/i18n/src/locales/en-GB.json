@@ -2452,6 +2452,14 @@
 			}
 		}
 	},
+	"downloadsScene": {
+		"title": "Downloads",
+		"subtitle": "Books saved on this device for offline reading",
+		"emptyState": {
+			"heading": "No downloads yet",
+			"message": "Books you download for offline reading will appear here."
+		}
+	},
 	"jobOverlay": {
 		"backupHeading": "Job in Progress"
 	},
@@ -2518,7 +2526,8 @@
 			"smartlists": "Smart lists",
 			"noSmartlists": "No smart lists",
 			"createSmartlist": "Create smart list",
-			"seeAll": "See all"
+			"seeAll": "See all",
+			"downloads": "Downloads"
 		},
 		"libraryOptions": {
 			"scanLibrary": "Scan",
