@@ -2495,6 +2495,12 @@
 			"settings": "Go to settings"
 		}
 	},
+	"offline": {
+		"badge": "Offline",
+		"title": "You're offline",
+		"message": "The server can't be reached. Your downloaded books are still available to read.",
+		"viewDownloads": "View downloads"
+	},
 	"offlineDownload": {
 		"download": "Download for offline",
 		"downloading": "Downloading…",
