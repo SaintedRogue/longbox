@@ -124,7 +124,6 @@ const BookCard = memo(function BookCard({
 		return isReaderLink
 			? paths.bookReader(data.id, {
 					epubcfi: data.readProgress?.epubcfi,
-					page: data.readProgress?.page ?? undefined,
 				})
 			: paths.bookOverview(data.id)
 	}, [isReaderLink, data.id, onSelect, data.readProgress, paths])

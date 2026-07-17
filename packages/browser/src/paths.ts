@@ -6,7 +6,6 @@ import { useLocation } from 'react-router'
 import { useRouterContext } from './context/RouterContext'
 
 type BookReaderParams = {
-	page?: number
 	isEpub?: boolean
 	isPdf?: boolean
 	epubcfi?: string | null
@@ -53,7 +52,7 @@ const pathsInternal = {
 	bookOverview: (id: string) => `/books/${id}`,
 	bookReader: (
 		id: string,
-		{ isEpub, isPdf, epubcfi, isAnimated, page, isStreaming, isIncognito }: BookReaderParams = {},
+		{ isEpub, isPdf, epubcfi, isAnimated, isStreaming, isIncognito }: BookReaderParams = {},
 	) => {
 		const baseUrl = pathsInternal.bookOverview(id)
 		const searchParams = new URLSearchParams()
@@ -73,10 +72,6 @@ const pathsInternal = {
 
 		if (isAnimated) {
 			searchParams.append('animated', 'true')
-		}
-
-		if (page) {
-			searchParams.append('page', page.toString())
 		}
 
 		return `${baseUrl}/reader?${searchParams.toString()}`

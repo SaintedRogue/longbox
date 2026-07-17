@@ -30,7 +30,7 @@ export default function BookReaderLink({ book }: Props) {
 
 	const readUrl = useMemo(() => {
 		const { id, readProgress, extension } = book
-		const { epubcfi, page } = readProgress || {}
+		const { epubcfi } = readProgress || {}
 
 		if (epubcfi || extension.match(EBOOK_EXTENSION)) {
 			return paths.bookReader(id, {
@@ -38,7 +38,7 @@ export default function BookReaderLink({ book }: Props) {
 				isEpub: true,
 			})
 		} else {
-			return paths.bookReader(id, { page: isReadAgain ? 1 : page || 1 })
+			return paths.bookReader(id)
 		}
 	}, [book, isReadAgain, paths])
 
