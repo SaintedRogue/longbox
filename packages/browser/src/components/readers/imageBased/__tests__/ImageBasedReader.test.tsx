@@ -1,8 +1,8 @@
 import { ReadingDirection, ReadingImageScaleFit, ReadingMode } from '@stump/graphql'
 import { act, render } from '@testing-library/react'
 
-import ImageBasedReader from '../ImageBasedReader'
 import { ImageReaderBookRef } from '../context'
+import ImageBasedReader from '../ImageBasedReader'
 
 // The paged reader is mocked so the test can observe exactly which page the reader hands it
 // on each render, and drive a page change through the real `onPageChange` wiring.
