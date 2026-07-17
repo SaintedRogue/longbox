@@ -25,7 +25,7 @@ import { MobileTopBar, SideBar, TopBar } from '@/components/navigation'
 import RouteLoadingIndicator from '@/components/RouteLoadingIndicator'
 
 import { AppContext, PermissionEnforcerOptions } from './context'
-import { useScrollRestoration, useTheme } from './hooks'
+import { useIsMobile, useScrollRestoration, useTheme } from './hooks'
 import { useCoreEvent } from './hooks/useCoreEvent'
 import { useOfflineDownloads } from './offline/useDownloads'
 import { useProgressOutbox } from './offline/useProgressOutbox'
@@ -61,7 +61,7 @@ export function AppLayout({ overlayLocation, navigationType }: AppLayoutProps) {
 	const navigate = useNavigate()
 
 	const mainRef = useRef<HTMLDivElement>(null)
-	const isMobile = useMediaMatch('(max-width: 768px)')
+	const isMobile = useIsMobile()
 	// Canvas motion can't be quieted from CSS, so the reduced-motion preference is honoured here in
 	// JS -- the CSS block in preset.css covers everything else.
 	const prefersReducedMotion = useMediaMatch('(prefers-reduced-motion: reduce)')

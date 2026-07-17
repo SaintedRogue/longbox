@@ -3,8 +3,9 @@ import clsx from 'clsx'
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { Hotkey } from 'react-hotkeys-hook/dist/types'
-import { useMediaMatch, useWindowSize } from 'rooks'
+import { useWindowSize } from 'rooks'
 
+import { useIsMobile } from '@/hooks'
 import { useBookPreferences } from '@/scenes/book/reader/useBookPreferences'
 
 import { useImageBaseReaderContext } from '../context'
@@ -55,7 +56,7 @@ function PagedReader({ currentPage, onPageChange }: PagedReaderProps) {
 
 	const { innerWidth } = useWindowSize()
 
-	const isMobile = useMediaMatch('(max-width: 768px)')
+	const isMobile = useIsMobile()
 
 	const pageSetRef = useRef<HTMLDivElement | null>(null)
 	const panzoomRef = useRef<ReturnType<typeof Panzoom> | null>(null)
