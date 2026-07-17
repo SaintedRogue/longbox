@@ -3,6 +3,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::types::PublicationStatus;
 
+// A GraphQL Union; boxing a variant would complicate the async-graphql derive,
+// and the size difference is acceptable for this metadata result type.
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, Serialize, Deserialize, Union)]
 pub enum ExternalMetadata {
 	Media(ExternalMediaMetadata),

@@ -122,10 +122,7 @@ impl FieldMerger {
 			return None;
 		}
 
-		let external_val = match external {
-			Some(v) => v,
-			None => return None, // Nothing from external, leave as-is
-		};
+		let external_val = external.as_ref()?; // Nothing from external, leave as-is
 
 		match self.strategy {
 			MergeStrategy::FillGaps | MergeStrategy::FillAndMergeLists => {
@@ -154,10 +151,7 @@ impl FieldMerger {
 			return None;
 		}
 
-		let external_val = match external {
-			Some(v) => v,
-			None => return None,
-		};
+		let external_val = external.as_ref()?;
 
 		match self.strategy {
 			// For required fields that already have a value, FillGaps does nothing
