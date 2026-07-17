@@ -33,7 +33,13 @@ runs:
         command -v sudo >/dev/null 2>&1 && SUDO=sudo
         $SUDO apt-get update
         $SUDO apt-get install -y --no-install-recommends \
-          build-essential cmake pkg-config libssl-dev libsqlite3-dev
+          build-essential gcc-10 g++-10 cmake pkg-config libssl-dev libsqlite3-dev
+        # The runner's default gcc 9 is rejected by aws-lc-sys (GCC bug #95189,
+        # fixed in gcc 10) and its toolchain also breaks unrar-sys. Use gcc-10/g++-10
+        # for all C/C++ deps — clears that check and keeps C++ on libstdc++ (present),
+        # matching the Dockerfile builder.
+        echo "CC=gcc-10" >> "$GITHUB_ENV"
+        echo "CXX=g++-10" >> "$GITHUB_ENV"
 
     - name: Configure environment
       if: ${{ runner.environment != 'self-hosted' && runner.os != 'Windows' }}
