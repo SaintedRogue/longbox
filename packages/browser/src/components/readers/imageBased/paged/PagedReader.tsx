@@ -109,6 +109,11 @@ function PagedReader({ currentPage, onPageChange }: PagedReaderProps) {
 		// Check panning vs clicking
 		let startX = 0
 		let startY = 0
+		// Whether the in-flight pointer sequence is a touch swipe rather than a panzoom drag. A swipe
+		// is the swipe handler's to consume, so it must not also be recorded as panning below --
+		// doing so would set `panningDetected`, and the page-change handlers bail on that, silently
+		// swallowing every swipe (the drag distance always trips the >2px panning check).
+		let pointerIsSwipe = false
 		const handlePointerDown = (event: PointerEvent) => {
 			if (event.button === 2) return
 
@@ -122,6 +127,7 @@ function PagedReader({ currentPage, onPageChange }: PagedReaderProps) {
 			// vertical scroll of a page taller than the viewport. Zoomed in, panzoom takes it back.
 			const isTouchGestureForSwipe =
 				event.pointerType === 'touch' && swipeToNavigate && !isZoomedRef.current
+			pointerIsSwipe = isTouchGestureForSwipe
 
 			if (!isSidebarClicked && !isTouchGestureForSwipe) {
 				panzoomRef.current?.handleDown(event)
@@ -136,10 +142,15 @@ function PagedReader({ currentPage, onPageChange }: PagedReaderProps) {
 			panzoomRef.current?.handleUp(event)
 			parentElement.style.cursor = 'default'
 			pageSetElement.style.cursor = 'default'
-			panningDetected.current = Math.abs(deltaX) > 2 || Math.abs(deltaY) > 2
-			setTimeout(() => {
-				panningDetected.current = false
-			}, 100)
+			// Leave `panningDetected` false for a swipe so the swipe's page change survives. The
+			// browser already suppresses the synthetic click after a past-threshold touch move, so
+			// the tap-to-toggle-toolbar path stays correctly un-triggered without this guard.
+			if (!pointerIsSwipe) {
+				panningDetected.current = Math.abs(deltaX) > 2 || Math.abs(deltaY) > 2
+				setTimeout(() => {
+					panningDetected.current = false
+				}, 100)
+			}
 		}
 		const handleMove = (event: PointerEvent) => {
 			panzoomRef.current?.handleMove(event)
