@@ -165,7 +165,7 @@ const Page = ({ page, src, imageScaling: { scaleToFit }, onPageClick }: PageProp
 				'my-0 mx-auto w-auto self-center': scaleToFit === ReadingImageScaleFit.None,
 			},
 			{
-				'm-auto h-full max-h-screen w-auto object-cover':
+				'm-auto h-full max-h-[100dvh] w-auto object-cover':
 					scaleToFit === ReadingImageScaleFit.Height,
 			},
 			{

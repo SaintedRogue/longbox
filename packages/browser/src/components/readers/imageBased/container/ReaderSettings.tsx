@@ -5,6 +5,7 @@ import omit from 'lodash/omit'
 import { useCallback, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
+import { useIsMobile } from '@/hooks'
 import { useReaderStore } from '@/stores'
 
 import DoubleSpreadBehavior from './DoubleSpreadBehavior'
@@ -21,6 +22,7 @@ export default function ReaderSettings({ forBook, currentPage }: Props) {
 	const [search, setSearch] = useSearchParams()
 
 	const store = useReaderStore((state) => state)
+	const isMobile = useIsMobile()
 
 	const bookSettings = useMemo(
 		() => (forBook ? store.bookPreferences[forBook] : undefined),
@@ -128,16 +130,21 @@ export default function ReaderSettings({ forBook, currentPage }: Props) {
 					onChange={(behavior) => onPreferenceChange({ doublePageBehavior: behavior })}
 				/>
 
-				<ImageScalingSelect
-					value={activeSettings.imageScaling?.scaleToFit}
-					onChange={(value) =>
-						onPreferenceChange({
-							imageScaling: {
-								scaleToFit: value,
-							},
-						})
-					}
-				/>
+				{/* On mobile the reader always fits pages to width (see useBookPreferences), so the
+				    scaling control would be a no-op — hide it to avoid showing a setting that has no
+				    effect. */}
+				{!isMobile && (
+					<ImageScalingSelect
+						value={activeSettings.imageScaling?.scaleToFit}
+						onChange={(value) =>
+							onPreferenceChange({
+								imageScaling: {
+									scaleToFit: value,
+								},
+							})
+						}
+					/>
+				)}
 			</div>
 
 			<div>
