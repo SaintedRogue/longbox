@@ -154,6 +154,7 @@ const THUMBNAIL_ROUNDNESS_CLASSES = [
 const THEME_CLASSES = [
 	'light',
 	'dark',
+	'paper',
 	'bronze',
 	'ocean',
 	'autumn',

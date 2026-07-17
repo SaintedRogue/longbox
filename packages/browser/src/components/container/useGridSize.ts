@@ -3,10 +3,6 @@ import { useWindowSize } from 'rooks'
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 
-import { usePreferences } from '@/hooks/usePreferences'
-
-import { SIDEBAR_WIDTH } from '../navigation/sidebar'
-
 export type GridDensity =
 	| 'ultra-compact'
 	| 'compact'
@@ -136,24 +132,19 @@ export const useGridSize = () => {
 	const dimensions = useWindowSize()
 	const { density, setDensity } = useGridSizeStore()
 
-	const {
-		preferences: { primaryNavigationMode },
-	} = usePreferences()
 	const { innerWidth } = useMemo(
 		() => ({
 			innerWidth: dimensions.innerWidth ?? window.innerWidth,
 		}),
 		[dimensions],
 	)
-	const adjustedWidth = useMemo(
-		() =>
-			primaryNavigationMode === 'SIDEBAR' && innerWidth <= 768
-				? innerWidth - SIDEBAR_WIDTH
-				: innerWidth,
-		[innerWidth, primaryNavigationMode],
-	)
-
-	const deviceType = useMemo(() => getDeviceType(adjustedWidth), [adjustedWidth])
+	// The sidebar is only rendered from `md` (>=768px) up (SideBar.tsx: `md:inline-block hidden`),
+	// so at <=768px there is no sidebar occupying width to subtract. The previous adjustment
+	// subtracted SIDEBAR_WIDTH exactly in that <=768 range -- i.e. when the sidebar was absent --
+	// which pushed larger phones and small tablets (641-768px) down into the `mobile` density
+	// bucket and rendered fewer columns than the screen had room for. Device sizing follows the
+	// true viewport width.
+	const deviceType = useMemo(() => getDeviceType(innerWidth), [innerWidth])
 
 	const currentDensity = density ?? DEFAULT_DENSITY
 	const columns = useMemo(

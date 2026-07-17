@@ -123,6 +123,75 @@
 		--color-thumbnail-stack-library-end: #d4b7a7;
 	}
 
+	/* MARK: paper theme
+	 *
+	 * A high-contrast grayscale surface tuned for matte, low-refresh "paper-like" panels such as
+	 * the TCL NXTPAPER line, where colour is muddy and low contrast is fatiguing. Everything is
+	 * neutral gray -- no brand hue -- with near-black text on near-white (foreground on background
+	 * clears the WCAG AAA 7:1 bar) and hard, visible borders rather than the soft translucent ones
+	 * the colour themes use. Deliberately not registered in DARK_THEMES or THEMES_WITH_GRADIENTS.
+	 */
+	.paper {
+		--background: #fdfdfc;
+		--foreground: #111111;
+		--card: #ffffff;
+		--card-foreground: #111111;
+		--dialog: #ffffff;
+		--dialog-foreground: #111111;
+		--popover: #ffffff;
+		--popover-foreground: #111111;
+		--primary: #1a1a1a;
+		--primary-foreground: #ffffff;
+		--secondary: #e6e6e4;
+		--secondary-foreground: #111111;
+		--muted: #ececeb;
+		--muted-foreground: #4a4a48;
+		--accent: #dedede;
+		--accent-foreground: #111111;
+		--destructive: #a11212;
+		--border: #b8b8b5;
+		--input: #ffffff;
+		--switch: #c4c4c1;
+		--switch-thumb: #ffffff;
+		--switch-thumb-checked: #ffffff;
+		--field-error-border: #a11212;
+		--field-error-ring: #a1121233;
+		--ring: #555555;
+		--chart-1: #1a1a1a;
+		--chart-2: #4a4a48;
+		--chart-3: #6f6f6d;
+		--chart-4: #949492;
+		--chart-5: #b8b8b5;
+		--sidebar: #f2f2f0;
+		--sidebar-foreground: #111111;
+		--sidebar-primary: #1a1a1a;
+		--sidebar-primary-foreground: #ffffff;
+		--sidebar-accent: #e2e2e0;
+		--sidebar-accent-foreground: #111111;
+		--sidebar-border: #b8b8b5;
+		--sidebar-ring: #555555;
+		--radius: 0.625rem;
+
+		--debug: #6d11af;
+		--debug-foreground: var(--foreground);
+		--info: #0b5a8a;
+		--info-foreground: var(--foreground);
+		--success: #1f6f26;
+		--success-foreground: var(--foreground);
+		--warning: #8a5a00;
+		--warning-foreground: var(--foreground);
+
+		--color-scrollbar: #ececeb;
+		--color-scrollbar-thumb: hsla(0, 0%, 0%, 0.45);
+		--color-scrollbar-thumb-hover: hsla(0, 0%, 0%, 0.65);
+
+		--color-thumbnail-border: rgba(17, 17, 17, 0.25);
+		--color-thumbnail-placeholder: #ececeb;
+		--color-thumbnail-stack-series: #c4c4c1;
+		--color-thumbnail-stack-library-start: #a8a8a5;
+		--color-thumbnail-stack-library-end: #c4c4c1;
+	}
+
 	/* MARK: bronze theme */
 	.bronze {
 		--background: #ffffff;

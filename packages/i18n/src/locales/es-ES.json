@@ -1438,6 +1438,7 @@
 						"system": "System",
 						"light": "Claro",
 						"dark": "Oscuro",
+						"paper": "Paper (e-ink)",
 						"bronze": "Claro Bronce",
 						"ocean": "Ocean",
 						"autumn": "Autumn",

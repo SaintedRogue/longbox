@@ -83,7 +83,10 @@ export default function EpubNavigationControls({ children }: Props) {
 			<div
 				className="bottom-10 left-0 right-0 top-10 md:hidden fixed z-99"
 				{...swipeHandlers}
-				onClick={() => setVisible(false)}
+				// Toggle, not just hide. On touch this is the only thing that sets visibility, and
+				// the hover path that reveals the controls on desktop never fires -- so a bare
+				// setVisible(false) here left touch users with no way to bring the chrome back.
+				onClick={() => setVisible(!visible)}
 			/>
 			{children}
 			<div

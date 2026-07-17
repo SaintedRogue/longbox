@@ -71,6 +71,41 @@ describe('useApplyTheme', () => {
 		})
 	})
 
+	describe('Paper theme', () => {
+		it('applies the paper class to the html element', () => {
+			jest.mocked(useMediaMatch).mockReturnValue(false)
+
+			renderHook(() => useApplyTheme({ appTheme: 'paper', appFont: SupportedFont.Inter }))
+
+			expect(document.documentElement.classList.contains('paper')).toBe(true)
+		})
+
+		it('is a light theme -- it must not get the dark color-scheme meta tag', () => {
+			jest.mocked(useMediaMatch).mockReturnValue(false)
+
+			renderHook(() => useApplyTheme({ appTheme: 'paper', appFont: SupportedFont.Inter }))
+
+			expect(document.querySelector('meta[name="color-scheme"]')).toBeFalsy()
+			expect(DARK_THEMES).not.toContain('paper')
+		})
+
+		it('is removed cleanly when switching to another theme', () => {
+			jest.mocked(useMediaMatch).mockReturnValue(false)
+
+			const { rerender } = renderHook(
+				({ theme }) => useApplyTheme({ appTheme: theme, appFont: SupportedFont.Inter }),
+				{ initialProps: { theme: 'paper' } },
+			)
+
+			expect(document.documentElement.classList.contains('paper')).toBe(true)
+
+			rerender({ theme: 'dark' })
+
+			expect(document.documentElement.classList.contains('paper')).toBe(false)
+			expect(document.documentElement.classList.contains('dark')).toBe(true)
+		})
+	})
+
 	describe('Meta tag behavior on theme changes', () => {
 		it('should create meta tag when switching from light to dark theme', () => {
 			jest.mocked(useMediaMatch).mockReturnValue(false)
