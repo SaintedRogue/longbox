@@ -89,7 +89,7 @@ type Props = {
 	book: NonNullable<BookReaderSceneQuery['mediaById']>
 }
 
-function BookReaderScene({ book }: Props) {
+export function BookReaderScene({ book }: Props) {
 	const navigate = useNavigate()
 	const [search] = useSearchParams()
 	const location = useLocation()
@@ -204,6 +204,35 @@ function BookReaderScene({ book }: Props) {
 		() => resolveInitialPage(startPage, book.readProgress?.page, book.pages),
 		[startPage, book.readProgress?.page, book.pages],
 	)
+
+	// `startPage` is a one-shot restart signal (e.g. "Read from beginning") carried in router
+	// state. BrowserRouter persists history state across a full reload, and — now that page turns
+	// no longer rewrite the URL — nothing else overwrites this entry's state. So once it has seeded
+	// the initial page, clear it; otherwise refreshing (or navigating Forward back into this same
+	// entry) would keep forcing the start page instead of resuming saved progress.
+	const startPageCleared = useRef(false)
+	useEffect(() => {
+		if (startPage == null || startPageCleared.current) return
+		// Books that redirect away (epub / non-streaming pdf) never consume startPage here; let the
+		// redirect own the navigation instead of racing it with a state-clearing replace.
+		const willRedirect =
+			!!book.extension.match(EBOOK_EXTENSION) ||
+			(!!book.extension.match(PDF_EXTENSION) && !isStreaming)
+		if (willRedirect) return
+		startPageCleared.current = true
+		navigate(`${location.pathname}${location.search}`, {
+			replace: true,
+			state: { ...(location.state as Record<string, unknown> | null), startPage: undefined },
+		})
+	}, [
+		startPage,
+		book.extension,
+		isStreaming,
+		navigate,
+		location.pathname,
+		location.search,
+		location.state,
+	])
 
 	useEffect(() => {
 		if (book.extension.match(EBOOK_EXTENSION)) {

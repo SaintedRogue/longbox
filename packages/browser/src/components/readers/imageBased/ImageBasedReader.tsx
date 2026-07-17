@@ -188,9 +188,9 @@ export default function ImageBasedReader({ media, isIncognito, initialPage, onPr
 			const Component = AnimatedPagedReader
 			return <Component initialPage={initialPage || 1} onPageChanged={handleChangePage} />
 		} else {
-			// Driven from state rather than the `initialPage` prop: entry points that opt out of
-			// `syncPageToUrl` (the offline reader) have no navigate() round-trip to feed a new page
-			// back down, so reading the prop here would pin them to their initial page forever.
+			// Driven from `currentPage` state (not the `initialPage` prop): the reader never writes
+			// page state to the URL, so there is no navigate() round-trip to feed a new page back
+			// down — reading the prop here would pin the page to its initial value.
 			return <PagedReader currentPage={currentPage} onPageChange={handleChangePage} />
 		}
 	}
