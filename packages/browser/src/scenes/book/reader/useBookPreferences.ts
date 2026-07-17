@@ -5,6 +5,7 @@ import { useCallback, useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 
 import { ImageReaderBookRef } from '@/components/readers/imageBased/context'
+import { useIsMobile } from '@/hooks'
 import { useReaderStore } from '@/stores'
 
 type Params = {
@@ -43,10 +44,22 @@ export function useBookPreferences({ book }: Params): Return {
 	const libraryConfig = useMemo(() => book.libraryConfig, [book])
 	const libraryDefaults = useMemo(() => defaultsFromLibraryConfig(libraryConfig), [libraryConfig])
 
-	const bookPreferences = useMemo(
-		() => buildPreferences(storedBookPreferences ?? {}, settings, libraryDefaults),
-		[storedBookPreferences, libraryDefaults, settings],
-	)
+	const isMobile = useIsMobile()
+
+	const bookPreferences = useMemo(() => {
+		const preferences = buildPreferences(storedBookPreferences ?? {}, settings, libraryDefaults)
+		// On phone-sized viewports, always fit pages to width. Every other scaling mode sizes the
+		// page to the viewport *height*, which makes a portrait comic wider than a narrow screen and
+		// slices the sides off. Width is the only mode that keeps a whole page on-screen on mobile,
+		// so we override here rather than trusting the (desktop-oriented) library/user default.
+		if (isMobile) {
+			return {
+				...preferences,
+				imageScaling: { ...preferences.imageScaling, scaleToFit: ReadingImageScaleFit.Width },
+			}
+		}
+		return preferences
+	}, [storedBookPreferences, libraryDefaults, settings, isMobile])
 
 	const setBookPreferences = useCallback(
 		(preferences: Partial<typeof bookPreferences>) => {

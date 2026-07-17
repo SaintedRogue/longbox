@@ -140,7 +140,7 @@ const styles = {
 			maxWidth: '100%',
 			// no width
 			// no min height
-			height: '100vh',
+			height: '100dvh',
 		} as React.CSSProperties,
 
 		image: {
@@ -159,7 +159,7 @@ const styles = {
 			// no max width
 			// no width
 			// no min height
-			height: '100vh',
+			height: '100dvh',
 		} as React.CSSProperties,
 
 		image: {
@@ -177,7 +177,7 @@ const styles = {
 			// no min width
 			// no max width
 			width: '100vw',
-			minHeight: '100vh',
+			minHeight: '100dvh',
 			// no neight
 		} as React.CSSProperties,
 
@@ -196,7 +196,7 @@ const styles = {
 			minWidth: 'max-content',
 			// no max width
 			// no width
-			minHeight: '100vh',
+			minHeight: '100dvh',
 			// no height
 			alignItems: 'center', // add vertical alignment
 		} as React.CSSProperties,
