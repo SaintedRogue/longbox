@@ -1,0 +1,73 @@
+name: Publish image to GHCR
+
+# Builds the Longbox image on the self-hosted Unraid runner (which drives the host
+# Docker daemon, so the Dockerfile's --mount=type=cache persists → ~2-6 min builds),
+# pushes it to GHCR, and attaches a Sigstore build-provenance attestation.
+#
+# NOTE: build with plain `docker build` on the host daemon. Do NOT switch to
+# docker/build-push-action's docker-container builder — that runs an isolated
+# BuildKit whose cache does not persist, making every build cold (~6 min+).
+on:
+  push:
+    branches:
+      - main
+      - deploy/unraid-ghcr   # TEMPORARY: test-fire on the branch; remove before final merge
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+  workflow_dispatch:
+
+concurrency:
+  group: publish-image-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-push:
+    name: Build & push (amd64) to GHCR with provenance
+    runs-on: [self-hosted, longbox]
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0            # build.rs bakes the git rev; needs real history
+
+      - name: Compute short SHA
+        id: vars
+        run: echo "sha=$(git rev-parse --short=8 HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build image
+        run: |
+          docker build -f docker/Dockerfile \
+            --build-arg GIT_REV=${{ steps.vars.outputs.sha }} \
+            --build-arg BUILD_CHANNEL=stable \
+            -t ghcr.io/saintedrogue/longbox:latest \
+            -t ghcr.io/saintedrogue/longbox:${{ steps.vars.outputs.sha }} \
+            .
+
+      - name: Push image
+        id: push
+        run: |
+          docker push ghcr.io/saintedrogue/longbox:latest
+          docker push ghcr.io/saintedrogue/longbox:${{ steps.vars.outputs.sha }}
+          digest=$(docker inspect --format='{{index .RepoDigests 0}}' \
+            ghcr.io/saintedrogue/longbox:${{ steps.vars.outputs.sha }} | cut -d@ -f2)
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ghcr.io/saintedrogue/longbox
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
