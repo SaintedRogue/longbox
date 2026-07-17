@@ -7,6 +7,7 @@ import { useImageBaseReaderContext } from '../context'
 import NextInSeries from './NextInSeries'
 import ReaderFooter from './ReaderFooter'
 import ReaderHeader from './ReaderHeader'
+import ReaderProgressLine from './ReaderProgressLine'
 
 export default function ControlsOverlay() {
 	const { book } = useImageBaseReaderContext()
@@ -36,6 +37,8 @@ export default function ControlsOverlay() {
 			<NextInSeries />
 
 			<ReaderFooter />
+
+			<ReaderProgressLine />
 		</Fragment>
 	)
 }

@@ -3,11 +3,9 @@ import { ReadingDirection, ReadingMode } from '@stump/graphql'
 import { generatePageSets } from '@stump/sdk'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router'
 import { useWindowSize } from 'rooks'
 
 import { usePreloadPage } from '@/hooks/usePreloadPage'
-import { usePaths } from '@/paths'
 import { useBookPreferences } from '@/scenes/book/reader/useBookPreferences'
 import { useBookTimer } from '@/stores/reader'
 
@@ -31,46 +29,17 @@ type Props = {
 	 */
 	initialPage?: number
 	onProgress?: (page: number, elapsedSeconds: number) => void
-	/**
-	 * Whether page changes in paged mode should be reflected in the URL via `navigate(paths.bookReader(...))`.
-	 * Defaults to `true`, which is today's behavior: every page turn in paged mode navigates to the
-	 * server-dependent `/books/:id/reader?page=N` route. Pass `false` for reader entry points that don't
-	 * have that route backed by a live server (e.g. the offline reader), so paging only updates local state.
-	 */
-	syncPageToUrl?: boolean
 }
 
-export default function ImageBasedReader({
-	media,
-	isIncognito,
-	initialPage,
-	onProgress,
-	syncPageToUrl = true,
-}: Props) {
+export default function ImageBasedReader({ media, isIncognito, initialPage, onProgress }: Props) {
 	const { sdk } = useSDK()
-	const paths = usePaths()
 
 	const client = useQueryClient()
-	const navigate = useNavigate()
 
 	/**
 	 * The current page of the reader
 	 */
 	const [currentPage, setCurrentPage] = useState(() => initialPage || 1)
-
-	/**
-	 * When page changes are synced to the URL, `initialPage` is derived from the `?page=` search
-	 * param upstream, so it also changes for reasons the reader didn't drive: browser back/forward,
-	 * and the out-of-range correction BookReaderScene issues for a stale progress page. Resync state
-	 * to it in that case. A page turn the reader *did* drive already set `currentPage` to this same
-	 * value before navigate() echoed it back, so this is a no-op there and cannot loop. Skipped when
-	 * unsynced (the offline reader), where there is no URL and state is the sole source of truth.
-	 */
-	useEffect(() => {
-		if (syncPageToUrl && initialPage != null) {
-			setCurrentPage(initialPage)
-		}
-	}, [syncPageToUrl, initialPage])
 
 	const { imageSizes, setPageSize } = useImageSizes({ book: media })
 
@@ -130,26 +99,20 @@ export default function ImageBasedReader({
 	])
 
 	/**
-	 * A callback to handle when the page changes. This will update the URL to reflect the new page
-	 * if the reader mode is not continuous and `syncPageToUrl` is not `false`.
+	 * Handle a page change: update local state and report progress. The reader never writes
+	 * page state to the URL — Back/Forward operate at the book level, and position is resumed
+	 * from saved reading progress.
 	 */
 	const handleChangePage = useCallback(
 		(newPage: number) => {
-			if (readingMode !== ReadingMode.Paged) {
-				setCurrentPage(newPage)
-			} else {
-				setCurrentPage(newPage)
-				if (syncPageToUrl) {
-					navigate(paths.bookReader(media.id, { isIncognito, page: newPage }))
-				}
-			}
+			setCurrentPage(newPage)
 
 			if (!isIncognito) {
 				const elapsedSeconds = timer.getCurrentTime()
 				onProgress?.(newPage, elapsedSeconds)
 			}
 		},
-		[media.id, isIncognito, navigate, readingMode, paths, timer, onProgress, syncPageToUrl],
+		[isIncognito, timer, onProgress],
 	)
 
 	/**
@@ -225,9 +188,9 @@ export default function ImageBasedReader({
 			const Component = AnimatedPagedReader
 			return <Component initialPage={initialPage || 1} onPageChanged={handleChangePage} />
 		} else {
-			// Driven from state rather than the `initialPage` prop: entry points that opt out of
-			// `syncPageToUrl` (the offline reader) have no navigate() round-trip to feed a new page
-			// back down, so reading the prop here would pin them to their initial page forever.
+			// Driven from `currentPage` state (not the `initialPage` prop): the reader never writes
+			// page state to the URL, so there is no navigate() round-trip to feed a new page back
+			// down — reading the prop here would pin the page to its initial value.
 			return <PagedReader currentPage={currentPage} onPageChange={handleChangePage} />
 		}
 	}

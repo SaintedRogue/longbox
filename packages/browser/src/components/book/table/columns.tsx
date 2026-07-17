@@ -58,7 +58,6 @@ const nameColumn = columnHelper.accessor(({ resolvedName }) => resolvedName, {
 				libraryConfig?.skipBookOverview
 					? paths.bookReader(id, {
 							epubcfi: readProgress?.epubcfi,
-							page: readProgress?.page ?? undefined,
 						})
 					: paths.bookOverview(id)
 			}

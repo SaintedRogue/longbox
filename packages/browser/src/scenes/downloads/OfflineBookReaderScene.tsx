@@ -31,8 +31,8 @@ const withLocaleKey = (key: string) => `${LOCALE_BASE_KEY}.${key}`
  *   settings (`useReaderStore(s => s.settings)`, available offline since the store is localStorage-
  *   persisted) are mapped into `synthesizeReaderBook`'s `prefs` so the offline reader renders in the
  *   user's preferred mode -- paged included -- rather than always forcing continuous scrolling.
- *   `syncPageToUrl={false}` is passed so that, in paged mode, page turns stay on this offline route
- *   instead of `navigate()`-ing to the server-dependent `/books/:id/reader?page=N` route.
+ *   Page turns stay on this offline route: `ImageBasedReader` holds the current page in its own
+ *   state and never navigates.
  * - pdf -> `<NativePDFViewer/>`, which only needs `{ id }` and already resolves offline (5.3).
  * - epub -> deferred per stream5-interfaces.md S3: `EpubJsReader` needs the server-parsed
  *   `epubById` (spine/toc/resources), which cannot be synthesized from a `DownloadRecord`. Shown as
@@ -58,7 +58,7 @@ export default function OfflineBookReaderScene() {
 			readingDir: settings.readingDirection,
 		})
 
-		return <ImageBasedReader media={media} syncPageToUrl={false} />
+		return <ImageBasedReader media={media} />
 	}
 
 	if (record.format === 'pdf') {

@@ -120,7 +120,7 @@ export default function BookActionMenu({ book }: Props) {
 		if (epubcfi) {
 			return paths.bookReader(book.id, { epubcfi, isEpub: true })
 		} else if (!!page && page > 0) {
-			return paths.bookReader(book.id, { page })
+			return paths.bookReader(book.id)
 		}
 		return undefined
 	}, [book, paths])
@@ -131,7 +131,7 @@ export default function BookActionMenu({ book }: Props) {
 			if (extension.match(EBOOK_EXTENSION)) {
 				return paths.bookReader(id, { isEpub: true, isIncognito: incognito || undefined })
 			}
-			return paths.bookReader(id, { isIncognito: incognito || undefined, page: 1 })
+			return paths.bookReader(id, { isIncognito: incognito || undefined })
 		},
 		[book, paths],
 	)
@@ -153,12 +153,18 @@ export default function BookActionMenu({ book }: Props) {
 						{
 							label: 'Read from beginning',
 							leftIcon: <BookOpen className="mr-2 h-4 w-4" />,
-							onClick: () => navigate(getReadFromBeginningLink(false), { state: navigateState }),
+							onClick: () =>
+								navigate(getReadFromBeginningLink(false), {
+									state: { ...navigateState, startPage: 1 },
+								}),
 						},
 						{
 							label: 'Incognito mode',
 							leftIcon: <EyeOff className="mr-2 h-4 w-4" />,
-							onClick: () => navigate(getReadFromBeginningLink(true), { state: navigateState }),
+							onClick: () =>
+								navigate(getReadFromBeginningLink(true), {
+									state: { ...navigateState, startPage: 1 },
+								}),
 						},
 						...(book.extension?.match(PDF_EXTENSION)
 							? [
