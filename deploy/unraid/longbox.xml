@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>longbox</Name>
+  <Repository>ghcr.io/SaintedRogue/longbox:latest</Repository>
+  <Registry>https://ghcr.io/SaintedRogue/longbox</Registry>
+  <Network>br0</Network>
+  <MyIP>10.0.0.233</MyIP>
+  <Privileged>false</Privileged>
+  <Support/>
+  <Project>https://github.com/SaintedRogue/longbox</Project>
+  <Overview>Longbox — a fast, self-hosted, PWA-first server for comics, manga, and digital books, with full OPDS support. A single Rust binary with an embedded SQLite database (no separate database container). On first start it creates its config + database under /config and serves the web app / OPDS on port 10801. Add libraries pointing at folders under /data (your mounted comics/books). The image is public on GHCR — it pulls with no docker login, and each build carries a signed provenance attestation.</Overview>
+  <Category>MediaApp:Books</Category>
+  <WebUI>http://[IP]:[PORT:10801]</WebUI>
+  <Icon>https://cdn.jsdelivr.net/gh/SaintedRogue/longbox@main/.github/images/logo.png</Icon>
+  <ExtraParams/>
+  <PostArgs/>
+  <DonateText/>
+  <DonateLink/>
+  <Description>Longbox comics/manga/ebook server (PWA-first fork of Stump). Point a library at a folder under /data and browse at IP:10801. Requires no database container.</Description>
+  <Config Name="WebUI port" Target="10801" Default="10801" Mode="tcp" Description="App HTTP port (web UI + OPDS). On br0, reach it at this IP:10801." Type="Port" Display="always" Required="false" Mask="false">10801</Config>
+  <Config Name="Config / database" Target="/config" Default="/mnt/cache/appdata/longbox" Mode="rw" Description="Longbox config + SQLite database + thumbnails. Keep on the NVMe cache (appdata)." Type="Path" Display="always" Required="true" Mask="false">/mnt/cache/appdata/longbox</Config>
+  <Config Name="Library (comics/books)" Target="/data" Default="/mnt/user/media/comics" Mode="rw" Description="Your comics/manga/book library root. Inside Longbox, add libraries pointing at folders under /data. Use rw only if you enable writing ComicInfo.xml back into archives; otherwise ro is safer." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/media/comics</Config>
+  <Config Name="PUID" Target="PUID" Default="99" Mode="" Description="User ID owning /config and /data (Unraid default 99 = nobody)." Type="Variable" Display="always" Required="true" Mask="false">99</Config>
+  <Config Name="PGID" Target="PGID" Default="100" Mode="" Description="Group ID owning /config and /data (Unraid default 100 = users)." Type="Variable" Display="always" Required="true" Mask="false">100</Config>
+  <Config Name="TZ" Target="TZ" Default="Etc/UTC" Mode="" Description="Container timezone, e.g. America/New_York." Type="Variable" Display="always" Required="false" Mask="false">Etc/UTC</Config>
+</Container>
