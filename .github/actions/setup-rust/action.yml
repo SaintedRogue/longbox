@@ -21,6 +21,20 @@ runs:
         toolchain: 1.92.0
         components: rustfmt, clippy
 
+    # Self-hosted runners aren't pre-provisioned like GitHub-hosted ones, so the
+    # system-setup step below is skipped for them. Install the C build deps the
+    # crates need (openssl, sqlite, etc.) directly — matches the Dockerfile builder.
+    - name: Install system build dependencies (self-hosted Linux)
+      if: ${{ runner.environment == 'self-hosted' && runner.os == 'Linux' }}
+      shell: bash
+      run: |
+        export DEBIAN_FRONTEND=noninteractive
+        SUDO=""
+        command -v sudo >/dev/null 2>&1 && SUDO=sudo
+        $SUDO apt-get update
+        $SUDO apt-get install -y --no-install-recommends \
+          build-essential cmake pkg-config libssl-dev libsqlite3-dev
+
     - name: Configure environment
       if: ${{ runner.environment != 'self-hosted' && runner.os != 'Windows' }}
       shell: bash
