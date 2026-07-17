@@ -52,8 +52,13 @@ export function getAppScroller(): HTMLElement | null {
 export function useScrollRestoration(navigationType: NavigationType) {
 	const { key } = useLocation()
 
+	// The live entry key, mirrored into a ref so the lifetime-scoped scroll listener below can read
+	// the current entry without being torn down and rebuilt on every navigation. Updated in an
+	// effect rather than during render (the listener only reads it asynchronously, on user scroll).
 	const keyRef = useRef(key)
-	keyRef.current = key
+	useEffect(() => {
+		keyRef.current = key
+	}, [key])
 
 	// Save: one capturing document listener for the app's lifetime.
 	useEffect(() => {
@@ -107,9 +112,8 @@ export function useScrollRestoration(navigationType: NavigationType) {
 		apply()
 
 		return () => cancelAnimationFrame(raf)
-		// navigationType is intentionally omitted from deps: it is constant for a
-		// given entry (`key`), so keying on `key` alone is sufficient and avoids a
-		// redundant re-run if the prop identity changes without the entry changing.
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [key])
+		// navigationType is a primitive string that only changes alongside a new entry (`key`), so
+		// listing it costs no redundant re-runs while keeping the deps exhaustive -- which lets
+		// react-compiler optimize this effect instead of bailing on a disabled lint rule.
+	}, [key, navigationType])
 }

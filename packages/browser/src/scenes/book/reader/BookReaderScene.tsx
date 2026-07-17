@@ -110,12 +110,14 @@ function BookReaderScene({ book }: Props) {
 	const { mutate } = useGraphQLMutation(UPDATE_READ_PROGRESS)
 
 	const fireProgressMutation = useCallback(
-		(
+		// Named function expression so the retry below can recurse on its own name rather than the
+		// outer const, which would be a forward reference react-compiler rejects.
+		function fireProgressMutation(
 			variables: Parameters<typeof mutate>[0],
 			outboxRecord: Parameters<typeof enqueueProgress>[0],
 			seq: number,
 			retryCount: number,
-		) => {
+		) {
 			mutate(variables, {
 				onError: (err) => {
 					const supersededByNewerUpdate = seq !== latestProgressSeqRef.current

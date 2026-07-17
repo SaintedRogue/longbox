@@ -1,8 +1,8 @@
-import { deserialize, serialize } from 'node:v8'
-
 import '@testing-library/jest-dom'
 import 'cross-fetch/polyfill'
 import './src/__mocks__/pointerCapture'
+
+import { deserialize, serialize } from 'node:v8'
 
 // jest-environment-jsdom's sandboxed global doesn't inherit Node's `structuredClone`.
 // `fake-indexeddb` (used to test IndexedDB-backed modules, e.g. src/offline) relies on it

@@ -8,13 +8,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 
 import { SceneContainer } from '@/components/container'
-import { getAppScroller } from '@/hooks'
 import {
 	CreateOrUpdateLibrarySchema,
 	intoThumbnailConfig,
 } from '@/components/library/createOrUpdate'
 import { SteppedFormContext } from '@/components/steppedForm'
 import SteppedFormSceneHeader from '@/components/steppedForm/SteppedFormSceneHeader'
+import { getAppScroller } from '@/hooks'
 import { useConfetti } from '@/hooks/useConfetti'
 import paths from '@/paths'
 

@@ -1,6 +1,6 @@
 import { LocaleProvider } from '@stump/i18n'
 import { type AllowedLocale } from '@stump/i18n'
-import { lazy, useRef, useState } from 'react'
+import { lazy, useState } from 'react'
 import { Location, Route, Routes, useLocation, useNavigationType } from 'react-router-dom'
 
 import { AppLayout } from './AppLayout.tsx'
@@ -62,14 +62,18 @@ export function AppRouter({ basePath }: AppRouterProps = {}) {
 		}
 		return false
 	})
-	const initialLocationKeyRef = useRef(location.key)
+	// The first location key seen by this instance, captured once. useState (not a ref) so it can
+	// be compared during render without tripping react-compiler's no-refs-during-render rule; the
+	// value is write-once either way.
+	const [initialLocationKey] = useState(location.key)
 
 	const rawBackgroundLocation = (location.state as { backgroundLocation?: Location } | null)
 		?.backgroundLocation
+	// Comparing the current entry's key against the first-seen key is how a stale restored
+	// background (see above) is detected.
+	const isInitialLocation = location.key === initialLocationKey
 	const backgroundLocation =
-		strippedStaleBackground && location.key === initialLocationKeyRef.current
-			? undefined
-			: rawBackgroundLocation
+		strippedStaleBackground && isInitialLocation ? undefined : rawBackgroundLocation
 
 	if (!baseUrl) {
 		throw new Error('Base URL is not set')
