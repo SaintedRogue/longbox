@@ -38,6 +38,26 @@ scp deploy/unraid/longbox.xml \
    another user.
 5. Start it, then open `http://10.0.0.233:10801`, create your first user, and add a library.
 
+## Behind a reverse proxy (NGINX Proxy Manager, Traefik, …)
+
+Longbox builds absolute URLs for covers, thumbnails, and OPDS feeds from the incoming
+request. To do that correctly behind a proxy it must trust the proxy's forwarded headers,
+so the template ships **`STUMP_TRUST_PROXY_HEADERS=true`** on by default.
+
+- **Keep it `true`** whenever a proxy terminates TLS in front of Longbox. Otherwise Longbox
+  assumes it's reached directly and stamps its internal `:10801` port (and `http`) onto
+  cover/thumbnail URLs. Your browser then can't reach `https://your-domain:10801/…` through
+  the proxy, so **every cover/thumbnail shows blank** even though the pages themselves load.
+- **The proxy must forward the standard headers.** NGINX Proxy Manager and Traefik send
+  `X-Forwarded-Proto` / `X-Forwarded-For` by default — no extra config needed. In NPM just
+  point the Proxy Host at `http://<longbox-ip>:10801` (enable **Websockets Support** for the
+  live GraphQL subscription).
+- **Set it `false`** only if you expose Longbox directly by `IP:port` with no proxy, since a
+  directly-exposed server should not trust client-supplied `X-Forwarded-*` headers.
+
+Already running the container? Edit it in Unraid → add a **Variable**: Key
+`STUMP_TRUST_PROXY_HEADERS`, Value `true`, then **Apply** (Unraid recreates the container).
+
 ## Migrating from the upstream `aaronleopold/stump` container
 
 Longbox reads the same `/config` (SQLite + thumbnails) and `/data` layout as Stump, so you
