@@ -11,7 +11,6 @@ on:
   push:
     branches:
       - main
-      - deploy/unraid-ghcr   # TEMPORARY: test-fire on the branch; remove before final merge
     paths-ignore:
       - 'docs/**'
       - '**.md'
