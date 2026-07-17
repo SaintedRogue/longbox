@@ -58,6 +58,20 @@ export default function ImageBasedReader({
 	 */
 	const [currentPage, setCurrentPage] = useState(() => initialPage || 1)
 
+	/**
+	 * When page changes are synced to the URL, `initialPage` is derived from the `?page=` search
+	 * param upstream, so it also changes for reasons the reader didn't drive: browser back/forward,
+	 * and the out-of-range correction BookReaderScene issues for a stale progress page. Resync state
+	 * to it in that case. A page turn the reader *did* drive already set `currentPage` to this same
+	 * value before navigate() echoed it back, so this is a no-op there and cannot loop. Skipped when
+	 * unsynced (the offline reader), where there is no URL and state is the sole source of truth.
+	 */
+	useEffect(() => {
+		if (syncPageToUrl && initialPage != null) {
+			setCurrentPage(initialPage)
+		}
+	}, [syncPageToUrl, initialPage])
+
 	const { imageSizes, setPageSize } = useImageSizes({ book: media })
 
 	const {

@@ -105,4 +105,29 @@ describe('ImageBasedReader', () => {
 		expect(currentPageOfLastRender()).toBe(4)
 		expect(mockNavigate).toHaveBeenCalled()
 	})
+
+	// Browser back/forward and the out-of-range correction change the ?page= param -- and hence the
+	// initialPage prop -- without the reader driving the change. When synced to the URL, the shown
+	// page must follow.
+	it('follows an externally changed page when synced to the URL', () => {
+		const { rerender } = render(<ImageBasedReader media={book} initialPage={3} />)
+
+		expect(currentPageOfLastRender()).toBe(3)
+
+		rerender(<ImageBasedReader media={book} initialPage={6} />)
+
+		expect(currentPageOfLastRender()).toBe(6)
+	})
+
+	// The offline reader has no URL, so a state page turn must not be clobbered by a stale prop.
+	it('keeps its own page when unsynced, ignoring the initialPage prop', () => {
+		const { rerender } = render(<ImageBasedReader media={book} syncPageToUrl={false} />)
+
+		turnPageTo(2)
+		expect(currentPageOfLastRender()).toBe(2)
+
+		// A re-render for an unrelated reason must not reset the page the reader advanced to.
+		rerender(<ImageBasedReader media={book} syncPageToUrl={false} />)
+		expect(currentPageOfLastRender()).toBe(2)
+	})
 })
