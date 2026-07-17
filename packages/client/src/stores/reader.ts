@@ -58,6 +58,12 @@ export type BookPreferences = {
 	 */
 	tapSidesToNavigate: boolean
 	/**
+	 * Whether horizontal swipe gestures turn the page. Only applies while the page is at rest --
+	 * once zoomed in, dragging pans the page instead. This will have no effect if the book is not
+	 * an image-based book.
+	 */
+	swipeToNavigate: boolean
+	/**
 	 * Whether or not to track elapsed time for the book
 	 */
 	trackElapsedTime: boolean
@@ -145,6 +151,7 @@ export const DEFAULT_BOOK_PREFERENCES = {
 	panWithoutCtrl: false,
 	trackElapsedTime: true,
 	tapSidesToNavigate: true,
+	swipeToNavigate: true,
 } as const
 
 export const createReaderStore = (storage?: StateStorage) =>
@@ -185,7 +192,23 @@ export const createReaderStore = (storage?: StateStorage) =>
 				{
 					name: 'stump-new-reader-store',
 					storage: storage ? createJSONStorage(() => storage) : undefined,
-					version: 4,
+					version: 5,
+					// A version bump without a `migrate` makes zustand discard the persisted state
+					// outright, which would reset every reader preference the user has set. v5 only
+					// adds `swipeToNavigate`, so carry the old state forward and fill in the default.
+					migrate: (persisted, version) => {
+						const state = persisted as ReaderStore
+						if (version < 5) {
+							return {
+								...state,
+								settings: {
+									...state.settings,
+									swipeToNavigate: DEFAULT_BOOK_PREFERENCES.swipeToNavigate,
+								},
+							}
+						}
+						return state
+					},
 				},
 			),
 		),

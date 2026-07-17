@@ -9,6 +9,20 @@ import { useBookPreferences } from '@/scenes/book/reader/useBookPreferences'
 
 import { useImageBaseReaderContext } from '../context'
 import PageSet from './PageSet'
+import { useSwipeNavigation } from './useSwipeNavigation'
+
+/**
+ * Tolerance around the resting scale of 1. Pinch gestures settle on values like 1.0000002, which
+ * should not count as zoomed in and hand the pointer stream over to panning.
+ */
+const ZOOM_EPSILON = 0.01
+
+/**
+ * The `touch-action` for a page at rest: the browser keeps vertical scrolling (a page scaled to fit
+ * the width is routinely taller than the viewport), while horizontal travel is left to the swipe
+ * handler. Once zoomed in this becomes 'none' so panzoom can pan freely in both axes.
+ */
+const RESTING_TOUCH_ACTION = 'pan-y'
 
 export type PagedReaderProps = {
 	/** The current page which the reader should render */
@@ -29,6 +43,7 @@ function PagedReader({ currentPage, onPageChange }: PagedReaderProps) {
 	const {
 		bookPreferences: {
 			tapSidesToNavigate,
+			swipeToNavigate,
 			imageScaling,
 			secondPageSeparate,
 			doublePageBehavior,
@@ -46,6 +61,20 @@ function PagedReader({ currentPage, onPageChange }: PagedReaderProps) {
 	const panzoomRef = useRef<ReturnType<typeof Panzoom> | null>(null)
 
 	const panningDetected = useRef(false)
+
+	/**
+	 * Whether the page is zoomed in past its resting scale. This is what arbitrates between the two
+	 * gestures that want the same pointer stream: at rest a horizontal drag turns the page, and
+	 * once zoomed the same drag pans it instead. Kept in state (not just a ref) because both the
+	 * swipe handlers and the `touch-action` effect below need to react to it.
+	 */
+	const [isZoomed, setIsZoomed] = useState(false)
+	/**
+	 * A mirror of `isZoomed` for the pointer handlers below. They are bound once per panzoom
+	 * instance and must not be rebound on zoom changes -- doing so would tear down and rebuild
+	 * panzoom in the middle of a pinch -- so they read the live value from here instead.
+	 */
+	const isZoomedRef = useRef(false)
 
 	const [pageSetWidth, setPageSetWidth] = useState(0)
 	useEffect(() => {
@@ -87,7 +116,13 @@ function PagedReader({ currentPage, onPageChange }: PagedReaderProps) {
 
 			const isSidebarClicked = !!(event.target as HTMLElement).closest('.z-50')
 
-			if (!isSidebarClicked) {
+			// A touch drag on a page at rest belongs to the swipe handler, so panzoom must not start
+			// a pan for it -- and must not preventDefault(), which would also kill the native
+			// vertical scroll of a page taller than the viewport. Zoomed in, panzoom takes it back.
+			const isTouchGestureForSwipe =
+				event.pointerType === 'touch' && swipeToNavigate && !isZoomedRef.current
+
+			if (!isSidebarClicked && !isTouchGestureForSwipe) {
 				panzoomRef.current?.handleDown(event)
 				parentElement.style.cursor = 'move'
 				pageSetElement.style.cursor = 'move'
@@ -141,6 +176,10 @@ function PagedReader({ currentPage, onPageChange }: PagedReaderProps) {
 				minScale: 0.8,
 				maxScale: 2.5,
 				origin: panzoomOriginCalculation(),
+				// Panzoom would otherwise pin this to 'none', which kills the native vertical scroll
+				// of a tall page and the horizontal travel the swipe handler needs. `handleZoomChange`
+				// takes ownership of it below, widening to 'none' only once actually zoomed in.
+				touchAction: RESTING_TOUCH_ACTION,
 			})
 
 			panzoomRef.current = pz
@@ -148,8 +187,19 @@ function PagedReader({ currentPage, onPageChange }: PagedReaderProps) {
 
 		createPanzoom()
 
+		// Panzoom reports every scale change here, including pinch. `ZOOM_EPSILON` keeps floating
+		// point dust at the resting scale from reading as "zoomed".
+		const handleZoomChange = (event: Event) => {
+			const { scale } = (event as CustomEvent<{ scale: number }>).detail
+			const zoomed = scale > 1 + ZOOM_EPSILON
+			isZoomedRef.current = zoomed
+			setIsZoomed(zoomed)
+			pageSetElement.style.touchAction = zoomed ? 'none' : RESTING_TOUCH_ACTION
+		}
+
 		parentElement.addEventListener('wheel', handleWheel)
 		parentElement.addEventListener('pointerdown', handlePointerDown)
+		pageSetElement.addEventListener('panzoomchange', handleZoomChange)
 		document.addEventListener('pointermove', handleMove)
 		document.addEventListener('pointerup', handlePointerUp)
 		window.addEventListener('resize', createPanzoom)
@@ -157,12 +207,14 @@ function PagedReader({ currentPage, onPageChange }: PagedReaderProps) {
 		return () => {
 			parentElement.removeEventListener('wheel', handleWheel)
 			parentElement.removeEventListener('pointerdown', handlePointerDown)
+			pageSetElement.removeEventListener('panzoomchange', handleZoomChange)
 			document.removeEventListener('pointermove', handleMove)
 			document.removeEventListener('pointerup', handlePointerUp)
 			window.removeEventListener('resize', createPanzoom)
 			panzoomRef.current?.destroy()
 		}
 	}, [
+		swipeToNavigate,
 		currentPage,
 		imageScaling,
 		secondPageSeparate,
@@ -288,8 +340,15 @@ function PagedReader({ currentPage, onPageChange }: PagedReaderProps) {
 	 */
 	useHotkeys('right, left, space, escape', (_, handler) => hotKeyHandler(handler))
 
+	const swipeHandlers = useSwipeNavigation({
+		enabled: swipeToNavigate,
+		isZoomed,
+		onLeftward: handleLeftwardPageChange,
+		onRightward: handleRightwardPageChange,
+	})
+
 	return (
-		<div className="relative m-auto flex w-screen justify-center">
+		<div className="relative m-auto flex w-screen justify-center" {...swipeHandlers}>
 			{!showToolBar && tapSidesToNavigate && (
 				<SideBarControl
 					fixed={fixSideNavigation}

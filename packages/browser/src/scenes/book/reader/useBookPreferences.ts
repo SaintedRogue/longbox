@@ -89,6 +89,7 @@ const settingsAsBookPreferences = (settings: ReaderSettings): BookPreferences =>
 	readingDirection: settings.readingDirection,
 	readingMode: settings.readingMode,
 	tapSidesToNavigate: settings.tapSidesToNavigate,
+	swipeToNavigate: settings.swipeToNavigate,
 	fontSize: settings.fontSize,
 	lineHeight: settings.lineHeight,
 	trackElapsedTime: settings.trackElapsedTime,

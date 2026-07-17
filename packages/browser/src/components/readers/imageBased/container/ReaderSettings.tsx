@@ -168,6 +168,14 @@ export default function ReaderSettings({ forBook, currentPage }: Props) {
 					</Label>
 
 					<Label className="px-1 flex items-center justify-between">
+						<span>Swipe to navigate</span>
+						<RawSwitch
+							checked={activeSettings.swipeToNavigate}
+							onCheckedChange={(checked) => onPreferenceChange({ swipeToNavigate: checked })}
+						/>
+					</Label>
+
+					<Label className="px-1 flex items-center justify-between">
 						<span>Reading timer</span>
 						<RawSwitch
 							checked={activeSettings.trackElapsedTime}
