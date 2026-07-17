@@ -163,7 +163,7 @@ export default function ReaderFooter() {
 				/>
 			)}
 
-			<div className="gap-2 px-4 pb-4 flex w-full flex-col">
+			<div className="gap-2 flex w-full flex-col pr-[max(1rem,var(--spacing-safe-right))] pb-[calc(1rem+var(--spacing-safe-bottom))] pl-[max(1rem,var(--spacing-safe-left))]">
 				<ProgressBar
 					size="sm"
 					value={currentPage}

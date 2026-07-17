@@ -8,6 +8,7 @@ const ControlButton = forwardRef<HTMLButtonElement, ComponentProps<typeof IconBu
 			<IconButton
 				variant="ghost"
 				size="sm"
+				hitArea="touch"
 				className={cn(
 					'focus:ring-offset-black hover:bg-white/10 text-foreground hover:text-foreground',
 					className,

@@ -14,7 +14,7 @@ export const TOPBAR_HEIGHT_PX = 53
  */
 export default function TopBar() {
 	return (
-		<header className="top-0 h-14 px-4 md:hidden sticky z-10 flex w-full shrink-0 border-b border-sidebar-border bg-sidebar text-sidebar-foreground">
+		<header className="top-0 md:hidden sticky z-10 flex h-[calc(3.5rem+var(--spacing-safe-top))] w-full shrink-0 border-b border-sidebar-border bg-sidebar pt-safe pr-[max(1rem,var(--spacing-safe-right))] pl-[max(1rem,var(--spacing-safe-left))] text-sidebar-foreground">
 			<div className="gap-2 grid w-full grid-cols-8 items-center">
 				<div className="col-span-1">
 					<MobileSheet />

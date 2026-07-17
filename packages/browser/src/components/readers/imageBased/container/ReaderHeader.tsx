@@ -34,14 +34,17 @@ export default function ReaderHeader() {
 	return (
 		<motion.nav
 			// @ts-expect-error: It does have className?
-			className="left-0 top-0 h-12 px-4 fixed z-100 flex w-full items-center text-foreground"
+			// The bar grows by the top inset (pt-safe on top of the base 3rem height) so the
+			// controls keep their full row clear of the status bar / punch-hole. Horizontal
+			// padding holds at 1rem in portrait and widens to a side notch in landscape.
+			className="left-0 top-0 fixed z-100 flex h-[calc(3rem+var(--spacing-safe-top))] w-full items-center pt-safe pr-[max(1rem,var(--spacing-safe-right))] pl-[max(1rem,var(--spacing-safe-left))] text-foreground"
 			initial={false}
 			animate={showToolBar ? 'visible' : 'hidden'}
 			variants={transition}
 			transition={{ duration: 0.2, ease: 'easeInOut' }}
 		>
-			<div className="flex w-full items-center justify-between">
-				<div className="space-x-4 flex items-center">
+			<div className="gap-2 flex w-full items-center justify-between">
+				<div className="space-x-4 flex shrink-0 items-center">
 					<Link
 						className="flex items-center text-foreground hover:text-foreground/80"
 						title="Go to media overview"
@@ -51,9 +54,9 @@ export default function ReaderHeader() {
 					</Link>
 				</div>
 
-				<Text className="text-foreground">{resolvedName}</Text>
+				<Text className="min-w-0 truncate text-foreground">{resolvedName}</Text>
 
-				<div className="space-x-1.5 flex items-center">
+				<div className="space-x-1.5 flex shrink-0 items-center">
 					{isFullscreenAvailable && (
 						<ControlButton onClick={toggleFullscreen}>
 							<FullScreenIcon className="h-4 w-4" />

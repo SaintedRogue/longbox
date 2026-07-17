@@ -210,6 +210,66 @@
 	border-radius: var(--radius-thumbnail);
 }
 
+/*
+ * MARK: safe areas
+ *
+ * The viewport is `viewport-fit=cover` (see index.html), so the page is drawn underneath the
+ * status bar, punch-hole camera and gesture bar. Fixed chrome has to inset itself back out of
+ * those regions or it ends up under them -- most visibly on Pixel-class hardware, where the
+ * gesture bar sits on top of anything pinned to the bottom edge.
+ *
+ * These set the inset as the whole padding, so use them only where the base padding on that edge
+ * is otherwise zero. Where the inset has to *add* to existing padding (a footer that already has
+ * `pb-4`), reach for the `--spacing-safe-*` variables inside a calc() at the call site instead --
+ * `pb-[calc(1rem+var(--spacing-safe-bottom))]` -- since two padding declarations on the same edge
+ * do not stack.
+ */
+@utility pt-safe {
+	padding-top: var(--spacing-safe-top);
+}
+
+@utility pb-safe {
+	padding-bottom: var(--spacing-safe-bottom);
+}
+
+@utility pl-safe {
+	padding-left: var(--spacing-safe-left);
+}
+
+@utility pr-safe {
+	padding-right: var(--spacing-safe-right);
+}
+
+@layer base {
+	:root {
+		--spacing-safe-top: env(safe-area-inset-top, 0px);
+		--spacing-safe-bottom: env(safe-area-inset-bottom, 0px);
+		--spacing-safe-left: env(safe-area-inset-left, 0px);
+		--spacing-safe-right: env(safe-area-inset-right, 0px);
+	}
+
+	/*
+	 * MARK: reduced motion
+	 *
+	 * Honour the OS-level motion preference globally. This matters beyond the usual accessibility
+	 * case here: Longbox is read on matte, slow-refresh panels (the TCL NXTPAPER line), where
+	 * transitions smear rather than animate. Anything that genuinely must move despite this can
+	 * opt back in with `motion-safe:`.
+	 *
+	 * Canvas-driven motion is unreachable from CSS and is gated in JS at its source instead.
+	 */
+	@media (prefers-reduced-motion: reduce) {
+		*,
+		*::before,
+		*::after {
+			animation-duration: 0.01ms !important;
+			animation-iteration-count: 1 !important;
+			transition-duration: 0.01ms !important;
+			scroll-behavior: auto !important;
+		}
+	}
+}
+
 @custom-variant autofill (&:autofill, &:-webkit-autofill);
 
 @layer base {

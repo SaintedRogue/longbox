@@ -62,6 +62,9 @@ export function AppLayout({ overlayLocation, navigationType }: AppLayoutProps) {
 
 	const mainRef = useRef<HTMLDivElement>(null)
 	const isMobile = useMediaMatch('(max-width: 768px)')
+	// Canvas motion can't be quieted from CSS, so the reduced-motion preference is honoured here in
+	// JS -- the CSS block in preset.css covers everything else.
+	const prefersReducedMotion = useMediaMatch('(prefers-reduced-motion: reduce)')
 	const windowSize = useWindowSize()
 
 	const { showBoundary } = useErrorBoundary()
@@ -100,6 +103,13 @@ export function AppLayout({ overlayLocation, navigationType }: AppLayoutProps) {
 			initialize(scrollContainer)
 		}
 	}, [initialize, isRefSet, hideScrollBar])
+	// The confetti burst self-clears via onConfettiComplete, but that never fires when the burst is
+	// suppressed for reduced motion -- so clear the flag here, or it would linger and fire later.
+	useEffect(() => {
+		if (showConfetti && prefersReducedMotion) {
+			setShowConfetti(false)
+		}
+	}, [showConfetti, prefersReducedMotion, setShowConfetti])
 	/**
 	 * An effect to find the added viewport element and add the necessary flexbox classes
 	 * in order to not break the layout of children elements. This is because overlayscrollbars
@@ -271,7 +281,7 @@ export function AppLayout({ overlayLocation, navigationType }: AppLayoutProps) {
 			}}
 		>
 			<Suspense fallback={<RouteLoadingIndicator />}>
-				{showConfetti && (
+				{showConfetti && !prefersReducedMotion && (
 					<Confetti
 						height={windowSize.innerHeight || undefined}
 						width={windowSize.innerWidth || undefined}
