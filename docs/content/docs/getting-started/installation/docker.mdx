@@ -14,6 +14,14 @@ echo -e "PUID=$(id -u)\nPGID=$(id -g)"
 ```
 </Callout>
 
+The Longbox image is published to the GitHub Container Registry at
+`ghcr.io/saintedrogue/longbox`. It is **public**, so it pulls with no `docker login`, and
+each build carries a signed provenance attestation you can verify with:
+
+```bash copy
+gh attestation verify oci://ghcr.io/saintedrogue/longbox:latest -R SaintedRogue/longbox
+```
+
 You have two options for spinning up a container based on your preference:
 
 1. Docker CLI
@@ -29,13 +37,13 @@ The instructions for both options are provided below
 
     ```yaml copy
     services:
-      stump:
-        image: aaronleopold/stump:latest
-        container_name: stump
+      longbox:
+        image: ghcr.io/saintedrogue/longbox:latest
+        container_name: longbox
         # Replace my paths (prior to the colons) with your own
         volumes:
-          - /home/aaronleopold/.stump:/config
-          - /media/books:/data
+          - /path/to/longbox/config:/config
+          - /path/to/comics:/data
         ports:
           - 10801:10801
         environment:
@@ -51,23 +59,23 @@ The instructions for both options are provided below
       ```bash copy
       # replace my paths (left of colon) with your own
       docker create \
-        --name=stump \
+        --name=longbox \
         -e "PUID=1000" \
         -e "PGID=1000" \
         -p 10801:10801 \
-        --volume "/home/aaronleopold/.stump:/config" \
-        --volume "/media/books:/data" \
+        --volume "/path/to/longbox/config:/config" \
+        --volume "/path/to/comics:/data" \
         --restart unless-stopped \
-        aaronleopold/stump:latest
+        ghcr.io/saintedrogue/longbox:latest
       ```
-      
+
       If you prefer bind mounts, you can swap out the two `--volume` lines with:
-      
+
       ```bash copy
-      --mount type=volume,source=/home/aaronleopold/.stump,target=/config \
-      --mount type=volume,source=/media/books,target=/data \
+      --mount type=volume,source=/path/to/longbox/config,target=/config \
+      --mount type=volume,source=/path/to/comics,target=/data \
       ```
-  
+
   </Tab>
 </Tabs>
 
@@ -77,7 +85,7 @@ Below is a reference for some of the parameters used in this section:
 
 | Parameter                       |                                Functionality                                |
 | ------------------------------- | :-------------------------------------------------------------------------: |
-| `--name=stump`                  |           Sets the name of the container this command will create           |
+| `--name=longbox`                |           Sets the name of the container this command will create           |
 | `-e "PUID=1000" -e "PGID=1000"` |    Sets the user and group used within the container (leave this as is)     |
 | `-p 10801:10801`                | Maps the port on your machine (left) to the port the container uses (right) |
 
@@ -91,7 +99,7 @@ Below is a reference for some of the parameters used in this section:
   </Tab>
   <Tab value="CLI">
     ```bash copy
-    docker start stump
+    docker start longbox
     ```
   </Tab>
 </Tabs>
@@ -103,23 +111,22 @@ When a new image is available, you can update your container using these command
 <Tabs items={['Compose', 'CLI']}>
   <Tab value="Compose">
     ```bash copy
-    docker compose pull stump
+    docker compose pull longbox
     docker compose up -d
     ```
   </Tab>
   <Tab value="CLI">
     ```bash copy
-    docker pull aaronleopold/stump:latest
-    docker restart stump
+    docker pull ghcr.io/saintedrogue/longbox:latest
+    docker restart longbox
     ```
   </Tab>
 </Tabs>
-
 
 ## Monitoring
 
 To monitor the logs of the container, you can use the following command:
 
 ```bash copy
-docker logs -f stump
+docker logs -f longbox
 ```
