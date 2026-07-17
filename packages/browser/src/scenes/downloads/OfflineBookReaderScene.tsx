@@ -8,6 +8,7 @@ import { ImageBasedReader } from '@/components/readers/imageBased'
 import NativePDFViewer from '@/components/readers/pdf/NativePDFViewer'
 import { useDownloadStore } from '@/offline/downloadStore'
 import paths from '@/paths'
+import { useReaderStore } from '@/stores'
 
 import { synthesizeReaderBook } from './synthesizeReaderBook'
 
@@ -26,7 +27,12 @@ const withLocaleKey = (key: string) => `${LOCALE_BASE_KEY}.${key}`
  * Format dispatch mirrors BookReaderScene's extension-based reader-kind decision, but keyed off the
  * DownloadRecord's `format` (derived at download time by `deriveDownloadFormat`, see
  * offline/downloadFormat.ts) instead of `book.extension`:
- * - comic (cbz/cbr) -> `<ImageBasedReader/>` with a synthesized book.
+ * - comic (cbz/cbr) -> `<ImageBasedReader/>` with a synthesized book. The user's persisted reading
+ *   settings (`useReaderStore(s => s.settings)`, available offline since the store is localStorage-
+ *   persisted) are mapped into `synthesizeReaderBook`'s `prefs` so the offline reader renders in the
+ *   user's preferred mode -- paged included -- rather than always forcing continuous scrolling.
+ *   `syncPageToUrl={false}` is passed so that, in paged mode, page turns stay on this offline route
+ *   instead of `navigate()`-ing to the server-dependent `/books/:id/reader?page=N` route.
  * - pdf -> `<NativePDFViewer/>`, which only needs `{ id }` and already resolves offline (5.3).
  * - epub -> deferred per stream5-interfaces.md S3: `EpubJsReader` needs the server-parsed
  *   `epubById` (spine/toc/resources), which cannot be synthesized from a `DownloadRecord`. Shown as
@@ -39,13 +45,20 @@ const withLocaleKey = (key: string) => `${LOCALE_BASE_KEY}.${key}`
 export default function OfflineBookReaderScene() {
 	const { id } = useParams()
 	const record = useDownloadStore((state) => (id ? state.records[id] : undefined))
+	const settings = useReaderStore((state) => state.settings)
 
 	if (!record) {
 		return <NotDownloaded />
 	}
 
 	if (record.format === 'cbz' || record.format === 'cbr') {
-		return <ImageBasedReader media={synthesizeReaderBook(record)} />
+		const media = synthesizeReaderBook(record, {
+			readingMode: settings.readingMode,
+			imageScaleFit: settings.imageScaling.scaleToFit,
+			readingDir: settings.readingDirection,
+		})
+
+		return <ImageBasedReader media={media} syncPageToUrl={false} />
 	}
 
 	if (record.format === 'pdf') {

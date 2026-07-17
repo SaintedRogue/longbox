@@ -31,9 +31,22 @@ type Props = {
 	 */
 	initialPage?: number
 	onProgress?: (page: number, elapsedSeconds: number) => void
+	/**
+	 * Whether page changes in paged mode should be reflected in the URL via `navigate(paths.bookReader(...))`.
+	 * Defaults to `true`, which is today's behavior: every page turn in paged mode navigates to the
+	 * server-dependent `/books/:id/reader?page=N` route. Pass `false` for reader entry points that don't
+	 * have that route backed by a live server (e.g. the offline reader), so paging only updates local state.
+	 */
+	syncPageToUrl?: boolean
 }
 
-export default function ImageBasedReader({ media, isIncognito, initialPage, onProgress }: Props) {
+export default function ImageBasedReader({
+	media,
+	isIncognito,
+	initialPage,
+	onProgress,
+	syncPageToUrl = true,
+}: Props) {
 	const { sdk } = useSDK()
 	const paths = usePaths()
 
@@ -104,7 +117,7 @@ export default function ImageBasedReader({ media, isIncognito, initialPage, onPr
 
 	/**
 	 * A callback to handle when the page changes. This will update the URL to reflect the new page
-	 * if the reader mode is not continuous.
+	 * if the reader mode is not continuous and `syncPageToUrl` is not `false`.
 	 */
 	const handleChangePage = useCallback(
 		(newPage: number) => {
@@ -112,7 +125,9 @@ export default function ImageBasedReader({ media, isIncognito, initialPage, onPr
 				setCurrentPage(newPage)
 			} else {
 				setCurrentPage(newPage)
-				navigate(paths.bookReader(media.id, { isIncognito, page: newPage }))
+				if (syncPageToUrl) {
+					navigate(paths.bookReader(media.id, { isIncognito, page: newPage }))
+				}
 			}
 
 			if (!isIncognito) {
@@ -120,7 +135,7 @@ export default function ImageBasedReader({ media, isIncognito, initialPage, onPr
 				onProgress?.(newPage, elapsedSeconds)
 			}
 		},
-		[media.id, isIncognito, navigate, readingMode, paths, timer, onProgress],
+		[media.id, isIncognito, navigate, readingMode, paths, timer, onProgress, syncPageToUrl],
 	)
 
 	/**
