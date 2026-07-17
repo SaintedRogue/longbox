@@ -13,14 +13,10 @@ use axum::{
 	Json, Router,
 };
 use models::entity;
-use reqwest::header::USER_AGENT;
 use sea_orm::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-	config::state::AppState,
-	errors::{APIError, APIResult},
-};
+use crate::{config::state::AppState, errors::APIResult};
 
 pub(crate) fn mount(app_state: AppState) -> Router<AppState> {
 	Router::new()
@@ -35,7 +31,6 @@ pub(crate) fn mount(app_state: AppState) -> Router<AppState> {
 		.route("/claim", get(claim))
 		.route("/ping", get(ping))
 		.route("/version", post(version))
-		.route("/check-for-update", get(check_for_updates))
 }
 
 #[derive(Serialize)]
@@ -74,56 +69,4 @@ async fn version() -> APIResult<Json<StumpVersion>> {
 		rev: env!("GIT_REV").to_string(),
 		compile_time: env!("STATIC_BUILD_DATE").to_string(),
 	}))
-}
-
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct UpdateCheck {
-	current_semver: String,
-	latest_semver: String,
-	has_update_available: bool,
-}
-
-async fn check_for_updates() -> APIResult<Json<UpdateCheck>> {
-	let current_semver = env!("CARGO_PKG_VERSION").to_string();
-
-	let client = reqwest::Client::new();
-	let github_response = client
-		.get("https://api.github.com/repos/stumpapp/stump/releases/latest")
-		.header(USER_AGENT, "stumpapp/stump")
-		.send()
-		.await?;
-
-	if github_response.status().is_success() {
-		let github_json: serde_json::Value = github_response.json().await?;
-
-		let mut latest_semver = github_json["tag_name"].as_str().ok_or_else(|| {
-			APIError::InternalServerError(
-				"Failed to parse latest release tag name".to_string(),
-			)
-		})?;
-		if latest_semver.starts_with('v') && latest_semver.len() > 1 {
-			latest_semver = &latest_semver[1..];
-		}
-
-		let has_update_available = latest_semver != current_semver;
-
-		Ok(Json(UpdateCheck {
-			current_semver,
-			latest_semver: latest_semver.to_string(),
-			has_update_available,
-		}))
-	} else {
-		match github_response.status().as_u16() {
-			404 => Ok(Json(UpdateCheck {
-				current_semver,
-				latest_semver: "unknown".to_string(),
-				has_update_available: false,
-			})),
-			_ => Err(APIError::InternalServerError(format!(
-				"Failed to fetch latest release: {}",
-				github_response.status()
-			))),
-		}
-	}
 }

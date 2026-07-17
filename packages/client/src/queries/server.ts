@@ -12,19 +12,6 @@ export function useStumpVersion() {
 	return version
 }
 
-export function useCheckForServerUpdate() {
-	const { sdk } = useSDK()
-	const { data, isLoading } = useQuery({
-		queryKey: [sdk.server.keys.checkUpdate],
-		queryFn: () => sdk.server.checkUpdate(),
-	})
-
-	return {
-		isLoading,
-		updateAvailable: data?.hasUpdateAvailable ?? false,
-	}
-}
-
 export function useOidcConfig() {
 	const { sdk } = useSDK()
 	const { data } = useSuspenseQuery({

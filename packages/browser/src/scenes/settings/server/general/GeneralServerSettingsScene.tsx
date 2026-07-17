@@ -1,8 +1,6 @@
-import { useCheckForServerUpdate, useUploadConfig } from '@stump/client'
-import { Alert, AlertDescription } from '@stump/components'
+import { useUploadConfig } from '@stump/client'
 import { UserPermission } from '@stump/graphql'
 import { useLocaleContext } from '@stump/i18n'
-import { AlertTriangle } from 'lucide-react'
 import { Suspense } from 'react'
 import { Helmet } from 'react-helmet'
 
@@ -20,7 +18,6 @@ export default function GeneralServerSettingsScene() {
 	const { t } = useLocaleContext()
 	const { checkPermission } = useAppContext()
 
-	const { updateAvailable } = useCheckForServerUpdate()
 	const { uploadConfig } = useUploadConfig({ enabled: checkPermission(UserPermission.UploadFile) })
 
 	return (
@@ -34,15 +31,6 @@ export default function GeneralServerSettingsScene() {
 					<Suspense>
 						<ServerStats />
 					</Suspense>
-
-					{updateAvailable && (
-						<Alert variant="warning">
-							<AlertTriangle />
-							<AlertDescription>
-								{t('settingsScene.server/general.sections.updateAvailable.message')}
-							</AlertDescription>
-						</Alert>
-					)}
 
 					<ServerInfoSection />
 					<ServerPublicURL />

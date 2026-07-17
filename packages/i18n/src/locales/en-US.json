@@ -1843,9 +1843,6 @@
 			"title": "Server settings",
 			"description": "General settings related to your Longbox server instance",
 			"sections": {
-				"updateAvailable": {
-					"message": "Your server is not up to date. Please update to the latest version!"
-				},
 				"serverInfo": {
 					"title": "Server information",
 					"description": "Basic details about your Longbox server instance",

@@ -1,5 +1,5 @@
 import { APIBase } from '../base'
-import { StumpVersion, UpdateCheck } from '../types'
+import { StumpVersion } from '../types'
 import { ClaimResponse } from '../types/rest'
 import { APIResult, ClassQueryKeys } from './types'
 import { createRouteURLHandler } from './utils'
@@ -26,14 +26,6 @@ export class ServerAPI extends APIBase {
 	}
 
 	/**
-	 * Check for updates to the Stump instance
-	 */
-	async checkUpdate(): Promise<UpdateCheck> {
-		const { data: update } = await this.axios.get<UpdateCheck>(serverURL('/update'))
-		return update
-	}
-
-	/**
 	 * Ping the Stump service to check if it is available
 	 */
 	async ping(): Promise<APIResult<string>> {
@@ -53,7 +45,6 @@ export class ServerAPI extends APIBase {
 
 	get keys(): ClassQueryKeys<InstanceType<typeof ServerAPI>> {
 		return {
-			checkUpdate: 'server.checkUpdate',
 			claimedStatus: 'server.claimedStatus',
 			ping: 'server.ping',
 			version: 'server.version',

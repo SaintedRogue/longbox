@@ -29,12 +29,6 @@ export type APIError =
 	| { code: 'Unknown'; details: string }
 	| { code: 'Redirect'; details: string }
 
-export type UpdateCheck = {
-	currentSemver: string
-	latestSemver: string
-	hasUpdateAvailable: boolean
-}
-
 export type StumpVersion = {
 	semver: string
 	rev: string
