@@ -1,13 +1,13 @@
-Stump configuration and pre-startup complete!
+Longbox configuration and pre-startup complete!
 
-███████╗████████╗██╗   ██╗███╗   ███╗██████╗     
-██╔════╝╚══██╔══╝██║   ██║████╗ ████║██╔══██╗    
-███████╗   ██║   ██║   ██║██╔████╔██║██████╔╝    
-╚════██║   ██║   ██║   ██║██║╚██╔╝██║██╔═══╝     
-███████║   ██║   ╚██████╔╝██║ ╚═╝ ██║██║         
-╚══════╝   ╚═╝    ╚═════╝ ╚═╝     ╚═╝╚═╝
+██╗      ██████╗ ███╗   ██╗ ██████╗ ██████╗  ██████╗ ██╗  ██╗
+██║     ██╔═══██╗████╗  ██║██╔════╝ ██╔══██╗██╔═══██╗╚██╗██╔╝
+██║     ██║   ██║██╔██╗ ██║██║  ███╗██████╔╝██║   ██║ ╚███╔╝
+██║     ██║   ██║██║╚██╗██║██║   ██║██╔══██╗██║   ██║ ██╔██╗
+███████╗╚██████╔╝██║ ╚████║╚██████╔╝██████╔╝╚██████╔╝██╔╝ ██╗
+╚══════╝ ╚═════╝ ╚═╝  ╚═══╝ ╚═════╝ ╚═════╝  ╚═════╝ ╚═╝  ╚═╝
 
-If you face any issues, or encounter any bugs: https://github.com/stumpapp/stump/issues/new/choose
-If you would like to join the Stump Community Discord Server: https://discord.gg/63Ybb7J3as
+If you face any issues, or encounter any bugs: https://github.com/SaintedRogue/longbox/issues/new/choose
+If you'd like to contribute or follow development: https://github.com/SaintedRogue/longbox
 
 Enjoy!

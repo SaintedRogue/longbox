@@ -99,13 +99,13 @@ FROM gcr.io/distroless/cc-debian12:debug
 
 ARG PORT=10801
 
-LABEL org.opencontainers.image.title="Stump" \
-      org.opencontainers.image.description="A free and open source comics, manga and digital book server with OPDS support" \
+LABEL org.opencontainers.image.title="Longbox" \
+      org.opencontainers.image.description="A fast, self-hosted, PWA-first comics, manga & digital book server with OPDS support (a fork of Stump)" \
       org.opencontainers.image.source="https://github.com/SaintedRogue/longbox" \
-      org.opencontainers.image.url="https://stumpapp.dev" \
-      org.opencontainers.image.documentation="https://stumpapp.dev/guides" \
+      org.opencontainers.image.url="https://github.com/SaintedRogue/longbox" \
+      org.opencontainers.image.documentation="https://github.com/SaintedRogue/longbox#readme" \
       org.opencontainers.image.licenses="MIT" \
-      org.opencontainers.image.vendor="stumpapp"
+      org.opencontainers.image.vendor="SaintedRogue"
 
 RUN [ "/busybox/ln", "-s", "/busybox/sh", "/bin/sh" ]
 RUN ln -s /busybox/env /usr/bin/env
