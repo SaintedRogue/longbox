@@ -10,7 +10,14 @@ import tseslint from 'typescript-eslint'
 
 export default [
 	{
-		ignores: ['**/dist/*', '**/dev-dist/**', '**/target/**', '**/.next/**', '**/.vercel/**', '**/emoji/data.json'],
+		ignores: [
+			'**/dist/*',
+			'**/dev-dist/**',
+			'**/target/**',
+			'**/.next/**',
+			'**/.vercel/**',
+			'**/emoji/data.json',
+		],
 	},
 	{
 		files: ['**/*.{js,mjs,cjs,ts,jsx,tsx}'],
@@ -40,6 +47,10 @@ export default [
 			],
 			...pluginReactHooks.configs.recommended.rules,
 			'react-hooks/set-state-in-effect': 'off',
+			// TanStack Table's useReactTable intentionally returns non-memoizable
+			// functions (the React Compiler already skips them), so this rule only
+			// yields unfixable errors on our many intentional useReactTable usages.
+			'react-hooks/incompatible-library': 'off',
 			'react-compiler/react-compiler': 'error',
 		},
 	},
