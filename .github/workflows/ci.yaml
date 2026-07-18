@@ -1,4 +1,4 @@
-name: 'Stump Checks CI'
+name: 'Longbox Checks CI'
 on:
   pull_request:
     # TODO(sea-orm): Undo
