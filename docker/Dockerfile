@@ -119,12 +119,12 @@ COPY --from=pdfium /pdfium /opt/pdfium
 COPY --from=frontend /app/build /app/client
 COPY --chmod=755 docker/entrypoint.sh /entrypoint.sh
 
-# Default Stump environment variables
-ENV STUMP_CONFIG_DIR=/config \
-    STUMP_CLIENT_DIR=/app/client \
-    STUMP_PROFILE=release \
-    STUMP_PORT=${PORT} \
-    STUMP_IN_DOCKER=true \
+# Default Longbox environment variables
+ENV LONGBOX_CONFIG_DIR=/config \
+    LONGBOX_CLIENT_DIR=/app/client \
+    LONGBOX_PROFILE=release \
+    LONGBOX_PORT=${PORT} \
+    LONGBOX_IN_DOCKER=true \
     PDFIUM_PATH=/opt/pdfium/lib/libpdfium.so \
     API_VERSION=v1
 

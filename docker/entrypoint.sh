@@ -1,14 +1,14 @@
 #!/usr/bin/env sh
 
 # Depending on the values passed for PUID/PGID via environment variables,
-# either starts the stump server daemon as root or as a regular user
-# 
+# either starts the longbox server daemon as root or as a regular user
+#
 # Also takes care of assigning proper attributes to the folders /data, /config and /app
 PUID=${PUID:-0}
 PGID=${PGID:-0}
 
-USER=stump
-GROUP=stump
+USER=longbox
+GROUP=longbox
 
 # GUID between 1-99 are typically reserved for system use, so we warn the user
 if [[ "$PUID" -lt 100 && "$PUID" -ne 0 ]]; then
@@ -17,7 +17,7 @@ fi
 
 
 # TODO(distroless) ensure that the following checks don't cause issues after moving to distroless
-## Add stump group if it doesn't already exist
+## Add longbox group if it doesn't already exist
 if [ "$PGID" -gt 60000 ]; then
     echo "Warning: PGID $PGID is too large for BusyBox's addgroup (limit is 60000)"
     echo "Using fallback method to add group..."
@@ -30,7 +30,7 @@ else
         addgroup -g $PGID $GROUP
     fi
 fi
-## Add stump user if it doesn't already exist
+## Add longbox user if it doesn't already exist
 if ! grep -q "^${USER}:" /etc/passwd; then
     echo "Adding user $USER with uid $PUID"
     adduser -u $PUID -G $GROUP -D -H $USER

@@ -42,7 +42,7 @@ scp deploy/unraid/longbox.xml \
 
 Longbox builds absolute URLs for covers, thumbnails, and OPDS feeds from the incoming
 request. To do that correctly behind a proxy it must trust the proxy's forwarded headers,
-so the template ships **`STUMP_TRUST_PROXY_HEADERS=true`** on by default.
+so the template ships **`LONGBOX_TRUST_PROXY_HEADERS=true`** on by default.
 
 - **Keep it `true`** whenever a proxy terminates TLS in front of Longbox. Otherwise Longbox
   assumes it's reached directly and stamps its internal `:10801` port (and `http`) onto
@@ -56,7 +56,7 @@ so the template ships **`STUMP_TRUST_PROXY_HEADERS=true`** on by default.
   directly-exposed server should not trust client-supplied `X-Forwarded-*` headers.
 
 Already running the container? Edit it in Unraid → add a **Variable**: Key
-`STUMP_TRUST_PROXY_HEADERS`, Value `true`, then **Apply** (Unraid recreates the container).
+`LONGBOX_TRUST_PROXY_HEADERS`, Value `true`, then **Apply** (Unraid recreates the container).
 
 ## Migrating from the upstream `aaronleopold/stump` container
 
@@ -73,6 +73,25 @@ can switch in place:
 
 A push to `main` publishes a new `:latest` (see `.github/workflows/publish-image.yml`). In
 Unraid, use _Force update_ / _check for updates_ on the `longbox` container.
+
+## Upgrading to a rebranded (`LONGBOX_*`) release
+
+Longbox's internal identifiers used to be `stump`-branded; this release finishes renaming
+them. Upgrading is automatic, but note the following:
+
+- **Back up your appdata (`/config`) before upgrading.** Standard precaution for any update.
+- **Data files auto-migrate on first boot.** The server renames its legacy data dir
+  `~/.stump` → `~/.longbox`, along with `Stump.toml` → `Longbox.toml`, `stump.db` →
+  `longbox.db`, and `Stump.log` → `Longbox.log`. In this Docker/Unraid setup, `/config` itself
+  doesn't move — only the `stump.db` (+ `-wal`/`-shm`) → `longbox.db` file rename applies.
+- **You'll be logged out once.** The session cookie name changed as part of the rebrand, so
+  your browser's existing session won't validate — just log back in.
+- **Re-create any API keys.** The API key prefix changed (`stump_...` → `longbox_...`), so
+  keys generated before this release will stop validating. Generate new ones from Settings.
+- **Environment variables are now `LONGBOX_*`.** The template above already uses
+  `LONGBOX_TRUST_PROXY_HEADERS`. Legacy `STUMP_*` variables are still honored this release
+  (the server logs a deprecation warning for each one it falls back to) — update any custom
+  variables you've set to the `LONGBOX_*` form at your convenience.
 
 ## CI runner (optional — for maintainers)
 
