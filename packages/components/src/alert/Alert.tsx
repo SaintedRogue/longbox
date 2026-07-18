@@ -44,13 +44,13 @@ function Alert({
 }: React.ComponentProps<'div'> & Props) {
 	const [isVisible, setIsVisible] = React.useState(() => {
 		if (!dismissible) return true
-		const storedValue = localStorage.getItem(`stump-alert-dismissed-${id}`)
+		const storedValue = localStorage.getItem(`longbox-alert-dismissed-${id}`)
 		return !storedValue || storedValue === 'true'
 	})
 
 	const onDismiss = () => {
 		setIsVisible(false)
-		localStorage.setItem(`stump-alert-dismissed-${id}`, 'true')
+		localStorage.setItem(`longbox-alert-dismissed-${id}`, 'true')
 	}
 
 	if (!isVisible) return null

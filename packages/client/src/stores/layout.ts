@@ -31,7 +31,7 @@ export const createLayoutStore = ({ key, storage }: LayoutStoreParams) =>
 						setSort: (sort) => set({ sort }),
 					}) as LayoutStore,
 				{
-					name: `stump-${key}-layout-store`,
+					name: `longbox-${key}-layout-store`,
 					storage: storage ? createJSONStorage(() => storage) : undefined,
 					version: 1,
 				},

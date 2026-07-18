@@ -92,7 +92,7 @@ export const useGridSizeStore = create<IGridSizeStore>()(
 			setDensity: (density) => set({ density }),
 		}),
 		{
-			name: 'stump:entity-card-density',
+			name: 'longbox:entity-card-density',
 			storage: createJSONStorage(() => localStorage),
 		},
 	),

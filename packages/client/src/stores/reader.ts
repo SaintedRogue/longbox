@@ -190,7 +190,7 @@ export const createReaderStore = (storage?: StateStorage) =>
 						},
 					}) as ReaderStore,
 				{
-					name: 'stump-new-reader-store',
+					name: 'longbox-new-reader-store',
 					storage: storage ? createJSONStorage(() => storage) : undefined,
 					version: 5,
 					// A version bump without a `migrate` makes zustand discard the persisted state

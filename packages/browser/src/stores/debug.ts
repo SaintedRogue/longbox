@@ -13,7 +13,7 @@ export const useDebugStore = create<IDebugStore>()(
 			patch: (patch) => set((state) => ({ ...state, ...patch })),
 		}),
 		{
-			name: 'stump-debug-storage',
+			name: 'longbox-debug-storage',
 		},
 	),
 )

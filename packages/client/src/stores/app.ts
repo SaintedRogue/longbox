@@ -48,7 +48,7 @@ export const createAppStore = (storage?: StateStorage) =>
 					showConfetti: false,
 				}),
 				{
-					name: 'stump-main-store',
+					name: 'longbox-main-store',
 					partialize(state) {
 						return { platform: state.platform }
 					},

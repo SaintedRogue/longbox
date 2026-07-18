@@ -108,7 +108,7 @@ export default function FileExplorerProvider({ rootPath, ...ctx }: Props) {
 	)
 }
 
-const LOCAL_STORAGE_LAYOUT_KEY = 'stump-explorer-layout'
+const LOCAL_STORAGE_LAYOUT_KEY = 'longbox-explorer-layout'
 const getDefaultLayout = () => {
 	const storedLayout = localStorage.getItem(LOCAL_STORAGE_LAYOUT_KEY)
 	if (storedLayout === 'grid' || storedLayout === 'table') {

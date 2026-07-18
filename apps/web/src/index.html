@@ -6,7 +6,9 @@
 		<script>
 			try {
 				const zustandState = JSON.parse(
-					localStorage.getItem('stump-user-store') || '{"state": {}}',
+					localStorage.getItem('longbox-user-store') ||
+						localStorage.getItem('stump-user-store') ||
+						'{"state": {}}',
 				).state
 				const locale = zustandState.userPreferences?.locale
 				if (typeof locale === 'string' && locale.length > 0) {
@@ -211,7 +213,9 @@
 		<script>
 			try {
 				const zustandState = JSON.parse(
-					localStorage.getItem('stump-user-store') || '{"state": {}}',
+					localStorage.getItem('longbox-user-store') ||
+						localStorage.getItem('stump-user-store') ||
+						'{"state": {}}',
 				).state
 				const appFont = zustandState.userPreferences?.appFont
 				if (typeof appFont === 'string' && appFont.length > 0) {

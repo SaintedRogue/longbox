@@ -56,7 +56,7 @@ export const createUserStore = (storage?: StateStorage) =>
 					},
 				}),
 				{
-					name: 'stump-user-store',
+					name: 'longbox-user-store',
 					partialize(store) {
 						// I really only want to persist the userPreferences. If the user is missing
 						// on refresh, it will be fetched from the server. But while that fetching is

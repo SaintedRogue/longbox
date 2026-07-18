@@ -35,7 +35,7 @@ import { darkVariantText, toFamilyName } from './themes'
 
 // NOTE: http://epubjs.org/documentation/0.3/ for epubjs documentation overview
 
-const LOCATIONS_CACHE_KEY = 'stump:epubjs-locations-cache'
+const LOCATIONS_CACHE_KEY = 'longbox:epubjs-locations-cache'
 
 const formatCacheKey = (id: string) => `${LOCATIONS_CACHE_KEY}:book-${id}`
 
@@ -164,7 +164,7 @@ const injectFontStylesheet = (rendition: Rendition) => {
 
 	const link = doc.createElement('link')
 	link.rel = 'stylesheet'
-	link.id = 'stump-fonts-stylesheet'
+	link.id = 'longbox-fonts-stylesheet'
 	link.href = '/assets/fonts/fonts.css'
 	head.appendChild(link)
 }

@@ -9,7 +9,8 @@
 	"scripts": {
 		"check-types": "tsc -b tsconfig.json",
 		"format": "eslint --fix . && prettier --config ../../prettier.config.js --ignore-path ../../.prettierignore --write .",
-		"clean": "yarn exec rimraf node_modules"
+		"clean": "yarn exec rimraf node_modules",
+		"test": "jest"
 	},
 	"dependencies": {
 		"@longbox/sdk": "*",
@@ -22,9 +23,14 @@
 		"zustand": "^5.0.12"
 	},
 	"devDependencies": {
+		"@babel/preset-env": "^7.25.4",
+		"@babel/preset-typescript": "^7.24.7",
 		"@types/deep-equal": "^1.0.4",
+		"@types/jest": "^30.0.0",
 		"@types/node": "^20.12.7",
 		"@types/react": "^19.0.0",
+		"jest": "^30.3.0",
+		"jest-environment-jsdom": "^29.7.0",
 		"prettier": "^3.2.5",
 		"tsconfig": "^7.0.0",
 		"typescript": "^5.4.5"

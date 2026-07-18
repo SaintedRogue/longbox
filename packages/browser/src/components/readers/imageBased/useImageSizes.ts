@@ -90,7 +90,7 @@ const useSizeStore = create<ISizeStore>()(
 				})),
 		}),
 		{
-			name: 'stump-image-sizes',
+			name: 'longbox-image-sizes',
 		},
 	),
 )
