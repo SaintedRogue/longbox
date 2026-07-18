@@ -3,24 +3,24 @@ title: Contributing
 description: Information about contributing to Longbox
 ---
 
-If you're interested in supporting Longbox's development, and you know how to code, follow the steps outlined in the [developer guide](#developer-guide) for information about setting up your development environment. If you want to improve Longbox's language support, visit the Crowdin project page [here](https://crowdin.com/project/stump).
+Every collection benefits from more hands on deck. If you can code, the [developer guide](#developer-guide) below will get your environment set up; if you'd rather help grow Longbox's language support, the Crowdin project page is [here](https://crowdin.com/project/stump).
 
 ## Developer Guide
 
-Contributions are very **encouraged** and **welcome**! Be sure to review the [CONTRIBUTING.md](https://github.com/stumpapp/stump/blob/main/.github/CONTRIBUTING.md) before getting started with your contribution.
+Contributions are very **encouraged** and **welcome**! Be sure to review the [CONTRIBUTING.md](https://github.com/SaintedRogue/longbox/blob/main/.github/CONTRIBUTING.md) before getting started with your contribution.
 
-If you're completely new to rust and/or web development, I put together a small set of [resources](#developer-resources) to get you started with Longbox.
+If you're completely new to rust and/or web development, we put together a small set of [resources](#developer-resources) to get you started with Longbox.
 
 **Ensure you are on the `nightly` branch before continuing.**
 
 <Callout>
-	If you are on a Windows machine, you will need [Visual
+	**CONTINUITY** — If you are on a Windows machine, you will need [Visual
 	C++](https://docs.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170)
 	installed on your system.
 </Callout>
 
 <Callout>
-	If you are on a Mac with Apple Silicon, you will need to install
+	**CONTINUITY** — If you are on a Mac with Apple Silicon, you will need to install
 	[Rosetta](https://support.apple.com/en-us/>HT211861).
 </Callout>
 
@@ -32,7 +32,7 @@ yarn run setup
 
 ### Running Longbox
 
-I use [yarn workspaces](https://yarnpkg.com/features/workspaces) and [cargo workspaces](https://doc.rust-lang.org/cargo/reference/workspaces.html):
+We use [yarn workspaces](https://yarnpkg.com/features/workspaces) and [cargo workspaces](https://doc.rust-lang.org/cargo/reference/workspaces.html):
 
 ```bash
 # run the webapp + server
@@ -57,11 +57,11 @@ yarn graphql-codegen --watch
 
 ## Notes and Tips
 
-Longbox has gotten quite large and complex, so I've put together a few notes and tips to help you get started.
+Longbox has gotten quite large and complex, so we've put together a few notes and tips to help you get started.
 
 ### Where to start?
 
-If you aren't sure what to work on, I recommend taking a look at some of the open [issues](https://github.com/stumpapp/stump/issues) on GitHub. You can also reach out to me on [Discord](https://discord.gg/63Ybb7J3as), or an open GitHub issue, if you have any questions.
+If you aren't sure what to work on, we recommend taking a look at some of the open [issues](https://github.com/SaintedRogue/longbox/issues) on GitHub. You can also reach out to us on [Discord](https://discord.gg/63Ybb7J3as), or an open GitHub issue, if you have any questions.
 
 In general, some good places to start might be:
 
@@ -76,13 +76,13 @@ In general, some good places to start might be:
 
 Longbox is developed using primarily [Rust](https://www.rust-lang.org/) and [TypeScript](https://www.typescriptlang.org/).
 
-For Rust, I use [rustfmt](https://github.com/rust-lang/rustfmt) for formatting, and [clippy](https://github.com/rust-lang/clippy) for linting. For TypeScript, I use [Prettier](https://prettier.io/) for formatting, and [ESLint](https://eslint.org/) for linting. While I definitely recommend using these tools as you develop, there is a pre-commit hook that will lint and format your code before committing.
+For Rust, we use [rustfmt](https://github.com/rust-lang/rustfmt) for formatting, and [clippy](https://github.com/rust-lang/clippy) for linting. For TypeScript, we use [Prettier](https://prettier.io/) for formatting, and [ESLint](https://eslint.org/) for linting. While we definitely recommend using these tools as you develop, there is a pre-commit hook that will lint and format your code before committing.
 
-I also want to point out that this repository uses 4 tab spaces for indentation. This is primarily for accessibility, as well as to be consistent with the Rust codebase. If you'd like, you can configure your editor to render whatever indentation you prefer, even though the raw code will be as described above. I personally maintain the 4 tab space rendering on the Rust side and shorten it to only render 2 on the frontend side.
+We also want to point out that this repository uses 4 tab spaces for indentation. This is primarily for accessibility, as well as to be consistent with the Rust codebase. If you'd like, you can configure your editor to render whatever indentation you prefer, even though the raw code will be as described above. We personally maintain the 4 tab space rendering on the Rust side and shorten it to only render 2 on the frontend side.
 
 ### Component Library
 
-Longbox has a custom component library used throughout the `browser` package (the web UI). This library can be found at `packages/components`, and was developed with Storybook in mind. For getting started building out designs and components in Longbox, I highly recommend going through the stories available in the Storybook UI:
+Longbox has a custom component library used throughout the `browser` package (the web UI). This library can be found at `packages/components`, and was developed with Storybook in mind. For getting started building out designs and components in Longbox, we highly recommend going through the stories available in the Storybook UI:
 
 ```bash
 yarn storybook
@@ -92,7 +92,7 @@ This will give you a good idea of what components are available and how they can
 
 ### Developer Resources
 
-Below is a list of resources that I've found helpful in developing Longbox. I'll try to keep this list up to date as I find new resources.
+Below is a list of resources that we've found helpful in developing Longbox. We'll try to keep this list up to date as we find new resources.
 
 - [Rust Book](https://doc.rust-lang.org/book/)
 - [Axum documentation](https://docs.rs/axum/latest/axum/)
