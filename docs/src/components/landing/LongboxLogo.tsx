@@ -1,4 +1,4 @@
-export default function StumpLogo() {
+export default function LongboxLogo() {
 	return (
 		<div className="space-x-2 flex items-center">
 			<img className="h-8 w-8 object-scale-down" src="/favicon.ico" alt="Longbox" />
