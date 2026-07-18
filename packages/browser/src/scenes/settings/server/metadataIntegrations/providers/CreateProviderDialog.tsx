@@ -7,7 +7,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 
-import { PROVIDER_LABELS, PROVIDERS } from './constants'
+import { isComicProvider, PROVIDER_LABELS, PROVIDERS } from './constants'
 import ProviderForm from './ProviderForm'
 import ProviderSelectionCard from './ProviderSelectionCard'
 import { createConfig, CreateProviderConfigSchema } from './schema'
@@ -68,6 +68,10 @@ export function CreateProviderDialog() {
 
 	const handleSelectProvider = (provider: MetadataProvider) => {
 		form.setValue('providerType', provider)
+		// Comic providers auto-apply high-confidence matches by default (the user's
+		// choice): titles clean up automatically on scan without manual review. Still
+		// toggleable in the form below.
+		form.setValue('autoApplyConfig.enabled', isComicProvider(provider))
 		setStep(1)
 	}
 

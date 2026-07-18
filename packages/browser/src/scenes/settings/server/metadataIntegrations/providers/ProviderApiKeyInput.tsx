@@ -265,4 +265,7 @@ const PROVIDER_VALIDATORS: Record<MetadataProvider, Validator | null> = {
 	// request can't work. It's validated server-side instead (see `validateOnServer`
 	// above, backed by the `validateMetadataProviderCredentials` mutation).
 	METRON: null,
+	// ComicVine also validates server-side (no browser-friendly CORS endpoint for the
+	// api_key check); see the provider's `validate_credentials`.
+	COMIC_VINE: null,
 }

@@ -509,6 +509,8 @@ export type CreateMetadataProviderConfigInput = {
   autoApplyConfig?: InputMaybe<Scalars['JSON']['input']>;
   /** Whether the provider is enabled */
   enabled?: InputMaybe<Scalars['Boolean']['input']>;
+  /** Preference order among providers (lower = preferred). Optional; defaults to 0. */
+  position?: InputMaybe<Scalars['Int']['input']>;
   /** The provider type */
   providerType: MetadataProvider;
 };
@@ -825,6 +827,12 @@ export type ExternalMediaMetadata = {
   letterers?: Maybe<Array<Scalars['String']['output']>>;
   month?: Maybe<Scalars['Int']['output']>;
   number?: Maybe<Scalars['Float']['output']>;
+  /**
+   * The raw, unparsed issue number as the provider returned it (e.g. "1",
+   * "1.MU", "½"). Kept alongside `number` (which is lossy — non-numeric issue
+   * numbers parse to `None`) so display-title composition can preserve fidelity.
+   */
+  numberRaw?: Maybe<Scalars['String']['output']>;
   pageCount?: Maybe<Scalars['Int']['output']>;
   pencillers?: Maybe<Array<Scalars['String']['output']>>;
   provider: Scalars['String']['output'];
@@ -1969,6 +1977,8 @@ export type MetadataFieldOverride = {
 
 /** The supported external metadata providers */
 export enum MetadataProvider {
+  /** Comic Vine (https://comicvine.gamespot.com) — comics; free API, NON-COMMERCIAL use only */
+  ComicVine = 'COMIC_VINE',
   /** Hardcover (https://hardcover.app) */
   Hardcover = 'HARDCOVER',
   /** Metron (https://metron.cloud) — comics; data CC BY-SA 4.0 */
@@ -1982,6 +1992,12 @@ export type MetadataProviderConfigModel = {
   createdAt: Scalars['DateTime']['output'];
   enabled: Scalars['Boolean']['output'];
   id: Scalars['Int']['output'];
+  /**
+   * Preference order among providers (lower = higher priority; the lowest is the
+   * "preferred" provider). Breaks ties when multiple providers return a confident
+   * match. Defaults to 0 at the DB layer.
+   */
+  position: Scalars['Int']['output'];
   providerType: MetadataProvider;
   updatedAt?: Maybe<Scalars['DateTime']['output']>;
 };
@@ -3373,6 +3389,8 @@ export type PatchMetadataProviderConfigInput = {
   autoApplyConfig?: InputMaybe<Scalars['JSON']['input']>;
   /** Whether the provider is enabled */
   enabled?: InputMaybe<Scalars['Boolean']['input']>;
+  /** Preference order among providers (lower = preferred). */
+  position?: InputMaybe<Scalars['Int']['input']>;
 };
 
 export type PlaceholderGenerationOutput = {
@@ -6125,9 +6143,17 @@ export type ProvidersSectionGetProvidersQueryVariables = Exact<{ [key: string]: 
 
 
 export type ProvidersSectionGetProvidersQuery = { __typename?: 'Query', metadataProviderConfigs: Array<(
-    { __typename?: 'MetadataProviderConfigModel', id: number }
+    { __typename?: 'MetadataProviderConfigModel', id: number, providerType: MetadataProvider, position: number }
     & { ' $fragmentRefs'?: { 'ExistingProviderCardFragment': ExistingProviderCardFragment } }
   )> };
+
+export type ProvidersSectionSetPreferredMutationVariables = Exact<{
+  id: Scalars['Int']['input'];
+  input: PatchMetadataProviderConfigInput;
+}>;
+
+
+export type ProvidersSectionSetPreferredMutation = { __typename?: 'Mutation', updateMetadataProvider: { __typename?: 'MetadataProviderConfigModel', id: number, position: number } };
 
 export type CreateTagModalMutationVariables = Exact<{
   tags: Array<Scalars['String']['input']> | Scalars['String']['input'];
@@ -9833,6 +9859,8 @@ export const ProvidersSectionGetProvidersDocument = new TypedDocumentString(`
     query ProvidersSectionGetProviders {
   metadataProviderConfigs {
     id
+    providerType
+    position
     ...ExistingProviderCard
   }
 }
@@ -9845,6 +9873,14 @@ export const ProvidersSectionGetProvidersDocument = new TypedDocumentString(`
   createdAt
   updatedAt
 }`) as unknown as TypedDocumentString<ProvidersSectionGetProvidersQuery, ProvidersSectionGetProvidersQueryVariables>;
+export const ProvidersSectionSetPreferredDocument = new TypedDocumentString(`
+    mutation ProvidersSectionSetPreferred($id: Int!, $input: PatchMetadataProviderConfigInput!) {
+  updateMetadataProvider(id: $id, input: $input) {
+    id
+    position
+  }
+}
+    `) as unknown as TypedDocumentString<ProvidersSectionSetPreferredMutation, ProvidersSectionSetPreferredMutationVariables>;
 export const CreateTagModalDocument = new TypedDocumentString(`
     mutation CreateTagModal($tags: [String!]!) {
   createTags(tags: $tags) {
