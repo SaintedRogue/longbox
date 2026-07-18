@@ -6,7 +6,10 @@ use sea_orm::{self, DatabaseConnection, FromQueryResult, SqlxSqliteConnector};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
-use crate::{config::LongboxConfig, CoreError};
+use crate::{
+	config::{migrate, LongboxConfig},
+	CoreError,
+};
 
 pub const FORCE_RESET_KEY: &str = "FORCE_DB_RESET";
 
@@ -18,11 +21,13 @@ pub async fn connect(config: &LongboxConfig) -> Result<DatabaseConnection, CoreE
 	let config_dir = config.get_config_dir();
 
 	let sqlite_url = if let Some(path) = config.db_path.clone() {
-		format!("sqlite://{path}/stump.db?mode=rwc")
+		migrate::migrate_legacy_db(std::path::Path::new(&path));
+		format!("sqlite://{path}/longbox.db?mode=rwc")
 	} else if cfg!(debug_assertions) {
 		format!("sqlite://{}/dev.db?mode=rwc", env!("CARGO_MANIFEST_DIR"))
 	} else {
-		format!("sqlite://{}/stump.db?mode=rwc", config_dir.display())
+		migrate::migrate_legacy_db(&config_dir);
+		format!("sqlite://{}/longbox.db?mode=rwc", config_dir.display())
 	};
 
 	let connection = if sqlite_url.starts_with("sqlite://") {

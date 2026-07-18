@@ -1,6 +1,7 @@
 mod env;
 pub mod logging;
 mod longbox_config;
+pub mod migrate;
 pub mod oidc_config;
 
 pub use env::env_var;
@@ -8,18 +9,44 @@ use longbox_config::env_keys::{CONFIG_DIR_KEY, IN_DOCKER_KEY};
 pub use longbox_config::{defaults, env_keys, LongboxConfig};
 pub use oidc_config::OidcConfig;
 
-/// Gets the default config directory located at `~/.stump` where `~` is the
+/// Gets the default config directory located at `~/.longbox` where `~` is the
 /// user's home directory.
 pub fn get_default_config_dir() -> String {
 	let home = dirs::home_dir().expect("Could not determine user home directory");
-	let config_dir = home.join(".stump");
+	let config_dir = home.join(".longbox");
 
 	config_dir.to_string_lossy().into_owned()
 }
 
+/// Gets the legacy (pre-rebrand) default config directory located at `~/.stump`, used
+/// as the migration source when falling back to [`get_default_config_dir`].
+fn get_legacy_default_config_dir() -> std::path::PathBuf {
+	let home = dirs::home_dir().expect("Could not determine user home directory");
+	home.join(".stump")
+}
+
+/// Migrates a pre-existing legacy `~/.stump` directory to `default_dir` (`~/.longbox`)
+/// if present, via [`migrate::migrate_legacy_dir`]. No-op if there is nothing to
+/// migrate (including if `default_dir` already exists). Migration failures are logged
+/// and otherwise ignored - this must never block boot.
+fn migrate_default_config_dir(default_dir: &str) {
+	let legacy_dir = get_legacy_default_config_dir();
+	if let Err(error) =
+		migrate::migrate_legacy_dir(&legacy_dir, std::path::Path::new(default_dir))
+	{
+		tracing::warn!(?error, "Failed to migrate legacy config directory");
+	}
+}
+
 /// Returns the value of the `LONGBOX_CONFIG_DIR` environment variable (falling back
 /// to the legacy `STUMP_CONFIG_DIR`) if it is set, logs an error and returns
-/// `~/.stump` otherwise.
+/// `~/.longbox` otherwise.
+///
+/// When falling back to the default directory, this first migrates any pre-existing
+/// legacy `~/.stump` directory (and its `Stump.toml`/`Stump.log`/`stump.db*` contents)
+/// to `~/.longbox` - see [`migrate_default_config_dir`]. A custom
+/// `LONGBOX_CONFIG_DIR`/`STUMP_CONFIG_DIR` is left untouched, since the user is
+/// managing that directory themselves.
 pub fn bootstrap_config_dir() -> String {
 	match env_var(CONFIG_DIR_KEY) {
 		// Environment variable set
@@ -31,6 +58,7 @@ pub fn bootstrap_config_dir() -> String {
 					CONFIG_DIR_KEY,
 					default_dir
 				);
+				migrate_default_config_dir(&default_dir);
 
 				default_dir
 			} else {
@@ -45,6 +73,7 @@ pub fn bootstrap_config_dir() -> String {
 				CONFIG_DIR_KEY,
 				default_dir
 			);
+			migrate_default_config_dir(&default_dir);
 
 			default_dir
 		},
