@@ -1,4 +1,4 @@
-import { Button, cn, Heading, Text, ToolTip } from '@stump/components'
+import { Button, cn, Heading, Text, ToolTip } from '@longbox/components'
 import { ChevronLeft, ChevronRight, CircleSlash2 } from 'lucide-react'
 import { forwardRef, ReactNode, useMemo } from 'react'
 import { ScrollerProps, Virtuoso } from 'react-virtuoso'

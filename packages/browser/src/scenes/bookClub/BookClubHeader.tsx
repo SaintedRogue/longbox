@@ -1,4 +1,4 @@
-import { Avatar, Card, cn, Heading, Text } from '@stump/components'
+import { Avatar, Card, cn, Heading, Text } from '@longbox/components'
 import { intlFormat } from 'date-fns'
 import pluralize from 'pluralize'
 

@@ -1,5 +1,5 @@
-import { NativeSelect } from '@stump/components'
-import { useLocaleContext } from '@stump/i18n'
+import { NativeSelect } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 import { useCallback, useMemo } from 'react'
 
 import { defaultWorkingView, useSmartListContext } from '../../context'

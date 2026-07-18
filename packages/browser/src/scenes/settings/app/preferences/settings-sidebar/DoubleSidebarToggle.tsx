@@ -1,5 +1,5 @@
-import { NewCard, RawSwitch } from '@stump/components'
-import { useLocaleContext } from '@stump/i18n'
+import { NewCard, RawSwitch } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 import { useCallback } from 'react'
 
 import { usePreferences } from '@/hooks'

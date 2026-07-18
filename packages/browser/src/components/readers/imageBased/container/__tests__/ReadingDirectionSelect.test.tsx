@@ -1,4 +1,4 @@
-import { ReadingDirection } from '@stump/graphql'
+import { ReadingDirection } from '@longbox/graphql'
 import { fireEvent, render } from '@testing-library/react'
 
 import ReadingDirectionSelect from '../ReadingDirectionSelect'

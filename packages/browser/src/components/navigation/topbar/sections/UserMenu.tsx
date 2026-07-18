@@ -1,5 +1,5 @@
-import { invalidateQueries, useSDK } from '@stump/client'
-import { Avatar, cn, NavigationMenu } from '@stump/components'
+import { invalidateQueries, useSDK } from '@longbox/client'
+import { Avatar, cn, NavigationMenu } from '@longbox/components'
 import { Bell, LogOut } from 'lucide-react'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'

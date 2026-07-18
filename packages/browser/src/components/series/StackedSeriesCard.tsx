@@ -1,6 +1,6 @@
-import { getThumbnailTintColor } from '@stump/client'
-import { cn, Text } from '@stump/components'
-import { ImageRef, InterfaceRoundness } from '@stump/graphql'
+import { getThumbnailTintColor } from '@longbox/client'
+import { cn, Text } from '@longbox/components'
+import { ImageRef, InterfaceRoundness } from '@longbox/graphql'
 import { useCallback, useMemo } from 'react'
 
 import { Link } from '@/context'

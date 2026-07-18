@@ -1,5 +1,5 @@
-import { AspectRatio, Button, Card, DatePicker, Heading, Input, Text } from '@stump/components'
-import { BookCardFragment } from '@stump/graphql'
+import { AspectRatio, Button, Card, DatePicker, Heading, Input, Text } from '@longbox/components'
+import { BookCardFragment } from '@longbox/graphql'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useFormContext } from 'react-hook-form'
 

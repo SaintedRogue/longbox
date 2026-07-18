@@ -1,12 +1,12 @@
-import { useGraphQLMutation } from '@stump/client'
+import { useGraphQLMutation } from '@longbox/client'
 import {
 	CreateOrUpdateLibraryInput,
 	extractErrorMessage,
 	graphql,
 	useFragment,
 	UserPermission,
-} from '@stump/graphql'
-import { useLocaleContext } from '@stump/i18n'
+} from '@longbox/graphql'
+import { useLocaleContext } from '@longbox/i18n'
 import { useQueryClient } from '@tanstack/react-query'
 import omit from 'lodash/omit'
 import pick from 'lodash/pick'

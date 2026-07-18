@@ -1,5 +1,5 @@
-import { Preformatted, Sheet, usePrevious } from '@stump/components'
-import { FragmentType, graphql, useFragment } from '@stump/graphql'
+import { Preformatted, Sheet, usePrevious } from '@longbox/components'
+import { FragmentType, graphql, useFragment } from '@longbox/graphql'
 
 const fragment = graphql(`
 	fragment JobDataInspector on CoreJobOutput {

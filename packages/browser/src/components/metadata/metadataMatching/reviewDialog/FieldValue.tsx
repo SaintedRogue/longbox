@@ -1,4 +1,4 @@
-import { Badge, cn, Text, ToolTip } from '@stump/components'
+import { Badge, cn, Text, ToolTip } from '@longbox/components'
 
 type Props = {
 	value: unknown

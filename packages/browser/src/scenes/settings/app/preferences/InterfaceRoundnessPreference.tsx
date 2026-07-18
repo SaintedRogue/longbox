@@ -1,5 +1,5 @@
-import { NewCard } from '@stump/components'
-import { InterfaceRoundness } from '@stump/graphql'
+import { NewCard } from '@longbox/components'
+import { InterfaceRoundness } from '@longbox/graphql'
 
 import { usePreferences } from '@/hooks'
 

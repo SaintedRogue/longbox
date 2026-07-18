@@ -1,5 +1,5 @@
-import { CheckBox, Heading, Input, Link, Text } from '@stump/components'
-import { useLocaleContext } from '@stump/i18n'
+import { CheckBox, Heading, Input, Link, Text } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 import { useCallback, useEffect } from 'react'
 import { useFormContext, useWatch } from 'react-hook-form'
 

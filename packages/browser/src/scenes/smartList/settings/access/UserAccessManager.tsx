@@ -1,5 +1,5 @@
-import { Alert, AlertDescription } from '@stump/components'
-import { useLocaleContext } from '@stump/i18n'
+import { Alert, AlertDescription } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 import { AlertTriangle } from 'lucide-react'
 
 // TODO: lock down access to CoCreator?

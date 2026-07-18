@@ -1,4 +1,4 @@
-import { Link, Text } from '@stump/components'
+import { Link, Text } from '@longbox/components'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Fullscreen, Shrink } from 'lucide-react'
 import { useState } from 'react'

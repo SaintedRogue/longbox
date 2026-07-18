@@ -3,7 +3,7 @@ import {
 	DirectoryListingQuery,
 	extractErrorMessage,
 	graphql,
-} from '@stump/graphql'
+} from '@longbox/graphql'
 import { keepPreviousData, useQueryClient } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
 import { useCallback, useEffect, useMemo, useState } from 'react'

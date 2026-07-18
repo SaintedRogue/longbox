@@ -1,4 +1,4 @@
-import { SaveSmartListInput } from '@stump/graphql'
+import { SaveSmartListInput } from '@longbox/graphql'
 import { createContext, useContext } from 'react'
 
 import { useSmartListContext } from '../context'

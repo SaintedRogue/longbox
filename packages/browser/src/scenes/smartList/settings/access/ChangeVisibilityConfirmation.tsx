@@ -1,6 +1,6 @@
-import { ConfirmationModal } from '@stump/components'
-import { EntityVisibility } from '@stump/graphql'
-import { useLocaleContext } from '@stump/i18n'
+import { ConfirmationModal } from '@longbox/components'
+import { EntityVisibility } from '@longbox/graphql'
+import { useLocaleContext } from '@longbox/i18n'
 
 type Props = {
 	isOpen: boolean

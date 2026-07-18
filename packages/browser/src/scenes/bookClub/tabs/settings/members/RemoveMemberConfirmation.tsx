@@ -1,4 +1,4 @@
-import { ConfirmationModal } from '@stump/components'
+import { ConfirmationModal } from '@longbox/components'
 
 type Props = {
 	isOpen: boolean

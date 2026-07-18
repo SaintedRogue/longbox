@@ -7,10 +7,10 @@ import {
 	Form,
 	Input,
 	RadioGroup,
-} from '@stump/components'
-import { Apikey } from '@stump/graphql'
-import { useLocaleContext } from '@stump/i18n'
-import { allPermissions, isUserPermission } from '@stump/sdk'
+} from '@longbox/components'
+import { Apikey } from '@longbox/graphql'
+import { useLocaleContext } from '@longbox/i18n'
+import { allPermissions, isUserPermission } from '@longbox/sdk'
 import { addDays, endOfDay } from 'date-fns'
 import { useCallback } from 'react'
 import { useForm, useFormState, useWatch } from 'react-hook-form'

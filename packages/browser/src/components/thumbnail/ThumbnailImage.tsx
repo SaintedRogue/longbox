@@ -1,5 +1,5 @@
-import { useSDK } from '@stump/client'
-import { cn } from '@stump/components'
+import { useSDK } from '@longbox/client'
+import { cn } from '@longbox/components'
 import { AnimatePresence, motion } from 'framer-motion'
 import { forwardRef, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 

@@ -1,6 +1,6 @@
-import { useSDK } from '@stump/client'
-import { Text } from '@stump/components'
-import { FileStatus } from '@stump/graphql'
+import { useSDK } from '@longbox/client'
+import { Text } from '@longbox/components'
+import { FileStatus } from '@longbox/graphql'
 import { useCallback } from 'react'
 import { useLocation } from 'react-router-dom'
 

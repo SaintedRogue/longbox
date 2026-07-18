@@ -11,7 +11,7 @@ import {
 	SmartListGrouping,
 	SmartListGroupJoiner,
 	SmartListJoiner,
-} from '@stump/graphql'
+} from '@longbox/graphql'
 import { match } from 'ts-pattern'
 import { z } from 'zod'
 

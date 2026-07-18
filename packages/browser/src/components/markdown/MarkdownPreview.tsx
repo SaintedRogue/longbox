@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { cn, cx, Divider, Heading, Text } from '@stump/components'
+import { cn, cx, Divider, Heading, Text } from '@longbox/components'
 import { forwardRef, PropsWithChildren, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import rehypeRaw from 'rehype-raw'

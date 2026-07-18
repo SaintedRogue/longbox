@@ -1,4 +1,4 @@
-import { SeriesMetadataEditorFragment } from '@stump/graphql'
+import { SeriesMetadataEditorFragment } from '@longbox/graphql'
 import { z } from 'zod'
 
 const stringArray = z.array(z.string().min(1))

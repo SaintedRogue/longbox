@@ -1,4 +1,4 @@
-import { cn, IconButton, ToolTip } from '@stump/components'
+import { cn, IconButton, ToolTip } from '@longbox/components'
 import { Grid2X2, Table } from 'lucide-react'
 
 import { useFileExplorerContext } from './context'

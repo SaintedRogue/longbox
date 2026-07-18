@@ -1,4 +1,4 @@
-import { Link, Text } from '@stump/components'
+import { Link, Text } from '@longbox/components'
 
 import { FilterInput } from './filters/context'
 

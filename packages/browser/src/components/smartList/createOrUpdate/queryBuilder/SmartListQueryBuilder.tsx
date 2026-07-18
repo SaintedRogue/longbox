@@ -1,5 +1,5 @@
-import { Alert, AlertDescription, Button, cn, cx, Tabs, Text } from '@stump/components'
-import { useLocaleContext } from '@stump/i18n'
+import { Alert, AlertDescription, Button, cn, cx, Tabs, Text } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 import { AlertTriangle } from 'lucide-react'
 import { useFormContext, useWatch } from 'react-hook-form'
 

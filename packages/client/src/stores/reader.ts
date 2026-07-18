@@ -1,4 +1,4 @@
-import { ReadingDirection, ReadingImageScaleFit, ReadingMode } from '@stump/graphql'
+import { ReadingDirection, ReadingImageScaleFit, ReadingMode } from '@longbox/graphql'
 import { create } from 'zustand'
 import { createJSONStorage, devtools, persist, StateStorage } from 'zustand/middleware'
 

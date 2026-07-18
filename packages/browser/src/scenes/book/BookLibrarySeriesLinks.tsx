@@ -1,6 +1,6 @@
-import { useSDK, useSuspenseGraphQL } from '@stump/client'
-import { Badge, Link, Text } from '@stump/components'
-import { graphql } from '@stump/graphql'
+import { useSDK, useSuspenseGraphQL } from '@longbox/client'
+import { Badge, Link, Text } from '@longbox/components'
+import { graphql } from '@longbox/graphql'
 import { useLocation } from 'react-router-dom'
 
 import paths from '../../paths'

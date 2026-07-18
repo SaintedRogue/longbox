@@ -1,5 +1,5 @@
-import { cn } from '@stump/components'
-import { ReadingDirection, ReadingMode } from '@stump/graphql'
+import { cn } from '@longbox/components'
+import { ReadingDirection, ReadingMode } from '@longbox/graphql'
 import { motion } from 'framer-motion'
 
 import { useBookPreferences } from '@/scenes/book/reader/useBookPreferences'

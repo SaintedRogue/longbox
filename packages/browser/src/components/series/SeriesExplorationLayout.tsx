@@ -1,5 +1,5 @@
-import { IconButton, ToolTip } from '@stump/components'
-import { InterfaceLayout } from '@stump/graphql'
+import { IconButton, ToolTip } from '@longbox/components'
+import { InterfaceLayout } from '@longbox/graphql'
 import { LayoutGrid, Table } from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
 

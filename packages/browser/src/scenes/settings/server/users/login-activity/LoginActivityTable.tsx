@@ -1,7 +1,7 @@
-import { useSDK, useSuspenseGraphQL } from '@stump/client'
-import { Badge, Card, Text } from '@stump/components'
-import { graphql, LoginActivityTableQuery } from '@stump/graphql'
-import { Api } from '@stump/sdk'
+import { useSDK, useSuspenseGraphQL } from '@longbox/client'
+import { Badge, Card, Text } from '@longbox/components'
+import { graphql, LoginActivityTableQuery } from '@longbox/graphql'
+import { Api } from '@longbox/sdk'
 import { QueryClient } from '@tanstack/react-query'
 import {
 	ColumnDef,

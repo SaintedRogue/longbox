@@ -3,7 +3,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 
 import { OfflineAppShell } from '../OfflineAppShell'
 
-jest.mock('@stump/i18n', () => ({
+jest.mock('@longbox/i18n', () => ({
 	useLocaleContext: () => ({ t: (key: string) => key }),
 }))
 

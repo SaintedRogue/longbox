@@ -1,4 +1,4 @@
-import { useLocaleContext } from '@stump/i18n'
+import { useLocaleContext } from '@longbox/i18n'
 import { Helmet } from 'react-helmet'
 
 import { ContentContainer, SceneContainer } from '@/components/container'

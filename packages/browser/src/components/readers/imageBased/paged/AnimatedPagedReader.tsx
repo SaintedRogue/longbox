@@ -1,4 +1,4 @@
-import { cn } from '@stump/components'
+import { cn } from '@longbox/components'
 import { forwardRef, memo, useCallback, useRef, useState } from 'react'
 import { browserName, isSafari } from 'react-device-detect'
 import { useHotkeys } from 'react-hotkeys-hook'

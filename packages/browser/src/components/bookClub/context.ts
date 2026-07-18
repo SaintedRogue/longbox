@@ -1,4 +1,4 @@
-import { BookClubLayoutQuery, UpdateBookClubInput } from '@stump/graphql'
+import { BookClubLayoutQuery, UpdateBookClubInput } from '@longbox/graphql'
 import { createContext, useContext } from 'react'
 
 export type IBookClubContext = {

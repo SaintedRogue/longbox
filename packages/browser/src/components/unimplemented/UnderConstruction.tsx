@@ -1,5 +1,5 @@
-import { ButtonOrLink, Heading, Text } from '@stump/components'
-import { useLocaleContext } from '@stump/i18n'
+import { ButtonOrLink, Heading, Text } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 
 import paths from '@/paths'
 

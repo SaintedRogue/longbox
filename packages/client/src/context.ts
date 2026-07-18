@@ -1,4 +1,4 @@
-import { AuthenticationMethod, AuthUser, JwtTokenPair } from '@stump/sdk'
+import { AuthenticationMethod, AuthUser, JwtTokenPair } from '@longbox/sdk'
 import { QueryClient } from '@tanstack/react-query'
 import { createContext, useContext } from 'react'
 

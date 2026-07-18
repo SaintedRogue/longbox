@@ -1,4 +1,4 @@
-import { Badge, cn } from '@stump/components'
+import { Badge, cn } from '@longbox/components'
 import { Link } from 'react-router-dom'
 
 import { useMetadataEditorContext } from '../context'

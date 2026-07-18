@@ -1,4 +1,4 @@
-import { Button, IconButton, Sheet, ToolTip } from '@stump/components'
+import { Button, IconButton, Sheet, ToolTip } from '@longbox/components'
 import { ListFilter } from 'lucide-react'
 import { Suspense, useCallback, useMemo, useState } from 'react'
 import { useMediaMatch } from 'rooks'

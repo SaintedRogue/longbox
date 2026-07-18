@@ -1,4 +1,4 @@
-import { Badge, Button, cn } from '@stump/components'
+import { Badge, Button, cn } from '@longbox/components'
 import { Minus } from 'lucide-react'
 import { useCallback } from 'react'
 import { useFormContext, useWatch } from 'react-hook-form'

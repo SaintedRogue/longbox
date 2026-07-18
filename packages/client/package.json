@@ -1,5 +1,5 @@
 {
-	"name": "@stump/client",
+	"name": "@longbox/client",
 	"version": "0.1.5",
 	"private": true,
 	"main": "src/index.ts",
@@ -12,7 +12,7 @@
 		"clean": "yarn exec rimraf node_modules"
 	},
 	"dependencies": {
-		"@stump/sdk": "*",
+		"@longbox/sdk": "*",
 		"@tanstack/react-query": "^5.87.1",
 		"axios": "^1.16.1",
 		"deep-equal": "^2.2.3",

@@ -1,5 +1,5 @@
-import { Text } from '@stump/components'
-import { formatElapsedDuration } from '@stump/i18n'
+import { Text } from '@longbox/components'
+import { formatElapsedDuration } from '@longbox/i18n'
 import { differenceInSeconds } from 'date-fns'
 import { useEffect, useMemo, useState } from 'react'
 

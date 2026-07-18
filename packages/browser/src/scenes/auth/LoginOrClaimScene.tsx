@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { queryClient, useLoginOrRegister, useOidcConfig, useSDK } from '@stump/client'
+import { queryClient, useLoginOrRegister, useOidcConfig, useSDK } from '@longbox/client'
 import {
 	Alert,
 	AlertDescription,
@@ -9,9 +9,9 @@ import {
 	Heading,
 	Input,
 	PasswordInput,
-} from '@stump/components'
-import { useLocaleContext } from '@stump/i18n'
-import { isAxiosError } from '@stump/sdk'
+} from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
+import { isAxiosError } from '@longbox/sdk'
 import { motion, Variants } from 'framer-motion'
 import { ArrowRight, ShieldAlert } from 'lucide-react'
 import { useCallback, useState } from 'react'

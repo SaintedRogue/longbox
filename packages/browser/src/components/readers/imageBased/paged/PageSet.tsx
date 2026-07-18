@@ -1,6 +1,6 @@
-import { BookImageScaling } from '@stump/client'
-import { cn } from '@stump/components'
-import { ReadingDirection, ReadingImageScaleFit } from '@stump/graphql'
+import { BookImageScaling } from '@longbox/client'
+import { cn } from '@longbox/components'
+import { ReadingDirection, ReadingImageScaleFit } from '@longbox/graphql'
 import React, { forwardRef, useCallback, useMemo } from 'react'
 
 import { EntityImage } from '@/components/entity'

@@ -1,4 +1,4 @@
-import { ButtonOrLink, Text } from '@stump/components'
+import { ButtonOrLink, Text } from '@longbox/components'
 
 export default function FourOhFour() {
 	return (

@@ -1,5 +1,5 @@
-import { Input, NewCard } from '@stump/components'
-import { useLocaleContext } from '@stump/i18n'
+import { Input, NewCard } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 import type { ChangeEvent } from 'react'
 import { useCallback } from 'react'
 

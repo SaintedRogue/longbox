@@ -1,5 +1,5 @@
-import { Button, Dropdown } from '@stump/components'
-import { useLocaleContext } from '@stump/i18n'
+import { Button, Dropdown } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 import { Ellipsis } from 'lucide-react'
 
 type Props = {

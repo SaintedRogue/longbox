@@ -1,5 +1,5 @@
-import { cx } from '@stump/components'
-import { ReadingDirection, ReadingMode } from '@stump/graphql'
+import { cx } from '@longbox/components'
+import { ReadingDirection, ReadingMode } from '@longbox/graphql'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useCallback } from 'react'
 import { useSwipeable } from 'react-swipeable'

@@ -8,7 +8,7 @@ import {
 	MiniStatCard,
 	Tabs,
 	useSticky,
-} from '@stump/components'
+} from '@longbox/components'
 import { EllipsisVertical, Info, Settings } from 'lucide-react'
 import { useLocation } from 'react-router'
 import { useMediaMatch } from 'rooks'

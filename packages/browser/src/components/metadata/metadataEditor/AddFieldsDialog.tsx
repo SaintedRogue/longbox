@@ -1,5 +1,5 @@
-import { Badge, Button, Dialog, TextArea } from '@stump/components'
-import { useLocaleContext } from '@stump/i18n'
+import { Badge, Button, Dialog, TextArea } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 import lowerFirst from 'lodash/lowerFirst'
 import { Plus } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'

@@ -1,4 +1,4 @@
-import { Api, AuthenticationMethod } from '@stump/sdk'
+import { Api, AuthenticationMethod } from '@longbox/sdk'
 import { PropsWithChildren, useEffect, useState } from 'react'
 
 import { SDKContext } from './context'

@@ -1,6 +1,6 @@
-import { NativeSelect, NewCard } from '@stump/components'
-import { InterfaceRoundness, ThumbnailPlaceholderStyle } from '@stump/graphql'
-import { useLocaleContext } from '@stump/i18n'
+import { NativeSelect, NewCard } from '@longbox/components'
+import { InterfaceRoundness, ThumbnailPlaceholderStyle } from '@longbox/graphql'
+import { useLocaleContext } from '@longbox/i18n'
 
 import { usePreferences } from '@/hooks'
 

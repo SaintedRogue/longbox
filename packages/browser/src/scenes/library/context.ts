@@ -1,4 +1,4 @@
-import { LibraryLayoutQuery } from '@stump/graphql'
+import { LibraryLayoutQuery } from '@longbox/graphql'
 import { createContext, useContext } from 'react'
 
 // TODO: add derived meta (book_count, series_count, etc)

@@ -1,4 +1,4 @@
-import { Api } from '@stump/sdk'
+import { Api } from '@longbox/sdk'
 import { createContext, useContext } from 'react'
 
 export type ISDKContext = {

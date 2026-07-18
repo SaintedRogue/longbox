@@ -1,4 +1,4 @@
-import { LibrarySeriesQuery } from '@stump/graphql'
+import { LibrarySeriesQuery } from '@longbox/graphql'
 import { memo, useEffect, useRef, useState } from 'react'
 
 import { StackedSeriesCard } from '@/components/series'

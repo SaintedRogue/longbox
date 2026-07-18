@@ -1,5 +1,5 @@
-import { cn, Text } from '@stump/components'
-import { MetadataProvider } from '@stump/graphql'
+import { cn, Text } from '@longbox/components'
+import { MetadataProvider } from '@longbox/graphql'
 import { useFormContext, useWatch } from 'react-hook-form'
 
 import { PROVIDER_LABELS } from './constants'

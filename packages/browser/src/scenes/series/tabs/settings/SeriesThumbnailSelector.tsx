@@ -1,11 +1,11 @@
-import { useGraphQLMutation, useSDK } from '@stump/client'
-import { Button, Dialog, PickSelect } from '@stump/components'
+import { useGraphQLMutation, useSDK } from '@longbox/client'
+import { Button, Dialog, PickSelect } from '@longbox/components'
 import {
 	FragmentType,
 	graphql,
 	SeriesThumbnailSelectorUpdateMutation,
 	useFragment,
-} from '@stump/graphql'
+} from '@longbox/graphql'
 import { Suspense, useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 

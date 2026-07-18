@@ -1,4 +1,4 @@
-import { cn } from '@stump/components'
+import { cn } from '@longbox/components'
 import { Lock, LockOpen } from 'lucide-react'
 
 import { BINDING_TO_METADATA_FIELD } from '../../fieldDefs'

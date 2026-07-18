@@ -5,14 +5,14 @@ import {
 	useGraphQLMutation,
 	useSDK,
 	useSuspenseGraphQL,
-} from '@stump/client'
+} from '@longbox/client'
 import {
 	graphql,
 	SaveSmartListInput,
 	SmartList,
 	SmartListFilterGroupInput,
 	SmartListMetaQuery,
-} from '@stump/graphql'
+} from '@longbox/graphql'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useMemo } from 'react'
 export type SmartListParsed = Omit<SmartList, 'filters'> & {

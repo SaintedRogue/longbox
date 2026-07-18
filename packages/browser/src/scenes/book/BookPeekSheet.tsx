@@ -1,4 +1,4 @@
-import { cn, SheetPrimitive } from '@stump/components'
+import { cn, SheetPrimitive } from '@longbox/components'
 import { Suspense, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 

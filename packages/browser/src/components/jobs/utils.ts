@@ -1,4 +1,4 @@
-import { JobStatus } from '@stump/graphql'
+import { JobStatus } from '@longbox/graphql'
 
 export function readableKind(kind: string | null) {
 	if (!kind) {

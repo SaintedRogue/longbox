@@ -1,4 +1,4 @@
-import { useGraphQLMutation, useGraphQLUploadMutation } from '@stump/client'
+import { useGraphQLMutation, useGraphQLUploadMutation } from '@longbox/client'
 import {
 	Avatar,
 	Button,
@@ -10,9 +10,9 @@ import {
 	Label,
 	Text,
 	useBoolean,
-} from '@stump/components'
-import { graphql } from '@stump/graphql'
-import { useLocaleContext } from '@stump/i18n'
+} from '@longbox/components'
+import { graphql } from '@longbox/graphql'
+import { useLocaleContext } from '@longbox/i18n'
 import { Edit, X } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { type FileRejection, useDropzone } from 'react-dropzone'

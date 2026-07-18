@@ -1,5 +1,5 @@
-import { cn, Tabs, Text } from '@stump/components'
-import { useLocaleContext } from '@stump/i18n'
+import { cn, Tabs, Text } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 import { useFormContext, useWatch } from 'react-hook-form'
 
 import { FilterGroupJoiner, SmartListFormSchema } from '../../schema'

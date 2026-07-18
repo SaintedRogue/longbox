@@ -1,5 +1,5 @@
-import { ButtonOrLink } from '@stump/components'
-import { useLocaleContext } from '@stump/i18n'
+import { ButtonOrLink } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 import { useParams } from 'react-router'
 
 import Container from '@/components/container/Container'

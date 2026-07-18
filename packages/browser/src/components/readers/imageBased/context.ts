@@ -1,4 +1,4 @@
-import { BookReaderSceneQuery } from '@stump/graphql'
+import { BookReaderSceneQuery } from '@longbox/graphql'
 import { createContext, useContext } from 'react'
 
 import { Timer } from '@/stores/reader'

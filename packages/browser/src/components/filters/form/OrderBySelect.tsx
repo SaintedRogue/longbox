@@ -1,5 +1,5 @@
-import { Label, NativeSelect } from '@stump/components'
-import { LibraryModelOrdering, MediaModelOrdering, SeriesModelOrdering } from '@stump/graphql'
+import { Label, NativeSelect } from '@longbox/components'
+import { LibraryModelOrdering, MediaModelOrdering, SeriesModelOrdering } from '@longbox/graphql'
 import { useMemo } from 'react'
 
 import { OrderingField } from '../context'

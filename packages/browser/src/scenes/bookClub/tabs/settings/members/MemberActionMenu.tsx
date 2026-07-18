@@ -1,4 +1,4 @@
-import { Button, DropdownMenu } from '@stump/components'
+import { Button, DropdownMenu } from '@longbox/components'
 import { MoreVertical, Trash } from 'lucide-react'
 
 type Props = {

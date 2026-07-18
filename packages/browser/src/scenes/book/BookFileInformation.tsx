@@ -1,6 +1,6 @@
-import { formatBytes } from '@stump/client'
-import { Heading, Text } from '@stump/components'
-import { FragmentType, graphql, useFragment } from '@stump/graphql'
+import { formatBytes } from '@longbox/client'
+import { Heading, Text } from '@longbox/components'
+import { FragmentType, graphql, useFragment } from '@longbox/graphql'
 
 export const BookFileInformationFragment = graphql(`
 	fragment BookFileInformation on Media {

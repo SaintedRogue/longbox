@@ -1,5 +1,5 @@
-import { InterfaceLayout } from '@stump/graphql'
-import { ColumnOrder, ColumnSort } from '@stump/sdk'
+import { InterfaceLayout } from '@longbox/graphql'
+import { ColumnOrder, ColumnSort } from '@longbox/sdk'
 import { create } from 'zustand'
 import { createJSONStorage, devtools, persist, StateStorage } from 'zustand/middleware'
 

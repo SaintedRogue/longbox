@@ -7,7 +7,7 @@ import {
 	OrderDirection,
 	SeriesFilterInput,
 	SeriesModelOrdering,
-} from '@stump/graphql'
+} from '@longbox/graphql'
 import { createContext, useContext } from 'react'
 
 import { noop } from '../../utils/misc'

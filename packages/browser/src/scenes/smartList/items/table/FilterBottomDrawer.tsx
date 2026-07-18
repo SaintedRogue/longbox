@@ -8,8 +8,8 @@ import {
 	Preformatted,
 	Text,
 	ToolTip,
-} from '@stump/components'
-import { useLocaleContext } from '@stump/i18n'
+} from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 import { Construction, Filter } from 'lucide-react'
 
 import { useSmartListContext } from '../../context'

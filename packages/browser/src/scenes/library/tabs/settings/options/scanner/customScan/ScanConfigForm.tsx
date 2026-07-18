@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Alert, AlertDescription, cn, Form, RadioGroup, WideSwitch } from '@stump/components'
-import { useLocaleContext } from '@stump/i18n'
+import { Alert, AlertDescription, cn, Form, RadioGroup, WideSwitch } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 import { AlertTriangle } from 'lucide-react'
 import { useCallback } from 'react'
 import { useForm, useWatch } from 'react-hook-form'

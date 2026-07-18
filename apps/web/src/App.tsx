@@ -1,4 +1,4 @@
-import { StumpWebClient } from '@stump/browser'
+import { StumpWebClient } from '@longbox/browser'
 import { BrowserRouter } from 'react-router-dom'
 
 import PWAUpdatePrompt from './PWAUpdatePrompt'

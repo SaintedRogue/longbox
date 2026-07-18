@@ -1,4 +1,4 @@
-import { useSDK } from '@stump/client'
+import { useSDK } from '@longbox/client'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { Navigate, useParams, useSearchParams } from 'react-router-dom'

@@ -1,4 +1,4 @@
-import { IconButton, Input, Text, ToolTip } from '@stump/components'
+import { IconButton, Input, Text, ToolTip } from '@longbox/components'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 

@@ -1,5 +1,5 @@
-import { Button, Label, Text } from '@stump/components'
-import { useLocaleContext } from '@stump/i18n'
+import { Button, Label, Text } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 
 import { useLibraryManagement } from '../../context'
 import CustomScanDialog from './customScan'

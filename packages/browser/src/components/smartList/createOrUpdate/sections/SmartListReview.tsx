@@ -1,5 +1,5 @@
-import { Label, Text } from '@stump/components'
-import { useLocaleContext } from '@stump/i18n'
+import { Label, Text } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 import { useFormContext, useWatch } from 'react-hook-form'
 
 import { ReviewStepContainer } from '@/components/steppedForm'

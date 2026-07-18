@@ -1,4 +1,4 @@
-import { Text } from '@stump/components'
+import { Text } from '@longbox/components'
 import { useCallback } from 'react'
 
 import { EpubContent, useEpubReaderContext } from '../context'

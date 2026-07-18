@@ -1,4 +1,4 @@
-import { Dialog, Tabs, Text } from '@stump/components'
+import { Dialog, Tabs, Text } from '@longbox/components'
 import { List } from 'lucide-react'
 import { useCallback, useState } from 'react'
 

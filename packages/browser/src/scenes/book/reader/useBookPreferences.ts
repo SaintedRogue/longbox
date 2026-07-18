@@ -1,6 +1,6 @@
-import { BookPreferences, ReaderSettings, ReaderStore } from '@stump/client'
-import { PickSelect } from '@stump/components'
-import { BookReaderSceneQuery, ReadingImageScaleFit } from '@stump/graphql'
+import { BookPreferences, ReaderSettings, ReaderStore } from '@longbox/client'
+import { PickSelect } from '@longbox/components'
+import { BookReaderSceneQuery, ReadingImageScaleFit } from '@longbox/graphql'
 import { useCallback, useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 

@@ -6,8 +6,8 @@ import {
 	SeriesFilterInput,
 	SeriesModelOrdering,
 	SeriesOrderBy,
-} from '@stump/graphql'
-import { toObjectParams, toUrlParams } from '@stump/sdk'
+} from '@longbox/graphql'
+import { toObjectParams, toUrlParams } from '@longbox/sdk'
 import { useCallback, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useMediaMatch } from 'rooks'

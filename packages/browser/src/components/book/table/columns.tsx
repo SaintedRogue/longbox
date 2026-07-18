@@ -1,7 +1,7 @@
-import { formatBytes } from '@stump/client'
-import { Badge, Link, Text } from '@stump/components'
-import { FragmentType, Media, MediaModelOrdering } from '@stump/graphql'
-import { ColumnSort } from '@stump/sdk'
+import { formatBytes } from '@longbox/client'
+import { Badge, Link, Text } from '@longbox/components'
+import { FragmentType, Media, MediaModelOrdering } from '@longbox/graphql'
+import { ColumnSort } from '@longbox/sdk'
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
 import { format, intlFormat } from 'date-fns'
 

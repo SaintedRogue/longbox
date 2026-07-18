@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Button, Form } from '@stump/components'
-import { useLocaleContext } from '@stump/i18n'
+import { Button, Form } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 import pick from 'lodash/pick'
 import { useCallback, useMemo } from 'react'
 import { useForm, useWatch } from 'react-hook-form'

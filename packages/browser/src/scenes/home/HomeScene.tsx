@@ -1,5 +1,5 @@
-import { useSDK, useSuspenseGraphQL } from '@stump/client'
-import { graphql } from '@stump/graphql'
+import { useSDK, useSuspenseGraphQL } from '@longbox/client'
+import { graphql } from '@longbox/graphql'
 import { Helmet } from 'react-helmet'
 
 import { SceneContainer } from '@/components/container'

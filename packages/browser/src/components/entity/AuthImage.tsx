@@ -1,4 +1,4 @@
-import { queryClient, useSDK } from '@stump/client'
+import { queryClient, useSDK } from '@longbox/client'
 import { forwardRef, useCallback, useEffect, useState } from 'react'
 
 type Props = {

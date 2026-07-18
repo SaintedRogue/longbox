@@ -1,5 +1,5 @@
-import { Label, NativeSelect } from '@stump/components'
-import { ReadingMode as ReadingModeType } from '@stump/graphql'
+import { Label, NativeSelect } from '@longbox/components'
+import { ReadingMode as ReadingModeType } from '@longbox/graphql'
 
 import { useBookPreferences } from '@/scenes/book/reader/useBookPreferences'
 

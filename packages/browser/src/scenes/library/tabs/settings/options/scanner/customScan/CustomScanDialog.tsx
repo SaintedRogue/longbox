@@ -1,5 +1,5 @@
-import { Button, Dialog } from '@stump/components'
-import { useLocaleContext } from '@stump/i18n'
+import { Button, Dialog } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 import { useCallback, useState } from 'react'
 
 import { ScanOptions } from '../history/ScanHistoryTable'

@@ -1,5 +1,5 @@
-import { queryClient } from '@stump/client'
-import { useLocaleContext } from '@stump/i18n'
+import { queryClient } from '@longbox/client'
+import { useLocaleContext } from '@longbox/i18n'
 import { motion, Variants } from 'framer-motion'
 import { ArrowRight } from 'lucide-react'
 import { useEffect, useState } from 'react'

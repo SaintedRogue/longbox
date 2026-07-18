@@ -1,5 +1,5 @@
-import { cn } from '@stump/components'
-import { MetadataProvider } from '@stump/graphql'
+import { cn } from '@longbox/components'
+import { MetadataProvider } from '@longbox/graphql'
 
 type Props = {
 	provider: MetadataProvider

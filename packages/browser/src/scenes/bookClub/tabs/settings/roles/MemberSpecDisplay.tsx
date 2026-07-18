@@ -1,4 +1,4 @@
-import { Button, Card, Heading, Input, Text } from '@stump/components'
+import { Button, Card, Heading, Input, Text } from '@longbox/components'
 import { useState } from 'react'
 
 import { useBookClubContext } from '@/components/bookClub'

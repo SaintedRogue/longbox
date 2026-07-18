@@ -1,7 +1,7 @@
-import { useGraphQL } from '@stump/client'
-import { Alert, AlertDescription, ButtonOrLink, cn, Label, Sheet, Text } from '@stump/components'
-import { graphql, UserPermission } from '@stump/graphql'
-import { useLocaleContext } from '@stump/i18n'
+import { useGraphQL } from '@longbox/client'
+import { Alert, AlertDescription, ButtonOrLink, cn, Label, Sheet, Text } from '@longbox/components'
+import { graphql, UserPermission } from '@longbox/graphql'
+import { useLocaleContext } from '@longbox/i18n'
 import { intlFormat } from 'date-fns'
 import { useMemo } from 'react'
 

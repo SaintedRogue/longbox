@@ -1,4 +1,4 @@
-import { useGraphQLMutation } from '@stump/client'
+import { useGraphQLMutation } from '@longbox/client'
 import {
 	Alert,
 	AlertDescription,
@@ -7,8 +7,8 @@ import {
 	ConfirmationModal,
 	Heading,
 	Text,
-} from '@stump/components'
-import { graphql } from '@stump/graphql'
+} from '@longbox/components'
+import { graphql } from '@longbox/graphql'
 import { AlertTriangle } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import { toast } from 'sonner'

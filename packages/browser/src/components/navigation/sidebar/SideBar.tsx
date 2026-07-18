@@ -1,12 +1,12 @@
-import { useSDK, useSuspenseGraphQL } from '@stump/client'
-import { cn, Spacer } from '@stump/components'
+import { useSDK, useSuspenseGraphQL } from '@longbox/client'
+import { cn, Spacer } from '@longbox/components'
 import {
 	FilterableArrangementEntityLink,
 	graphql,
 	SystemArrangement,
 	UserPermission,
-} from '@stump/graphql'
-import { useLocaleContext } from '@stump/i18n'
+} from '@longbox/graphql'
+import { useLocaleContext } from '@longbox/i18n'
 import { motion } from 'framer-motion'
 import { Book, Download, Home } from 'lucide-react'
 import { Suspense, useCallback, useMemo } from 'react'

@@ -1,12 +1,12 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { CheckBox, cn, IconButton, Text } from '@stump/components'
+import { CheckBox, cn, IconButton, Text } from '@longbox/components'
 import {
 	FilterableArrangementEntityLink,
 	NavigationArrangementQuery,
 	SystemArrangement,
-} from '@stump/graphql'
-import { useLocaleContext } from '@stump/i18n'
+} from '@longbox/graphql'
+import { useLocaleContext } from '@longbox/i18n'
 import { Bolt, Eye, EyeOff } from 'lucide-react'
 import { useCallback, useState } from 'react'
 

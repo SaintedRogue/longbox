@@ -9,9 +9,9 @@
 		"emitDeclarationOnly": true,
 		"outDir": "dist",
 		"paths": {
-			"@stump/sdk": ["../sdk/src/index.ts"],
-			"@stump/sdk/*": ["../sdk/src/*"],
-			"@stump/graphql": ["../graphql/src/index.ts"],
+			"@longbox/sdk": ["../sdk/src/index.ts"],
+			"@longbox/sdk/*": ["../sdk/src/*"],
+			"@longbox/graphql": ["../graphql/src/index.ts"],
 			"@/*": ["./src/*"]
 		},
 		"plugins": [

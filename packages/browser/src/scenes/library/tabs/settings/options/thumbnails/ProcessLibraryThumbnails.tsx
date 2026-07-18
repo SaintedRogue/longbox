@@ -1,6 +1,6 @@
-import { useGraphQLMutation } from '@stump/client'
-import { Button, DropdownMenu, Label, Text } from '@stump/components'
-import { graphql } from '@stump/graphql'
+import { useGraphQLMutation } from '@longbox/client'
+import { Button, DropdownMenu, Label, Text } from '@longbox/components'
+import { graphql } from '@longbox/graphql'
 import { AlertTriangle, ChevronDown, ImagePlus } from 'lucide-react'
 import { useCallback } from 'react'
 

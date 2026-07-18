@@ -1,6 +1,6 @@
-import { Button, DropdownMenu } from '@stump/components'
-import { UserPermission } from '@stump/graphql'
-import { useLocaleContext } from '@stump/i18n'
+import { Button, DropdownMenu } from '@longbox/components'
+import { UserPermission } from '@longbox/graphql'
+import { useLocaleContext } from '@longbox/i18n'
 import { ChevronDown } from 'lucide-react'
 import { useMemo, useState } from 'react'
 

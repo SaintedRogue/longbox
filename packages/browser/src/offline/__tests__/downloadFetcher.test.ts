@@ -1,4 +1,4 @@
-import type { Api } from '@stump/sdk'
+import type { Api } from '@longbox/sdk'
 
 import { createDownloadFetcher, type FetcherDeps } from '../downloadFetcher'
 import type { DownloadFetchResult, DownloadJob } from '../downloadManager'

@@ -1,4 +1,4 @@
-import { AccessRole } from '@stump/graphql'
+import { AccessRole } from '@longbox/graphql'
 import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router'
 

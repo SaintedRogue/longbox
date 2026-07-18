@@ -1,5 +1,5 @@
-import { cn } from '@stump/components'
-import { Media } from '@stump/graphql'
+import { cn } from '@longbox/components'
+import { Media } from '@longbox/graphql'
 import {
 	flexRender,
 	getCoreRowModel,

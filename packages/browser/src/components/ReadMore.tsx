@@ -1,4 +1,4 @@
-import { cn, useBoolean } from '@stump/components'
+import { cn, useBoolean } from '@longbox/components'
 
 import { DEBUG_ENV } from '../index.ts'
 import Markdown from './markdown/MarkdownPreview.tsx'

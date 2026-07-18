@@ -1,4 +1,4 @@
-import { queryClient, useGraphQLMutation, useSDK, useSuspenseGraphQL } from '@stump/client'
+import { queryClient, useGraphQLMutation, useSDK, useSuspenseGraphQL } from '@longbox/client'
 import {
 	Bookmark,
 	EpubJsReaderQuery,
@@ -7,8 +7,8 @@ import {
 	ReadingDirection,
 	ReadingMode,
 	SupportedFont,
-} from '@stump/graphql'
-import { useLocaleContext } from '@stump/i18n'
+} from '@longbox/graphql'
+import { useLocaleContext } from '@longbox/i18n'
 import { useQueryClient } from '@tanstack/react-query'
 import { Book, Contents, Rendition } from 'epubjs'
 import uniqby from 'lodash/uniqBy'

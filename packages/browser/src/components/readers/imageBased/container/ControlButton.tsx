@@ -1,4 +1,4 @@
-import { cn, IconButton } from '@stump/components'
+import { cn, IconButton } from '@longbox/components'
 import { ComponentProps, forwardRef } from 'react'
 
 const ControlButton = forwardRef<HTMLButtonElement, ComponentProps<typeof IconButton>>(

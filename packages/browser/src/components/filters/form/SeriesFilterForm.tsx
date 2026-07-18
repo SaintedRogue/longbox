@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Form } from '@stump/components'
-import { SeriesFilterInput } from '@stump/graphql'
+import { Form } from '@longbox/components'
+import { SeriesFilterInput } from '@longbox/graphql'
 import { useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import z from 'zod'

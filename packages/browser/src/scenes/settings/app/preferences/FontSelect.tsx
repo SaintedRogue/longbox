@@ -1,7 +1,7 @@
-import { ComboBox, NewCard } from '@stump/components'
-import { SupportedFont } from '@stump/graphql'
-import { useLocaleContext } from '@stump/i18n'
-import { isSupportedFont } from '@stump/sdk'
+import { ComboBox, NewCard } from '@longbox/components'
+import { SupportedFont } from '@longbox/graphql'
+import { useLocaleContext } from '@longbox/i18n'
+import { isSupportedFont } from '@longbox/sdk'
 import { useCallback } from 'react'
 
 import { usePreferences } from '@/hooks/usePreferences'

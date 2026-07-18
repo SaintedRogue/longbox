@@ -1,5 +1,5 @@
-import { CheckBox, cn, IconButton, Text, ToolTip } from '@stump/components'
-import { useLocaleContext } from '@stump/i18n'
+import { CheckBox, cn, IconButton, Text, ToolTip } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 import { Undo2 } from 'lucide-react'
 import { useState } from 'react'
 

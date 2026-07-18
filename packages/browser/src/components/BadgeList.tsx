@@ -1,4 +1,4 @@
-import { cn, useBoolean } from '@stump/components'
+import { cn, useBoolean } from '@longbox/components'
 import { Children, ReactNode, useEffect, useRef, useState } from 'react'
 
 type Props = {

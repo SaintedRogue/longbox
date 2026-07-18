@@ -8,9 +8,9 @@ import {
 	NativeSelect,
 	Text,
 	WideSwitch,
-} from '@stump/components'
-import { SupportedImageFormat } from '@stump/graphql'
-import { useLocaleContext } from '@stump/i18n'
+} from '@longbox/components'
+import { SupportedImageFormat } from '@longbox/graphql'
+import { useLocaleContext } from '@longbox/i18n'
 import { Check } from 'lucide-react'
 import { useCallback } from 'react'
 import { useFormContext, useFormState, useWatch } from 'react-hook-form'

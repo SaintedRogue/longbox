@@ -1,4 +1,4 @@
-import { UserPermission } from '@stump/graphql'
+import { UserPermission } from '@longbox/graphql'
 import type { LucideIcon } from 'lucide-react'
 import { useMemo } from 'react'
 

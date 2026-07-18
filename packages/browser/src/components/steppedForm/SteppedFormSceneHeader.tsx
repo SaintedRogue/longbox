@@ -1,5 +1,5 @@
-import { Heading, Link, Text } from '@stump/components'
-import { useLocaleContext } from '@stump/i18n'
+import { Heading, Link, Text } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 
 import { useSteppedFormContext } from './context'
 import SteppedFormIndicators from './SteppedFormIndicators'

@@ -1,5 +1,5 @@
-import { Label, NativeSelect } from '@stump/components'
-import { ReadingDirection as ReadingDirectionGQL } from '@stump/graphql'
+import { Label, NativeSelect } from '@longbox/components'
+import { ReadingDirection as ReadingDirectionGQL } from '@longbox/graphql'
 
 import { useBookPreferences } from '@/scenes/book/reader/useBookPreferences'
 

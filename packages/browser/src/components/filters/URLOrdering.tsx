@@ -1,5 +1,5 @@
-import { IconButton, Popover, ToolTip } from '@stump/components'
-import { OrderDirection } from '@stump/graphql'
+import { IconButton, Popover, ToolTip } from '@longbox/components'
+import { OrderDirection } from '@longbox/graphql'
 import { ArrowUpDown } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import { useMediaMatch } from 'rooks'

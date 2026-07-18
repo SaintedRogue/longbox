@@ -1,5 +1,5 @@
-import { BookClubLayoutQuery } from '@stump/graphql'
-import { BookClubMemberRoleSpec } from '@stump/sdk'
+import { BookClubLayoutQuery } from '@longbox/graphql'
+import { BookClubMemberRoleSpec } from '@longbox/sdk'
 import { z } from 'zod'
 
 import { FORBIDDEN_ENTITY_NAMES } from '@/utils/form'

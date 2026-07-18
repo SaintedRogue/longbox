@@ -1,12 +1,12 @@
 import '@/__mocks__/resizeObserver'
 
-import { useSDK, useSuspenseGraphQL } from '@stump/client'
+import { useSDK, useSuspenseGraphQL } from '@longbox/client'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 import TagSelect, { TagOption } from '../TagSelect'
 
-jest.mock('@stump/client', () => ({
+jest.mock('@longbox/client', () => ({
 	useSDK: jest.fn(),
 	useSuspenseGraphQL: jest.fn(),
 }))

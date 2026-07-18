@@ -1,7 +1,15 @@
-import { useGraphQLMutation, useGraphQLUploadMutation, useSuspenseGraphQL } from '@stump/client'
-import { Button, cn, ConfirmationModal, Heading, Input, ScrollArea, Text } from '@stump/components'
-import { graphql, UserPermission } from '@stump/graphql'
-import { useLocaleContext } from '@stump/i18n'
+import { useGraphQLMutation, useGraphQLUploadMutation, useSuspenseGraphQL } from '@longbox/client'
+import {
+	Button,
+	cn,
+	ConfirmationModal,
+	Heading,
+	Input,
+	ScrollArea,
+	Text,
+} from '@longbox/components'
+import { graphql, UserPermission } from '@longbox/graphql'
+import { useLocaleContext } from '@longbox/i18n'
 import { ImagePlus, Pencil, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { type FileRejection, useDropzone } from 'react-dropzone'

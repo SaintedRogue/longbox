@@ -1,8 +1,8 @@
-import { useGraphQLMutation, useSDK } from '@stump/client'
-import { EBOOK_EXTENSION, PDF_EXTENSION } from '@stump/client'
-import { Button, ButtonOrLink, DropdownMenu } from '@stump/components'
-import { DropdownItemGroup } from '@stump/components/dropdown/DropdownMenu'
-import { BookCardFragment, graphql, UserPermission } from '@stump/graphql'
+import { useGraphQLMutation, useSDK } from '@longbox/client'
+import { EBOOK_EXTENSION, PDF_EXTENSION } from '@longbox/client'
+import { Button, ButtonOrLink, DropdownMenu } from '@longbox/components'
+import { DropdownItemGroup } from '@longbox/components/dropdown/DropdownMenu'
+import { BookCardFragment, graphql, UserPermission } from '@longbox/graphql'
 import { useQueryClient } from '@tanstack/react-query'
 import {
 	BookMinus,

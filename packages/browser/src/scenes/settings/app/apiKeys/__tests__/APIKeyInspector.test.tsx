@@ -1,6 +1,6 @@
-import { UserPermission } from '@stump/graphql'
-import { useLocaleContext } from '@stump/i18n'
-import { AuthUser } from '@stump/sdk'
+import { UserPermission } from '@longbox/graphql'
+import { useLocaleContext } from '@longbox/i18n'
+import { AuthUser } from '@longbox/sdk'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 
@@ -23,7 +23,7 @@ const useAppContextRet = {
 	} as unknown as AuthUser,
 } as any
 
-jest.mock('@stump/i18n', () => ({
+jest.mock('@longbox/i18n', () => ({
 	useLocaleContext: jest.fn(),
 }))
 const translate = jest.fn().mockImplementation((key: string) => key)

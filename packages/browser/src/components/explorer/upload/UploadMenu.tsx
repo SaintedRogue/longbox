@@ -1,4 +1,4 @@
-import { Dropdown, IconButton, ToolTip } from '@stump/components'
+import { Dropdown, IconButton, ToolTip } from '@longbox/components'
 import { BookPlus, FolderPlus, Upload } from 'lucide-react'
 
 import { useSeriesContextSafe } from '@/scenes/series'

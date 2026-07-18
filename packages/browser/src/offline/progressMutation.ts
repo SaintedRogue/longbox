@@ -1,4 +1,4 @@
-import { graphql } from '@stump/graphql'
+import { graphql } from '@longbox/graphql'
 
 /**
  * The single `updateMediaProgress` mutation document, shared by both readers

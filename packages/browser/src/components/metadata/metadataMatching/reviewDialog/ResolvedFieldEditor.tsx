@@ -1,4 +1,4 @@
-import type { MetadataField } from '@stump/graphql'
+import type { MetadataField } from '@longbox/graphql'
 
 import { getNumberValidation } from '@/components/metadata/fieldDefs'
 

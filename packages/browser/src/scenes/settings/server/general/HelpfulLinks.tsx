@@ -1,5 +1,5 @@
-import { cn, Heading, Link, Text, TEXT_VARIANTS } from '@stump/components'
-import { useLocaleContext } from '@stump/i18n'
+import { cn, Heading, Link, Text, TEXT_VARIANTS } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 import { ExternalLink } from 'lucide-react'
 
 export default function HelpfulLinks() {

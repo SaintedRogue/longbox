@@ -1,4 +1,4 @@
-import { MetadataProvider } from '@stump/graphql'
+import { MetadataProvider } from '@longbox/graphql'
 
 export const PROVIDER_LABELS: Record<MetadataProvider, string> = {
 	[MetadataProvider.Hardcover]: 'Hardcover',

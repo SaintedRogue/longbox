@@ -1,6 +1,6 @@
-import { useSDK, useSuspenseGraphQL } from '@stump/client'
-import { Label, Text } from '@stump/components'
-import { graphql } from '@stump/graphql'
+import { useSDK, useSuspenseGraphQL } from '@longbox/client'
+import { Label, Text } from '@longbox/components'
+import { graphql } from '@longbox/graphql'
 
 import paths from '@/paths'
 

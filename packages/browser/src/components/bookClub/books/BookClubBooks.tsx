@@ -1,6 +1,6 @@
-import { useGraphQL } from '@stump/client'
-import { ButtonOrLink, cn, Heading, ScrollArea, Text } from '@stump/components'
-import { graphql } from '@stump/graphql'
+import { useGraphQL } from '@longbox/client'
+import { ButtonOrLink, cn, Heading, ScrollArea, Text } from '@longbox/components'
+import { graphql } from '@longbox/graphql'
 import AutoSizer from 'react-virtualized-auto-sizer'
 import { useMediaMatch, useToggle } from 'rooks'
 

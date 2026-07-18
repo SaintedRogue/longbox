@@ -1,5 +1,5 @@
 {
-	"name": "@stump/docs",
+	"name": "@longbox/docs",
 	"private": true,
 	"type": "module",
 	"sideEffects": false,

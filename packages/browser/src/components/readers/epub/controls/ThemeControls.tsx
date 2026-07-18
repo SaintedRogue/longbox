@@ -1,4 +1,4 @@
-import { Dialog, Heading, Popover } from '@stump/components'
+import { Dialog, Heading, Popover } from '@longbox/components'
 import { Paintbrush } from 'lucide-react'
 
 import ControlButton from './ControlButton'

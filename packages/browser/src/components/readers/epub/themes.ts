@@ -1,4 +1,4 @@
-import { SupportedFont } from '@stump/graphql'
+import { SupportedFont } from '@longbox/graphql'
 
 export interface EpubTheme {
 	[tag: string]: object

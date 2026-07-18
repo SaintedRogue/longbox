@@ -1,5 +1,5 @@
-import { Alert, AlertDescription, AlertTitle } from '@stump/components'
-import { useLocaleContext } from '@stump/i18n'
+import { Alert, AlertDescription, AlertTitle } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 import { AlertCircle } from 'lucide-react'
 
 export function ExperimentalFeatureDisclaimer() {

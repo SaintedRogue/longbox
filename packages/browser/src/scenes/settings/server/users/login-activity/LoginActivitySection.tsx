@@ -1,4 +1,4 @@
-import { Heading, Text } from '@stump/components'
+import { Heading, Text } from '@longbox/components'
 import { Suspense } from 'react'
 
 import ClearLoginActivityConfirmation from './ClearActivityConfirmation'

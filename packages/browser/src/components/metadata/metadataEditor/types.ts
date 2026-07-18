@@ -1,4 +1,4 @@
-import { MediaMetadataEditorFragment, SeriesMetadataEditorFragment } from '@stump/graphql'
+import { MediaMetadataEditorFragment, SeriesMetadataEditorFragment } from '@longbox/graphql'
 
 export type MetadataEditorRow<Field extends string> = {
 	label: string

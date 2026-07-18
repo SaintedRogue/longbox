@@ -1,4 +1,4 @@
-import { cn, ProgressBar, Text } from '@stump/components'
+import { cn, ProgressBar, Text } from '@longbox/components'
 import { Book } from 'lucide-react'
 import { type ComponentPropsWithoutRef, useState } from 'react'
 import { To } from 'react-router-dom'

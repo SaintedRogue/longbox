@@ -1,4 +1,4 @@
-import { cn, cx } from '@stump/components'
+import { cn, cx } from '@longbox/components'
 import { ArrowLeft, ArrowRight, MoreHorizontal } from 'lucide-react'
 import { useCallback, useMemo } from 'react'
 import { useWindowSize } from 'rooks'

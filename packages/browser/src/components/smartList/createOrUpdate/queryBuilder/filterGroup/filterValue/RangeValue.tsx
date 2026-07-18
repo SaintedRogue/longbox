@@ -1,5 +1,5 @@
-import { CheckBox, DatePicker, Input } from '@stump/components'
-import { useLocaleContext } from '@stump/i18n'
+import { CheckBox, DatePicker, Input } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 import { endOfDay } from 'date-fns'
 import { useMemo } from 'react'
 import { useFormContext, useFormState } from 'react-hook-form'

@@ -1,5 +1,5 @@
-import { UseDirectoryListingFile } from '@stump/client'
-import { UploadConfig } from '@stump/graphql'
+import { UseDirectoryListingFile } from '@longbox/client'
+import { UploadConfig } from '@longbox/graphql'
 import { createContext, useContext } from 'react'
 
 export type ExplorerLayout = 'grid' | 'table'

@@ -1,4 +1,4 @@
-import { Media } from '@stump/graphql'
+import { Media } from '@longbox/graphql'
 import { flexRender, Row } from '@tanstack/react-table'
 
 type Props = {

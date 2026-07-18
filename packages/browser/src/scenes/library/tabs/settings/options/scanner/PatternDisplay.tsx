@@ -1,6 +1,6 @@
-import { Text } from '@stump/components'
-import { LibraryPattern, useFragment } from '@stump/graphql'
-import { useLocaleContext } from '@stump/i18n'
+import { Text } from '@longbox/components'
+import { LibraryPattern, useFragment } from '@longbox/graphql'
+import { useLocaleContext } from '@longbox/i18n'
 
 import { useLibraryContext } from '@/scenes/library/context'
 

@@ -1,5 +1,5 @@
-import { queryClient, useGraphQLMutation } from '@stump/client'
-import { BookmarkInput, graphql } from '@stump/graphql'
+import { queryClient, useGraphQLMutation } from '@longbox/client'
+import { BookmarkInput, graphql } from '@longbox/graphql'
 import { useCallback, useMemo } from 'react'
 
 import { useEpubReaderContext } from '../context'

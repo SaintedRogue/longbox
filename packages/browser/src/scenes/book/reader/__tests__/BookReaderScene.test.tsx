@@ -8,7 +8,7 @@ jest.mock('react-router-dom', () => ({
 	...jest.requireActual('react-router-dom'),
 	useNavigate: () => mockNavigate,
 }))
-jest.mock('@stump/client', () => ({
+jest.mock('@longbox/client', () => ({
 	ARCHIVE_EXTENSION: /cbz|cbr|zip|rar/,
 	EBOOK_EXTENSION: /epub/,
 	PDF_EXTENSION: /pdf/,
@@ -16,11 +16,11 @@ jest.mock('@stump/client', () => ({
 	useGraphQLMutation: () => ({ mutate: jest.fn() }),
 	useSuspenseGraphQL: jest.fn(),
 }))
-jest.mock('@stump/graphql', () => ({
-	...jest.requireActual('@stump/graphql'),
+jest.mock('@longbox/graphql', () => ({
+	...jest.requireActual('@longbox/graphql'),
 	graphql: () => ({}),
 }))
-jest.mock('@stump/i18n', () => ({ useLocaleContext: () => ({ t: (k: string) => k }) }))
+jest.mock('@longbox/i18n', () => ({ useLocaleContext: () => ({ t: (k: string) => k }) }))
 jest.mock('@tanstack/react-query', () => ({
 	useQueryClient: () => ({ invalidateQueries: jest.fn() }),
 }))

@@ -1,5 +1,5 @@
-import { useFooterOffsetStore } from '@stump/client'
-import { cn } from '@stump/components'
+import { useFooterOffsetStore } from '@longbox/client'
+import { cn } from '@longbox/components'
 import { forwardRef, Suspense, useEffect, useMemo } from 'react'
 import useScrollbarSize from 'react-scrollbar-size'
 import { useMediaMatch } from 'rooks'

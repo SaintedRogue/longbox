@@ -1,4 +1,4 @@
-import { InterfaceLayout } from '@stump/graphql'
+import { InterfaceLayout } from '@longbox/graphql'
 import { useEffect, useMemo, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 

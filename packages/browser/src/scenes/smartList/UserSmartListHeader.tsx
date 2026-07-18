@@ -1,4 +1,4 @@
-import { useLocaleContext } from '@stump/i18n'
+import { useLocaleContext } from '@longbox/i18n'
 import { Book, Layers, Library } from 'lucide-react'
 
 import { EntityHeader } from '@/components/sharedLayout'

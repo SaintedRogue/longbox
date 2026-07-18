@@ -1,5 +1,5 @@
-import { ALPHABET_STALE_TIME, useSDK, useSuspenseGraphQL } from '@stump/client'
-import { graphql } from '@stump/graphql'
+import { ALPHABET_STALE_TIME, useSDK, useSuspenseGraphQL } from '@longbox/client'
+import { graphql } from '@longbox/graphql'
 import { useQueryClient } from '@tanstack/react-query'
 import { Suspense } from 'react'
 

@@ -1,5 +1,5 @@
-import { AspectRatio, Badge, Card, cx, Heading, Link, Text } from '@stump/components'
-import { FragmentType, graphql, useFragment } from '@stump/graphql'
+import { AspectRatio, Badge, Card, cx, Heading, Link, Text } from '@longbox/components'
+import { FragmentType, graphql, useFragment } from '@longbox/graphql'
 import { differenceInDays, formatDistanceToNow } from 'date-fns'
 import { Book } from 'lucide-react'
 import pluralize from 'pluralize'

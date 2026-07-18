@@ -6,8 +6,8 @@ import {
 	cn,
 	ConfirmationModal,
 	RadioGroup,
-} from '@stump/components'
-import { MetadataResetImpact } from '@stump/graphql'
+} from '@longbox/components'
+import { MetadataResetImpact } from '@longbox/graphql'
 import { AlertTriangle } from 'lucide-react'
 import { useState } from 'react'
 

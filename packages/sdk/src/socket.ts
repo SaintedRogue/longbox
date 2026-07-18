@@ -1,4 +1,4 @@
-import { TypedDocumentString } from '@stump/graphql'
+import { TypedDocumentString } from '@longbox/graphql'
 
 import { Api } from './api'
 import { GraphQLError, GraphQLResponse } from './types/graphql'

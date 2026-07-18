@@ -1,4 +1,4 @@
-import { cn, Heading, Text } from '@stump/components'
+import { cn, Heading, Text } from '@longbox/components'
 import { CircleSlash2 } from 'lucide-react'
 
 type Props = {

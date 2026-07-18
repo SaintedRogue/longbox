@@ -1,6 +1,6 @@
-import { Link, Text } from '@stump/components'
-import { Media } from '@stump/graphql'
-import { ColumnSort } from '@stump/sdk'
+import { Link, Text } from '@longbox/components'
+import { Media } from '@longbox/graphql'
+import { ColumnSort } from '@longbox/sdk'
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
 import { format, intlFormat, isValid } from 'date-fns'
 

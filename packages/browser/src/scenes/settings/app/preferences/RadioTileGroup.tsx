@@ -1,4 +1,4 @@
-import { cn, Text } from '@stump/components'
+import { cn, Text } from '@longbox/components'
 import { cva, VariantProps } from 'class-variance-authority'
 import { Check } from 'lucide-react'
 import type { ReactNode } from 'react'

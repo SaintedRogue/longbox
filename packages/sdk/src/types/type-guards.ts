@@ -1,4 +1,4 @@
-import { UserPermission } from '@stump/graphql'
+import { UserPermission } from '@longbox/graphql'
 
 export const allPermissions = Object.values(UserPermission)
 

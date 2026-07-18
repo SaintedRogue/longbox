@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Form } from '@stump/components'
+import { Form } from '@longbox/components'
 import { useCallback, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 

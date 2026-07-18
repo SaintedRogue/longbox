@@ -1,4 +1,4 @@
-import { UpdateBookClubInput } from '@stump/graphql'
+import { UpdateBookClubInput } from '@longbox/graphql'
 import { createContext, useContext } from 'react'
 
 import { useBookClubContext } from '@/components/bookClub'

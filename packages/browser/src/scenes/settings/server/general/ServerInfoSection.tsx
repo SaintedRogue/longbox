@@ -1,4 +1,4 @@
-import { useStumpVersion } from '@stump/client'
+import { useStumpVersion } from '@longbox/client'
 import {
 	Alert,
 	AlertDescription,
@@ -9,8 +9,8 @@ import {
 	Link,
 	Text,
 	TEXT_VARIANTS,
-} from '@stump/components'
-import { useLocaleContext } from '@stump/i18n'
+} from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 import { intlFormat } from 'date-fns'
 import toUpper from 'lodash/toUpper'
 import { Info } from 'lucide-react'

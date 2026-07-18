@@ -1,4 +1,4 @@
-import type { BookCardFragment } from '@stump/graphql'
+import type { BookCardFragment } from '@longbox/graphql'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
@@ -8,7 +8,7 @@ import { useDownloadStore } from '@/offline/downloadStore'
 
 import OfflineDownloadButton, { selectDownloadButtonState } from '../OfflineDownloadButton'
 
-jest.mock('@stump/i18n', () => ({
+jest.mock('@longbox/i18n', () => ({
 	useLocaleContext: () => ({ t: (key: string) => key }),
 }))
 

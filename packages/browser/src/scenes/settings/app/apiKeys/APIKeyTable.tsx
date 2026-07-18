@@ -1,7 +1,7 @@
-import { useSDK, useSuspenseGraphQL } from '@stump/client'
-import { Badge, Card, cn, Text } from '@stump/components'
-import { ApiKeyTableQuery, graphql } from '@stump/graphql'
-import { useLocaleContext } from '@stump/i18n'
+import { useSDK, useSuspenseGraphQL } from '@longbox/client'
+import { Badge, Card, cn, Text } from '@longbox/components'
+import { ApiKeyTableQuery, graphql } from '@longbox/graphql'
+import { useLocaleContext } from '@longbox/i18n'
 import {
 	createColumnHelper,
 	flexRender,

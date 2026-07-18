@@ -1,4 +1,4 @@
-import { ReadingDirection, ReadingImageScaleFit, ReadingMode } from '@stump/graphql'
+import { ReadingDirection, ReadingImageScaleFit, ReadingMode } from '@longbox/graphql'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 
@@ -8,7 +8,7 @@ import { useReaderStore } from '@/stores'
 
 import OfflineBookReaderScene from '../OfflineBookReaderScene'
 
-jest.mock('@stump/i18n', () => ({
+jest.mock('@longbox/i18n', () => ({
 	useLocaleContext: () => ({ t: (key: string) => key }),
 }))
 

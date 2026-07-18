@@ -1,5 +1,5 @@
-import { Button, ButtonOrLink, cn, HoverCard, Label, Popover, Text } from '@stump/components'
-import { ReadingDirection } from '@stump/graphql'
+import { Button, ButtonOrLink, cn, HoverCard, Label, Popover, Text } from '@longbox/components'
+import { ReadingDirection } from '@longbox/graphql'
 import { ArrowRight, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useLocation } from 'react-router-dom'

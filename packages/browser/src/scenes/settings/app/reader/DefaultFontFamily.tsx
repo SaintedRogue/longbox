@@ -1,6 +1,6 @@
-import { ComboBox, Label } from '@stump/components'
-import { useLocaleContext } from '@stump/i18n'
-import { isSupportedFont } from '@stump/sdk'
+import { ComboBox, Label } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
+import { isSupportedFont } from '@longbox/sdk'
 import { useCallback } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 

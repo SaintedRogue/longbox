@@ -1,4 +1,4 @@
-import { Button, Input, Text, ToolTip } from '@stump/components'
+import { Button, Input, Text, ToolTip } from '@longbox/components'
 import { Minus } from 'lucide-react'
 import { useFormContext, useWatch } from 'react-hook-form'
 

@@ -1,6 +1,6 @@
-import { useFooterOffsetStore, useJobStore } from '@stump/client'
-import { ProgressBar, Text } from '@stump/components'
-import { JobUpdate } from '@stump/graphql'
+import { useFooterOffsetStore, useJobStore } from '@longbox/client'
+import { ProgressBar, Text } from '@longbox/components'
+import { JobUpdate } from '@longbox/graphql'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useMemo } from 'react'
 

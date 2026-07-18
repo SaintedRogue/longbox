@@ -1,4 +1,4 @@
-import type { MediaProgressInput } from '@stump/graphql'
+import type { MediaProgressInput } from '@longbox/graphql'
 
 import { getDB, type ProgressOutboxRecord } from './db'
 

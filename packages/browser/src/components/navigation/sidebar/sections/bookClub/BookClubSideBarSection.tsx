@@ -1,7 +1,7 @@
-import { useSDK, useSuspenseGraphQL } from '@stump/client'
-import { Accordion, Text } from '@stump/components'
-import { FilterableArrangementEntityLink, graphql, UserPermission } from '@stump/graphql'
-import { useLocaleContext } from '@stump/i18n'
+import { useSDK, useSuspenseGraphQL } from '@longbox/client'
+import { Accordion, Text } from '@longbox/components'
+import { FilterableArrangementEntityLink, graphql, UserPermission } from '@longbox/graphql'
+import { useLocaleContext } from '@longbox/i18n'
 import { Club } from 'lucide-react'
 import { useLocation } from 'react-router'
 

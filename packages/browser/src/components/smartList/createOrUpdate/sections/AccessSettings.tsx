@@ -1,6 +1,6 @@
-import { Alert, AlertDescription, Label, NativeSelect, Text } from '@stump/components'
-import { EntityVisibility } from '@stump/graphql'
-import { useLocaleContext } from '@stump/i18n'
+import { Alert, AlertDescription, Label, NativeSelect, Text } from '@longbox/components'
+import { EntityVisibility } from '@longbox/graphql'
+import { useLocaleContext } from '@longbox/i18n'
 import { useFormContext, useWatch } from 'react-hook-form'
 
 import { SmartListFormSchema } from '../schema'

@@ -1,4 +1,4 @@
-import { Input } from '@stump/components'
+import { Input } from '@longbox/components'
 import { useCallback, useEffect } from 'react'
 import { useFormContext, useFormState, useWatch } from 'react-hook-form'
 

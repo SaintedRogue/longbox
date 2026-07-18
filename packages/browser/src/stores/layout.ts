@@ -1,4 +1,4 @@
-import { createLayoutStore, LayoutStore } from '@stump/client'
+import { createLayoutStore, LayoutStore } from '@longbox/client'
 import { useMemo } from 'react'
 import { useStore } from 'zustand'
 

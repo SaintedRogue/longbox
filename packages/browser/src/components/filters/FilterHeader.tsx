@@ -1,4 +1,4 @@
-import { cn, useSticky } from '@stump/components'
+import { cn, useSticky } from '@longbox/components'
 import { useCallback } from 'react'
 import { useMediaMatch } from 'rooks'
 

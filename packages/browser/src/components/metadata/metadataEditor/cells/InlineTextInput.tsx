@@ -1,4 +1,4 @@
-import { Button, cn, Input, TextArea, ToolTip } from '@stump/components'
+import { Button, cn, Input, TextArea, ToolTip } from '@longbox/components'
 import { Minus } from 'lucide-react'
 
 type Props = {

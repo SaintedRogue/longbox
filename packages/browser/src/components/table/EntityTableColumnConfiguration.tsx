@@ -19,9 +19,9 @@ import {
 	useSortable,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Button, IconButton, Sheet, Text, ToolTip } from '@stump/components'
-import { useLocaleContext } from '@stump/i18n'
-import { ColumnSort } from '@stump/sdk'
+import { Button, IconButton, Sheet, Text, ToolTip } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
+import { ColumnSort } from '@longbox/sdk'
 import partition from 'lodash/partition'
 import { Columns, Eye, EyeOff } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'

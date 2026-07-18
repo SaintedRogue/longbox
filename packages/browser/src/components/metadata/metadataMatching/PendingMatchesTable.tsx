@@ -1,7 +1,7 @@
-import { useGraphQLMutation, useSuspenseGraphQL } from '@stump/client'
-import { Badge, Button, Card, Text } from '@stump/components'
-import { graphql, useFragment } from '@stump/graphql'
-import { useLocaleContext } from '@stump/i18n'
+import { useGraphQLMutation, useSuspenseGraphQL } from '@longbox/client'
+import { Badge, Button, Card, Text } from '@longbox/components'
+import { graphql, useFragment } from '@longbox/graphql'
+import { useLocaleContext } from '@longbox/i18n'
 import { useQueryClient } from '@tanstack/react-query'
 import {
 	ColumnDef,

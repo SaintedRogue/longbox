@@ -1,4 +1,4 @@
-import { createReaderStore } from '@stump/client'
+import { createReaderStore } from '@longbox/client'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 export const useReaderStore = createReaderStore(localStorage)

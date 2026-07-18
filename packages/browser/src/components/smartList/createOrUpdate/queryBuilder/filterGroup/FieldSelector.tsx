@@ -1,5 +1,5 @@
-import { Button, cn, Command, Popover } from '@stump/components'
-import { useLocaleContext } from '@stump/i18n'
+import { Button, cn, Command, Popover } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 import { ArrowLeft, ArrowRight, ChevronsUpDown } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useFieldArray, useFormContext } from 'react-hook-form'

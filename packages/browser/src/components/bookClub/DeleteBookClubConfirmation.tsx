@@ -1,6 +1,6 @@
-import { useGraphQLMutation } from '@stump/client'
-import { ConfirmationModal } from '@stump/components'
-import { graphql } from '@stump/graphql'
+import { useGraphQLMutation } from '@longbox/client'
+import { ConfirmationModal } from '@longbox/components'
+import { graphql } from '@longbox/graphql'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
 

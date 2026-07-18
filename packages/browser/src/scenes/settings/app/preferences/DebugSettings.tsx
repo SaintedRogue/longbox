@@ -1,4 +1,4 @@
-import { NewCard, RawSwitch } from '@stump/components'
+import { NewCard, RawSwitch } from '@longbox/components'
 
 import { useDebugStore } from '@/stores'
 

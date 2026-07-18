@@ -1,12 +1,12 @@
-import { useSDK, useSuspenseGraphQL } from '@stump/client'
-import { NavigationMenu } from '@stump/components'
+import { useSDK, useSuspenseGraphQL } from '@longbox/client'
+import { NavigationMenu } from '@longbox/components'
 import {
 	FilterableArrangementEntityLink,
 	graphql,
 	SystemArrangement,
 	UserPermission,
-} from '@stump/graphql'
-import { useLocaleContext } from '@stump/i18n'
+} from '@longbox/graphql'
+import { useLocaleContext } from '@longbox/i18n'
 import { Book, Home } from 'lucide-react'
 import { Suspense, useCallback, useMemo } from 'react'
 import { useLocation } from 'react-router'

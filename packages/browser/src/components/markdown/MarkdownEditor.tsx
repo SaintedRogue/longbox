@@ -1,4 +1,4 @@
-import { Card, cx, Divider, IconButton, Tabs, Text, ToolTip } from '@stump/components'
+import { Card, cx, Divider, IconButton, Tabs, Text, ToolTip } from '@longbox/components'
 import { Asterisk, AtSign } from 'lucide-react'
 import { useRef, useState } from 'react'
 

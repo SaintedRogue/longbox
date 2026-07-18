@@ -1,5 +1,5 @@
-import { CheckBox, Input, TextArea } from '@stump/components'
-import { useLocaleContext } from '@stump/i18n'
+import { CheckBox, Input, TextArea } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 import { useFormContext, useFormState } from 'react-hook-form'
 
 import { useBookClubContextSafe } from '../context'

@@ -1,6 +1,6 @@
-import { formatBytes } from '@stump/client'
-import { Badge, Heading, Link, Statistic, Text } from '@stump/components'
-import { BookCardFragment, BookOverviewSceneQuery, Tag } from '@stump/graphql'
+import { formatBytes } from '@longbox/client'
+import { Badge, Heading, Link, Statistic, Text } from '@longbox/components'
+import { BookCardFragment, BookOverviewSceneQuery, Tag } from '@longbox/graphql'
 import { ExternalLink } from 'lucide-react'
 import { Suspense } from 'react'
 

@@ -1,4 +1,4 @@
-import { Alert, AlertDescription, AlertTitle } from '@stump/components'
+import { Alert, AlertDescription, AlertTitle } from '@longbox/components'
 import { AlertTriangle } from 'lucide-react'
 
 import AnalyzeMedia from './AnalyzeMedia'

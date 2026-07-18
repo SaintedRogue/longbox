@@ -1,6 +1,6 @@
-import { ButtonOrLink } from '@stump/components'
-import type { BookCardFragment } from '@stump/graphql'
-import { useLocaleContext } from '@stump/i18n'
+import { ButtonOrLink } from '@longbox/components'
+import type { BookCardFragment } from '@longbox/graphql'
+import { useLocaleContext } from '@longbox/i18n'
 import { DownloadCloud, Loader2, RotateCcw, Trash2 } from 'lucide-react'
 import { useCallback } from 'react'
 

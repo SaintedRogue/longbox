@@ -1,12 +1,12 @@
-import { useSDK } from '@stump/client'
+import { useSDK } from '@longbox/client'
 import { render } from '@testing-library/react'
 
 import { useOfflineImageSrc } from '@/offline/resolveOfflineUrl'
 
 import { EntityImage } from '../EntityImage'
 
-jest.mock('@stump/client', () => ({
-	...jest.requireActual('@stump/client'),
+jest.mock('@longbox/client', () => ({
+	...jest.requireActual('@longbox/client'),
 	useSDK: jest.fn(),
 }))
 

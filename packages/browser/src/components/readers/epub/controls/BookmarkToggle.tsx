@@ -1,4 +1,4 @@
-import { cx } from '@stump/components'
+import { cx } from '@longbox/components'
 import { Bookmark } from 'lucide-react'
 
 import ControlButton from './ControlButton'

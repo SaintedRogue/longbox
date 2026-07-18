@@ -1,4 +1,4 @@
-import { Bookmark } from '@stump/graphql'
+import { Bookmark } from '@longbox/graphql'
 import { createContext, useContext } from 'react'
 
 import { ImageReaderBookRef } from '@/components/readers/imageBased/context'

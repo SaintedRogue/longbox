@@ -1,6 +1,6 @@
-import { ButtonOrLink, Heading, Text } from '@stump/components'
-import { UserPermission } from '@stump/graphql'
-import { useLocaleContext } from '@stump/i18n'
+import { ButtonOrLink, Heading, Text } from '@longbox/components'
+import { UserPermission } from '@longbox/graphql'
+import { useLocaleContext } from '@longbox/i18n'
 
 import { useAppContext } from '../../context'
 import paths from '../../paths'

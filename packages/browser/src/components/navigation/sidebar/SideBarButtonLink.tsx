@@ -1,4 +1,4 @@
-import { cn } from '@stump/components'
+import { cn } from '@longbox/components'
 import { ComponentProps } from 'react'
 import { Link } from 'react-router-dom'
 

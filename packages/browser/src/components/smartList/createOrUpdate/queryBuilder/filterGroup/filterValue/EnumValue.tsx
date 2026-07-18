@@ -1,6 +1,6 @@
-import { ComboBox, NativeSelect } from '@stump/components'
-import { ReadingStatus } from '@stump/graphql'
-import { useLocaleContext } from '@stump/i18n'
+import { ComboBox, NativeSelect } from '@longbox/components'
+import { ReadingStatus } from '@longbox/graphql'
+import { useLocaleContext } from '@longbox/i18n'
 import { useCallback, useMemo } from 'react'
 import { useFormContext, useWatch } from 'react-hook-form'
 

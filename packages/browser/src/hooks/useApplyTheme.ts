@@ -1,4 +1,4 @@
-import { InterfaceRoundness, SupportedFont } from '@stump/graphql'
+import { InterfaceRoundness, SupportedFont } from '@longbox/graphql'
 import { useEffect } from 'react'
 import { useMediaMatch } from 'rooks'
 

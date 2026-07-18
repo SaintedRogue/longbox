@@ -1,6 +1,6 @@
-import { useGraphQLMutation } from '@stump/client'
-import { EmojiPicker } from '@stump/components'
-import { graphql, LibrarySideBarSectionQuery } from '@stump/graphql'
+import { useGraphQLMutation } from '@longbox/client'
+import { EmojiPicker } from '@longbox/components'
+import { graphql, LibrarySideBarSectionQuery } from '@longbox/graphql'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback } from 'react'
 

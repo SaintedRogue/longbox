@@ -1,4 +1,4 @@
-import { useSDK } from '@stump/client'
+import { useSDK } from '@longbox/client'
 import { forwardRef, Suspense, useCallback } from 'react'
 
 import { useOfflineImageSrc } from '@/offline/resolveOfflineUrl'

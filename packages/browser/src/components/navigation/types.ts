@@ -1,4 +1,4 @@
-import { FilterableArrangementEntityLink } from '@stump/graphql'
+import { FilterableArrangementEntityLink } from '@longbox/graphql'
 
 export type EntityOptionProps = {
 	links?: Array<FilterableArrangementEntityLink>

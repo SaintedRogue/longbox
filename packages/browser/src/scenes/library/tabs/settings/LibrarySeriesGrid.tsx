@@ -1,6 +1,6 @@
 /* eslint-disable react-compiler/react-compiler */
-import { useInfiniteSuspenseGraphQL } from '@stump/client'
-import { graphql, LibrarySeriesGridQuery } from '@stump/graphql'
+import { useInfiniteSuspenseGraphQL } from '@longbox/client'
+import { graphql, LibrarySeriesGridQuery } from '@longbox/graphql'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { Fragment, useCallback, useEffect, useRef } from 'react'
 import AutoSizer from 'react-virtualized-auto-sizer'

@@ -1,4 +1,4 @@
-import { ReadingImageScaleFit } from '@stump/graphql'
+import { ReadingImageScaleFit } from '@longbox/graphql'
 import { fireEvent, render, screen } from '@testing-library/react'
 
 import ImageScalingSelect from '../ImageScalingSelect'

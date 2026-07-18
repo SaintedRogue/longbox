@@ -1,5 +1,5 @@
-import { Button, ConfirmationModal, Dropdown } from '@stump/components'
-import { useLocaleContext } from '@stump/i18n'
+import { Button, ConfirmationModal, Dropdown } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 import { ChevronDown } from 'lucide-react'
 import { useState } from 'react'
 

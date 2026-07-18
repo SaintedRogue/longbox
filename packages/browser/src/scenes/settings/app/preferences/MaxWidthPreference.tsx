@@ -1,5 +1,5 @@
-import { cx, NativeSelect, NewCard } from '@stump/components'
-import { useLocaleContext } from '@stump/i18n'
+import { cx, NativeSelect, NewCard } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 
 import { usePreferences } from '@/hooks'
 

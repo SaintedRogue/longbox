@@ -1,4 +1,4 @@
-import { IconButton, Sheet } from '@stump/components'
+import { IconButton, Sheet } from '@longbox/components'
 import { Menu } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useMediaMatch } from 'rooks'

@@ -1,4 +1,4 @@
-import { ReadingDirection, ReadingImageScaleFit, ReadingMode } from '@stump/graphql'
+import { ReadingDirection, ReadingImageScaleFit, ReadingMode } from '@longbox/graphql'
 
 import type { DownloadRecord } from '@/offline/db'
 

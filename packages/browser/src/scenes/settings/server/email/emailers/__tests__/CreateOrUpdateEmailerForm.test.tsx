@@ -1,6 +1,6 @@
 import '@/__mocks__/resizeObserver'
 
-import { Emailer } from '@stump/graphql'
+import { Emailer } from '@longbox/graphql'
 import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ComponentProps } from 'react'
@@ -11,7 +11,7 @@ import { CreateOrUpdateEmailerSchema } from '../schema'
 // eslint-disable-next-line react/display-name
 jest.mock('../TestEmailerButton', () => () => <div>TestEmailerButton</div>)
 
-jest.mock('@stump/i18n', () => ({
+jest.mock('@longbox/i18n', () => ({
 	useLocaleContext: () => ({ t: (s: string) => s }),
 }))
 

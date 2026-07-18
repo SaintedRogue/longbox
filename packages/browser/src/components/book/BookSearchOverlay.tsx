@@ -1,5 +1,5 @@
-import { Button, Sheet } from '@stump/components'
-import { BookCardFragment } from '@stump/graphql'
+import { Button, Sheet } from '@longbox/components'
+import { BookCardFragment } from '@longbox/graphql'
 import { Search } from 'lucide-react'
 import { useState } from 'react'
 

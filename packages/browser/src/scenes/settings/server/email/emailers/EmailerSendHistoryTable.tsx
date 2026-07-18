@@ -1,5 +1,5 @@
-import { cn, IconButton, Text, ToolTip } from '@stump/components'
-import { EmailerSendHistoryQuery } from '@stump/graphql'
+import { cn, IconButton, Text, ToolTip } from '@longbox/components'
+import { EmailerSendHistoryQuery } from '@longbox/graphql'
 import {
 	createColumnHelper,
 	ExpandedState,

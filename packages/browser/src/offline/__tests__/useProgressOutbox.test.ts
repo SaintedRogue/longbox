@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto'
 
-import { useSDK } from '@stump/client'
+import { useSDK } from '@longbox/client'
 import { renderHook, waitFor } from '@testing-library/react'
 import { deleteDB } from 'idb'
 
@@ -8,7 +8,7 @@ import { _resetDBForTests } from '../db'
 import { enqueueProgress, listPending, markErrorIfUnchanged, markSyncing } from '../progressOutbox'
 import { useProgressOutbox } from '../useProgressOutbox'
 
-jest.mock('@stump/client', () => ({
+jest.mock('@longbox/client', () => ({
 	useSDK: jest.fn(),
 }))
 

@@ -1,4 +1,4 @@
-import { MergeStrategy, MetadataField } from '@stump/graphql'
+import { MergeStrategy, MetadataField } from '@longbox/graphql'
 import { create } from 'zustand'
 
 import { FieldOverride, MatchRecord } from './types'

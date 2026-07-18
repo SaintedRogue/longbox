@@ -1,4 +1,4 @@
-import { MetadataFetchStatus } from '@stump/graphql'
+import { MetadataFetchStatus } from '@longbox/graphql'
 import z from 'zod'
 
 const scheduledScanConfig = z.object({

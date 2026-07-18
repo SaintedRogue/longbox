@@ -1,6 +1,6 @@
-import { selectMeshColors } from '@stump/client'
-import { cn } from '@stump/components'
-import { ImageColor, ThumbnailPlaceholderStyle } from '@stump/graphql'
+import { selectMeshColors } from '@longbox/client'
+import { cn } from '@longbox/components'
+import { ImageColor, ThumbnailPlaceholderStyle } from '@longbox/graphql'
 import { useMemo } from 'react'
 import { thumbHashToDataURL } from 'thumbhash'
 

@@ -1,4 +1,4 @@
-import { Input, Label, RadioGroup } from '@stump/components'
+import { Input, Label, RadioGroup } from '@longbox/components'
 import { useState } from 'react'
 import { useFormContext, useWatch } from 'react-hook-form'
 

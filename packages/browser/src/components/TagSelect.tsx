@@ -1,6 +1,6 @@
-import { useSDK, useSuspenseGraphQL } from '@stump/client'
-import { ComboBox } from '@stump/components'
-import { graphql } from '@stump/graphql'
+import { useSDK, useSuspenseGraphQL } from '@longbox/client'
+import { ComboBox } from '@longbox/components'
+import { graphql } from '@longbox/graphql'
 import { useCallback, useEffect, useState } from 'react'
 
 const query = graphql(`

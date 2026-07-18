@@ -1,6 +1,11 @@
-import { PREFETCH_STALE_TIME, queryClient, useInfiniteSuspenseGraphQL, useSDK } from '@stump/client'
-import { Text } from '@stump/components'
-import { graphql } from '@stump/graphql'
+import {
+	PREFETCH_STALE_TIME,
+	queryClient,
+	useInfiniteSuspenseGraphQL,
+	useSDK,
+} from '@longbox/client'
+import { Text } from '@longbox/components'
+import { graphql } from '@longbox/graphql'
 import { BookX } from 'lucide-react'
 import { Suspense, useCallback } from 'react'
 

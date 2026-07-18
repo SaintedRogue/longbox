@@ -1,4 +1,4 @@
-import { MetadataField } from '@stump/graphql'
+import { MetadataField } from '@longbox/graphql'
 
 export type FieldEditorType = 'text' | 'number' | 'badgeList' | 'longText'
 export type NumberValidation = { min?: number; max?: number }

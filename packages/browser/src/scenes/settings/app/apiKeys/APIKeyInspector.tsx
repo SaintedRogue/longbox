@@ -1,5 +1,13 @@
-import { Alert, AlertDescription, AlertTitle, Badge, NewCard, Sheet, Text } from '@stump/components'
-import { useLocaleContext } from '@stump/i18n'
+import {
+	Alert,
+	AlertDescription,
+	AlertTitle,
+	Badge,
+	NewCard,
+	Sheet,
+	Text,
+} from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 import { intlFormat, isValid, parseISO } from 'date-fns'
 import { ShieldAlert } from 'lucide-react'
 

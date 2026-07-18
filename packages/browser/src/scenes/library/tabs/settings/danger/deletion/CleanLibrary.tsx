@@ -1,4 +1,4 @@
-import { useGraphQLMutation } from '@stump/client'
+import { useGraphQLMutation } from '@longbox/client'
 import {
 	Alert,
 	AlertDescription,
@@ -7,9 +7,9 @@ import {
 	ConfirmationModal,
 	Heading,
 	Text,
-} from '@stump/components'
-import { graphql, LibraryMissingEntitiesQuery } from '@stump/graphql'
-import { useLocaleContext } from '@stump/i18n'
+} from '@longbox/components'
+import { graphql, LibraryMissingEntitiesQuery } from '@longbox/graphql'
+import { useLocaleContext } from '@longbox/i18n'
 import { useQueryClient } from '@tanstack/react-query'
 import { Info } from 'lucide-react'
 import { Suspense, useEffect, useState } from 'react'

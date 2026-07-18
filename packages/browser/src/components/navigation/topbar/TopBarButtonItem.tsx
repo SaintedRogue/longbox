@@ -1,4 +1,4 @@
-import { cn } from '@stump/components'
+import { cn } from '@longbox/components'
 import { forwardRef } from 'react'
 
 type Props = {

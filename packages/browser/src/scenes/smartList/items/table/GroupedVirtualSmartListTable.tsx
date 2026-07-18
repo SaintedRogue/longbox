@@ -1,5 +1,5 @@
-import { cn } from '@stump/components'
-import { Media, SmartListGroupedItem } from '@stump/graphql'
+import { cn } from '@longbox/components'
+import { Media, SmartListGroupedItem } from '@longbox/graphql'
 import {
 	ExpandedState,
 	flexRender,

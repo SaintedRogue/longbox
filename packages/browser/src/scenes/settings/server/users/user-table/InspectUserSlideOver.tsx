@@ -1,5 +1,5 @@
-import { Sheet } from '@stump/components'
-import { Preformatted } from '@stump/components'
+import { Sheet } from '@longbox/components'
+import { Preformatted } from '@longbox/components'
 
 import { User } from './UserTable'
 

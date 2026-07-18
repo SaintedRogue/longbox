@@ -1,4 +1,4 @@
-import { cn, Command, Text } from '@stump/components'
+import { cn, Command, Text } from '@longbox/components'
 import { Search } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 

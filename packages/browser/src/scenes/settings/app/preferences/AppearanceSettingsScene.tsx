@@ -1,5 +1,5 @@
-import { NewCard } from '@stump/components'
-import { useLocaleContext } from '@stump/i18n'
+import { NewCard } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 import { Suspense } from 'react'
 import { Helmet } from 'react-helmet'
 

@@ -1,4 +1,4 @@
-import { CreateOrUpdateLibraryInput, Dimension } from '@stump/graphql'
+import { CreateOrUpdateLibraryInput, Dimension } from '@longbox/graphql'
 import omit from 'lodash/omit'
 
 /**

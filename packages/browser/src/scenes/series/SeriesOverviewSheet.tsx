@@ -1,7 +1,7 @@
-import { formatBytesSeparate, parseGraphQLDateTime, useGraphQL } from '@stump/client'
-import { Badge, Link, NewCard, STAT_COLORS } from '@stump/components'
-import { graphql } from '@stump/graphql'
-import { formatHumanDurationSeparate, useLocaleContext } from '@stump/i18n'
+import { formatBytesSeparate, parseGraphQLDateTime, useGraphQL } from '@longbox/client'
+import { Badge, Link, NewCard, STAT_COLORS } from '@longbox/components'
+import { graphql } from '@longbox/graphql'
+import { formatHumanDurationSeparate, useLocaleContext } from '@longbox/i18n'
 import { intlFormat } from 'date-fns'
 import { BookCheck, BookOpen, Clock, ExternalLink, HardDrive } from 'lucide-react'
 

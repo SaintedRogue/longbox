@@ -1,5 +1,5 @@
-import { Button, NewCard, Sheet, Text } from '@stump/components'
-import { useLocaleContext } from '@stump/i18n'
+import { Button, NewCard, Sheet, Text } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 import { Helmet } from 'react-helmet'
 import { useShallow } from 'zustand/react/shallow'
 

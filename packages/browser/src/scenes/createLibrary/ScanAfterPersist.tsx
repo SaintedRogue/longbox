@@ -1,5 +1,5 @@
-import { WideSwitch } from '@stump/components'
-import { useLocaleContext } from '@stump/i18n'
+import { WideSwitch } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 import { useFormContext, useWatch } from 'react-hook-form'
 
 import { CreateOrUpdateLibrarySchema } from '@/components/library/createOrUpdate'

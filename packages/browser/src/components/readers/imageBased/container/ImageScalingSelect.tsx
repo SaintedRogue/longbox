@@ -1,5 +1,5 @@
-import { Label, NativeSelect } from '@stump/components'
-import { ReadingImageScaleFit } from '@stump/graphql'
+import { Label, NativeSelect } from '@longbox/components'
+import { ReadingImageScaleFit } from '@longbox/graphql'
 import { useCallback } from 'react'
 
 type Props = {

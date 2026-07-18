@@ -1,7 +1,7 @@
 import './styles/index.css'
-import '@stump/components/styles/overrides.css'
+import '@longbox/components/styles/overrides.css'
 
-import { SDKProvider, StumpClientContextProvider, StumpClientProps } from '@stump/client'
+import { SDKProvider, StumpClientContextProvider, StumpClientProps } from '@longbox/client'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { useEffect, useState } from 'react'
 import { ErrorBoundary } from 'react-error-boundary'

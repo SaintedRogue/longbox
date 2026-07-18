@@ -1,4 +1,4 @@
-import { cn, NavigationMenu } from '@stump/components'
+import { cn, NavigationMenu } from '@longbox/components'
 import { PropsWithChildren } from 'react'
 import { To } from 'react-router'
 import { Link } from 'react-router-dom'

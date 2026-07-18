@@ -1,4 +1,4 @@
-import { Avatar, cn, ConfirmationModal, Dropdown, Text } from '@stump/components'
+import { Avatar, cn, ConfirmationModal, Dropdown, Text } from '@longbox/components'
 import { Bell, Server, Settings } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'

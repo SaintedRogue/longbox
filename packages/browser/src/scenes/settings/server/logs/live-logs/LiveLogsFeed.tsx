@@ -1,5 +1,5 @@
-import { useGraphQLSubscriptionCache } from '@stump/client'
-import { graphql } from '@stump/graphql'
+import { useGraphQLSubscriptionCache } from '@longbox/client'
+import { graphql } from '@longbox/graphql'
 import Ansi from 'ansi-to-react'
 import { useEffect, useRef } from 'react'
 

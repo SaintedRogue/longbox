@@ -8,8 +8,8 @@ import {
 	Input,
 	Text,
 	ToolTip,
-} from '@stump/components'
-import { useLocaleContext } from '@stump/i18n'
+} from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 import { AnimatePresence, motion } from 'framer-motion'
 import isValidGlob from 'is-valid-glob'
 import { Check, Edit, Lock, Slash, SquareAsterisk, Trash, Unlock, X } from 'lucide-react'

@@ -1,5 +1,5 @@
-import { Button, cx } from '@stump/components'
-import { OrderDirection } from '@stump/graphql'
+import { Button, cx } from '@longbox/components'
+import { OrderDirection } from '@longbox/graphql'
 import { SortAsc } from 'lucide-react'
 
 type Props = {

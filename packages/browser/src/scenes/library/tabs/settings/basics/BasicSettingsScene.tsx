@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useSDK, useSuspenseGraphQL } from '@stump/client'
-import { Button, Form } from '@stump/components'
-import { graphql, UserPermission } from '@stump/graphql'
+import { useSDK, useSuspenseGraphQL } from '@longbox/client'
+import { Button, Form } from '@longbox/components'
+import { graphql, UserPermission } from '@longbox/graphql'
 import { useCallback, useMemo, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 

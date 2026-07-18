@@ -1,4 +1,4 @@
-import { Card, cn } from '@stump/components'
+import { Card, cn } from '@longbox/components'
 import {
 	ColumnDef,
 	flexRender,

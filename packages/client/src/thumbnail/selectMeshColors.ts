@@ -1,4 +1,4 @@
-import { ImageColor } from '@stump/graphql'
+import { ImageColor } from '@longbox/graphql'
 import { ColorSpace, deltaE2000, getColor, LCH, PlainColorObject, sRGB, to } from 'colorjs.io/fn'
 
 ColorSpace.register(LCH)

@@ -1,5 +1,5 @@
-import { Button, cx, Dialog, IconButton, Text } from '@stump/components'
-import { useLocaleContext } from '@stump/i18n'
+import { Button, cx, Dialog, IconButton, Text } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 import { X } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { type FileRejection, useDropzone } from 'react-dropzone'

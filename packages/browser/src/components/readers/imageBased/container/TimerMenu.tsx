@@ -1,4 +1,4 @@
-import { Dropdown } from '@stump/components'
+import { Dropdown } from '@longbox/components'
 import { Clock } from 'lucide-react'
 
 import { useBookPreferences } from '@/scenes/book/reader/useBookPreferences'

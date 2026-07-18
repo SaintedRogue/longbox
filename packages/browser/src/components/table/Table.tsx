@@ -1,4 +1,4 @@
-import { cn, Heading, NativeSelect, Text } from '@stump/components'
+import { cn, Heading, NativeSelect, Text } from '@longbox/components'
 import {
 	Column,
 	ColumnDef,

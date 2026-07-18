@@ -1,5 +1,5 @@
-import { NewCard, Tabs } from '@stump/components'
-import { useLocaleContext } from '@stump/i18n'
+import { NewCard, Tabs } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 import { PanelLeft, PanelTop } from 'lucide-react'
 
 import { usePreferences } from '@/hooks'

@@ -1,6 +1,6 @@
-import { cn } from '@stump/components'
-import { Media, SmartListGroupedItem } from '@stump/graphql'
-import { useLocaleContext } from '@stump/i18n'
+import { cn } from '@longbox/components'
+import { Media, SmartListGroupedItem } from '@longbox/graphql'
+import { useLocaleContext } from '@longbox/i18n'
 
 import { SceneContainer } from '@/components/container'
 

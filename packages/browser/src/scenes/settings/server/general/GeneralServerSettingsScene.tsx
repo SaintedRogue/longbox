@@ -1,6 +1,6 @@
-import { useUploadConfig } from '@stump/client'
-import { UserPermission } from '@stump/graphql'
-import { useLocaleContext } from '@stump/i18n'
+import { useUploadConfig } from '@longbox/client'
+import { UserPermission } from '@longbox/graphql'
+import { useLocaleContext } from '@longbox/i18n'
 import { Suspense } from 'react'
 import { Helmet } from 'react-helmet'
 

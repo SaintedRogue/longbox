@@ -1,4 +1,4 @@
-import { cn, Spacer, Text } from '@stump/components'
+import { cn, Spacer, Text } from '@longbox/components'
 import { ArrowLeft } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'

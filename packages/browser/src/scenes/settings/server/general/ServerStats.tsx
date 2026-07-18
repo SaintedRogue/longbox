@@ -1,7 +1,7 @@
-import { useSuspenseGraphQL } from '@stump/client'
-import { formatBytesSeparate } from '@stump/client'
-import { Statistic } from '@stump/components'
-import { graphql } from '@stump/graphql'
+import { useSuspenseGraphQL } from '@longbox/client'
+import { formatBytesSeparate } from '@longbox/client'
+import { Statistic } from '@longbox/components'
+import { graphql } from '@longbox/graphql'
 import { useMemo } from 'react'
 
 const query = graphql(`

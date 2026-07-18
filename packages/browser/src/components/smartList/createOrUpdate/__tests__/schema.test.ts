@@ -7,7 +7,7 @@ import {
 	SmartListGrouping,
 	SmartListGroupJoiner,
 	SmartListJoiner,
-} from '@stump/graphql'
+} from '@longbox/graphql'
 
 import {
 	intoAPI,

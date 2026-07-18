@@ -22,7 +22,7 @@ jest.mock('@/hooks/usePreloadPage', () => ({ usePreloadPage: jest.fn() }))
 jest.mock('../useImageSizes', () => ({
 	useImageSizes: () => ({ imageSizes: {}, setPageSize: jest.fn() }),
 }))
-jest.mock('@stump/client', () => ({
+jest.mock('@longbox/client', () => ({
 	DEFAULT_BOOK_PREFERENCES: { doublePageBehavior: 'off' },
 	useSDK: () => ({
 		sdk: { media: { bookPageURL: (id: string, page: number) => `/${id}/${page}` } },

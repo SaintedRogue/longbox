@@ -4,10 +4,10 @@ import {
 	PDF_EXTENSION,
 	queryClient,
 	useSDK,
-} from '@stump/client'
-import { cn } from '@stump/components'
-import { graphql, MediaAtPathQuery } from '@stump/graphql'
-import { Api } from '@stump/sdk'
+} from '@longbox/client'
+import { cn } from '@longbox/components'
+import { graphql, MediaAtPathQuery } from '@longbox/graphql'
+import { Api } from '@longbox/sdk'
 import { useEffect, useRef, useState } from 'react'
 
 import { usePreferences } from '@/hooks/usePreferences'

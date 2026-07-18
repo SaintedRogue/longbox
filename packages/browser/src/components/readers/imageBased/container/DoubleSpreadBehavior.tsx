@@ -1,5 +1,5 @@
-import { DoublePageBehavior, isDoublePageBehavior } from '@stump/client'
-import { Label, NativeSelect } from '@stump/components'
+import { DoublePageBehavior, isDoublePageBehavior } from '@longbox/client'
+import { Label, NativeSelect } from '@longbox/components'
 import React, { useCallback } from 'react'
 
 type Props = {

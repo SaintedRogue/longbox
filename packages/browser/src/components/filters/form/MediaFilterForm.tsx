@@ -1,13 +1,13 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useGraphQL } from '@stump/client'
-import { CheckBox, Form } from '@stump/components'
+import { useGraphQL } from '@longbox/client'
+import { CheckBox, Form } from '@longbox/components'
 import {
 	graphql,
 	MediaFilterFormQuery,
 	MediaFilterInput,
 	MediaMetadataFilterInput,
 	ReadingStatus,
-} from '@stump/graphql'
+} from '@longbox/graphql'
 import { useEffect, useMemo, useState } from 'react'
 import { FieldValues, useForm } from 'react-hook-form'
 import z from 'zod'

@@ -1,6 +1,6 @@
-import { useSuspenseGraphQL } from '@stump/client'
-import { Link } from '@stump/components'
-import { graphql } from '@stump/graphql'
+import { useSuspenseGraphQL } from '@longbox/client'
+import { Link } from '@longbox/components'
+import { graphql } from '@longbox/graphql'
 import { Suspense } from 'react'
 
 import paths from '../../paths'

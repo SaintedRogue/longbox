@@ -1,5 +1,5 @@
-import { Link, Text } from '@stump/components'
-import { FragmentType, graphql, useFragment } from '@stump/graphql'
+import { Link, Text } from '@longbox/components'
+import { FragmentType, graphql, useFragment } from '@longbox/graphql'
 import { formatDistanceToNow } from 'date-fns'
 import { memo, useMemo } from 'react'
 import { useMediaMatch } from 'rooks'

@@ -1,4 +1,4 @@
-import { cx, IconButton, Label, TEXT_VARIANTS } from '@stump/components'
+import { cx, IconButton, Label, TEXT_VARIANTS } from '@longbox/components'
 import { Minus, Plus } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 

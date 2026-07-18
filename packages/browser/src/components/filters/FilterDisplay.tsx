@@ -1,4 +1,4 @@
-import { Badge, Card, Text } from '@stump/components'
+import { Badge, Card, Text } from '@longbox/components'
 import { useMemo } from 'react'
 
 import { useFilterContext } from './context'

@@ -1,4 +1,4 @@
-import { Label, NativeSelect } from '@stump/components'
+import { Label, NativeSelect } from '@longbox/components'
 import { useFormContext } from 'react-hook-form'
 
 import { MediaFilterFormSchema } from './MediaFilterForm'

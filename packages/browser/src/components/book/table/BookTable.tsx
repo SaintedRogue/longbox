@@ -1,4 +1,4 @@
-import { FragmentType } from '@stump/graphql'
+import { FragmentType } from '@longbox/graphql'
 import { OnChangeFn, SortingState } from '@tanstack/react-table'
 import { useCallback, useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'

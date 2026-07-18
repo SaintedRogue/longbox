@@ -1,4 +1,4 @@
-import { Label, Slider } from '@stump/components'
+import { Label, Slider } from '@longbox/components'
 import { useCallback, useMemo } from 'react'
 
 import { useBookPreferences } from '@/scenes/book/reader/useBookPreferences'

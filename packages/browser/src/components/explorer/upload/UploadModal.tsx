@@ -1,5 +1,5 @@
-import { useGraphQLUploadMutation } from '@stump/client'
-import { formatBytes } from '@stump/client'
+import { useGraphQLUploadMutation } from '@longbox/client'
+import { formatBytes } from '@longbox/client'
 import {
 	Accordion,
 	Button,
@@ -10,9 +10,9 @@ import {
 	ProgressBar,
 	ProgressSpinner,
 	Text,
-} from '@stump/components'
-import { graphql, UploadBooksInput } from '@stump/graphql'
-import { useLocaleContext } from '@stump/i18n'
+} from '@longbox/components'
+import { graphql, UploadBooksInput } from '@longbox/graphql'
+import { useLocaleContext } from '@longbox/i18n'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { AxiosProgressEvent } from 'axios'
 import { Book, FolderArchive } from 'lucide-react'

@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Button, cn, Form } from '@stump/components'
-import { CreateLibrarySceneExistingLibrariesQuery, UserPermission } from '@stump/graphql'
+import { Button, cn, Form } from '@longbox/components'
+import { CreateLibrarySceneExistingLibrariesQuery, UserPermission } from '@longbox/graphql'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 

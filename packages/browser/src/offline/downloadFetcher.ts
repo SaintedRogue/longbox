@@ -1,4 +1,4 @@
-import type { Api } from '@stump/sdk'
+import type { Api } from '@longbox/sdk'
 
 import * as blobStore from './blobStore'
 import type { DownloadFetcher, DownloadFetchResult } from './downloadManager'

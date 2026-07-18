@@ -1,4 +1,4 @@
-import { useSDK } from '@stump/client'
+import { useSDK } from '@longbox/client'
 import { useEffect, useMemo } from 'react'
 
 import type { DownloadRecord } from './db'

@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useGraphQLMutation } from '@stump/client'
+import { useGraphQLMutation } from '@longbox/client'
 import {
 	Button,
 	CheckBox,
@@ -9,9 +9,9 @@ import {
 	Input,
 	Label,
 	NativeSelect,
-} from '@stump/components'
-import { FragmentType, graphql, MetadataFetchStatus, useFragment } from '@stump/graphql'
-import { useLocaleContext } from '@stump/i18n'
+} from '@longbox/components'
+import { FragmentType, graphql, MetadataFetchStatus, useFragment } from '@longbox/graphql'
+import { useLocaleContext } from '@longbox/i18n'
 import { useEffect, useMemo, useState } from 'react'
 import { useForm, useFormState, useWatch } from 'react-hook-form'
 import { toast } from 'sonner'

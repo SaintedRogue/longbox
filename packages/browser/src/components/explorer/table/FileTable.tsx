@@ -1,6 +1,6 @@
 /* eslint-disable react/prop-types */
-import { UseDirectoryListingFile } from '@stump/client'
-import { cn, Text } from '@stump/components'
+import { UseDirectoryListingFile } from '@longbox/client'
+import { cn, Text } from '@longbox/components'
 import {
 	createColumnHelper,
 	flexRender,

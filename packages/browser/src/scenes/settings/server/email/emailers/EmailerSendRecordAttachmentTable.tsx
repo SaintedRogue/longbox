@@ -1,5 +1,5 @@
-import { formatBytes } from '@stump/client'
-import { cn, Text } from '@stump/components'
+import { formatBytes } from '@longbox/client'
+import { cn, Text } from '@longbox/components'
 import {
 	createColumnHelper,
 	flexRender,

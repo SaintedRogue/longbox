@@ -19,9 +19,9 @@
 		"noUnusedLocals": true,
 		"skipLibCheck": true,
 		"paths": {
-			"@stump/client": ["./packages/client"],
-			"@stump/sdk": ["./packages/sdk"],
-			"@stump/browser": ["./packages/browser"]
+			"@longbox/client": ["./packages/client"],
+			"@longbox/sdk": ["./packages/sdk"],
+			"@longbox/browser": ["./packages/browser"]
 		},
 		"plugins": [
 			{

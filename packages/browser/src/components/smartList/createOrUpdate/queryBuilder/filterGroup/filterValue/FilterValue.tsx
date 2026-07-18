@@ -1,5 +1,5 @@
-import { cn, DatePicker, Input } from '@stump/components'
-import { useLocaleContext } from '@stump/i18n'
+import { cn, DatePicker, Input } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 import { endOfDay } from 'date-fns'
 import { useFormContext, useWatch } from 'react-hook-form'
 import { match } from 'ts-pattern'

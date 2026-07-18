@@ -1,5 +1,5 @@
-import { MediaFilterInput } from '@stump/graphql'
-import { toUrlParams } from '@stump/sdk'
+import { MediaFilterInput } from '@longbox/graphql'
+import { toUrlParams } from '@longbox/sdk'
 import { useCallback } from 'react'
 import { useLocation } from 'react-router'
 

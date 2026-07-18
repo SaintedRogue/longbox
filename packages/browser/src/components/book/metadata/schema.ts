@@ -1,4 +1,4 @@
-import { MediaMetadataEditorFragment } from '@stump/graphql'
+import { MediaMetadataEditorFragment } from '@longbox/graphql'
 import { z } from 'zod'
 
 const stringArray = z.array(z.string().min(1))

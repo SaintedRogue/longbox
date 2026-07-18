@@ -1,5 +1,5 @@
-import { cn, Heading } from '@stump/components'
-import { useFragment, UserPermission } from '@stump/graphql'
+import { cn, Heading } from '@longbox/components'
+import { useFragment, UserPermission } from '@longbox/graphql'
 import sortBy from 'lodash/sortBy'
 import { Suspense, useMemo } from 'react'
 

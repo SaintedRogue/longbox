@@ -1,4 +1,4 @@
-import { SupportedFont } from '@stump/graphql'
+import { SupportedFont } from '@longbox/graphql'
 import { renderHook } from '@testing-library/react'
 import { useMediaMatch } from 'rooks'
 

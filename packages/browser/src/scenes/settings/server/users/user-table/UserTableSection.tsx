@@ -1,4 +1,4 @@
-import { ButtonOrLink, Heading, Text } from '@stump/components'
+import { ButtonOrLink, Heading, Text } from '@longbox/components'
 import { Suspense } from 'react'
 
 import UserTable from './UserTable'

@@ -1,4 +1,4 @@
-import { Slider } from '@stump/components'
+import { Slider } from '@longbox/components'
 import { Grid3X3, LayoutGrid } from 'lucide-react'
 
 import { useGridSize } from './useGridSize'

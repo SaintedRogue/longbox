@@ -1,5 +1,5 @@
-import { useGraphQLMutation, useSDK, useSuspenseGraphQL } from '@stump/client'
-import { graphql } from '@stump/graphql'
+import { useGraphQLMutation, useSDK, useSuspenseGraphQL } from '@longbox/client'
+import { graphql } from '@longbox/graphql'
 import { useQueryClient } from '@tanstack/react-query'
 import omit from 'lodash/omit'
 import { useEffect } from 'react'

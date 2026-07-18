@@ -1,4 +1,4 @@
-import { AuthUser, isAxiosError, isUser, PasswordUserInput } from '@stump/sdk'
+import { AuthUser, isAxiosError, isUser, PasswordUserInput } from '@longbox/sdk'
 import { useMutation, useQuery, useQueryClient, UseQueryOptions } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 

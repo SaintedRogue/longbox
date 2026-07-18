@@ -1,4 +1,4 @@
-import { MetadataField } from '@stump/graphql'
+import { MetadataField } from '@longbox/graphql'
 import React, { createContext, useCallback, useContext } from 'react'
 
 import { BINDING_TO_METADATA_FIELD } from '../fieldDefs'

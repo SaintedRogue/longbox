@@ -1,4 +1,4 @@
-import { Avatar, Text } from '@stump/components'
+import { Avatar, Text } from '@longbox/components'
 
 type Props = {
 	username: string

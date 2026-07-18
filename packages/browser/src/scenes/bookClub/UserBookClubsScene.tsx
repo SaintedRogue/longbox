@@ -1,6 +1,6 @@
-import { useSuspenseGraphQL } from '@stump/client'
-import { ButtonOrLink, Card, cx, Heading, Text } from '@stump/components'
-import { graphql, UserBookClubsSceneQuery } from '@stump/graphql'
+import { useSuspenseGraphQL } from '@longbox/client'
+import { ButtonOrLink, Card, cx, Heading, Text } from '@longbox/components'
+import { graphql, UserBookClubsSceneQuery } from '@longbox/graphql'
 import pluralize from 'pluralize'
 import { Helmet } from 'react-helmet'
 

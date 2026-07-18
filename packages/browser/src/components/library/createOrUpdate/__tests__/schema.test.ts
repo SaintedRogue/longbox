@@ -1,4 +1,4 @@
-import { Dimension, SupportedImageFormat } from '@stump/graphql'
+import { Dimension, SupportedImageFormat } from '@longbox/graphql'
 
 import { intoFormThumbnailConfig, intoThumbnailConfig } from '../schema'
 

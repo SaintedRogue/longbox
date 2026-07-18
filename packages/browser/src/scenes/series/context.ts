@@ -1,4 +1,4 @@
-import { SeriesLayoutQuery } from '@stump/graphql'
+import { SeriesLayoutQuery } from '@longbox/graphql'
 import { createContext, useContext } from 'react'
 
 export type ISeriesContext = {

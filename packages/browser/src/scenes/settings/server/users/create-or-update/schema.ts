@@ -1,4 +1,4 @@
-import { UpdateUserInput, UserPermission } from '@stump/graphql'
+import { UpdateUserInput, UserPermission } from '@longbox/graphql'
 import { z } from 'zod'
 
 export const userPermissionSchema = z.nativeEnum(UserPermission)

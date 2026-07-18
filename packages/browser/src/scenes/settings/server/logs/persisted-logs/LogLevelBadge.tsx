@@ -1,5 +1,5 @@
-import { Badge, BadgeProps, PickSelect } from '@stump/components'
-import { LogLevel } from '@stump/graphql'
+import { Badge, BadgeProps, PickSelect } from '@longbox/components'
+import { LogLevel } from '@longbox/graphql'
 import { useMemo } from 'react'
 
 type Props = {

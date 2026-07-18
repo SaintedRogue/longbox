@@ -1,5 +1,5 @@
-import { useGraphQLMutation, useSDK } from '@stump/client'
-import { graphql, MetadataField } from '@stump/graphql'
+import { useGraphQLMutation, useSDK } from '@longbox/client'
+import { graphql, MetadataField } from '@longbox/graphql'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useMemo } from 'react'
 import { toast } from 'sonner'

@@ -1,4 +1,4 @@
-import { createUserStore } from '@stump/client'
+import { createUserStore } from '@longbox/client'
 import { useShallow } from 'zustand/react/shallow'
 
 export const useUserStore = createUserStore(localStorage)

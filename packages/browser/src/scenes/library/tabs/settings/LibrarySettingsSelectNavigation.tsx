@@ -1,5 +1,5 @@
-import { NativeSelect } from '@stump/components'
-import { useLocaleContext } from '@stump/i18n'
+import { NativeSelect } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 import { useMemo } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 

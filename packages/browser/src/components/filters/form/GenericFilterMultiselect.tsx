@@ -1,4 +1,4 @@
-import { ComboBox } from '@stump/components'
+import { ComboBox } from '@longbox/components'
 import { useCallback } from 'react'
 import { useFormContext } from 'react-hook-form'
 

@@ -1,5 +1,5 @@
-import { Button, Text } from '@stump/components'
-import { useLocaleContext } from '@stump/i18n'
+import { Button, Text } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 import { upperFirst } from 'lodash'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 

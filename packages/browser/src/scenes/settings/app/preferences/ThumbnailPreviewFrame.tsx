@@ -1,5 +1,5 @@
-import { cn } from '@stump/components'
-import { ThumbnailPlaceholderStyle } from '@stump/graphql'
+import { cn } from '@longbox/components'
+import { ThumbnailPlaceholderStyle } from '@longbox/graphql'
 import type { ReactNode } from 'react'
 
 type ThumbnailPreviewFrameProps = {

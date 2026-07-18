@@ -1,6 +1,6 @@
-import { useGraphQLMutation, useSDK } from '@stump/client'
-import { Button, CheckBox, Dialog } from '@stump/components'
-import { graphql } from '@stump/graphql'
+import { useGraphQLMutation, useSDK } from '@longbox/client'
+import { Button, CheckBox, Dialog } from '@longbox/components'
+import { graphql } from '@longbox/graphql'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useState } from 'react'
 

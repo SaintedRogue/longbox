@@ -1,4 +1,4 @@
-import { useDirectoryListing, UseDirectoryListingFile, useSDK } from '@stump/client'
+import { useDirectoryListing, UseDirectoryListingFile, useSDK } from '@longbox/client'
 import { useCallback, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'

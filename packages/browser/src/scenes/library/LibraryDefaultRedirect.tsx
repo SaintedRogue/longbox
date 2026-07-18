@@ -1,4 +1,4 @@
-import { LibraryViewMode } from '@stump/graphql'
+import { LibraryViewMode } from '@longbox/graphql'
 import { Navigate } from 'react-router'
 
 import { useLibraryContext } from './context'

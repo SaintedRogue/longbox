@@ -1,4 +1,4 @@
-import { CreateOrUpdateLibraryInput, LibrarySettingsConfigFragment } from '@stump/graphql'
+import { CreateOrUpdateLibraryInput, LibrarySettingsConfigFragment } from '@longbox/graphql'
 import { createContext, useContext } from 'react'
 
 import { ILibraryContext } from '../../context'

@@ -1,5 +1,5 @@
-// import { Avatar, Button, cx, IconButton, Text, ToolTip } from '@stump/components'
-// import { BookClubDiscussionMessage } from '@stump/sdk'
+// import { Avatar, Button, cx, IconButton, Text, ToolTip } from '@longbox/components'
+// import { BookClubDiscussionMessage } from '@longbox/sdk'
 // import dayjs from 'dayjs'
 // import { MessageCircle, ThumbsUp } from 'lucide-react'
 // import pluralize from 'pluralize'

@@ -1,5 +1,5 @@
-import { useStumpVersion } from '@stump/client'
-import { cx, Link, TEXT_VARIANTS } from '@stump/components'
+import { useStumpVersion } from '@longbox/client'
+import { cx, Link, TEXT_VARIANTS } from '@longbox/components'
 import { useMemo } from 'react'
 
 export default function ApplicationVersion() {

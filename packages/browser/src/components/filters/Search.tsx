@@ -1,4 +1,4 @@
-import { cn, ProgressSpinner, usePreviousIsDifferent } from '@stump/components'
+import { cn, ProgressSpinner, usePreviousIsDifferent } from '@longbox/components'
 import { SearchIcon } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useDebouncedValue } from 'rooks'

@@ -1,5 +1,5 @@
-import { Input } from '@stump/components'
-import { useLocaleContext } from '@stump/i18n'
+import { Input } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 import React from 'react'
 import { useShallow } from 'zustand/react/shallow'
 

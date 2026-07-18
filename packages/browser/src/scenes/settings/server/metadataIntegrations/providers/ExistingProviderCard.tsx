@@ -1,5 +1,5 @@
-import { useGraphQLMutation } from '@stump/client'
-import { Badge, Button, Card, Text, ToolTip } from '@stump/components'
+import { useGraphQLMutation } from '@longbox/client'
+import { Badge, Button, Card, Text, ToolTip } from '@longbox/components'
 import {
 	FragmentType,
 	graphql,
@@ -7,8 +7,8 @@ import {
 	ProviderValidationStatus,
 	useFragment,
 	UserPermission,
-} from '@stump/graphql'
-import { useLocaleContext } from '@stump/i18n'
+} from '@longbox/graphql'
+import { useLocaleContext } from '@longbox/i18n'
 import { intlFormat } from 'date-fns'
 import { BadgeAlert, BadgeCheck, BadgeX } from 'lucide-react'
 

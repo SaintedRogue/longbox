@@ -1,4 +1,4 @@
-import { Badge } from '@stump/components'
+import { Badge } from '@longbox/components'
 import { ExternalLink } from 'lucide-react'
 
 type Props = {

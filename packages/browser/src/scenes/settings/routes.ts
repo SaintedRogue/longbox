@@ -1,5 +1,5 @@
-import { UserPermission } from '@stump/graphql'
-import { Api } from '@stump/sdk'
+import { UserPermission } from '@longbox/graphql'
+import { Api } from '@longbox/sdk'
 import { QueryClient } from '@tanstack/react-query'
 import {
 	AlarmClock,

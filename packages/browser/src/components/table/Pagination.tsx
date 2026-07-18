@@ -1,4 +1,4 @@
-import { Button, cn } from '@stump/components'
+import { Button, cn } from '@longbox/components'
 import { ArrowLeft, ArrowRight, MoreHorizontal } from 'lucide-react'
 import { useMemo } from 'react'
 import { useWindowSize } from 'rooks'

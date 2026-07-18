@@ -1,5 +1,5 @@
-import { Badge, BadgeProps, PickSelect } from '@stump/components'
-import { FileStatus } from '@stump/graphql'
+import { Badge, BadgeProps, PickSelect } from '@longbox/components'
+import { FileStatus } from '@longbox/graphql'
 import { useMemo } from 'react'
 
 export default function FileStatusBadge({ status }: { status: FileStatus }) {

@@ -1,4 +1,4 @@
-import { Tag } from '@stump/graphql'
+import { Tag } from '@longbox/graphql'
 
 import BadgeList from '@/components/BadgeList'
 

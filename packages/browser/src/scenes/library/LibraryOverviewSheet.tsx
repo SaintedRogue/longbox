@@ -1,6 +1,6 @@
-import { formatBytesSeparate } from '@stump/client'
-import { STAT_COLORS } from '@stump/components'
-import { formatHumanDurationSeparate, useLocaleContext } from '@stump/i18n'
+import { formatBytesSeparate } from '@longbox/client'
+import { STAT_COLORS } from '@longbox/components'
+import { formatHumanDurationSeparate, useLocaleContext } from '@longbox/i18n'
 import { BookCheck, BookOpen, Clock, HardDrive, Layers } from 'lucide-react'
 
 import { EntityOverviewSheet } from '@/components/sharedLayout'

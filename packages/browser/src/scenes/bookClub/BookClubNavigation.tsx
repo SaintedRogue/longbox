@@ -1,4 +1,4 @@
-import { cn, cx, Link } from '@stump/components'
+import { cn, cx, Link } from '@longbox/components'
 import { noop } from 'lodash'
 import { useMemo } from 'react'
 import { useLocation } from 'react-router'

@@ -1,5 +1,5 @@
-import { useGraphQLMutation, useSDK } from '@stump/client'
-import { graphql, SaveSmartListView } from '@stump/graphql'
+import { useGraphQLMutation, useSDK } from '@longbox/client'
+import { graphql, SaveSmartListView } from '@longbox/graphql'
 import { useQueryClient } from '@tanstack/react-query'
 import omit from 'lodash/omit'
 import { useCallback } from 'react'

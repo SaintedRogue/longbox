@@ -1,4 +1,4 @@
-import { graphql } from '@stump/graphql'
+import { graphql } from '@longbox/graphql'
 
 // TODO(graphql): Move this, it doesn't feel right here
 export const BookMetadataFragment = graphql(`

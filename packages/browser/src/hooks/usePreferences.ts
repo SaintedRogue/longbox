@@ -1,5 +1,5 @@
-import { useGraphQLMutation } from '@stump/client'
-import { graphql, UpdateUserPreferencesInput, UserPreferences } from '@stump/graphql'
+import { useGraphQLMutation } from '@longbox/client'
+import { graphql, UpdateUserPreferencesInput, UserPreferences } from '@longbox/graphql'
 import omit from 'lodash/omit'
 import { useCallback } from 'react'
 import { useShallow } from 'zustand/react/shallow'

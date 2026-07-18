@@ -1,4 +1,4 @@
-import { UserPermission } from '@stump/graphql'
+import { UserPermission } from '@longbox/graphql'
 import { lazy, useMemo } from 'react'
 import { Navigate, Route, Routes } from 'react-router'
 

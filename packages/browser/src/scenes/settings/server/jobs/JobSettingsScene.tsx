@@ -1,6 +1,6 @@
-import { Heading, Text } from '@stump/components'
-import { UserPermission } from '@stump/graphql'
-import { useLocaleContext } from '@stump/i18n'
+import { Heading, Text } from '@longbox/components'
+import { UserPermission } from '@longbox/graphql'
+import { useLocaleContext } from '@longbox/i18n'
 import { Suspense } from 'react'
 import { Helmet } from 'react-helmet'
 

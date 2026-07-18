@@ -1,5 +1,5 @@
-import { PREFETCH_STALE_TIME, useGraphQL, useSDK } from '@stump/client'
-import { usePrevious } from '@stump/components'
+import { PREFETCH_STALE_TIME, useGraphQL, useSDK } from '@longbox/client'
+import { usePrevious } from '@longbox/components'
 import {
 	graphql,
 	InterfaceLayout,
@@ -7,7 +7,7 @@ import {
 	SeriesFilterInput,
 	SeriesModelOrdering,
 	SeriesOrderBy,
-} from '@stump/graphql'
+} from '@longbox/graphql'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Helmet } from 'react-helmet'

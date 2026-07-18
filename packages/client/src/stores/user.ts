@@ -1,5 +1,5 @@
-import { UserPermission, UserPreferences } from '@stump/graphql'
-import type { AuthUser } from '@stump/sdk'
+import { UserPermission, UserPreferences } from '@longbox/graphql'
+import type { AuthUser } from '@longbox/sdk'
 import { produce } from 'immer'
 import { create } from 'zustand'
 import { createJSONStorage, devtools, persist, StateStorage } from 'zustand/middleware'

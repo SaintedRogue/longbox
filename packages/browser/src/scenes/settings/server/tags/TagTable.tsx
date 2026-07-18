@@ -1,7 +1,7 @@
-import { useSDK, useSuspenseGraphQL } from '@stump/client'
-import { Button, Card, Dropdown, Text } from '@stump/components'
-import { graphql, Tag } from '@stump/graphql'
-import { useLocaleContext } from '@stump/i18n'
+import { useSDK, useSuspenseGraphQL } from '@longbox/client'
+import { Button, Card, Dropdown, Text } from '@longbox/components'
+import { graphql, Tag } from '@longbox/graphql'
+import { useLocaleContext } from '@longbox/i18n'
 import {
 	createColumnHelper,
 	flexRender,

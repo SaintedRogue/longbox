@@ -1,4 +1,4 @@
-import { Heading, Text } from '@stump/components'
+import { Heading, Text } from '@longbox/components'
 import { PropsWithChildren } from 'react'
 
 type StepContainerProps = PropsWithChildren<{

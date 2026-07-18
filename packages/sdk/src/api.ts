@@ -1,4 +1,4 @@
-import type { TypedDocumentString } from '@stump/graphql'
+import type { TypedDocumentString } from '@longbox/graphql'
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios'
 
 import { AuthenticationMethod, Configuration } from './configuration'

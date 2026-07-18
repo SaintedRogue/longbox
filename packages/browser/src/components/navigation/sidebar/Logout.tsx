@@ -1,4 +1,4 @@
-import { ConfirmationModal, IconButton, ToolTip, useBoolean } from '@stump/components'
+import { ConfirmationModal, IconButton, ToolTip, useBoolean } from '@longbox/components'
 import { LogOut } from 'lucide-react'
 
 import { useAppContext } from '@/context'

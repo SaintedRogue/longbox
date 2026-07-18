@@ -1,5 +1,5 @@
-import { useUploadConfig } from '@stump/client'
-import { UserPermission } from '@stump/graphql'
+import { useUploadConfig } from '@longbox/client'
+import { UserPermission } from '@longbox/graphql'
 
 import { FileExplorer } from '@/components/explorer'
 import { useAppContext } from '@/context'

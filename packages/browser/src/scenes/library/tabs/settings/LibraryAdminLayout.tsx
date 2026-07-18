@@ -1,4 +1,4 @@
-import { UserPermission } from '@stump/graphql'
+import { UserPermission } from '@longbox/graphql'
 import { cx } from 'class-variance-authority'
 import { Suspense, useEffect, useMemo } from 'react'
 import { Outlet, useNavigate } from 'react-router'

@@ -1,5 +1,5 @@
-import { Card, cn, Heading, Text } from '@stump/components'
-import { useLocaleContext } from '@stump/i18n'
+import { Card, cn, Heading, Text } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 import { useOverlayScrollbars } from 'overlayscrollbars-react'
 import { useEffect, useMemo, useRef } from 'react'
 

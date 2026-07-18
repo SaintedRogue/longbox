@@ -1,4 +1,4 @@
-import { EmojiPicker } from '@stump/components'
+import { EmojiPicker } from '@longbox/components'
 
 type Props = {
 	emoji?: string

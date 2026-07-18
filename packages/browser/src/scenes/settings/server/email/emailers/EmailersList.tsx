@@ -1,7 +1,7 @@
-import { useSDK, useSuspenseGraphQL } from '@stump/client'
-import { ButtonOrLink, Card, Heading } from '@stump/components'
-import { graphql } from '@stump/graphql'
-import { useLocaleContext } from '@stump/i18n'
+import { useSDK, useSuspenseGraphQL } from '@longbox/client'
+import { ButtonOrLink, Card, Heading } from '@longbox/components'
+import { graphql } from '@longbox/graphql'
+import { useLocaleContext } from '@longbox/i18n'
 import { CircleSlash2 } from 'lucide-react'
 
 import paths from '@/paths'

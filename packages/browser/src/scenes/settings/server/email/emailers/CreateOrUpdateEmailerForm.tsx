@@ -9,9 +9,9 @@ import {
 	NativeSelect,
 	PasswordInput,
 	Text,
-} from '@stump/components'
-import { EmailerListItemFragment } from '@stump/graphql'
-import { useLocaleContext } from '@stump/i18n'
+} from '@longbox/components'
+import { EmailerListItemFragment } from '@longbox/graphql'
+import { useLocaleContext } from '@longbox/i18n'
 import { useCallback, useMemo } from 'react'
 import { useForm, useFormState, useWatch } from 'react-hook-form'
 

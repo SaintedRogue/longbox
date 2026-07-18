@@ -1,4 +1,4 @@
-import { Accordion, Preformatted, Text } from '@stump/components'
+import { Accordion, Preformatted, Text } from '@longbox/components'
 import { useMemo } from 'react'
 import { useFormContext, useWatch } from 'react-hook-form'
 

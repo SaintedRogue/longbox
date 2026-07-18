@@ -1,4 +1,4 @@
-import { SmartListGrouping, SmartListView } from '@stump/graphql'
+import { SmartListGrouping, SmartListView } from '@longbox/graphql'
 import { createContext, useContext } from 'react'
 import { create, useStore } from 'zustand'
 

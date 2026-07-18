@@ -1,5 +1,5 @@
-import { Badge, Link } from '@stump/components'
-import { Tag } from '@stump/graphql'
+import { Badge, Link } from '@longbox/components'
+import { Tag } from '@longbox/graphql'
 import { Fragment } from 'react'
 
 type Props = {

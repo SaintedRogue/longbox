@@ -5,9 +5,9 @@ import {
 	useGraphQLMutation,
 	useSDK,
 	useSuspenseGraphQL,
-} from '@stump/client'
-import { BookReaderSceneQuery, graphql } from '@stump/graphql'
-import { useLocaleContext } from '@stump/i18n'
+} from '@longbox/client'
+import { BookReaderSceneQuery, graphql } from '@longbox/graphql'
+import { useLocaleContext } from '@longbox/i18n'
 import { useQueryClient } from '@tanstack/react-query'
 import { Suspense, useCallback, useEffect, useMemo, useRef } from 'react'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'

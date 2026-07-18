@@ -1,4 +1,4 @@
-import { Button } from '@stump/components'
+import { Button } from '@longbox/components'
 
 import { MetadataEditorState, useMetadataEditorContext } from './context'
 

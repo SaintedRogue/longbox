@@ -1,4 +1,4 @@
-import { NativeSelect } from '@stump/components'
+import { NativeSelect } from '@longbox/components'
 import { useFormContext } from 'react-hook-form'
 
 import { useMetadataEditorContext } from '../context'

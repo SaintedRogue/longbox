@@ -1,4 +1,4 @@
-import { User } from '@stump/graphql'
+import { User } from '@longbox/graphql'
 
 import { APIBase } from '../base'
 import { AuthUser } from '../types/graphql'

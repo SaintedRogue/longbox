@@ -1,4 +1,4 @@
-import { ScaledDimensionResizeInput } from '@stump/graphql'
+import { ScaledDimensionResizeInput } from '@longbox/graphql'
 
 import { APIBase } from '../base'
 import { createRouteURLHandler } from './utils'

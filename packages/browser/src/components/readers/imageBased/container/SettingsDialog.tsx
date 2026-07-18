@@ -1,4 +1,4 @@
-import { Dialog, Tabs } from '@stump/components'
+import { Dialog, Tabs } from '@longbox/components'
 import { Settings2 } from 'lucide-react'
 import { useState } from 'react'
 

@@ -1,6 +1,6 @@
-import { cn, DropdownMenu, IconButton } from '@stump/components'
-import type { MetadataField } from '@stump/graphql'
-import { useLocaleContext } from '@stump/i18n'
+import { cn, DropdownMenu, IconButton } from '@longbox/components'
+import type { MetadataField } from '@longbox/graphql'
+import { useLocaleContext } from '@longbox/i18n'
 import {
 	ArrowLeft,
 	ArrowRight,

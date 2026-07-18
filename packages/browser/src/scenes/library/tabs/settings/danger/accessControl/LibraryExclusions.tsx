@@ -1,4 +1,4 @@
-import { useGraphQLMutation, useSuspenseGraphQLQueries } from '@stump/client'
+import { useGraphQLMutation, useSuspenseGraphQLQueries } from '@longbox/client'
 import {
 	Alert,
 	AlertDescription,
@@ -7,9 +7,9 @@ import {
 	Heading,
 	Text,
 	usePrevious,
-} from '@stump/components'
-import { graphql } from '@stump/graphql'
-import { useLocaleContext } from '@stump/i18n'
+} from '@longbox/components'
+import { graphql } from '@longbox/graphql'
+import { useLocaleContext } from '@longbox/i18n'
 import { useQueryClient } from '@tanstack/react-query'
 import { Info } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'

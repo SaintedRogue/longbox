@@ -1,4 +1,4 @@
-import { cn } from '@stump/components'
+import { cn } from '@longbox/components'
 import { forwardRef, useMemo } from 'react'
 
 import { usePreferences } from '@/hooks'

@@ -1,4 +1,4 @@
-import { Heading } from '@stump/components'
+import { Heading } from '@longbox/components'
 import { Link } from 'react-router-dom'
 
 import LongboxMark from '@/components/LongboxMark'

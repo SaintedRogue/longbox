@@ -1,4 +1,4 @@
-import { AccessRole, SaveSmartListInput, SmartListMeta } from '@stump/graphql'
+import { AccessRole, SaveSmartListInput, SmartListMeta } from '@longbox/graphql'
 import { createContext, useContext } from 'react'
 
 import { SmartListParsed } from './graphql'

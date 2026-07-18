@@ -1,7 +1,7 @@
-import { useGraphQLMutation, useSDK } from '@stump/client'
-import { Button, ConfirmationModal } from '@stump/components'
-import { graphql, LoginActivityTableQuery } from '@stump/graphql'
-import { useLocaleContext } from '@stump/i18n'
+import { useGraphQLMutation, useSDK } from '@longbox/client'
+import { Button, ConfirmationModal } from '@longbox/components'
+import { graphql, LoginActivityTableQuery } from '@longbox/graphql'
+import { useLocaleContext } from '@longbox/i18n'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 

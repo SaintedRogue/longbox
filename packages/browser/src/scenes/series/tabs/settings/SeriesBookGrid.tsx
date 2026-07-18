@@ -1,5 +1,5 @@
-import { useInfiniteSuspenseGraphQL } from '@stump/client'
-import { graphql, SeriesBookGridQuery } from '@stump/graphql'
+import { useInfiniteSuspenseGraphQL } from '@longbox/client'
+import { graphql, SeriesBookGridQuery } from '@longbox/graphql'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useCallback, useMemo, useRef } from 'react'
 import AutoSizer from 'react-virtualized-auto-sizer'

@@ -1,4 +1,4 @@
-import { formatBytes, useSDK } from '@stump/client'
+import { formatBytes, useSDK } from '@longbox/client'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
@@ -9,12 +9,12 @@ import { useDownloadStore } from '@/offline/downloadStore'
 
 import DownloadsScene from '../DownloadsScene'
 
-jest.mock('@stump/i18n', () => ({
+jest.mock('@longbox/i18n', () => ({
 	useLocaleContext: () => ({ t: (key: string) => key }),
 }))
 
-jest.mock('@stump/client', () => ({
-	...jest.requireActual('@stump/client'),
+jest.mock('@longbox/client', () => ({
+	...jest.requireActual('@longbox/client'),
 	useSDK: jest.fn(),
 }))
 

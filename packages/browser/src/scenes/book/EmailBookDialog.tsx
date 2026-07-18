@@ -1,7 +1,7 @@
-import { useGraphQLMutation, useSDK, useSuspenseGraphQL } from '@stump/client'
-import { Badge, Button, ComboBox, Dialog, Input } from '@stump/components'
-import { EmailerSendTo, graphql, UserPermission } from '@stump/graphql'
-import { useLocaleContext } from '@stump/i18n'
+import { useGraphQLMutation, useSDK, useSuspenseGraphQL } from '@longbox/client'
+import { Badge, Button, ComboBox, Dialog, Input } from '@longbox/components'
+import { EmailerSendTo, graphql, UserPermission } from '@longbox/graphql'
+import { useLocaleContext } from '@longbox/i18n'
 import { Suspense, useCallback, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 

@@ -1,4 +1,4 @@
-import { WideSwitch } from '@stump/components'
+import { WideSwitch } from '@longbox/components'
 import { useMemo } from 'react'
 import { useFormContext, useWatch } from 'react-hook-form'
 

@@ -1,4 +1,4 @@
-import { AccessRole } from '@stump/graphql'
+import { AccessRole } from '@longbox/graphql'
 import { Bolt, NotebookTabs, PackageX, Shield } from 'lucide-react'
 
 import { RouteGroup } from '@/hooks/useRouteGroups'

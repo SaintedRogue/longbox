@@ -1,4 +1,4 @@
-import { Button, Input, InputGroup, Label, Text } from '@stump/components'
+import { Button, Input, InputGroup, Label, Text } from '@longbox/components'
 import { Eye, EyeOff, Shield } from 'lucide-react'
 import { useState } from 'react'
 import { useFormContext, useFormState } from 'react-hook-form'

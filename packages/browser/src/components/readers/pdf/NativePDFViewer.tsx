@@ -1,5 +1,5 @@
-import { useSDK } from '@stump/client'
-import { Link, Text } from '@stump/components'
+import { useSDK } from '@longbox/client'
+import { Link, Text } from '@longbox/components'
 import { useEffect, useState } from 'react'
 
 import { offlineFileBlob } from '@/offline/resolveOfflineUrl'

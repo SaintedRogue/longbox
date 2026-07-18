@@ -1,5 +1,5 @@
-import { Badge } from '@stump/components'
-import { useLocaleContext } from '@stump/i18n'
+import { Badge } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 
 type Props = {
 	confidence: number

@@ -1,4 +1,4 @@
-import { Button, cn, Input, ToolTip } from '@stump/components'
+import { Button, cn, Input, ToolTip } from '@longbox/components'
 import { Minus } from 'lucide-react'
 
 import type { NumberValidation } from '../../fieldDefs'

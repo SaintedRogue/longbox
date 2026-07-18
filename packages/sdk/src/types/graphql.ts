@@ -1,4 +1,4 @@
-import { BookClubMemberRole, User } from '@stump/graphql'
+import { BookClubMemberRole, User } from '@longbox/graphql'
 
 export type GraphQLError = {
 	message: string

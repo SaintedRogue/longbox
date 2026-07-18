@@ -1,4 +1,4 @@
-import { cn, IconButton, ToolTip } from '@stump/components'
+import { cn, IconButton, ToolTip } from '@longbox/components'
 import { Settings } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router'
 

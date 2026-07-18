@@ -1,6 +1,6 @@
-import { EBOOK_EXTENSION } from '@stump/client'
-import { ButtonOrLink } from '@stump/components'
-import { BookCardFragment } from '@stump/graphql'
+import { EBOOK_EXTENSION } from '@longbox/client'
+import { ButtonOrLink } from '@longbox/components'
+import { BookCardFragment } from '@longbox/graphql'
 import { useMemo } from 'react'
 import { useLocation } from 'react-router-dom'
 

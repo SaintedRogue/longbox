@@ -1,5 +1,5 @@
-import { LocaleProvider } from '@stump/i18n'
-import { type AllowedLocale } from '@stump/i18n'
+import { LocaleProvider } from '@longbox/i18n'
+import { type AllowedLocale } from '@longbox/i18n'
 import { lazy, useState } from 'react'
 import { Location, Route, Routes, useLocation, useNavigationType } from 'react-router-dom'
 

@@ -1,4 +1,4 @@
-import { ReadingMode } from '@stump/graphql'
+import { ReadingMode } from '@longbox/graphql'
 import { fireEvent, render } from '@testing-library/react'
 
 import ReadingModeSelect from '../ReadingModeSelect'

@@ -1,5 +1,5 @@
-import { Dialog } from '@stump/components'
-import { useLocaleContext } from '@stump/i18n'
+import { Dialog } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 
 import { useMatchReviewStore } from '../useMatchReviewStore'
 import { MatchPreviewEditor } from './MatchPreviewEditor'

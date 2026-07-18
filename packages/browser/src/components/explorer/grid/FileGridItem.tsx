@@ -1,4 +1,4 @@
-import { UseDirectoryListingFile, useSDK } from '@stump/client'
+import { UseDirectoryListingFile, useSDK } from '@longbox/client'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { usePrefetchBook } from '@/components/book'

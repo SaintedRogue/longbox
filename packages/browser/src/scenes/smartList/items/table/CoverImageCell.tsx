@@ -1,4 +1,4 @@
-import { useSDK } from '@stump/client'
+import { useSDK } from '@longbox/client'
 import { Book } from 'lucide-react'
 import { useState } from 'react'
 

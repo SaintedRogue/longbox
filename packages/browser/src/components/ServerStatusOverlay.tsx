@@ -1,4 +1,4 @@
-import { Link, Text } from '@stump/components'
+import { Link, Text } from '@longbox/components'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
 

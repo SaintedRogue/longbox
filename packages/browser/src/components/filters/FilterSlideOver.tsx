@@ -1,5 +1,5 @@
-import { Button, Sheet, Text } from '@stump/components'
-import { LibraryFilterInput, MediaFilterInput, SeriesFilterInput } from '@stump/graphql'
+import { Button, Sheet, Text } from '@longbox/components'
+import { LibraryFilterInput, MediaFilterInput, SeriesFilterInput } from '@longbox/graphql'
 import { Filter } from 'lucide-react'
 import { useState } from 'react'
 import { useMediaMatch } from 'rooks'

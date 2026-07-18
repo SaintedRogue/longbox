@@ -1,4 +1,4 @@
-import { useGraphQL, useSDK } from '@stump/client'
+import { useGraphQL, useSDK } from '@longbox/client'
 import {
 	ButtonOrLink,
 	Heading,
@@ -7,9 +7,9 @@ import {
 	ScrollArea,
 	Text,
 	usePreviousIsDifferent,
-} from '@stump/components'
-import { graphql, SmartListsInput } from '@stump/graphql'
-import { useLocaleContext } from '@stump/i18n'
+} from '@longbox/components'
+import { graphql, SmartListsInput } from '@longbox/graphql'
+import { useLocaleContext } from '@longbox/i18n'
 import { Search } from 'lucide-react'
 import pluralize from 'pluralize'
 import { useEffect, useState } from 'react'

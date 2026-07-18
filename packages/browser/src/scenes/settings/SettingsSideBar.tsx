@@ -1,5 +1,5 @@
-import { cn, IconButton, Label } from '@stump/components'
-import { useLocaleContext } from '@stump/i18n'
+import { cn, IconButton, Label } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 import { Home } from 'lucide-react'
 import { useNavigate } from 'react-router'
 

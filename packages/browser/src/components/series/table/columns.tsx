@@ -1,6 +1,6 @@
-import { Link, Text } from '@stump/components'
-import { SeriesModelOrdering } from '@stump/graphql'
-import { ColumnSort } from '@stump/sdk'
+import { Link, Text } from '@longbox/components'
+import { SeriesModelOrdering } from '@longbox/graphql'
+import { ColumnSort } from '@longbox/sdk'
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
 
 import paths from '@/paths'

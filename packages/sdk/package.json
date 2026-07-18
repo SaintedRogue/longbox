@@ -1,5 +1,5 @@
 {
-	"name": "@stump/sdk",
+	"name": "@longbox/sdk",
 	"version": "0.1.5",
 	"description": "",
 	"main": "src/index.ts",

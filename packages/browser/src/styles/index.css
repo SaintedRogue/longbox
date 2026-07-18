@@ -1,5 +1,5 @@
 @import 'tailwindcss';
-@import '@stump/components/tailwind/preset.css';
+@import '@longbox/components/tailwind/preset.css';
 
 body {
 	@apply h-full bg-background antialiased;

@@ -1,4 +1,4 @@
-import { Api } from '@stump/sdk'
+import { Api } from '@longbox/sdk'
 
 export function prefetchMediaPage(sdk: Api, mediaId: string, page: number): HTMLImageElement {
 	const img = new Image()

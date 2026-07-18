@@ -1,4 +1,4 @@
-import { UserPermission } from '@stump/graphql'
+import { UserPermission } from '@longbox/graphql'
 
 import { buildSchema, ExistingUser } from '../schema'
 

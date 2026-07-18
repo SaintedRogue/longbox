@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
-import { IconButton } from '@stump/components'
+import { IconButton } from '@longbox/components'
 import { ComponentProps, forwardRef } from 'react'
 
 const ControlButton = forwardRef<HTMLButtonElement, ComponentProps<typeof IconButton>>(

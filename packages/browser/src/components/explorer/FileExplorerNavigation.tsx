@@ -1,4 +1,4 @@
-import { IconButton } from '@stump/components'
+import { IconButton } from '@longbox/components'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 import { useFileExplorerContext } from './context'

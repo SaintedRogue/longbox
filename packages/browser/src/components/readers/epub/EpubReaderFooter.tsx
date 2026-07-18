@@ -1,4 +1,4 @@
-import { Text } from '@stump/components'
+import { Text } from '@longbox/components'
 
 import { useEpubReaderContext, useEpubReaderControls } from './context'
 import { ControlsContainer } from './controls'

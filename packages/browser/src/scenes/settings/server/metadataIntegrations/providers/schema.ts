@@ -4,7 +4,7 @@ import {
 	MergeStrategy,
 	MetadataProvider,
 	PatchMetadataProviderConfigInput,
-} from '@stump/graphql'
+} from '@longbox/graphql'
 import z from 'zod'
 
 const providerType = z.nativeEnum(MetadataProvider)

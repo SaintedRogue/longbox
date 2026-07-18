@@ -1,5 +1,5 @@
-import { Button, Card, IconButton, ToolTip } from '@stump/components'
-import { useLocaleContext } from '@stump/i18n'
+import { Button, Card, IconButton, ToolTip } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 import { ArrowRight, MinusCircle } from 'lucide-react'
 import { useFieldArray } from 'react-hook-form'
 

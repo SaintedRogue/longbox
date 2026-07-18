@@ -1,4 +1,4 @@
-import { Input, Text } from '@stump/components'
+import { Input, Text } from '@longbox/components'
 import { useCallback, useEffect, useState } from 'react'
 
 import { useURLPageParams } from './useFilterScene'

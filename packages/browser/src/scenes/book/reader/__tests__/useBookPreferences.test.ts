@@ -1,4 +1,4 @@
-import { ReadingImageScaleFit } from '@stump/graphql'
+import { ReadingImageScaleFit } from '@longbox/graphql'
 import { renderHook } from '@testing-library/react'
 import { useMediaMatch } from 'rooks'
 

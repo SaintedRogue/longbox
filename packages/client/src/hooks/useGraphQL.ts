@@ -3,9 +3,9 @@ import type {
 	Pagination,
 	PaginationInfo,
 	TypedDocumentString,
-} from '@stump/graphql'
-import { Api } from '@stump/sdk'
-import { GraphQLWebsocketConnectEventHandlers } from '@stump/sdk/socket'
+} from '@longbox/graphql'
+import { Api } from '@longbox/sdk'
+import { GraphQLWebsocketConnectEventHandlers } from '@longbox/sdk/socket'
 import {
 	InfiniteData,
 	noop,

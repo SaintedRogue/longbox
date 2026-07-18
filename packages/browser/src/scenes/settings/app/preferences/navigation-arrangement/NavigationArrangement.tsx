@@ -13,8 +13,8 @@ import {
 	sortableKeyboardCoordinates,
 	verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import { useGraphQLMutation, useSDK, useSuspenseGraphQL } from '@stump/client'
-import { Button, cn, NewCard, Sheet } from '@stump/components'
+import { useGraphQLMutation, useSDK, useSuspenseGraphQL } from '@longbox/client'
+import { Button, cn, NewCard, Sheet } from '@longbox/components'
 import {
 	ArrangementSectionInput,
 	FilterableArrangementEntityLink,
@@ -22,8 +22,8 @@ import {
 	NavigationArrangementQuery,
 	SystemArrangement,
 	UserPermission,
-} from '@stump/graphql'
-import { useLocaleContext } from '@stump/i18n'
+} from '@longbox/graphql'
+import { useLocaleContext } from '@longbox/i18n'
 import { useQueryClient } from '@tanstack/react-query'
 import { Lock, Unlock } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'

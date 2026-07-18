@@ -1,5 +1,5 @@
-import { OrderDirection } from '@stump/graphql'
-import { ColumnOrder } from '@stump/sdk'
+import { OrderDirection } from '@longbox/graphql'
+import { ColumnOrder } from '@longbox/sdk'
 
 import { Ordering, OrderingField } from './context'
 

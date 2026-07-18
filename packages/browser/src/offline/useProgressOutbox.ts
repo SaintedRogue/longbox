@@ -1,4 +1,4 @@
-import { useSDK } from '@stump/client'
+import { useSDK } from '@longbox/client'
 import { useEffect, useRef } from 'react'
 
 import { UPDATE_READ_PROGRESS } from './progressMutation'

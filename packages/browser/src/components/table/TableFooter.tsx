@@ -1,4 +1,4 @@
-import { NativeSelect, Text } from '@stump/components'
+import { NativeSelect, Text } from '@longbox/components'
 import { PaginationState } from '@tanstack/react-table'
 
 import TablePagination from './Pagination'

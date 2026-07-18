@@ -1,6 +1,6 @@
-import { useInfiniteGraphQL } from '@stump/client'
-import { Input } from '@stump/components'
-import { BookCardFragment, graphql } from '@stump/graphql'
+import { useInfiniteGraphQL } from '@longbox/client'
+import { Input } from '@longbox/components'
+import { BookCardFragment, graphql } from '@longbox/graphql'
 import { useState } from 'react'
 import { useDebouncedValue } from 'rooks'
 

@@ -1,4 +1,4 @@
-import { EmailerListItemFragment } from '@stump/graphql'
+import { EmailerListItemFragment } from '@longbox/graphql'
 import { z } from 'zod'
 
 import { FORBIDDEN_ENTITY_NAMES } from '@/utils/form'

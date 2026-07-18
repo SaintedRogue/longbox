@@ -1,5 +1,5 @@
-import { cn, Text } from '@stump/components'
-import { SmartListGroupedItem, SmartListViewColumn } from '@stump/graphql'
+import { cn, Text } from '@longbox/components'
+import { SmartListGroupedItem, SmartListViewColumn } from '@longbox/graphql'
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
 import { ChevronDown } from 'lucide-react'
 

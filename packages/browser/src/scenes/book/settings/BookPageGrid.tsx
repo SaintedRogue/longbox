@@ -1,5 +1,5 @@
-import { useSDK } from '@stump/client'
-import { cx } from '@stump/components'
+import { useSDK } from '@longbox/client'
+import { cx } from '@longbox/components'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useCallback, useMemo, useState } from 'react'
 import AutoSizer from 'react-virtualized-auto-sizer'

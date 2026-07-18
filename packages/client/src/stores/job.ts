@@ -1,4 +1,4 @@
-import { JobStatus, JobUpdate } from '@stump/graphql'
+import { JobStatus, JobUpdate } from '@longbox/graphql'
 import deepEqual from 'deep-equal'
 import { produce } from 'immer'
 import { createWithEqualityFn } from 'zustand/traditional'

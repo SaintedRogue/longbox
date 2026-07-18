@@ -9,7 +9,7 @@ import {
 	ReadingMode,
 	ScaledDimensionResize,
 	SupportedImageFormat,
-} from '@stump/graphql'
+} from '@longbox/graphql'
 import isValidGlob from 'is-valid-glob'
 import omit from 'lodash/omit'
 import { match } from 'ts-pattern'

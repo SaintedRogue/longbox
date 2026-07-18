@@ -4,7 +4,7 @@ import {
 	MediaMetadataFilterInput,
 	SeriesFilterInput,
 	SeriesMetadataFilterInput,
-} from '@stump/graphql'
+} from '@longbox/graphql'
 import { match } from 'ts-pattern'
 import { z } from 'zod'
 

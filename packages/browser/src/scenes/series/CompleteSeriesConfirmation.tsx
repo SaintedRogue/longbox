@@ -1,4 +1,4 @@
-import { Alert, AlertTitle, ConfirmationModal } from '@stump/components'
+import { Alert, AlertTitle, ConfirmationModal } from '@longbox/components'
 import { AlertTriangle } from 'lucide-react'
 
 type Props = {

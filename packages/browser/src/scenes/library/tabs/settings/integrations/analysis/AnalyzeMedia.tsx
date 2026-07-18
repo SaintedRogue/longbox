@@ -1,7 +1,7 @@
-import { useGraphQLMutation } from '@stump/client'
-import { Alert, AlertDescription, AlertTitle, Button, Heading, Text } from '@stump/components'
-import { graphql } from '@stump/graphql'
-import { useLocaleContext } from '@stump/i18n'
+import { useGraphQLMutation } from '@longbox/client'
+import { Alert, AlertDescription, AlertTitle, Button, Heading, Text } from '@longbox/components'
+import { graphql } from '@longbox/graphql'
+import { useLocaleContext } from '@longbox/i18n'
 import { Info } from 'lucide-react'
 import { useCallback } from 'react'
 

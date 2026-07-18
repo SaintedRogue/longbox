@@ -1,5 +1,5 @@
-import type { PendingMatchRecordFragment } from '@stump/graphql'
-import { MergeStrategy } from '@stump/graphql'
+import type { PendingMatchRecordFragment } from '@longbox/graphql'
+import { MergeStrategy } from '@longbox/graphql'
 
 export type { FieldComparison } from '../fieldDefs'
 export { getMediaFieldComparisons, getSeriesFieldComparisons } from '../fieldDefs'
