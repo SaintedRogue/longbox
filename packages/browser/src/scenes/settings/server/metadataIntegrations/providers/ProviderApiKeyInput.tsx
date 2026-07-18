@@ -1,14 +1,27 @@
 import { useGraphQLMutation } from '@longbox/client'
-import { Alert, AlertDescription, AlertTitle, PasswordInput, Text } from '@longbox/components'
-import { graphql, MetadataProvider, ProviderValidationStatus } from '@longbox/graphql'
+import {
+	Alert,
+	AlertDescription,
+	AlertTitle,
+	Input,
+	PasswordInput,
+	Text,
+} from '@longbox/components'
+import { graphql, MetadataProvider } from '@longbox/graphql'
 import { useLocaleContext } from '@longbox/i18n'
 import { useMutation } from '@tanstack/react-query'
 import getProperty from 'lodash/get'
 import { AlertTriangleIcon } from 'lucide-react'
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useFormContext, useFormState, useWatch } from 'react-hook-form'
 import { useDebouncedValue } from 'rooks'
 
+import {
+	composeMetronToken,
+	type Feedback,
+	metronStatusToFeedback,
+} from './providerValidationFeedback'
+import { ProviderValidationFeedback } from './ProviderValidationFeedback'
 import { CreateProviderConfigSchema } from './schema'
 
 const validateCredentialsMutation = graphql(`
@@ -32,12 +45,20 @@ export function ProviderApiKeyInput() {
 		control: form.control,
 		name: ['providerType', 'apiToken'],
 	})
+	const isMetron = provider === MetadataProvider.Metron
+
+	// Metron-only local field state; `apiToken` is composed from these. Not pre-seeded —
+	// the server never returns stored credentials, so both start empty.
+	const [username, setUsername] = useState('')
+	const [password, setPassword] = useState('')
+
+	const [feedback, setFeedback] = useState<Feedback | null>(null)
 
 	const [debouncedValue] = useDebouncedValue(value, 500)
 
-	// Metron has no CORS, so it can't be validated from the browser. Instead we ask
-	// our server to make the authenticated request (with a proper non-browser
-	// User-Agent) and report a granular status back.
+	// Metron has no CORS, so it can't be validated from the browser. Instead we ask our
+	// server to make the authenticated request (with a proper non-browser User-Agent) and
+	// report a granular status back.
 	const { mutateAsync: validateOnServer } = useGraphQLMutation(validateCredentialsMutation)
 
 	const {
@@ -52,11 +73,15 @@ export function ProviderApiKeyInput() {
 					providerType: provider,
 					apiToken: apiKey,
 				})
-				if (result.status === ProviderValidationStatus.Valid) {
-					form.clearErrors('apiToken')
+				const fb = metronStatusToFeedback(result.status, result.message)
+				if (fb.asFieldError) {
+					// Only a real 401 reddens the field.
+					setFeedback(null)
+					form.setError('apiToken', { type: 'validate', message: fb.description })
 				} else {
-					// The server owns the granular, human-readable message per status.
-					form.setError('apiToken', { type: 'validate', message: result.message })
+					// Success / connectivity / rate-limit / service → callout, field stays clean.
+					form.clearErrors('apiToken')
+					setFeedback(fb)
 				}
 				return
 			}
@@ -66,12 +91,19 @@ export function ProviderApiKeyInput() {
 
 			const isValid = await validator(apiKey, t)
 			if (!isValid) {
+				setFeedback(null)
 				form.setError('apiToken', {
 					type: 'validate',
 					message: t(getKey('apiToken.validationError')),
 				})
 			} else {
 				form.clearErrors('apiToken')
+				setFeedback({
+					severity: 'success',
+					asFieldError: false,
+					title: 'Verified',
+					description: '',
+				})
 			}
 		},
 	})
@@ -80,9 +112,12 @@ export function ProviderApiKeyInput() {
 		async (apiKey: string) => {
 			if (isPending || !apiKey) return
 			if (provider === MetadataProvider.Metron) {
-				// Only validate once it looks like a full `username:password`, so idle
-				// typing doesn't burn Metron's tight request budget (20/min).
-				if (!apiKey.includes(':')) return
+				// Only validate once BOTH username and password are present, so idle typing
+				// doesn't burn Metron's tight request budget (20/min).
+				const colon = apiKey.indexOf(':')
+				const u = colon === -1 ? apiKey : apiKey.slice(0, colon)
+				const p = colon === -1 ? '' : apiKey.slice(colon + 1)
+				if (!u.trim() || !p.trim()) return
 				mutate({ apiKey })
 				return
 			}
@@ -99,6 +134,7 @@ export function ProviderApiKeyInput() {
 				validateKey(debouncedValue)
 			} else {
 				form.clearErrors('apiToken')
+				setFeedback(null)
 			}
 		},
 		// eslint-disable-next-line react-compiler/react-compiler
@@ -106,32 +142,63 @@ export function ProviderApiKeyInput() {
 		[debouncedValue],
 	)
 
-	const isMetron = provider === MetadataProvider.Metron
+	const handleUsernameChange = (next: string) => {
+		setUsername(next)
+		setFeedback(null)
+		form.setValue('apiToken', composeMetronToken(next, password), {
+			shouldValidate: true,
+			shouldDirty: true,
+		})
+	}
+
+	const handlePasswordChange = (next: string) => {
+		setPassword(next)
+		setFeedback(null)
+		form.setValue('apiToken', composeMetronToken(username, next), {
+			shouldValidate: true,
+			shouldDirty: true,
+		})
+	}
 
 	return (
 		<>
-			<PasswordInput
-				label={t(getKey('apiToken.label'))}
-				// Note: Metron uses HTTP Basic auth (username + password), not a bearer token, so
-				// it gets bespoke helper text here rather than the shared i18n copy. This is a
-				// literal, not a new locale key (see Stream A's 'Libraries' precedent) — locale
-				// files are Stream B's exclusive territory for this phase.
-				description={
-					isMetron
-						? 'Metron username and password, entered as username:password'
-						: t(getKey('apiToken.description'))
-				}
-				type="password"
-				{...form.register('apiToken')}
-				errorMessage={errors.apiToken?.message}
-				fullWidth
-			/>
-
-			{isMetron && (
-				<Text size="xs" variant="muted">
-					Metadata provided by metron.cloud, CC BY-SA 4.0
-				</Text>
+			{isMetron ? (
+				<>
+					<Input
+						id="metron-username"
+						label="Metron username"
+						description="Your metron.cloud account username"
+						type="text"
+						autoComplete="off"
+						value={username}
+						onChange={(e) => handleUsernameChange(e.target.value)}
+						fullWidth
+					/>
+					<PasswordInput
+						id="metron-password"
+						label="Metron password"
+						value={password}
+						onChange={(e) => handlePasswordChange(e.target.value)}
+						errorMessage={errors.apiToken?.message}
+						fullWidth
+					/>
+					<Text size="xs" variant="muted">
+						Enter your metron.cloud username and password. Metadata provided by metron.cloud, CC
+						BY-SA 4.0
+					</Text>
+				</>
+			) : (
+				<PasswordInput
+					label={t(getKey('apiToken.label'))}
+					description={t(getKey('apiToken.description'))}
+					type="password"
+					{...form.register('apiToken')}
+					errorMessage={errors.apiToken?.message}
+					fullWidth
+				/>
 			)}
+
+			<ProviderValidationFeedback feedback={feedback} isChecking={isPending} />
 
 			{fetchError && (
 				<Alert variant="destructive">
@@ -165,13 +232,13 @@ const validateHardcoverApiKey: Validator = async (apiKey, t) => {
 		method: 'POST',
 		body: JSON.stringify({
 			query: `
-          query {
-            me {
-              id
-              username
-            }
+        query {
+          me {
+            id
+            username
           }
-        `,
+        }
+      `,
 		}),
 		headers: {
 			'Content-Type': 'application/json',
