@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use super::enums::UserPermission;
 
-pub const API_KEY_PREFIX: &str = "stump";
+pub const API_KEY_PREFIX: &str = "longbox";
 
 // Note: This is a hack to get untagged unit enums to work with serde. See https://github.com/serde-rs/serde/issues/1560
 #[derive(Debug, Copy, Clone, Serialize, PartialEq, Eq, Deserialize, Enum)]

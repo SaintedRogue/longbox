@@ -1,4 +1,4 @@
-export const STUMP_SAVE_BASIC_SESSION_HEADER = 'X-Stump-Save-Session'
+export const LONGBOX_SAVE_BASIC_SESSION_HEADER = 'X-Longbox-Save-Session'
 
 // TODO(prettier): Figure out why key sort isn't working here
 

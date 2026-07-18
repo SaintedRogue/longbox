@@ -7,7 +7,7 @@ use tower_sessions::{cookie::SameSite, Expiry, SessionManagerLayer};
 use super::LongboxSessionStore;
 
 pub const SESSION_USER_KEY: &str = "user_id";
-pub const SESSION_NAME: &str = "stump_session";
+pub const SESSION_NAME: &str = "longbox_session";
 pub const SESSION_PATH: &str = "/";
 
 pub fn get_session_layer(ctx: Arc<Ctx>) -> SessionManagerLayer<LongboxSessionStore> {

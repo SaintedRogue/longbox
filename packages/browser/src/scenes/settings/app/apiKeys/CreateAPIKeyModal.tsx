@@ -46,7 +46,7 @@ export default function CreateAPIKeyModal() {
 	const [copy, didCopy] = useCopyToClipboard(apiSecret || '')
 
 	const maskedSecret = useMemo(
-		() => `stump_${apiSecret?.split('stump_').at(-1)?.replace(/./g, '*')}`,
+		() => `longbox_${apiSecret?.split('longbox_').at(-1)?.replace(/./g, '*')}`,
 		[apiSecret],
 	)
 

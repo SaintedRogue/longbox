@@ -48,7 +48,7 @@ use crate::{
 
 use super::host::HostExtractor;
 
-pub const STUMP_SAVE_BASIC_SESSION_HEADER: &str = "X-Stump-Save-Session";
+pub const LONGBOX_SAVE_BASIC_SESSION_HEADER: &str = "X-Longbox-Save-Session";
 
 fn inject_avatar_url(mut user: AuthUser, service: ServiceContext) -> AuthUser {
 	if user.avatar_path.is_some() {
@@ -83,7 +83,7 @@ pub async fn auth_middleware(
 		.get(header::AUTHORIZATION)
 		.and_then(|header| header.to_str().ok());
 	let save_basic_session = req_headers
-		.get(STUMP_SAVE_BASIC_SESSION_HEADER)
+		.get(LONGBOX_SAVE_BASIC_SESSION_HEADER)
 		.and_then(|header| header.to_str().ok())
 		.is_some_and(|header| header == "true");
 

@@ -8,7 +8,7 @@ use local_ip_address::local_ip;
 use longbox_core::config::LongboxConfig;
 use tower_http::cors::{AllowOrigin, CorsLayer};
 
-use crate::middleware::auth::STUMP_SAVE_BASIC_SESSION_HEADER;
+use crate::middleware::auth::LONGBOX_SAVE_BASIC_SESSION_HEADER;
 
 const DEFAULT_ALLOWED_ORIGINS: &[&str] = &[];
 const DEBUG_ALLOWED_ORIGINS: &[&str] = &["http://localhost:3000", "http://0.0.0.0:3000"];
@@ -46,7 +46,7 @@ pub fn get_cors_layer(config: LongboxConfig) -> CorsLayer {
 			CONTENT_TYPE,
 			EXPIRES,
 			PRAGMA,
-			HeaderName::from_str(STUMP_SAVE_BASIC_SESSION_HEADER)
+			HeaderName::from_str(LONGBOX_SAVE_BASIC_SESSION_HEADER)
 				.expect("Failed to parse header name"),
 		])
 		.allow_credentials(true);
