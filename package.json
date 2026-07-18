@@ -17,7 +17,7 @@
 		"postinstall": "patch-package",
 		"setup": "yarn && yarn web build && cargo codegen",
 		"lint": "lerna run lint --stream --parallel && yarn check-types",
-		"check-types": "lerna run check-types  --stream --parallel",
+		"check-types": "lerna run check-types --stream",
 		"test": "lerna run test",
 		"client": "lerna run --scope @longbox/client",
 		"browser": "lerna run --scope @longbox/browser",
