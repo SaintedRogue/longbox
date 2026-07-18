@@ -2,7 +2,7 @@
 
 # Security Policy
 
-This document outlines security procedures and general policies for the `stump` project.
+This document outlines security procedures and general policies for the Longbox project.
 
 ## Reporting a Bug
 

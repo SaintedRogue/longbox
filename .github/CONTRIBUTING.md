@@ -4,7 +4,7 @@ To ensure nobody's time and effort is wasted, please be sure to follow the guide
 
 ## Guidelines
 
-1. Check to see if an issue already exists relevant to your feature/topic. Please also check the [documentation](https://www.stumpapp.dev) to see if there is already information about your topic.
+1. Check to see if an issue already exists relevant to your feature/topic. Please also check the [project repo](https://github.com/SaintedRogue/longbox) to see if there is already information about your topic.
 2. Create an issue (if an issue does not already exist) and express interest in working it (see the [issues](#issues) section below)
 3. Create a new feature branch **off of the `nightly` branch**. Please do not base contributions on `main`. All PRs should be made against `nightly`.
 4. Add appropiate documentation, tests, etc, if necessary.

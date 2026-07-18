@@ -37,8 +37,6 @@ I use [yarn workspaces](https://yarnpkg.com/features/workspaces) and [cargo work
 ```bash
 # run the webapp + server
 yarn dev:web
-# run the desktop app + server
-yarn start:desktop
 # run the docs website
 yarn docs dev
 ```
@@ -84,7 +82,7 @@ I also want to point out that this repository uses 4 tab spaces for indentation.
 
 ### Component Library
 
-Longbox has a custom component library used throughout the `browser` package (the web UI and desktop app). This library can be found at `packages/components`, and was developed with Storybook in mind. For getting started building out designs and components in Longbox, I highly recommend going through the stories available in the Storybook UI:
+Longbox has a custom component library used throughout the `browser` package (the web UI). This library can be found at `packages/components`, and was developed with Storybook in mind. For getting started building out designs and components in Longbox, I highly recommend going through the stories available in the Storybook UI:
 
 ```bash
 yarn storybook

@@ -35,16 +35,8 @@ export const Route = createRootRoute({
 					'Free, open source, self-hosting for your comic books, manga and digital book collections.',
 			},
 			{
-				property: 'og:url',
-				content: 'https://stumpapp.dev',
-			},
-			{
 				property: 'og:type',
 				content: 'website',
-			},
-			{
-				property: 'og:image',
-				content: 'https://stumpapp.dev/og.png',
 			},
 			{
 				property: 'og:image:alt',
@@ -71,18 +63,10 @@ export const Route = createRootRoute({
 				content:
 					'Free, open source, self-hosting for your comic books, manga and digital book collections.',
 			},
-			{
-				property: 'og:image',
-				content: 'https://stumpapp.dev/og.png',
-			},
 			{ property: 'og:image:alt', content: 'Longbox OG Image' },
 			{
 				property: 'og:site_name',
 				content: 'Longbox',
-			},
-			{
-				rel: 'canonical',
-				href: 'https://stumpapp.dev',
 			},
 		],
 		links: [
