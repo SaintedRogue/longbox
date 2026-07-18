@@ -4,6 +4,11 @@
 //! reads the given (new, `LONGBOX_`-prefixed) key directly, and if that's unset
 //! falls back to the legacy `STUMP_` variant, emitting a one-time deprecation
 //! warning the first time each legacy key is actually used.
+//!
+//! That warning is emitted with `eprintln!` rather than `tracing::warn!`: the legacy
+//! `STUMP_*` fallback is read during config bootstrap, which happens before tracing is
+//! initialized (and the `stump` CLI binary never initializes tracing at all), so a
+//! `tracing::warn!` here would be silently dropped.
 
 use std::{
 	collections::HashSet,
@@ -18,19 +23,20 @@ fn warned_legacy_keys() -> &'static Mutex<HashSet<String>> {
 	WARNED.get_or_init(|| Mutex::new(HashSet::new()))
 }
 
-/// Emits a `tracing::warn!` the first time a given legacy environment variable key
+/// Emits an `eprintln!` warning the first time a given legacy environment variable key
 /// is actually relied upon (i.e., its `LONGBOX_` replacement was unset). Subsequent
-/// calls for the same key are silent.
+/// calls for the same key are silent. Uses `eprintln!` rather than `tracing::warn!`
+/// because this runs pre-tracing-init - see the module docs.
 fn warn_once(legacy_key: &str) {
 	let mut warned = warned_legacy_keys()
 		.lock()
 		.unwrap_or_else(|poisoned| poisoned.into_inner());
 
 	if warned.insert(legacy_key.to_string()) {
-		tracing::warn!(
-			"The `{legacy_key}` environment variable is deprecated. Please migrate to \
-			 its `{NEW_PREFIX}`-prefixed replacement; support for the legacy name will \
-			 be removed in a future release."
+		eprintln!(
+			"Longbox: WARNING the `{legacy_key}` environment variable is deprecated. \
+			 Please migrate to its `{NEW_PREFIX}`-prefixed replacement; support for \
+			 the legacy name will be removed in a future release."
 		);
 	}
 }

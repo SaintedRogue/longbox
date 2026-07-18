@@ -6,6 +6,13 @@
 //! and non-clobbering (an existing target directory/file is never overwritten). The
 //! live data this runs against is disposable/test data, but the migration itself must
 //! still never destroy anything.
+//!
+//! This module runs during [`super::bootstrap_config_dir`], which executes *before*
+//! `init_tracing()` is ever called (and the `stump` CLI binary never initializes
+//! tracing at all). `tracing::*` calls made here are therefore silently dropped -
+//! there is no subscriber installed yet to observe them. All operator-facing output
+//! (migration success, and - critically - migration *failure*, which would otherwise
+//! look like silent data loss) is emitted with `eprintln!` instead.
 
 use std::path::Path;
 
@@ -14,11 +21,9 @@ use std::path::Path;
 fn rename_if_exists(from: &Path, to: &Path) {
 	if from.exists() && !to.exists() {
 		if let Err(error) = std::fs::rename(from, to) {
-			tracing::warn!(
-				?error,
-				from = ?from,
-				to = ?to,
-				"Failed to rename legacy path during migration"
+			eprintln!(
+				"Longbox: WARNING failed to migrate {from:?} -> {to:?}: {error}. This \
+				 item was left in place and will be retried on next boot."
 			);
 		}
 	}
@@ -26,25 +31,34 @@ fn rename_if_exists(from: &Path, to: &Path) {
 
 /// Migrates a legacy Stump data directory to its new Longbox location.
 ///
-/// Only runs when `legacy` exists AND `target` does NOT — this is what makes the
-/// migration idempotent and non-clobbering: if `target` already exists (e.g. from a
-/// prior migration, or a fresh Longbox install sitting next to an old Stump one), it is
-/// never touched or overwritten, and `legacy` is left in place untouched too.
+/// The directory-level rename only runs when `legacy` exists AND `target` does NOT —
+/// this is what makes it non-clobbering: if `target` already exists (e.g. from a prior
+/// migration, or a fresh Longbox install sitting next to an old Stump one), it is
+/// never touched or overwritten, and `legacy` is left in place untouched too. When it
+/// does apply, the directory is moved with a single atomic `fs::rename` (atomic as long
+/// as `legacy` and `target` share a filesystem, which they do here since both live
+/// under the same home directory).
 ///
-/// When the migration does apply, the directory is moved with a single atomic
-/// `fs::rename` (atomic as long as `legacy` and `target` share a filesystem, which they
-/// do here since both live under the same home directory), and then the well-known
-/// legacy-named files inside it (`Stump.toml`, `Stump.log`, `stump.db` + WAL/SHM
-/// sidecars) are renamed in place to their Longbox-branded names.
+/// Independently, whenever `target` exists (whether it existed already, or was just
+/// created by the rename above), the well-known legacy-named files inside it
+/// (`Stump.toml`, `Stump.log`, `stump.db` + WAL/SHM sidecars) are (re-)renamed in
+/// place to their Longbox-branded names via [`migrate_legacy_files`]. This is what
+/// makes the migration retry-safe: if a previous boot's outer `fs::rename` succeeded
+/// but an inner file rename then failed (e.g. a permissions issue on just that file),
+/// `target` already exists on the next boot, so the old `legacy.exists() &&
+/// !target.exists()` guard alone would skip retrying the stranded inner file forever.
+/// Running `migrate_legacy_files` unconditionally whenever `target` exists closes that
+/// gap; it is itself idempotent and non-clobbering via [`rename_if_exists`], so
+/// re-running it on an already-fully-migrated directory is always a safe no-op.
 pub fn migrate_legacy_dir(legacy: &Path, target: &Path) -> std::io::Result<()> {
-	if !legacy.exists() || target.exists() {
-		return Ok(());
+	if legacy.exists() && !target.exists() {
+		std::fs::rename(legacy, target)?;
+		eprintln!("Longbox: migrated legacy data dir {legacy:?} -> {target:?}");
 	}
 
-	std::fs::rename(legacy, target)?;
-	migrate_legacy_files(target);
-
-	tracing::info!("migrated legacy data dir {legacy:?} -> {target:?}");
+	if target.exists() {
+		migrate_legacy_files(target);
+	}
 
 	Ok(())
 }
@@ -109,6 +123,29 @@ mod tests {
 		assert_eq!(
 			std::fs::read_to_string(target.join("Longbox.toml")).unwrap(),
 			"x"
+		);
+	}
+
+	#[test]
+	fn retries_stranded_inner_file_migration_when_target_already_exists() {
+		// Simulates a previous boot where the outer dir rename succeeded but an inner
+		// file rename then failed (or was interrupted), leaving a Stump-named file
+		// stranded inside an already-migrated target directory. The legacy dir itself
+		// is gone (already renamed away), so the old `legacy.exists()` guard alone
+		// would never retry this - it must be picked up whenever `target` exists.
+		let tmp = tempdir().unwrap();
+		let legacy = tmp.path().join(".stump");
+		let target = tmp.path().join(".longbox");
+		std::fs::create_dir_all(&target).unwrap();
+		std::fs::write(target.join("Stump.toml"), "stranded").unwrap();
+
+		migrate_legacy_dir(&legacy, &target).unwrap();
+
+		assert!(target.join("Longbox.toml").exists());
+		assert!(!target.join("Stump.toml").exists());
+		assert_eq!(
+			std::fs::read_to_string(target.join("Longbox.toml")).unwrap(),
+			"stranded"
 		);
 	}
 

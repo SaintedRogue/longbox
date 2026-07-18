@@ -27,14 +27,21 @@ fn get_legacy_default_config_dir() -> std::path::PathBuf {
 
 /// Migrates a pre-existing legacy `~/.stump` directory to `default_dir` (`~/.longbox`)
 /// if present, via [`migrate::migrate_legacy_dir`]. No-op if there is nothing to
-/// migrate (including if `default_dir` already exists). Migration failures are logged
-/// and otherwise ignored - this must never block boot.
+/// migrate (including if `default_dir` already exists). Migration failures are
+/// reported via `eprintln!` (this runs before tracing is initialized, so
+/// `tracing::*` calls here would be silently dropped) and otherwise ignored - a
+/// failed migration must never block boot, but it also must never look like silent
+/// data loss.
 fn migrate_default_config_dir(default_dir: &str) {
 	let legacy_dir = get_legacy_default_config_dir();
 	if let Err(error) =
 		migrate::migrate_legacy_dir(&legacy_dir, std::path::Path::new(default_dir))
 	{
-		tracing::warn!(?error, "Failed to migrate legacy config directory");
+		eprintln!(
+			"Longbox: WARNING failed to migrate {legacy_dir:?} -> {default_dir:?}: \
+			 {error}. Your existing data remains at {legacy_dir:?}; the server will \
+			 start with a fresh config dir until this is resolved."
+		);
 	}
 }
 
