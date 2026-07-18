@@ -1,9 +1,8 @@
-use std::env;
-
 use async_graphql::SimpleObject;
 use serde::{Deserialize, Serialize};
 
 use super::env_keys::*;
+use super::env_var;
 
 const REQUIRED_SCOPES: &str = "email";
 
@@ -87,8 +86,7 @@ impl OidcConfig {
 	/// Load OIDC configuration from environment variables
 	/// Returns None if OIDC is not enabled or not properly configured
 	pub fn from_env() -> Option<Self> {
-		let enabled = env::var(OIDC_ENABLED_KEY)
-			.ok()
+		let enabled = env_var(OIDC_ENABLED_KEY)
 			.and_then(|v| v.parse::<bool>().ok())
 			.unwrap_or(false);
 
@@ -96,9 +94,9 @@ impl OidcConfig {
 			return None;
 		}
 
-		let client_id = env::var(OIDC_CLIENT_ID_KEY).unwrap_or_default();
-		let issuer_url = env::var(OIDC_ISSUER_URL_KEY).unwrap_or_default();
-		let client_secret = env::var(OIDC_CLIENT_SECRET_KEY).unwrap_or_default();
+		let client_id = env_var(OIDC_CLIENT_ID_KEY).unwrap_or_default();
+		let issuer_url = env_var(OIDC_ISSUER_URL_KEY).unwrap_or_default();
+		let client_secret = env_var(OIDC_CLIENT_SECRET_KEY).unwrap_or_default();
 
 		if client_id.is_empty() || issuer_url.is_empty() || client_secret.is_empty() {
 			tracing::warn!(
@@ -107,7 +105,7 @@ impl OidcConfig {
 			return None;
 		}
 
-		let scopes = env::var(OIDC_SCOPES_KEY).unwrap_or_else(|_| default_oidc_scopes());
+		let scopes = env_var(OIDC_SCOPES_KEY).unwrap_or_else(default_oidc_scopes);
 
 		let mut scopes_set: Vec<String> = scopes
 			.split(',')
@@ -122,17 +120,14 @@ impl OidcConfig {
 		}
 		let scopes = scopes_set.join(",");
 
-		let allow_registration = env::var(OIDC_ALLOW_REGISTRATION_KEY)
-			.ok()
+		let allow_registration = env_var(OIDC_ALLOW_REGISTRATION_KEY)
 			.and_then(|v| v.parse::<bool>().ok())
 			.unwrap_or(true);
-		let disable_local_auth = env::var(OIDC_DISABLE_LOCAL_AUTH_KEY)
-			.ok()
+		let disable_local_auth = env_var(OIDC_DISABLE_LOCAL_AUTH_KEY)
 			.and_then(|v| v.parse::<bool>().ok())
 			.unwrap_or(false);
 
-		let extra_audiences = env::var(OIDC_EXTRA_AUDIENCES_KEY)
-			.ok()
+		let extra_audiences = env_var(OIDC_EXTRA_AUDIENCES_KEY)
 			.map(|v| {
 				v.split(',')
 					.map(|s| s.trim().to_string())
@@ -141,9 +136,7 @@ impl OidcConfig {
 			})
 			.unwrap_or_default();
 
-		let ca_cert_file = env::var(OIDC_CA_CERT_FILE_KEY)
-			.ok()
-			.filter(|v| !v.is_empty());
+		let ca_cert_file = env_var(OIDC_CA_CERT_FILE_KEY).filter(|v| !v.is_empty());
 		if let Some(ref ca_cert_file_specified) = ca_cert_file {
 			tracing::info!("OIDC certificate specified as {}", ca_cert_file_specified);
 		}

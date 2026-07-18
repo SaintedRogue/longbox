@@ -11,12 +11,21 @@ enum CoreError {
 	IoError(#[from] std::io::Error),
 }
 
-use std::{env, path::PathBuf};
+use std::path::PathBuf;
 
 use itertools::Itertools;
 use serde::Deserialize;
 
 use longbox_config_gen::LongboxConfigGenerator;
+
+// The macro's generated `with_environment` reads each field via
+// `crate::config::env_var`, so this standalone test crate (which isn't
+// `longbox_core`) needs to provide a compatible shim at that path.
+mod config {
+	pub fn env_var(key: &str) -> Option<String> {
+		std::env::var(key).ok()
+	}
+}
 
 #[derive(LongboxConfigGenerator, Deserialize)]
 #[config_file_location(get_mock_config_file())]

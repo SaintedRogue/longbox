@@ -1,9 +1,9 @@
+mod env;
 pub mod logging;
 mod longbox_config;
 pub mod oidc_config;
 
-use std::env;
-
+pub use env::env_var;
 use longbox_config::env_keys::{CONFIG_DIR_KEY, IN_DOCKER_KEY};
 pub use longbox_config::{defaults, env_keys, LongboxConfig};
 pub use oidc_config::OidcConfig;
@@ -17,12 +17,13 @@ pub fn get_default_config_dir() -> String {
 	config_dir.to_string_lossy().into_owned()
 }
 
-/// Returns the value of the `STUMP_CONFIG_DIR` environment variable if it is set,
-/// logs an error and returns `~/.stump` otherwise.
+/// Returns the value of the `LONGBOX_CONFIG_DIR` environment variable (falling back
+/// to the legacy `STUMP_CONFIG_DIR`) if it is set, logs an error and returns
+/// `~/.stump` otherwise.
 pub fn bootstrap_config_dir() -> String {
-	match env::var(CONFIG_DIR_KEY) {
+	match env_var(CONFIG_DIR_KEY) {
 		// Environment variable set
-		Ok(config_dir) => {
+		Some(config_dir) => {
 			if config_dir.is_empty() {
 				let default_dir = get_default_config_dir();
 				tracing::error!(
@@ -37,11 +38,10 @@ pub fn bootstrap_config_dir() -> String {
 			}
 		},
 		// Environment variable not set
-		Err(e) => {
+		None => {
 			let default_dir = get_default_config_dir();
 			tracing::error!(
-				"Error {} retrieving {} - falling back to {}",
-				e,
+				"{} not set - falling back to {}",
 				CONFIG_DIR_KEY,
 				default_dir
 			);
@@ -52,11 +52,11 @@ pub fn bootstrap_config_dir() -> String {
 }
 
 /// Checks if Stump is running in docker by checking each of:
-///   1. The `STUMP_IN_DOCKER` environment variable.
+///   1. The `LONGBOX_IN_DOCKER` (or legacy `STUMP_IN_DOCKER`) environment variable.
 ///   2. The existence of `/run/.containerenv` and `/.dockerenv`.
 ///   3. The presence of "docker" or "containerd" processes.
 pub fn longbox_in_docker() -> bool {
-	let env_set = std::env::var(IN_DOCKER_KEY).is_ok();
+	let env_set = env_var(IN_DOCKER_KEY).is_some();
 	if env_set {
 		return true;
 	}

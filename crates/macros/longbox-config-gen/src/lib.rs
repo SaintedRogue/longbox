@@ -44,6 +44,10 @@ use gen_partial_config::gen_partial_longbox_config;
 /// (or any expression). Variables without this annotation will not be included in the
 /// `with_environment` function at all.
 ///
+/// The generated `with_environment` function reads each variable via
+/// `crate::config::env_var(key)`, so the invocation crate must expose a
+/// `pub fn env_var(key: &str) -> Option<String>` at `crate::config::env_var`.
+///
 /// ### `#[validator(Fn)]`
 ///
 /// This attribute optionally allows a validation function to be defined which will run before  

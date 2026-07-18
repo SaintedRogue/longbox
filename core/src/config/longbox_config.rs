@@ -6,7 +6,7 @@
 //! logging that occurs during the construction of the [`LongboxConfig`] should be done using the
 //! standard `println!` or `eprintln!` macros.
 
-use std::{env, path::PathBuf};
+use std::path::PathBuf;
 
 use async_graphql::SimpleObject;
 use itertools::Itertools;
@@ -16,48 +16,47 @@ use super::oidc_config::OidcConfig;
 use crate::{CoreError, CoreResult};
 use longbox_config_gen::LongboxConfigGenerator;
 
-// TODO(env): prefix with STUMP_ for consistency
 pub mod env_keys {
-	pub const CONFIG_DIR_KEY: &str = "STUMP_CONFIG_DIR";
-	pub const IN_DOCKER_KEY: &str = "STUMP_IN_DOCKER";
-	pub const PROFILE_KEY: &str = "STUMP_PROFILE";
-	pub const IP_KEY: &str = "STUMP_IP";
-	pub const PORT_KEY: &str = "STUMP_PORT";
-	pub const VERBOSITY_KEY: &str = "STUMP_VERBOSITY";
-	pub const PRETTY_LOGS_KEY: &str = "STUMP_PRETTY_LOGS";
-	pub const LOG_DIR_KEY: &str = "STUMP_LOG_DIR";
-	pub const COLORFUL_LOGS_KEY: &str = "STUMP_COLORFUL_LOGS";
-	pub const DB_PATH_KEY: &str = "STUMP_DB_PATH";
-	pub const CLIENT_KEY: &str = "STUMP_CLIENT_DIR";
-	pub const ORIGINS_KEY: &str = "STUMP_ALLOWED_ORIGINS";
+	pub const CONFIG_DIR_KEY: &str = "LONGBOX_CONFIG_DIR";
+	pub const IN_DOCKER_KEY: &str = "LONGBOX_IN_DOCKER";
+	pub const PROFILE_KEY: &str = "LONGBOX_PROFILE";
+	pub const IP_KEY: &str = "LONGBOX_IP";
+	pub const PORT_KEY: &str = "LONGBOX_PORT";
+	pub const VERBOSITY_KEY: &str = "LONGBOX_VERBOSITY";
+	pub const PRETTY_LOGS_KEY: &str = "LONGBOX_PRETTY_LOGS";
+	pub const LOG_DIR_KEY: &str = "LONGBOX_LOG_DIR";
+	pub const COLORFUL_LOGS_KEY: &str = "LONGBOX_COLORFUL_LOGS";
+	pub const DB_PATH_KEY: &str = "LONGBOX_DB_PATH";
+	pub const CLIENT_KEY: &str = "LONGBOX_CLIENT_DIR";
+	pub const ORIGINS_KEY: &str = "LONGBOX_ALLOWED_ORIGINS";
 	pub const PDFIUM_KEY: &str = "PDFIUM_PATH";
-	pub const ENABLE_PLAYGROUND_KEY: &str = "STUMP_ENABLE_PLAYGROUND";
+	pub const ENABLE_PLAYGROUND_KEY: &str = "LONGBOX_ENABLE_PLAYGROUND";
 	pub const ENABLE_KOREADER_SYNC_KEY: &str = "ENABLE_KOREADER_SYNC";
 	pub const ENABLE_KOBO_SYNC_KEY: &str = "ENABLE_KOBO_SYNC";
 	pub const ENABLE_OPDS_PROGRESSION_KEY: &str = "ENABLE_OPDS_PROGRESSION";
 	pub const HASH_COST_KEY: &str = "HASH_COST";
 	pub const SESSION_TTL_KEY: &str = "SESSION_TTL";
 	pub const SESSION_EXPIRY_INTERVAL_KEY: &str = "SESSION_EXPIRY_CLEANUP_INTERVAL";
-	pub const MAX_IMAGE_UPLOAD_SIZE_KEY: &str = "STUMP_MAX_IMAGE_UPLOAD_SIZE";
-	pub const ENABLE_UPLOAD_KEY: &str = "STUMP_ENABLE_UPLOAD";
-	pub const MAX_FILE_UPLOAD_SIZE_KEY: &str = "STUMP_MAX_FILE_UPLOAD_SIZE";
-	pub const PDF_RENDER_DPI_KEY: &str = "STUMP_PDF_RENDER_DPI";
-	pub const PDF_MAX_DIMENSION_KEY: &str = "STUMP_PDF_MAX_DIMENSION";
-	pub const PDF_RENDER_FORMAT_KEY: &str = "STUMP_PDF_RENDER_FORMAT";
-	pub const PDF_CACHE_PAGES_KEY: &str = "STUMP_PDF_CACHE_PAGES";
-	pub const PDF_PRERENDER_RANGE_KEY: &str = "STUMP_PDF_PRERENDER_RANGE";
-	pub const PDF_HIGH_QUALITY_KEY: &str = "STUMP_PDF_HIGH_QUALITY";
-	pub const OIDC_ENABLED_KEY: &str = "STUMP_OIDC_ENABLED";
-	pub const OIDC_CLIENT_ID_KEY: &str = "STUMP_OIDC_CLIENT_ID";
-	pub const OIDC_CLIENT_SECRET_KEY: &str = "STUMP_OIDC_CLIENT_SECRET";
-	pub const OIDC_ISSUER_URL_KEY: &str = "STUMP_OIDC_ISSUER_URL";
-	pub const OIDC_SCOPES_KEY: &str = "STUMP_OIDC_SCOPES";
-	pub const OIDC_ALLOW_REGISTRATION_KEY: &str = "STUMP_OIDC_ALLOW_REGISTRATION";
-	pub const OIDC_DISABLE_LOCAL_AUTH_KEY: &str = "STUMP_OIDC_DISABLE_LOCAL_AUTH";
-	pub const OIDC_EXTRA_AUDIENCES_KEY: &str = "STUMP_OIDC_EXTRA_AUDIENCES";
-	pub const OIDC_CA_CERT_FILE_KEY: &str = "STUMP_OIDC_CA_CERT_FILE";
-	pub const TRUST_PROXY_HEADERS_KEY: &str = "STUMP_TRUST_PROXY_HEADERS";
-	pub const PARALLELISM_MULTIPLIER_KEY: &str = "STUMP_PARALLELISM_MULTIPLIER";
+	pub const MAX_IMAGE_UPLOAD_SIZE_KEY: &str = "LONGBOX_MAX_IMAGE_UPLOAD_SIZE";
+	pub const ENABLE_UPLOAD_KEY: &str = "LONGBOX_ENABLE_UPLOAD";
+	pub const MAX_FILE_UPLOAD_SIZE_KEY: &str = "LONGBOX_MAX_FILE_UPLOAD_SIZE";
+	pub const PDF_RENDER_DPI_KEY: &str = "LONGBOX_PDF_RENDER_DPI";
+	pub const PDF_MAX_DIMENSION_KEY: &str = "LONGBOX_PDF_MAX_DIMENSION";
+	pub const PDF_RENDER_FORMAT_KEY: &str = "LONGBOX_PDF_RENDER_FORMAT";
+	pub const PDF_CACHE_PAGES_KEY: &str = "LONGBOX_PDF_CACHE_PAGES";
+	pub const PDF_PRERENDER_RANGE_KEY: &str = "LONGBOX_PDF_PRERENDER_RANGE";
+	pub const PDF_HIGH_QUALITY_KEY: &str = "LONGBOX_PDF_HIGH_QUALITY";
+	pub const OIDC_ENABLED_KEY: &str = "LONGBOX_OIDC_ENABLED";
+	pub const OIDC_CLIENT_ID_KEY: &str = "LONGBOX_OIDC_CLIENT_ID";
+	pub const OIDC_CLIENT_SECRET_KEY: &str = "LONGBOX_OIDC_CLIENT_SECRET";
+	pub const OIDC_ISSUER_URL_KEY: &str = "LONGBOX_OIDC_ISSUER_URL";
+	pub const OIDC_SCOPES_KEY: &str = "LONGBOX_OIDC_SCOPES";
+	pub const OIDC_ALLOW_REGISTRATION_KEY: &str = "LONGBOX_OIDC_ALLOW_REGISTRATION";
+	pub const OIDC_DISABLE_LOCAL_AUTH_KEY: &str = "LONGBOX_OIDC_DISABLE_LOCAL_AUTH";
+	pub const OIDC_EXTRA_AUDIENCES_KEY: &str = "LONGBOX_OIDC_EXTRA_AUDIENCES";
+	pub const OIDC_CA_CERT_FILE_KEY: &str = "LONGBOX_OIDC_CA_CERT_FILE";
+	pub const TRUST_PROXY_HEADERS_KEY: &str = "LONGBOX_TRUST_PROXY_HEADERS";
+	pub const PARALLELISM_MULTIPLIER_KEY: &str = "LONGBOX_PARALLELISM_MULTIPLIER";
 }
 use env_keys::*;
 

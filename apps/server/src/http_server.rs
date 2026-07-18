@@ -145,7 +145,7 @@ pub async fn run_http_server(config: LongboxConfig) -> ServerResult<()> {
 
 #[allow(dead_code)]
 pub async fn bootstrap_http_server_config() -> Result<LongboxConfig, EntryError> {
-	// Get STUMP_CONFIG_DIR to bootstrap startup
+	// Get LONGBOX_CONFIG_DIR (or legacy STUMP_CONFIG_DIR) to bootstrap startup
 	let config_dir = bootstrap_config_dir();
 
 	let config = LongboxCore::init_config(config_dir)

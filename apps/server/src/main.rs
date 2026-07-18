@@ -14,11 +14,11 @@ mod utils;
 #[cfg(debug_assertions)]
 fn debug_setup() {
 	std::env::set_var(
-		"STUMP_CLIENT_DIR",
+		"LONGBOX_CLIENT_DIR",
 		env!("CARGO_MANIFEST_DIR").to_string() + "/../web/dist",
 	);
-	std::env::set_var("STUMP_PROFILE", "debug");
-	std::env::set_var("STUMP_COLORFUL_LOGS", "true");
+	std::env::set_var("LONGBOX_PROFILE", "debug");
+	std::env::set_var("LONGBOX_COLORFUL_LOGS", "true");
 }
 
 #[tokio::main(flavor = "multi_thread")]

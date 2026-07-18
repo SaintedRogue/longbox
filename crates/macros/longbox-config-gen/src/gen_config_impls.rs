@@ -146,7 +146,7 @@ fn gen_env_var_extractors(var: &LongboxConfigVariable) -> TokenStream {
 		// Handle types that need to be parsed from strings
 		if is_parse_type && !var.is_vec {
 			return quote! {
-				if let Ok(#var_name) = env::var(#var_env_key) {
+				if let Some(#var_name) = crate::config::env_var(#var_env_key) {
 					let parsed_val = #var_name.parse::<#var_type>().map_err(|e| {
 						eprintln!("Failed to parse provided {}: {}", #env_key_str, e);
 						crate::CoreError::InitializationError(e.to_string())
@@ -166,7 +166,7 @@ fn gen_env_var_extractors(var: &LongboxConfigVariable) -> TokenStream {
 		// Handle types that don't need to be parsed, but are Vec
 		if !is_parse_type && var.is_vec {
 			return quote! {
-				if let Ok(#var_name) = env::var(#var_env_key) {
+				if let Some(#var_name) = crate::config::env_var(#var_env_key) {
 					if !#var_name.is_empty() {
 						env_configs.#var_name = Some(
 							#var_name
@@ -181,7 +181,7 @@ fn gen_env_var_extractors(var: &LongboxConfigVariable) -> TokenStream {
 
 		// Handle non-Vec non-parse types
 		return quote! {
-			if let Ok(#var_name) = env::var(#var_env_key) {
+			if let Some(#var_name) = crate::config::env_var(#var_env_key) {
 				env_configs.#var_name = Some(#var_name);
 			}
 		};
