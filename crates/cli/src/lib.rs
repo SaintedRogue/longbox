@@ -10,9 +10,9 @@ pub use error::CliError;
 
 pub use clap::Parser;
 
-/// A CLI for Stump. If no subcommand is provided, the server will be started.
+/// A CLI for Longbox. If no subcommand is provided, the server will be started.
 #[derive(Parser)]
-#[command(name = "stump")]
+#[command(name = "longbox")]
 #[command(author, version, about, long_about = None)]
 pub struct Cli {
 	#[clap(flatten)]

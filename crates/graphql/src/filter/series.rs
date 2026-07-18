@@ -134,7 +134,7 @@ fn apply_series_reading_status_filter(
 		ReadingStatus::Finished => finished_series_subquery(user_id),
 		ReadingStatus::NotStarted => not_started_series_subquery(user_id),
 		// a panic might feel heavy but it will remind me not to surface this until i add some kind of abandoned tracking
-		ReadingStatus::Abandoned => unimplemented!("Stump does not yet track abandoned status. This query should not have been possible yet"),
+		ReadingStatus::Abandoned => unimplemented!("Longbox does not yet track abandoned status. This query should not have been possible yet"),
 	};
 
 	let expr = Expr::col((series::Entity, series::Column::Id)).in_subquery(subquery);

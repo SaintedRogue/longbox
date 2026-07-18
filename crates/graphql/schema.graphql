@@ -900,7 +900,7 @@ type ImageMetadata {
 	dimensions: ImageDimensions
 }
 
-"Options for processing images throughout Stump."
+"Options for processing images throughout Longbox."
 type ImageProcessorOptions {
 	"The size factor to use when generating an image. See [`ImageResizeOptions`]"
 	resizeMethod: ImageResizeMethod
@@ -916,7 +916,7 @@ type ImageProcessorOptions {
 	page: Int
 }
 
-"Options for processing images throughout Stump."
+"Options for processing images throughout Longbox."
 input ImageProcessorOptionsInput {
 	"The size factor to use when generating an image. See [`ImageResizeOptions`]"
 	resizeMethod: ImageResizeMethodInput
@@ -1275,7 +1275,7 @@ enum LogModelOrdering {
 }
 
 """
-Represents the configuration of a Stump application. This struct is generated at startup
+Represents the configuration of a Longbox application. This struct is generated at startup
 using a TOML file, environment variables, or both and is input when creating a `LongboxCore`
 instance.
 
@@ -1410,7 +1410,7 @@ type Media {
 	"""
 	modifiedAt: DateTime
 	"""
-	A Stump-specific hash of the media file. This is used as a secondary identifier for the media, primarily
+	A Longbox-specific hash of the media file. This is used as a secondary identifier for the media, primarily
 	in aiding in the identification of duplicate media files
 	"""
 	hash: String
@@ -2677,7 +2677,7 @@ type Query {
 	customEmojis: [CustomEmoji!]!
 }
 
-"The different reading directions supported by any Stump reader"
+"The different reading directions supported by any Longbox reader"
 enum ReadingDirection {
 	LTR
 	RTL
@@ -2708,7 +2708,7 @@ input ReadingListInput {
 	mediaIds: [String!]!
 }
 
-"The different reading modes supported by any Stump reader"
+"The different reading modes supported by any Longbox reader"
 enum ReadingMode {
 	PAGED
 	CONTINUOUS_VERTICAL
@@ -2719,7 +2719,7 @@ type ReadingSession {
 	id: Int!
 	"the \"logical\" date of this session, based on user prefs and start time"
 	sessionDate: NaiveDate!
-	epubcfi: String @deprecated(reason: "future releases of Stump will remove support for this field")
+	epubcfi: String @deprecated(reason: "future releases of Longbox will remove support for this field")
 	startLocator: ReadiumLocator
 	endLocator: ReadiumLocator
 	startPage: Int
@@ -3345,7 +3345,7 @@ enum SupportedFont {
 	OPEN_DYSLEXIC
 }
 
-"Supported image formats for processing images throughout Stump"
+"Supported image formats for processing images throughout Longbox"
 enum SupportedImageFormat {
 	WEBP
 	JPEG

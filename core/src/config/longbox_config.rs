@@ -1,5 +1,5 @@
 //! Contains the [`LongboxConfig`] struct and related functions for loading and saving configuration
-//! values for a Stump application.
+//! values for a Longbox application.
 //!
 //! Note: [`LongboxConfig`] is constructed _before_ tracing is initializing. This is because the
 //! configuration is used to determine the log file path and verbosity level. This means that any
@@ -81,7 +81,7 @@ pub mod defaults {
 }
 use defaults::*;
 
-/// Represents the configuration of a Stump application. This struct is generated at startup
+/// Represents the configuration of a Longbox application. This struct is generated at startup
 /// using a TOML file, environment variables, or both and is input when creating a `LongboxCore`
 /// instance.
 ///

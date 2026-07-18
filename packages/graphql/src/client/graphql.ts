@@ -967,7 +967,7 @@ export type ImageMetadata = {
   thumbhash?: Maybe<Scalars['String']['output']>;
 };
 
-/** Options for processing images throughout Stump. */
+/** Options for processing images throughout Longbox. */
 export type ImageProcessorOptions = {
   __typename?: 'ImageProcessorOptions';
   /** The format to use when generating an image. See [`SupportedImageFormat`] */
@@ -984,7 +984,7 @@ export type ImageProcessorOptions = {
   resizeMethod?: Maybe<ImageResizeMethod>;
 };
 
-/** Options for processing images throughout Stump. */
+/** Options for processing images throughout Longbox. */
 export type ImageProcessorOptionsInput = {
   /** The format to use when generating an image. See [`SupportedImageFormat`] */
   format: SupportedImageFormat;
@@ -1377,7 +1377,7 @@ export enum LogModelOrdering {
 }
 
 /**
- * Represents the configuration of a Stump application. This struct is generated at startup
+ * Represents the configuration of a Longbox application. This struct is generated at startup
  * using a TOML file, environment variables, or both and is input when creating a `LongboxCore`
  * instance.
  *
@@ -1505,7 +1505,7 @@ export type Media = {
   /** The extension of the media file, excluding the leading period */
   extension: Scalars['String']['output'];
   /**
-   * A Stump-specific hash of the media file. This is used as a secondary identifier for the media, primarily
+   * A Longbox-specific hash of the media file. This is used as a secondary identifier for the media, primarily
    * in aiding in the identification of duplicate media files
    */
   hash?: Maybe<Scalars['String']['output']>;
@@ -3827,7 +3827,7 @@ export type QueryUsersArgs = {
   pagination?: Pagination;
 };
 
-/** The different reading directions supported by any Stump reader */
+/** The different reading directions supported by any Longbox reader */
 export enum ReadingDirection {
   Ltr = 'LTR',
   Rtl = 'RTL'
@@ -3859,7 +3859,7 @@ export type ReadingListInput = {
   visibility?: InputMaybe<EntityVisibility>;
 };
 
-/** The different reading modes supported by any Stump reader */
+/** The different reading modes supported by any Longbox reader */
 export enum ReadingMode {
   ContinuousHorizontal = 'CONTINUOUS_HORIZONTAL',
   ContinuousVertical = 'CONTINUOUS_VERTICAL',
@@ -3875,7 +3875,7 @@ export type ReadingSession = {
   endLocator?: Maybe<ReadiumLocator>;
   endPage?: Maybe<Scalars['Int']['output']>;
   endPercentage?: Maybe<Scalars['Decimal']['output']>;
-  /** @deprecated future releases of Stump will remove support for this field */
+  /** @deprecated future releases of Longbox will remove support for this field */
   epubcfi?: Maybe<Scalars['String']['output']>;
   id: Scalars['Int']['output'];
   koreaderProgress?: Maybe<Scalars['String']['output']>;
@@ -4549,7 +4549,7 @@ export enum SupportedFont {
   OpenDyslexic = 'OPEN_DYSLEXIC'
 }
 
-/** Supported image formats for processing images throughout Stump */
+/** Supported image formats for processing images throughout Longbox */
 export enum SupportedImageFormat {
   Jpeg = 'JPEG',
   Png = 'PNG',

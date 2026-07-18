@@ -80,13 +80,13 @@ If a user has been locked out of their account, it is up to the server owner to 
 2. Use the embedded CLI in the Longbox server to unlock the user account. See the [CLI](/docs/developer/cli) guide for more information. In general, the command will look like this:
 
    ```bash copy
-   ./stump account unlock --username <username>
+   ./longbox account unlock --username <username>
    ```
 
    Similarly, you can lock a user account using the following command:
 
    ```bash copy
-    ./stump account lock --username <username>
+    ./longbox account lock --username <username>
    ```
 
 In the event the server owner account becomes locked, you will only be able to unlock it using the CLI.
@@ -96,7 +96,7 @@ In the event the server owner account becomes locked, you will only be able to u
 If a user has forgotten their password, you will have to use the embedded CLI in the Longbox server to reset the user's password. See the [CLI](/docs/developer/cli) guide for more information. In general, the command will look like this:
 
 ```bash copy
-./stump account reset-password --username <username>
+./longbox account reset-password --username <username>
 ```
 
 It will prompt you for a new password with confirmation. Once the password has been reset, the user will be able to log in with the new password.

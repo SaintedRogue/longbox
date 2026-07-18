@@ -45,7 +45,7 @@ pub struct Model {
 	/// a timestamp can be retrieved from the filesystem
 	#[sea_orm(column_type = "custom(\"DATETIME\")", nullable)]
 	pub modified_at: Option<DateTimeWithTimeZone>,
-	/// A Stump-specific hash of the media file. This is used as a secondary identifier for the media, primarily
+	/// A Longbox-specific hash of the media file. This is used as a secondary identifier for the media, primarily
 	/// in aiding in the identification of duplicate media files
 	#[sea_orm(column_type = "Text", nullable)]
 	pub hash: Option<String>,

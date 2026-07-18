@@ -8,11 +8,11 @@ async fn main() {
 	let app = Cli::parse();
 
 	let config_dir = config::bootstrap_config_dir();
-	let stump_config = LongboxCore::init_config(config_dir)
-		.expect("Failed to initialize stump configuration");
+	let longbox_config = LongboxCore::init_config(config_dir)
+		.expect("Failed to initialize longbox configuration");
 
 	if let Some(command) = app.command {
-		handle_command(command, &app.config.merge_longbox_config(stump_config))
+		handle_command(command, &app.config.merge_longbox_config(longbox_config))
 			.await
 			.expect("Failed to handle command");
 	} else {

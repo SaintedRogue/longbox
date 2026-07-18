@@ -529,7 +529,7 @@ pub enum MetadataResetImpact {
 	Everything,
 }
 
-/// The different reading directions supported by any Stump reader
+/// The different reading directions supported by any Longbox reader
 #[derive(
 	Eq,
 	Copy,
@@ -628,7 +628,7 @@ pub enum ReadingImageScaleFit {
 	None,
 }
 
-/// The different reading modes supported by any Stump reader
+/// The different reading modes supported by any Longbox reader
 #[derive(
 	Eq,
 	Copy,

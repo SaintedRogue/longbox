@@ -16,7 +16,7 @@ pub struct LongboxAuthor {
 impl Default for LongboxAuthor {
 	fn default() -> Self {
 		Self {
-			name: "Stump".to_string(),
+			name: "Longbox".to_string(),
 			uri: Some("https://github.com/stumpapp/stump".to_string()),
 		}
 	}
@@ -65,7 +65,7 @@ mod tests {
 
 	#[test]
 	fn test_author_with_only_name() {
-		let author = LongboxAuthor::new("Stump".to_string(), None);
+		let author = LongboxAuthor::new("Longbox".to_string(), None);
 
 		let mut writer = EventWriter::new(Vec::new());
 		author.write(&mut writer).unwrap();
@@ -75,7 +75,7 @@ mod tests {
 			r#"
 			<?xml version="1.0" encoding="UTF-8"?>
 			<author>
-				<name>Stump</name>
+				<name>Longbox</name>
 			</author>
 			"#,
 		);
@@ -86,7 +86,7 @@ mod tests {
 	#[test]
 	fn test_author_with_name_and_uri() {
 		let author = LongboxAuthor::new(
-			"Stump".to_string(),
+			"Longbox".to_string(),
 			Some("https://www.stumpapp.dev/".to_string()),
 		);
 
@@ -98,7 +98,7 @@ mod tests {
 			r#"
 			<?xml version="1.0" encoding="UTF-8"?>
 			<author>
-				<name>Stump</name>
+				<name>Longbox</name>
 				<uri>https://www.stumpapp.dev/</uri>
 			</author>
 			"#,

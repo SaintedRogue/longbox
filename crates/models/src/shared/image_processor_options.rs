@@ -85,7 +85,7 @@ pub enum ImageResizeMethod {
 
 // TODO(images): Support JpegXl and Avif
 
-/// Supported image formats for processing images throughout Stump
+/// Supported image formats for processing images throughout Longbox
 #[derive(Default, Copy, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Enum)]
 pub enum SupportedImageFormat {
 	Webp,
@@ -105,7 +105,7 @@ impl SupportedImageFormat {
 	}
 }
 
-/// Options for processing images throughout Stump.
+/// Options for processing images throughout Longbox.
 #[derive(
 	Default,
 	Debug,

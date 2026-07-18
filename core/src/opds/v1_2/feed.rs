@@ -289,7 +289,7 @@ mod tests {
 				<title>Feed Title</title>
 				<updated>{{{INSERT}}}</updated>
 				<author>
-					<name>Stump</name>
+					<name>Longbox</name>
 					<uri>https://github.com/stumpapp/stump</uri>
 				</author>
 				<entry>

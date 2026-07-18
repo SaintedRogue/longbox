@@ -7,10 +7,10 @@ use async_graphql::SDLExportOptions;
 use clap::Parser;
 use graphql::schema::build_schema_bare;
 
-/// Generate the GraphQL schema for Stump clients
+/// Generate the GraphQL schema for Longbox clients
 #[derive(Parser, Debug, Clone)]
 #[clap(name = "graphql_schema_gen")]
-#[clap(about = "Generate the GraphQL schema for Stump clients")]
+#[clap(about = "Generate the GraphQL schema for Longbox clients")]
 struct Config {
 	/// Write the schema to a specified file
 	#[clap(long, default_value = "./crates/graphql/schema.graphql")]

@@ -8,13 +8,13 @@ description: Commands for managing user accounts
 You can print a basic list of all user accounts by running:
 
 ```bash copy
-./stump account list
+./longbox account list
 ```
 
 Add the `--locked` flag to filter the list by locked status:
 
 ```bash copy
-./stump account list --locked true
+./longbox account list --locked true
 ```
 
 ## Account locking
@@ -26,7 +26,7 @@ A locked user will be unable to log in to their account until it is unlocked. Th
 To lock a user account, run:
 
 ```bash copy
-./stump account lock --username <username>
+./longbox account lock --username <username>
 ```
 
 ### Unlocking
@@ -34,7 +34,7 @@ To lock a user account, run:
 To unlock a user account, run:
 
 ```bash copy
-./stump account unlock --username <username>
+./longbox account unlock --username <username>
 ```
 
 ## Password Reset
@@ -42,7 +42,7 @@ To unlock a user account, run:
 To reset a user's password, run:
 
 ```bash copy
-./stump account reset-password --username <username>
+./longbox account reset-password --username <username>
 ```
 
 You will be prompted to enter a new password, with a confirmation prompt to ensure you entered it correctly. The password will be hashed and salted and stored in the database to replace the existing one.
@@ -58,7 +58,7 @@ You will be prompted to enter a new password, with a confirmation prompt to ensu
 To migrate an existing local user account to an OIDC account, run:
 
 ```bash copy
-./stump account migrate-oidc --username <local-username> --oidc-email <oidc-email>
+./longbox account migrate-oidc --username <local-username> --oidc-email <oidc-email>
 ```
 
 This will do the following, assuming both accounts exist:

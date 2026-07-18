@@ -31,7 +31,7 @@ pub struct Model {
 	pub session_date: Date,
 
 	#[graphql(
-		deprecation = "future releases of Stump will remove support for this field"
+		deprecation = "future releases of Longbox will remove support for this field"
 	)]
 	#[sea_orm(column_type = "Text", nullable)]
 	pub epubcfi: Option<String>,
