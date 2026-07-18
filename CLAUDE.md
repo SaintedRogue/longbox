@@ -5,10 +5,10 @@ Self-hosted server for comics, manga, and digital books — a hard fork of
 under `SaintedRogue`. The fork is **fully rebranded to `longbox`**: the server
 binary/package is `longbox_server`, the core lib is `longbox_core`, TS packages
 are `@longbox/*`, env vars are `LONGBOX_*`, the config file is `Longbox.toml`,
-and the data dir is `~/.longbox`; CI is titled "Longbox Checks CI". Two
-transitional shims remain for one release: legacy `STUMP_*` env vars are still
-honored (with a deprecation warning), and the server auto-migrates an old
-`~/.stump` data dir → `~/.longbox` on boot. Upstream attribution — `stumpapp/stump`
+and the data dir is `~/.longbox`; CI is titled "Longbox Checks CI". (The
+transitional `STUMP_*` env-var fallback and the `~/.stump→~/.longbox` boot
+migration shipped in the first rebrand release and have since been removed —
+`STUMP_*` vars and a legacy `~/.stump` dir are no longer read.) Upstream attribution — `stumpapp/stump`
 links, the MIT `LICENSE`, "fork of Stump" credit, and the sample data in
 `crates/email` — is deliberately preserved; don't "fix" those to Longbox.
 
@@ -114,7 +114,6 @@ on a **self-hosted runner** (see the `devbox build host` memory for the image
 build machine).
 
 - **Reverse-proxy gotcha**: behind NPM/Traefik, set
-  `LONGBOX_TRUST_PROXY_HEADERS=true` (legacy `STUMP_TRUST_PROXY_HEADERS` still
-  honored this release with a deprecation warning) — otherwise server-built
-  cover/thumbnail URLs point at the internal `:10801` and 404 (covers render
-  blank). See the `reverse-proxy-trust-headers` memory.
+  `LONGBOX_TRUST_PROXY_HEADERS=true` — otherwise server-built cover/thumbnail
+  URLs point at the internal `:10801` and 404 (covers render blank). See the
+  `reverse-proxy-trust-headers` memory.
