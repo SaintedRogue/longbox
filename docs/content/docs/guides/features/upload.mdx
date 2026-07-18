@@ -7,10 +7,12 @@ import { Step, Steps } from 'fumadocs-ui/components/steps';
 import { Accordion, Accordions } from 'fumadocs-ui/components/accordion';
 
 <Callout type="warn">
-	This functionality allows files to be uploaded to your server, so it should be used with caution.
-	This feature must be manually enabled by the server owner by setting the `enable_upload`
-	configuration variable to `true`.
+	**HOUSE RULES** — This functionality allows files to be uploaded to your server, so it should be
+	used with caution. This feature must be manually enabled by the server owner by setting the
+	`enable_upload` configuration variable to `true`.
 </Callout>
+
+Uploads let your shelf grow from the other direction — readers can add their own books straight into your longbox instead of you doing all the filing. It's opt-in and off by default, so nothing arrives until you decide to allow it.
 
 ## Enabling upload
 
@@ -31,7 +33,7 @@ The server owner can assign these permissions to users on the user management se
 
 The server limits the maximum upload size based on your configuration, you can change `max_file_upload_size` in `Longbox.toml` or the `LONGBOX_MAX_FILE_UPLOAD_SIZE` environment variable to set the maximum allowed upload size **in bytes**.
 
-## How it works
+## » Filing new books onto the shelf (how it works)
 
 This feature allows users to upload books or an entire collection of files and directories via series upload. To use it, navigate to the "Files" menu for a library and click the upload icon to open the upload dropdown. Select "Add books" to upload one or more book files. Select "Add series" to upload a single `.zip` archive containing the content you wish to upload.
 
@@ -150,6 +152,6 @@ Longbox attempts to validate uploads in order to protect the host system from mi
 It may be possible to construct input that circumvents this validation. Server owners are encouraged to only enable this functionality if they need it and to only allow trusted users permission to upload files.
 
 <Callout type="idea">
-	If you have any questions or encounter issues, please open an
-	[issue](https://github.com/stumpapp/stump/issues/new/choose) on GitHub.
+	**FROM THE LONGBOX** — If you have any questions or encounter issues, please open an
+	[issue](https://github.com/SaintedRogue/longbox/issues/new/choose) on GitHub.
 </Callout>
