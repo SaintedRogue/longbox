@@ -1,4 +1,4 @@
-use crate::{job::stump_job::StumpJob, CoreError, CoreResult};
+use crate::{job::stump_job::LongboxJob, CoreError, CoreResult};
 use apalis::prelude::MemoryStorage;
 use async_trait::async_trait;
 use models::entity::{library, library_config};
@@ -142,7 +142,7 @@ trait SubmitScanJob {
 
 #[derive(Clone)]
 struct ApalisJobSubmitter {
-	storage: MemoryStorage<StumpJob>,
+	storage: MemoryStorage<LongboxJob>,
 }
 
 #[async_trait]
@@ -151,7 +151,7 @@ impl SubmitScanJob for ApalisJobSubmitter {
 		let mut storage = self.storage.clone();
 		use apalis::prelude::MessageQueue;
 		storage
-			.enqueue(StumpJob::library_scan(id, path, None))
+			.enqueue(LongboxJob::library_scan(id, path, None))
 			.await
 			.map(|_| ())
 			.map_err(|e| {
@@ -169,7 +169,7 @@ pub struct LibraryWatcher {
 impl LibraryWatcher {
 	pub fn new(
 		conn: Arc<DatabaseConnection>,
-		storage: MemoryStorage<StumpJob>,
+		storage: MemoryStorage<LongboxJob>,
 	) -> LibraryWatcher {
 		let library_provider = LibraryProvider { conn };
 		let job_submitter = ApalisJobSubmitter { storage };

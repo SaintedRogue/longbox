@@ -21,7 +21,7 @@ use tokio::task::spawn_blocking;
 use walkdir::DirEntry;
 
 use crate::{
-	config::StumpConfig,
+	config::LongboxConfig,
 	database::{get_insert_batch_size, SQLITE_BIND_LIMIT},
 	error::{CoreError, CoreResult},
 	event::CreatedMedia,
@@ -459,7 +459,7 @@ type BuiltEntityFutures<T, R = PathBuf> =
 pub(crate) async fn safely_build_series(
 	for_library: &str,
 	paths: Vec<PathBuf>,
-	config: Arc<StumpConfig>,
+	config: Arc<LongboxConfig>,
 	reporter: impl Fn(usize),
 ) -> (Vec<BuiltSeries>, Vec<JobExecuteLog>) {
 	let mut logs = vec![];
@@ -578,7 +578,7 @@ async fn build_book(
 	series_id: &str,
 	existing_book: Option<media::ModelWithMetadata>,
 	library_config: library_config::Model,
-	config: &StumpConfig,
+	config: &LongboxConfig,
 ) -> CoreResult<BuiltMedia> {
 	let path = path.to_path_buf();
 	let series_id = series_id.to_string();
@@ -615,7 +615,7 @@ async fn handle_book(
 		existing_book,
 	}: BookVisitCtx,
 	library_config: library_config::Model,
-	config: &StumpConfig,
+	config: &LongboxConfig,
 ) -> CoreResult<BookVisitResult> {
 	let path = path.to_path_buf();
 	let series_id = series_id.to_string();

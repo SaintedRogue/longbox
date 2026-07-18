@@ -6,7 +6,7 @@ use std::env;
 
 pub use oidc_config::OidcConfig;
 use stump_config::env_keys::{CONFIG_DIR_KEY, IN_DOCKER_KEY};
-pub use stump_config::{defaults, env_keys, StumpConfig};
+pub use stump_config::{defaults, env_keys, LongboxConfig};
 
 /// Gets the default config directory located at `~/.stump` where `~` is the
 /// user's home directory.

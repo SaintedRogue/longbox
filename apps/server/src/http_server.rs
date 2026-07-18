@@ -5,7 +5,7 @@ use axum::{extract::connect_info::Connected, serve::IncomingStream, Extension, R
 use longbox_core::{
 	config::{bootstrap_config_dir, logging::init_tracing},
 	job::dispatch_job,
-	StumpCore,
+	LongboxCore,
 };
 use tokio::net::TcpListener;
 use tokio::sync::Notify;
@@ -17,10 +17,10 @@ use crate::{
 	routers,
 	utils::shutdown_signal_with_cleanup,
 };
-use longbox_core::config::StumpConfig;
+use longbox_core::config::LongboxConfig;
 
-pub async fn run_http_server(config: StumpConfig) -> ServerResult<()> {
-	let core = StumpCore::new(config.clone()).await;
+pub async fn run_http_server(config: LongboxConfig) -> ServerResult<()> {
+	let core = LongboxCore::new(config.clone()).await;
 
 	// TODO: These need reorganizing, the core-specific initializations should just be
 	// in some initialization function. The server-specific things, e.g. watcher, scheduler,
@@ -134,7 +134,7 @@ pub async fn run_http_server(config: StumpConfig) -> ServerResult<()> {
 
 	let http = axum::serve(
 		listener,
-		app.into_make_service_with_connect_info::<StumpRequestInfo>(),
+		app.into_make_service_with_connect_info::<LongboxRequestInfo>(),
 	)
 	.with_graceful_shutdown(shutdown_signal_with_cleanup(Some(cleanup)));
 
@@ -144,11 +144,11 @@ pub async fn run_http_server(config: StumpConfig) -> ServerResult<()> {
 }
 
 #[allow(dead_code)]
-pub async fn bootstrap_http_server_config() -> Result<StumpConfig, EntryError> {
+pub async fn bootstrap_http_server_config() -> Result<LongboxConfig, EntryError> {
 	// Get STUMP_CONFIG_DIR to bootstrap startup
 	let config_dir = bootstrap_config_dir();
 
-	let config = StumpCore::init_config(config_dir)
+	let config = LongboxCore::init_config(config_dir)
 		.map_err(|e| EntryError::InvalidConfig(e.to_string()))?;
 
 	// Note: init_tracing after loading the environment so the correct verbosity
@@ -163,13 +163,13 @@ pub async fn bootstrap_http_server_config() -> Result<StumpConfig, EntryError> {
 }
 
 #[derive(Clone, Debug)]
-pub struct StumpRequestInfo {
+pub struct LongboxRequestInfo {
 	pub ip_addr: std::net::IpAddr,
 }
 
-impl Connected<IncomingStream<'_, TcpListener>> for StumpRequestInfo {
+impl Connected<IncomingStream<'_, TcpListener>> for LongboxRequestInfo {
 	fn connect_info(target: IncomingStream<'_, TcpListener>) -> Self {
-		StumpRequestInfo {
+		LongboxRequestInfo {
 			ip_addr: target.remote_addr().ip(),
 		}
 	}

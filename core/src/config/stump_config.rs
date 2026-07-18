@@ -1,9 +1,9 @@
-//! Contains the [`StumpConfig`] struct and related functions for loading and saving configuration
+//! Contains the [`LongboxConfig`] struct and related functions for loading and saving configuration
 //! values for a Stump application.
 //!
-//! Note: [`StumpConfig`] is constructed _before_ tracing is initializing. This is because the
+//! Note: [`LongboxConfig`] is constructed _before_ tracing is initializing. This is because the
 //! configuration is used to determine the log file path and verbosity level. This means that any
-//! logging that occurs during the construction of the [`StumpConfig`] should be done using the
+//! logging that occurs during the construction of the [`LongboxConfig`] should be done using the
 //! standard `println!` or `eprintln!` macros.
 
 use std::{env, path::PathBuf};
@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 
 use super::oidc_config::OidcConfig;
 use crate::{CoreError, CoreResult};
-use longbox_config_gen::StumpConfigGenerator;
+use longbox_config_gen::LongboxConfigGenerator;
 
 // TODO(env): prefix with STUMP_ for consistency
 pub mod env_keys {
@@ -82,20 +82,20 @@ pub mod defaults {
 use defaults::*;
 
 /// Represents the configuration of a Stump application. This struct is generated at startup
-/// using a TOML file, environment variables, or both and is input when creating a `StumpCore`
+/// using a TOML file, environment variables, or both and is input when creating a `LongboxCore`
 /// instance.
 ///
 /// Example:
 /// ```
-/// use longbox_core::{config::{self, StumpConfig}, StumpCore};
+/// use longbox_core::{config::{self, LongboxConfig}, LongboxCore};
 ///
 /// #[tokio::main]
 /// async fn main() {
 ///   /// Get config dir from environment variables.
 ///   let config_dir = config::bootstrap_config_dir();
 ///
-///   // Create a StumpConfig using the config file and environment variables.
-///   let config = StumpConfig::new(config_dir)
+///   // Create a LongboxConfig using the config file and environment variables.
+///   let config = LongboxConfig::new(config_dir)
 ///     // Load Stump.toml file (if any)
 ///     .with_config_file().unwrap()
 ///     // Overlay environment variables
@@ -104,15 +104,15 @@ use defaults::*;
 ///   // Ensure that config directory exists and write Stump.toml.
 ///   config.write_config_dir().unwrap();
 ///   // Create an instance of the stump core.
-///   let core = StumpCore::new(config).await;
+///   let core = LongboxCore::new(config).await;
 /// }
 /// ```
 #[derive(
-	StumpConfigGenerator, Serialize, Deserialize, Debug, Clone, PartialEq, SimpleObject,
+	LongboxConfigGenerator, Serialize, Deserialize, Debug, Clone, PartialEq, SimpleObject,
 )]
 #[graphql(name = "StumpConfig")]
 #[config_file_location(self.get_config_dir().join("Stump.toml"))]
-pub struct StumpConfig {
+pub struct LongboxConfig {
 	/// The "release" | "debug" profile with which the application is running.
 	#[default_value("release".to_string())]
 	#[debug_value("debug".to_string())]
@@ -285,7 +285,7 @@ pub struct StumpConfig {
 	pub trust_proxy_headers: bool,
 }
 
-impl StumpConfig {
+impl LongboxConfig {
 	/// returns a sensible default concurrency limit based on the number of logical cpus
 	/// available to the process, scaled by `parallelism_multiplier`.
 	pub fn cpu_concurrency_limit(&self) -> usize {
@@ -295,7 +295,7 @@ impl StumpConfig {
 			.unwrap_or(multiplier)
 	}
 
-	/// Ensures that the configuration directory exists and saves the `StumpConfig`'s current values
+	/// Ensures that the configuration directory exists and saves the `LongboxConfig`'s current values
 	/// to Stump.toml in the configuration directory.
 	///
 	/// This function first checks if `config_dir` exists and creates it if it does not, then does the
@@ -353,7 +353,7 @@ impl StumpConfig {
 		std::fs::write(
 			stump_toml.as_path(),
 			toml::to_string(&self).map_err(|e| {
-				eprintln!("Failed to serialize StumpConfig to toml: {e}");
+				eprintln!("Failed to serialize LongboxConfig to toml: {e}");
 				CoreError::InitializationError(e.to_string())
 			})?,
 		)?;
@@ -449,12 +449,12 @@ mod tests {
 	fn test_writing_to_config_dir() {
 		let tempdir = tempfile::tempdir().expect("Failed to create temporary directory");
 
-		// Now we can create a StumpConfig rooted at the temporary directory
+		// Now we can create a LongboxConfig rooted at the temporary directory
 		let config_dir = tempdir.path().to_string_lossy().to_string();
-		let mut config = StumpConfig::new(config_dir.clone());
+		let mut config = LongboxConfig::new(config_dir.clone());
 
 		// Apply a partial config to set the values
-		let partial_config = PartialStumpConfig {
+		let partial_config = PartialLongboxConfig {
 			profile: Some("release".to_string()),
 			port: Some(1337),
 			verbosity: Some(3),
@@ -483,12 +483,12 @@ mod tests {
 		let new_toml_path = tempdir.path().join("Stump.toml");
 		let new_toml_content = std::fs::read_to_string(new_toml_path).unwrap();
 		let new_toml_vals =
-			toml::from_str::<PartialStumpConfig>(&new_toml_content).unwrap();
+			toml::from_str::<PartialLongboxConfig>(&new_toml_content).unwrap();
 
 		// And check its values against what we expect
 		assert_eq!(
 			new_toml_vals,
-			PartialStumpConfig {
+			PartialLongboxConfig {
 				profile: Some("release".to_string()),
 				ip: Some("0.0.0.0".to_string()),
 				port: Some(1337),
@@ -545,17 +545,17 @@ mod tests {
 			|| {
 				let tempdir =
 					tempfile::tempdir().expect("Failed to create temporary directory");
-				// Now we can create a StumpConfig rooted at the temporary directory
+				// Now we can create a LongboxConfig rooted at the temporary directory
 				let config_dir = tempdir.path().to_string_lossy().to_string();
-				let generated = StumpConfig::new(config_dir.clone())
+				let generated = LongboxConfig::new(config_dir.clone())
 					.with_config_file()
-					.expect("Failed to generate StumpConfig from Stump.toml")
+					.expect("Failed to generate LongboxConfig from Stump.toml")
 					.with_environment()
-					.expect("Failed to generate StumpConfig from environment");
+					.expect("Failed to generate LongboxConfig from environment");
 
 				assert_eq!(
 					generated,
-					StumpConfig {
+					LongboxConfig {
 						profile: "release".to_string(),
 						ip: "0.0.0.0".to_string(),
 						port: 1337,

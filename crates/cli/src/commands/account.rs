@@ -2,7 +2,7 @@ use std::{thread, time::Duration};
 
 use clap::Subcommand;
 use dialoguer::{theme::ColorfulTheme, Confirm, Input, Password};
-use longbox_core::{config::StumpConfig, database::connect};
+use longbox_core::{config::LongboxConfig, database::connect};
 use models::entity::{
 	api_key, book_club_member, bookmark, favorite_library, favorite_media,
 	favorite_series, last_library_visit, library_exclusion, media_annotation,
@@ -59,7 +59,7 @@ pub enum Account {
 
 pub async fn handle_account_command(
 	command: Account,
-	config: &StumpConfig,
+	config: &LongboxConfig,
 ) -> CliResult<()> {
 	match command {
 		Account::Lock { username } => {
@@ -82,7 +82,7 @@ pub async fn handle_account_command(
 async fn set_account_lock_status(
 	username: String,
 	lock: bool,
-	config: &StumpConfig,
+	config: &LongboxConfig,
 ) -> CliResult<()> {
 	let progress = default_progress_spinner();
 	progress.set_message(if lock {
@@ -133,7 +133,7 @@ async fn set_account_lock_status(
 async fn reset_account_password(
 	username: String,
 	hash_cost: u32,
-	config: &StumpConfig,
+	config: &LongboxConfig,
 ) -> CliResult<()> {
 	let conn = connect(config).await?;
 
@@ -172,7 +172,7 @@ async fn reset_account_password(
 	Ok(())
 }
 
-async fn print_accounts(locked: Option<bool>, config: &StumpConfig) -> CliResult<()> {
+async fn print_accounts(locked: Option<bool>, config: &LongboxConfig) -> CliResult<()> {
 	let progress = default_progress_spinner();
 	progress.set_message("Fetching accounts...");
 
@@ -206,7 +206,7 @@ async fn print_accounts(locked: Option<bool>, config: &StumpConfig) -> CliResult
 	Ok(())
 }
 
-async fn change_server_owner(config: &StumpConfig) -> CliResult<()> {
+async fn change_server_owner(config: &LongboxConfig) -> CliResult<()> {
 	let conn = connect(config).await?;
 
 	let all_accounts = models::entity::user::Entity::find()
@@ -275,7 +275,7 @@ async fn change_server_owner(config: &StumpConfig) -> CliResult<()> {
 }
 
 async fn migrate_oidc_account(
-	config: &StumpConfig,
+	config: &LongboxConfig,
 	username: String,
 	oidc_email: String,
 ) -> CliResult<()> {

@@ -1,7 +1,7 @@
 use std::{sync::Arc, time::Instant};
 
 use crate::{
-	config::StumpConfig,
+	config::LongboxConfig,
 	event::{CoreEvent, JobOutput},
 	job::JobUpdate,
 	CoreError,
@@ -19,25 +19,25 @@ use tokio_util::sync::CancellationToken;
 use apalis::prelude::{MemoryStorage, MessageQueue};
 
 use super::{
-	error::JobError, stump_job::StumpJob, CoreJobOutput, JobExecuteLog, JobOutputExt,
+	error::JobError, stump_job::LongboxJob, CoreJobOutput, JobExecuteLog, JobOutputExt,
 	JobProgress, JobStatus,
 };
 
 #[derive(Clone)]
 pub struct ApalisWorkerState {
 	pub conn: Arc<DatabaseConnection>,
-	pub config: Arc<StumpConfig>,
+	pub config: Arc<LongboxConfig>,
 	pub core_event_tx: broadcast::Sender<CoreEvent>,
 	pub cancellation_tokens: Arc<DashMap<String, CancellationToken>>,
-	pub job_storage: MemoryStorage<StumpJob>,
+	pub job_storage: MemoryStorage<LongboxJob>,
 }
 
 impl ApalisWorkerState {
 	pub fn new(
 		conn: Arc<DatabaseConnection>,
-		config: Arc<StumpConfig>,
+		config: Arc<LongboxConfig>,
 		core_event_tx: broadcast::Sender<CoreEvent>,
-		job_storage: MemoryStorage<StumpJob>,
+		job_storage: MemoryStorage<LongboxJob>,
 	) -> Self {
 		Self {
 			conn,
@@ -91,7 +91,7 @@ impl JobContext {
 	pub async fn new(
 		apalis_state: Arc<ApalisWorkerState>,
 		job_id: String,
-		job: &StumpJob,
+		job: &LongboxJob,
 	) -> Result<JobContext, JobError> {
 		let active_model = job::ActiveModel {
 			id: Set(job_id.clone()),
@@ -152,7 +152,7 @@ impl JobContext {
 	}
 
 	/// Get a reference to the config from the worker state
-	pub fn config(&self) -> &StumpConfig {
+	pub fn config(&self) -> &LongboxConfig {
 		self.apalis_state.config.as_ref()
 	}
 
@@ -255,7 +255,7 @@ impl JobContext {
 	}
 
 	/// A convenience method to enqueue a follow-up job from this job's execution
-	pub async fn enqueue(&self, job: StumpJob) -> Result<(), JobError> {
+	pub async fn enqueue(&self, job: LongboxJob) -> Result<(), JobError> {
 		let mut storage = self.apalis_state.job_storage.clone();
 		storage.enqueue(job).await.map_err(|error| {
 			tracing::error!(?error, "Failed to enqueue follow-up job!");

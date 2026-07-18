@@ -3,17 +3,17 @@ use syn::{DataStruct, Expr, Field, Fields, Ident};
 
 use crate::type_utils;
 
-pub struct StumpConfigVariable {
+pub struct LongboxConfigVariable {
 	pub span: Span,
 	pub variable_name: Ident,
 	pub variable_type: TokenStream,
 	pub is_optional: bool,
 	pub is_vec: bool,
-	pub attributes: StumpConfigVariableAttributes,
+	pub attributes: LongboxConfigVariableAttributes,
 }
 
 #[derive(Default)]
-pub struct StumpConfigVariableAttributes {
+pub struct LongboxConfigVariableAttributes {
 	pub default_value: Option<Expr>,
 	pub debug_value: Option<Expr>,
 	pub required_by_new: bool,
@@ -21,7 +21,7 @@ pub struct StumpConfigVariableAttributes {
 	pub validator: Option<Ident>,
 }
 
-impl StumpConfigVariable {
+impl LongboxConfigVariable {
 	pub fn is_parse_type(&self) -> bool {
 		let parse_types = [
 			"u8", "u16", "u32", "u64", "i8", "i16", "i32", "i64", "f16", "f32", "f64",
@@ -47,7 +47,7 @@ impl StumpConfigVariable {
 
 /// Parses a struct, extracting a vec representing each of its fields
 /// so that they can be represented in the macro's output code.
-pub fn get_config_variables(data_struct: &DataStruct) -> Vec<StumpConfigVariable> {
+pub fn get_config_variables(data_struct: &DataStruct) -> Vec<LongboxConfigVariable> {
 	let mut output_vec = Vec::new();
 
 	if let Fields::Named(fields_named) = &data_struct.fields {
@@ -61,7 +61,7 @@ pub fn get_config_variables(data_struct: &DataStruct) -> Vec<StumpConfigVariable
 			let attributes = parse_config_var_attributes(field);
 
 			// Then we add a new variable
-			output_vec.push(StumpConfigVariable {
+			output_vec.push(LongboxConfigVariable {
 				span: variable_name.span(),
 				variable_name,
 				variable_type: field_type.inner_type_tokens,
@@ -77,10 +77,10 @@ pub fn get_config_variables(data_struct: &DataStruct) -> Vec<StumpConfigVariable
 
 /// Parses the attributes on a config variable, this is where
 /// any of the #[attribute] values are unwrapped and stored
-fn parse_config_var_attributes(field: &Field) -> StumpConfigVariableAttributes {
+fn parse_config_var_attributes(field: &Field) -> LongboxConfigVariableAttributes {
 	let field_ident = field.ident.as_ref().unwrap();
 
-	let mut config_var_attributes = StumpConfigVariableAttributes::default();
+	let mut config_var_attributes = LongboxConfigVariableAttributes::default();
 	for attr in &field.attrs {
 		// #[default_value(Expr)]
 		if attr.path().is_ident("default_value") {

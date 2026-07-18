@@ -3,7 +3,7 @@ use std::str::FromStr;
 use clap::Subcommand;
 use dialoguer::Confirm;
 use longbox_core::{
-	config::StumpConfig,
+	config::LongboxConfig,
 	database::{connect, JournalMode},
 };
 use sea_orm::{ConnectionTrait, DatabaseBackend, Statement};
@@ -24,14 +24,14 @@ pub enum System {
 
 pub async fn handle_system_command(
 	command: System,
-	config: &StumpConfig,
+	config: &LongboxConfig,
 ) -> CliResult<()> {
 	match command {
 		System::SetJournalMode { mode } => set_journal_mode(mode, config).await,
 	}
 }
 
-async fn set_journal_mode(mode: JournalMode, config: &StumpConfig) -> CliResult<()> {
+async fn set_journal_mode(mode: JournalMode, config: &LongboxConfig) -> CliResult<()> {
 	let confirmation = Confirm::new()
     .with_prompt("Changing the journal mode can lead to unexpected behavior. Are you sure you want to continue?")
     .interact()?;

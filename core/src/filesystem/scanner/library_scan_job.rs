@@ -31,7 +31,7 @@ use crate::{
 		scanner::utils::safely_insert_series,
 	},
 	job::{
-		error::JobError, stump_job::StumpJob, CoreJobOutput, JobContext, JobExecuteLog,
+		error::JobError, stump_job::LongboxJob, CoreJobOutput, JobContext, JobExecuteLog,
 		JobLifecycle, JobOutputExt, JobProgress, JobTaskOutput, WorkingState,
 	},
 	utils::chain_optional_iter,
@@ -314,7 +314,7 @@ impl JobLifecycle for LibraryScanJob {
 					false,
 				);
 				if let Err(e) = ctx
-					.enqueue(StumpJob::thumbnail_generation(options, params))
+					.enqueue(LongboxJob::thumbnail_generation(options, params))
 					.await
 				{
 					tracing::error!(
@@ -337,7 +337,7 @@ impl JobLifecycle for LibraryScanJob {
 		if process_even_without_config {
 			tracing::trace!("Thumbnail color processing job should be enqueued");
 			if let Err(e) = ctx
-				.enqueue(StumpJob::placeholder_generation(
+				.enqueue(LongboxJob::placeholder_generation(
 					PlaceholderGenerationJobConfig::new(
 						PlaceholderGenerationJobScope::BooksInLibrary(self.id.clone()),
 						false,
@@ -370,7 +370,7 @@ impl JobLifecycle for LibraryScanJob {
 				"Metadata fetch job should be enqueued after library scan"
 			);
 			if let Err(e) = ctx
-				.enqueue(StumpJob::metadata_fetch(
+				.enqueue(LongboxJob::metadata_fetch(
 					MetadataFetchJobParams::media_in_library(self.id.clone()),
 				))
 				.await

@@ -10,7 +10,7 @@ use crate::{
 	utils::save_user_session,
 };
 use async_graphql::{Context, Object, Result, Upload, ID};
-use longbox_core::config::StumpConfig;
+use longbox_core::config::LongboxConfig;
 use models::{
 	entity::{
 		age_restriction, session,
@@ -559,7 +559,7 @@ async fn update_user(
 	by_user: &AuthUser,
 	for_user_id: String,
 	conn: &DatabaseConnection,
-	config: &StumpConfig,
+	config: &LongboxConfig,
 	input: &UpdateUserInput,
 ) -> Result<User> {
 	// NOTE: there are other mechanisms in place to effectively disable logging in,
@@ -747,7 +747,7 @@ mod tests {
 				},
 			]])
 			.into_connection();
-		let config = StumpConfig::debug();
+		let config = LongboxConfig::debug();
 
 		let input = UpdateUserInput {
 			username: "test_user".to_string(),

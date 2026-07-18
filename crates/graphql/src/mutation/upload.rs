@@ -14,7 +14,7 @@ use longbox_core::filesystem::{
 	},
 	ContentType,
 };
-use longbox_core::job::stump_job::StumpJob;
+use longbox_core::job::stump_job::LongboxJob;
 use models::{
 	entity::{library, library_config, media, series},
 	shared::enums::UserPermission,
@@ -90,7 +90,7 @@ impl UploadMutation {
 			copy_tempfile_to_location(value, &file_path).await?;
 		}
 
-		core.enqueue(StumpJob::library_scan(library.id, library.path, None))
+		core.enqueue(LongboxJob::library_scan(library.id, library.path, None))
 			.await
 			.map_err(|e| {
 				tracing::error!(?e, "Failed to enqueue library scan job");
@@ -155,7 +155,7 @@ impl UploadMutation {
 			Ok::<(), Error>(())
 		})?;
 
-		core.enqueue(StumpJob::library_scan(library.id, library.path, None))
+		core.enqueue(LongboxJob::library_scan(library.id, library.path, None))
 			.await
 			.map_err(|e| {
 				tracing::error!(?e, "Failed to enqueue library scan job");
@@ -250,7 +250,7 @@ impl UploadMutation {
 		// Note: We do NOT enqueue a thumbnail generation job since that just overwrites the uploaded one lol. Stump will assume your
 		// uploaded image is sized accordingly. We DO enqueue a placeholder generation job to ensure the colors etc are updated
 		if let Err(e) = core
-			.enqueue(StumpJob::PlaceholderGeneration {
+			.enqueue(LongboxJob::PlaceholderGeneration {
 				config: PlaceholderGenerationJobConfig {
 					force_regenerate: true,
 					scope: PlaceholderGenerationJobScope::Libraries(vec![library
@@ -356,7 +356,7 @@ impl UploadMutation {
 		// Note: We do NOT enqueue a thumbnail generation job since that just overwrites the uploaded one lol. Stump will assume your
 		// uploaded image is sized accordingly. We DO enqueue a placeholder generation job to ensure the colors etc are updated
 		if let Err(e) = core
-			.enqueue(StumpJob::PlaceholderGeneration {
+			.enqueue(LongboxJob::PlaceholderGeneration {
 				config: PlaceholderGenerationJobConfig {
 					force_regenerate: true,
 					scope: PlaceholderGenerationJobScope::Series(vec![series
@@ -472,7 +472,7 @@ impl UploadMutation {
 		// Note: We do NOT enqueue a thumbnail generation job since that just overwrites the uploaded one lol. Stump will assume your
 		// uploaded image is sized accordingly. We DO enqueue a placeholder generation job to ensure the colors etc are updated
 		if let Err(e) = core
-			.enqueue(StumpJob::PlaceholderGeneration {
+			.enqueue(LongboxJob::PlaceholderGeneration {
 				config: PlaceholderGenerationJobConfig {
 					force_regenerate: true,
 					scope: PlaceholderGenerationJobScope::Books(vec![book
@@ -567,7 +567,7 @@ impl UploadMutation {
 		// Note: We do NOT enqueue a thumbnail generation job since that just overwrites the uploaded one lol. Stump will assume your
 		// uploaded image is sized accordingly. We DO enqueue a placeholder generation job to ensure the colors etc are updated
 		if let Err(e) = core
-			.enqueue(StumpJob::PlaceholderGeneration {
+			.enqueue(LongboxJob::PlaceholderGeneration {
 				config: PlaceholderGenerationJobConfig {
 					force_regenerate: true,
 					scope: PlaceholderGenerationJobScope::Series(vec![series
@@ -667,7 +667,7 @@ impl UploadMutation {
 		// Note: We do NOT enqueue a thumbnail generation job since that just overwrites the uploaded one lol. Stump will assume your
 		// uploaded image is sized accordingly. We DO enqueue a placeholder generation job to ensure the colors etc are updated
 		if let Err(e) = core
-			.enqueue(StumpJob::PlaceholderGeneration {
+			.enqueue(LongboxJob::PlaceholderGeneration {
 				config: PlaceholderGenerationJobConfig {
 					force_regenerate: true,
 					scope: PlaceholderGenerationJobScope::Books(vec![book

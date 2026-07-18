@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use axum_test::{TestResponse, TestServer};
-use longbox_core::{Ctx, StumpCore};
+use longbox_core::{Ctx, LongboxCore};
 use longbox_server::config::session::get_session_layer;
 use longbox_server::routers;
 use sea_orm::DatabaseConnection;
@@ -23,7 +23,7 @@ impl TestApp {
 		let db = test_database().await;
 
 		let ctx = Ctx::for_testing(db);
-		let core = StumpCore::from_ctx(ctx);
+		let core = LongboxCore::from_ctx(ctx);
 
 		core.init_server_config()
 			.await

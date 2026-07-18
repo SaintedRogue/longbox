@@ -11,7 +11,7 @@ use longbox_core::filesystem::{
 	metadata::{MetadataFetchJobParams, MetadataFetchScope},
 	scanner::ScanOptions,
 };
-use longbox_core::job::stump_job::StumpJob;
+use longbox_core::job::stump_job::LongboxJob;
 use metadata_integrations::MetadataField;
 use models::{
 	entity::{
@@ -67,7 +67,7 @@ impl LibraryMutation {
 			.await?
 			.ok_or("Library not found")?;
 
-		core.enqueue(StumpJob::analyze_media(AnalysisJobConfig {
+		core.enqueue(LongboxJob::analyze_media(AnalysisJobConfig {
 			force_reanalysis,
 			scope: MediaAnalysisJobScope::Library(model.id),
 		}))
@@ -265,7 +265,7 @@ impl LibraryMutation {
 		txn.commit().await?;
 
 		if scan_after_creation {
-			core.enqueue(StumpJob::library_scan(
+			core.enqueue(LongboxJob::library_scan(
 				created_library.id.clone(),
 				created_library.path.clone(),
 				None,
@@ -463,7 +463,7 @@ impl LibraryMutation {
 		txn.commit().await?;
 
 		if scan_after_update {
-			core.enqueue(StumpJob::library_scan(
+			core.enqueue(LongboxJob::library_scan(
 				updated_library.id.clone(),
 				updated_library.path.clone(),
 				None,
@@ -726,7 +726,7 @@ impl LibraryMutation {
 		let config = config.ok_or("Library config not found")?;
 
 		if let Err(error) = core
-			.enqueue(StumpJob::thumbnail_generation(
+			.enqueue(LongboxJob::thumbnail_generation(
 				config.thumbnail_config.unwrap_or_default(),
 				ThumbnailGenerationJobParams::books_in_library(
 					library.id,
@@ -759,7 +759,7 @@ impl LibraryMutation {
 			.ok_or("Library not found")?;
 
 		if let Err(error) = core
-			.enqueue(StumpJob::placeholder_generation(
+			.enqueue(LongboxJob::placeholder_generation(
 				PlaceholderGenerationJobConfig {
 					scope: PlaceholderGenerationJobScope::BooksInLibrary(
 						library.id.clone(),
@@ -864,7 +864,7 @@ impl LibraryMutation {
 			return Ok(false);
 		}
 
-		core.enqueue(StumpJob::metadata_fetch(MetadataFetchJobParams {
+		core.enqueue(LongboxJob::metadata_fetch(MetadataFetchJobParams {
 			force_refetch,
 			scope: MetadataFetchScope::MediaInLibrary(library.id),
 		}))
@@ -1003,7 +1003,7 @@ impl LibraryMutation {
 			.await?
 			.ok_or("Library not found")?;
 
-		core.enqueue(StumpJob::library_scan(
+		core.enqueue(LongboxJob::library_scan(
 			library.id,
 			library.path,
 			options.map(|o| o.0),

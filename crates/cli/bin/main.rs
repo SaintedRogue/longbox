@@ -1,5 +1,5 @@
 use cli::{handle_command, Cli, Parser};
-use longbox_core::{config, StumpCore};
+use longbox_core::{config, LongboxCore};
 
 /// This is just an example of how to use this crate. It is going to be used in the
 /// server app. This is not meant to be a real CLI binary.
@@ -8,7 +8,7 @@ async fn main() {
 	let app = Cli::parse();
 
 	let config_dir = config::bootstrap_config_dir();
-	let stump_config = StumpCore::init_config(config_dir)
+	let stump_config = LongboxCore::init_config(config_dir)
 		.expect("Failed to initialize stump configuration");
 
 	if let Some(command) = app.command {

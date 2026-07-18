@@ -2,7 +2,7 @@ use std::sync::OnceLock;
 
 use chrono::{DateTime, Duration, FixedOffset, Utc};
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
-use longbox_core::config::StumpConfig;
+use longbox_core::config::LongboxConfig;
 use models::entity::{refresh_token, server_config};
 use sea_orm::{prelude::*, ActiveValue, IntoActiveModel, QuerySelect};
 use serde::{Deserialize, Serialize};
@@ -95,7 +95,7 @@ struct RefreshTokenClaims {
 pub(crate) async fn create_jwt_auth(
 	user_id: &str,
 	conn: &DatabaseConnection,
-	config: &StumpConfig,
+	config: &LongboxConfig,
 ) -> APIResult<JwtTokenPair> {
 	let CreatedToken {
 		token: access_token,
@@ -144,7 +144,7 @@ pub(crate) async fn extract_jti_from_refresh_token(
 
 async fn generate_access_token(
 	user_id: &str,
-	config: &StumpConfig,
+	config: &LongboxConfig,
 	conn: &DatabaseConnection,
 ) -> APIResult<CreatedToken> {
 	let now = Utc::now();
@@ -172,7 +172,7 @@ async fn generate_access_token(
 
 async fn generate_refresh_token(
 	user_id: &str,
-	config: &StumpConfig,
+	config: &LongboxConfig,
 	conn: &DatabaseConnection,
 ) -> APIResult<(String, CreatedToken)> {
 	let now = Utc::now();
@@ -245,7 +245,7 @@ pub(crate) async fn exchange_refresh_token(
 #[cfg(test)]
 mod tests {
 	use ::tests::{db::test_database, fake_data};
-	use longbox_core::config::StumpConfig;
+	use longbox_core::config::LongboxConfig;
 	use models::entity::server_config;
 	use sea_orm::{ActiveValue::Set, DbConn};
 
@@ -272,8 +272,8 @@ mod tests {
 		db
 	}
 
-	fn test_config() -> StumpConfig {
-		StumpConfig::debug()
+	fn test_config() -> LongboxConfig {
+		LongboxConfig::debug()
 	}
 
 	#[tokio::test]

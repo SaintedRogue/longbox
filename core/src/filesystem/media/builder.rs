@@ -9,7 +9,7 @@ use sea_orm::Set;
 use uuid::Uuid;
 
 use crate::{
-	config::StumpConfig,
+	config::LongboxConfig,
 	filesystem::{
 		media::process,
 		scanner::{CustomVisit, CustomVisitResult},
@@ -27,7 +27,7 @@ pub struct MediaBuilder {
 	path: PathBuf,
 	series_id: String,
 	library_config: library_config::Model,
-	config: StumpConfig,
+	config: LongboxConfig,
 }
 
 #[derive(Debug, Clone)]
@@ -45,7 +45,7 @@ impl MediaBuilder {
 		path: &Path,
 		series_id: &str,
 		library_config: library_config::Model,
-		config: &StumpConfig,
+		config: &LongboxConfig,
 	) -> Self {
 		Self {
 			path: path.to_path_buf(),
@@ -233,7 +233,8 @@ mod tests {
 		};
 		let series_id = "series_id";
 
-		MediaBuilder::new(path, series_id, library_config, &StumpConfig::debug()).build()
+		MediaBuilder::new(path, series_id, library_config, &LongboxConfig::debug())
+			.build()
 	}
 
 	#[test]
@@ -247,7 +248,7 @@ mod tests {
 		let series_id = "series_id";
 
 		let builder =
-			MediaBuilder::new(path, series_id, library_config, &StumpConfig::debug());
+			MediaBuilder::new(path, series_id, library_config, &LongboxConfig::debug());
 		let hashes = builder.regen_hashes();
 		assert!(hashes.is_ok());
 		assert!(hashes.unwrap().hash.is_some());

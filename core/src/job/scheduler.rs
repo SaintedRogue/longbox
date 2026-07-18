@@ -8,7 +8,7 @@ use models::shared::enums::{MetadataFetchStatus, ScheduledJobKind};
 use sea_orm::{prelude::*, EntityTrait, QueryFilter};
 
 use crate::filesystem::metadata::MetadataFetchJobParams;
-use crate::job::stump_job::StumpJob;
+use crate::job::stump_job::LongboxJob;
 use crate::{CoreError, CoreResult, Ctx};
 
 /// A scheduler that loads cron-based jobs and spawns them accordingly
@@ -156,7 +156,7 @@ async fn dispatch_library_scan(job: &scheduled_job::Model, ctx: &Ctx) -> CoreRes
 			library_name = %lib.name,
 			"Enqueuing library scan from scheduler"
 		);
-		ctx.enqueue(StumpJob::library_scan(
+		ctx.enqueue(LongboxJob::library_scan(
 			lib.id.clone(),
 			lib.path.clone(),
 			None,
@@ -204,7 +204,7 @@ async fn dispatch_metadata_retry(
 			"Enqueuing metadata retry for series"
 		);
 		let params = MetadataFetchJobParams::series(series_ids);
-		ctx.enqueue(StumpJob::metadata_fetch(params))
+		ctx.enqueue(LongboxJob::metadata_fetch(params))
 			.await
 			.map_err(|e| CoreError::InternalError(e.to_string()))?;
 	}
@@ -215,7 +215,7 @@ async fn dispatch_metadata_retry(
 			"Enqueuing metadata retry for media"
 		);
 		let params = MetadataFetchJobParams::media(media_ids);
-		ctx.enqueue(StumpJob::metadata_fetch(params))
+		ctx.enqueue(LongboxJob::metadata_fetch(params))
 			.await
 			.map_err(|e| CoreError::InternalError(e.to_string()))?;
 	}

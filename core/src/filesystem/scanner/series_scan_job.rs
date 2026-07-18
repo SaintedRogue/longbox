@@ -18,7 +18,7 @@ use crate::{
 		ThumbnailGenerationJobParams,
 	},
 	job::{
-		error::JobError, stump_job::StumpJob, CoreJobOutput, JobContext, JobLifecycle,
+		error::JobError, stump_job::LongboxJob, CoreJobOutput, JobContext, JobLifecycle,
 		JobOutputExt, JobProgress, JobTaskOutput, WorkingState,
 	},
 	utils::chain_optional_iter,
@@ -235,7 +235,7 @@ impl JobLifecycle for SeriesScanJob {
 				let params =
 					ThumbnailGenerationJobParams::books_in_series(self.id.clone(), false);
 				if let Err(e) = ctx
-					.enqueue(StumpJob::thumbnail_generation(options, params))
+					.enqueue(LongboxJob::thumbnail_generation(options, params))
 					.await
 				{
 					tracing::error!(
@@ -258,7 +258,7 @@ impl JobLifecycle for SeriesScanJob {
 		if process_even_without_config {
 			tracing::trace!("Thumbnail color processing job should be enqueued");
 			if let Err(e) = ctx
-				.enqueue(StumpJob::placeholder_generation(
+				.enqueue(LongboxJob::placeholder_generation(
 					PlaceholderGenerationJobConfig::new(
 						PlaceholderGenerationJobScope::BooksInLibrary(self.id.clone()),
 						false,

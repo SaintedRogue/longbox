@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use crate::errors::APIError;
 
 // lol this is an absurd type alias
-pub type StumpOidcClient = Client<
+pub type LongboxOidcClient = Client<
 	EmptyAdditionalClaims,
 	CoreAuthDisplay,
 	CoreGenderClaim,
@@ -105,9 +105,12 @@ impl OidcProvider {
 		})
 	}
 
-	/// Create a per-request [StumpOidcClient] from the cached state.
+	/// Create a per-request [LongboxOidcClient] from the cached state.
 	/// This is cheap — no I/O, just constructs the client with the correct redirect URL.
-	pub fn create_client(&self, frontend_url: &str) -> Result<StumpOidcClient, APIError> {
+	pub fn create_client(
+		&self,
+		frontend_url: &str,
+	) -> Result<LongboxOidcClient, APIError> {
 		let redirect_uri = format!("{}/api/v2/auth/oidc/callback", frontend_url);
 		let redirect_url = RedirectUrl::new(redirect_uri).map_err(|e| {
 			tracing::error!(?e, "Invalid redirect URI constructed from frontend URL");
@@ -128,7 +131,7 @@ impl OidcProvider {
 
 /// Get the OIDC authorization URL to redirect the user to
 pub fn get_oidc_authorize_url(
-	client: &StumpOidcClient,
+	client: &LongboxOidcClient,
 	scopes: &[String],
 	state: &str,
 	pkce_challenge: Option<PkceCodeChallenge>,
@@ -170,7 +173,7 @@ pub struct OidcClaims {
 /// Exchange authorization code for tokens and extract claims
 pub async fn exchange_code_for_claims(
 	http_client: &oauth2_reqwest::ReqwestClient,
-	client: &StumpOidcClient,
+	client: &LongboxOidcClient,
 	code: String,
 	extra_audiences: Vec<String>,
 	pkce_verifier: Option<PkceCodeVerifier>,

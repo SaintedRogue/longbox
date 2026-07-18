@@ -1,4 +1,4 @@
-use longbox_core::config::StumpConfig;
+use longbox_core::config::LongboxConfig;
 use models::entity::user::{AuthUser, LoginUser};
 use sea_orm::DatabaseConnection;
 use tower_sessions::Session;
@@ -16,7 +16,10 @@ pub struct DecodedCredentials {
 	pub password: String,
 }
 
-pub fn hash_password(password: &str, config: &StumpConfig) -> Result<String, AuthError> {
+pub fn hash_password(
+	password: &str,
+	config: &LongboxConfig,
+) -> Result<String, AuthError> {
 	Ok(bcrypt::hash(password, config.password_hash_cost)?)
 }
 

@@ -6,7 +6,7 @@ use axum::{
 };
 use graphql::data::AuthContext;
 use longbox_core::{
-	config::StumpConfig,
+	config::LongboxConfig,
 	filesystem::{get_saved_thumbnail, get_thumbnail, ContentType},
 };
 use models::{
@@ -37,7 +37,7 @@ pub(crate) async fn get_series_thumbnail(
 	series: &series::SeriesThumbSelect,
 	first_book: Option<media::MediaThumbSelect>,
 	image_format: Option<SupportedImageFormat>,
-	config: &StumpConfig,
+	config: &LongboxConfig,
 ) -> APIResult<(ContentType, Vec<u8>)> {
 	// Note: This doesn't hard-fail because if the saved thumbnail is missing or corrupt, we want
 	// to just pull something else instead of erroring out entirely.

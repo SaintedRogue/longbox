@@ -1,7 +1,7 @@
 use cli::{handle_command, Cli, Parser};
 use errors::EntryError;
 use longbox_core::{
-	config::bootstrap_config_dir, config::logging::init_tracing, StumpCore,
+	config::bootstrap_config_dir, config::logging::init_tracing, LongboxCore,
 };
 
 mod config;
@@ -28,7 +28,7 @@ async fn main() -> Result<(), EntryError> {
 
 	let config_dir = bootstrap_config_dir();
 
-	let config = StumpCore::init_config(config_dir)
+	let config = LongboxCore::init_config(config_dir)
 		.map_err(|e| EntryError::InvalidConfig(e.to_string()))?;
 
 	let cli = Cli::parse();

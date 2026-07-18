@@ -19,7 +19,7 @@ pub mod opds;
 pub mod utils;
 
 use config::logging::STUMP_SHADOW_TEXT;
-use config::StumpConfig;
+use config::LongboxConfig;
 use job::JobScheduler;
 use models::entity::server_config;
 use sea_orm::{
@@ -44,42 +44,42 @@ type EncryptionKeySet = bool;
 /// A type alias strictly for explicitness in the return type of `init_jwt_secrets`.
 type JwtSecretsInitialized = bool;
 
-/// The [`StumpCore`] struct is the main entry point for any server-side Stump
+/// The [`LongboxCore`] struct is the main entry point for any server-side Stump
 /// applications. It is responsible for managing incoming tasks ([`InternalCoreTask`]),
 /// outgoing events ([`CoreEvent`](event::CoreEvent)), and providing access to the database
 /// via the core's [`Ctx`].
 ///
-/// [`StumpCore`] expects the consuming application to determine its configuration prior to startup.
+/// [`LongboxCore`] expects the consuming application to determine its configuration prior to startup.
 /// [`config::bootstrap_config_dir`] enables consumers to fetch the configuration directory automatically,
-/// and [`StumpCore::init_config`](#method.init_config) will load any Stump.toml in the config directory
-/// or environment variables to return a [`StumpConfig`] struct.
+/// and [`LongboxCore::init_config`](#method.init_config) will load any Stump.toml in the config directory
+/// or environment variables to return a [`LongboxConfig`] struct.
 ///
 /// ## Example:
 /// ```no_run
-/// use longbox_core::{config, StumpCore};
+/// use longbox_core::{config, LongboxCore};
 ///
 /// #[tokio::main]
 /// async fn main() {
 ///   let config_dir = config::bootstrap_config_dir();
-///   let config = StumpCore::init_config(config_dir).unwrap();
+///   let config = LongboxCore::init_config(config_dir).unwrap();
 ///
-///   let core = StumpCore::new(config).await;
+///   let core = LongboxCore::new(config).await;
 /// }
 /// ```
-pub struct StumpCore {
+pub struct LongboxCore {
 	ctx: Ctx,
 }
 
-impl StumpCore {
-	/// Creates a [StumpCore] from an existing [Ctx]
-	pub fn from_ctx(ctx: Ctx) -> StumpCore {
-		StumpCore { ctx }
+impl LongboxCore {
+	/// Creates a [LongboxCore] from an existing [Ctx]
+	pub fn from_ctx(ctx: Ctx) -> LongboxCore {
+		LongboxCore { ctx }
 	}
 
-	/// Creates a new instance of [`StumpCore`] and returns it wrapped in an [`std::sync::Arc`].
-	pub async fn new(config: StumpConfig) -> StumpCore {
+	/// Creates a new instance of [`LongboxCore`] and returns it wrapped in an [`std::sync::Arc`].
+	pub async fn new(config: LongboxConfig) -> LongboxCore {
 		let core_ctx = Ctx::new(config).await;
-		StumpCore { ctx: core_ctx }
+		LongboxCore { ctx: core_ctx }
 	}
 
 	/// A three-step configuration initialization function.
@@ -92,9 +92,9 @@ impl StumpCore {
 	/// 3. Creates the configuration directory (if it does not exist) and writes
 	///    to Stump.toml.
 	///
-	/// Returns the configuration variables in a `StumpConfig` struct.
-	pub fn init_config(config_dir: String) -> CoreResult<StumpConfig> {
-		let mut config = StumpConfig::new(config_dir)
+	/// Returns the configuration variables in a `LongboxConfig` struct.
+	pub fn init_config(config_dir: String) -> CoreResult<LongboxConfig> {
+		let mut config = LongboxConfig::new(config_dir)
 			// Load config file (if any)
 			.with_config_file()?
 			// Overlay environment variables
@@ -111,7 +111,7 @@ impl StumpCore {
 		Ok(config)
 	}
 
-	/// Returns [`StumpCore`] wrapped in an [`Arc`]. Will take ownership of self. Created
+	/// Returns [`LongboxCore`] wrapped in an [`Arc`]. Will take ownership of self. Created
 	/// for convenience if ever needed to create an instance without using the `new` method.
 	pub fn arced(self) -> Arc<Self> {
 		Arc::new(self)

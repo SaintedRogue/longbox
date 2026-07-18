@@ -6,11 +6,11 @@ use sea_orm::{prelude::*, DatabaseConnection, MockDatabase, SelectColumns};
 use tokio::sync::broadcast::{channel, Receiver, Sender};
 
 use crate::{
-	config::StumpConfig,
+	config::LongboxConfig,
 	database,
 	event::CoreEvent,
 	filesystem::scanner::LibraryWatcher,
-	job::{state::ApalisWorkerState, stump_job::StumpJob},
+	job::{state::ApalisWorkerState, stump_job::LongboxJob},
 	CoreError, CoreResult,
 };
 
@@ -21,12 +21,12 @@ type EventChannel = (Sender<CoreEvent>, Receiver<CoreEvent>);
 /// and manage the event channels.
 #[derive(Clone)]
 pub struct Ctx {
-	pub config: Arc<StumpConfig>,
+	pub config: Arc<LongboxConfig>,
 	pub conn: Arc<DatabaseConnection>,
 	pub event_channel: Arc<EventChannel>,
 	pub library_watcher: Arc<LibraryWatcher>,
 	pub apalis_state: Arc<ApalisWorkerState>,
-	pub job_storage: MemoryStorage<StumpJob>,
+	pub job_storage: MemoryStorage<LongboxJob>,
 }
 
 impl Ctx {
@@ -36,16 +36,16 @@ impl Ctx {
 	///
 	/// ## Example
 	/// ```no_run
-	/// use longbox_core::{Ctx, config::StumpConfig};
+	/// use longbox_core::{Ctx, config::LongboxConfig};
 	/// use tokio::sync::mpsc::unbounded_channel;
 	///
 	/// #[tokio::main]
 	/// async fn main() {
-	///    let config = StumpConfig::debug();
+	///    let config = LongboxConfig::debug();
 	///    let ctx = Ctx::new(config).await;
 	/// }
 	/// ```
-	pub async fn new(config: StumpConfig) -> Ctx {
+	pub async fn new(config: LongboxConfig) -> Ctx {
 		let config = Arc::new(config.clone());
 		let conn = Arc::new(
 			database::connect(&config)
@@ -54,7 +54,7 @@ impl Ctx {
 		);
 		let event_channel = Arc::new(channel::<CoreEvent>(1024));
 
-		let job_storage = MemoryStorage::<StumpJob>::new();
+		let job_storage = MemoryStorage::<LongboxJob>::new();
 		let apalis_state = Arc::new(ApalisWorkerState::new(
 			conn.clone(),
 			config.clone(),
@@ -78,10 +78,10 @@ impl Ctx {
 
 	/// Creates a [Ctx] instance for testing **only**
 	pub fn for_testing(conn: DatabaseConnection) -> Ctx {
-		let config = Arc::new(StumpConfig::debug());
+		let config = Arc::new(LongboxConfig::debug());
 		let conn = Arc::new(conn);
 		let event_channel = Arc::new(channel::<CoreEvent>(1024));
-		let job_storage = MemoryStorage::<StumpJob>::new();
+		let job_storage = MemoryStorage::<LongboxJob>::new();
 		let apalis_state = Arc::new(ApalisWorkerState::new(
 			conn.clone(),
 			config.clone(),
@@ -103,12 +103,12 @@ impl Ctx {
 
 	/// Creates a [Ctx] instance for testing **only**
 	pub fn mock_sea(mock_db: MockDatabase) -> Ctx {
-		let config = Arc::new(StumpConfig::debug());
+		let config = Arc::new(LongboxConfig::debug());
 
 		let event_channel = Arc::new(channel::<CoreEvent>(1024));
 		let conn = Arc::new(mock_db.into_connection());
 
-		let job_storage = MemoryStorage::<StumpJob>::new();
+		let job_storage = MemoryStorage::<LongboxJob>::new();
 		let apalis_state = Arc::new(ApalisWorkerState::new(
 			conn.clone(),
 			config.clone(),
@@ -134,12 +134,12 @@ impl Ctx {
 	///
 	/// ## Example
 	/// ```no_run
-	/// use longbox_core::{Ctx, config::StumpConfig};
+	/// use longbox_core::{Ctx, config::LongboxConfig};
 	/// use std::sync::Arc;
 	///
 	/// #[tokio::main]
 	/// async fn main() {
-	///     let config = StumpConfig::debug();
+	///     let config = LongboxConfig::debug();
 	///
 	///     let ctx = Ctx::new(config).await;
 	///     let arced_ctx = ctx.arced();
@@ -168,7 +168,7 @@ impl Ctx {
 	}
 
 	/// Enqueue a job into apalis storage
-	pub async fn enqueue(&self, job: StumpJob) -> CoreResult<()> {
+	pub async fn enqueue(&self, job: LongboxJob) -> CoreResult<()> {
 		let mut storage = self.job_storage.clone();
 		storage
 			.enqueue(job)

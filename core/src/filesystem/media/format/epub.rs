@@ -6,7 +6,7 @@ const ACCEPTED_EPUB_COVER_MIMES: [&str; 2] = ["image/jpeg", "image/png"];
 const DEFAULT_EPUB_COVER_ID: &str = "cover";
 
 use crate::{
-	config::StumpConfig,
+	config::LongboxConfig,
 	filesystem::{
 		content_type::ContentType,
 		error::FileError,
@@ -130,7 +130,7 @@ impl FileProcessor for EpubProcessor {
 	fn process(
 		path: &str,
 		options: FileProcessorOptions,
-		_: &StumpConfig,
+		_: &LongboxConfig,
 	) -> Result<ProcessedFile, FileError> {
 		tracing::trace!(?path, "Processing epub");
 
@@ -167,7 +167,7 @@ impl FileProcessor for EpubProcessor {
 	fn get_page(
 		path: &str,
 		page: i32,
-		_: &StumpConfig,
+		_: &LongboxConfig,
 	) -> Result<(ContentType, Vec<u8>), FileError> {
 		if page == 1 {
 			// Assume this is the cover page
@@ -177,7 +177,7 @@ impl FileProcessor for EpubProcessor {
 		}
 	}
 
-	fn get_page_count(path: &str, _: &StumpConfig) -> Result<i32, FileError> {
+	fn get_page_count(path: &str, _: &LongboxConfig) -> Result<i32, FileError> {
 		let mut epub_file = Self::open(path)?;
 		Self::compute_synthetic_page_count(&mut epub_file)
 	}
@@ -225,7 +225,7 @@ impl FileProcessor for EpubProcessor {
 	fn analyze_page(
 		_path: &str,
 		_page: i32,
-		_config: &StumpConfig,
+		_config: &LongboxConfig,
 	) -> Result<AnalyzedPage, FileError> {
 		Err(FileError::UnsupportedFileType(
 			"Epub page analysis is not supported".to_string(),
@@ -917,7 +917,7 @@ mod tests {
 	#[test]
 	fn test_process() {
 		let path = get_test_epub_path();
-		let config = StumpConfig::debug();
+		let config = LongboxConfig::debug();
 
 		let processed_file = EpubProcessor::process(
 			&path,

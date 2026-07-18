@@ -8,7 +8,7 @@ pub type CoreResult<T> = Result<T, CoreError>;
 #[derive(Error, Debug)]
 pub enum CoreError {
 	#[error(
-		"Attempted to initialize StumpCore with a config dir that does not exist: {0}"
+		"Attempted to initialize LongboxCore with a config dir that does not exist: {0}"
 	)]
 	ConfigDirDoesNotExist(String),
 	#[error("Failed to build entity: {0}")]

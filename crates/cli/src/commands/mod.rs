@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use clap::Subcommand;
 use indicatif::{ProgressBar, ProgressStyle};
-use longbox_core::config::StumpConfig;
+use longbox_core::config::LongboxConfig;
 
 use crate::error::CliResult;
 
@@ -19,7 +19,7 @@ pub enum Commands {
 	System(System),
 }
 
-pub async fn handle_command(command: Commands, config: &StumpConfig) -> CliResult<()> {
+pub async fn handle_command(command: Commands, config: &LongboxConfig) -> CliResult<()> {
 	match command {
 		Commands::Account(account) => {
 			account::handle_account_command(account, config).await

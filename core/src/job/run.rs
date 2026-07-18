@@ -13,7 +13,7 @@ use crate::{
 		scanner::{LibraryScanJob, SeriesScanJob},
 	},
 	job::{
-		error::JobError, stump_job::StumpJob, ApalisWorkerState, CoreJobOutput,
+		error::JobError, stump_job::LongboxJob, ApalisWorkerState, CoreJobOutput,
 		JobContext, JobLifecycle, JobOutputExt, JobProgress, WorkingState,
 	},
 	CoreEvent,
@@ -87,7 +87,7 @@ where
 
 /// The top-level apalis handler function for all jobs
 pub async fn dispatch_job(
-	job: StumpJob,
+	job: LongboxJob,
 	ctx: Data<Arc<ApalisWorkerState>>,
 ) -> Result<(), apalis::prelude::Error> {
 	let job_id = Uuid::new_v4().to_string();
@@ -104,10 +104,10 @@ pub async fn dispatch_job(
 	};
 
 	let result = match job {
-		StumpJob::LibraryScan { id, path, options } => {
+		LongboxJob::LibraryScan { id, path, options } => {
 			run_job(&job_ctx, &mut LibraryScanJob::new(id, path, options)).await
 		},
-		StumpJob::SeriesScan { id, path, options } => {
+		LongboxJob::SeriesScan { id, path, options } => {
 			run_job(
 				&job_ctx,
 				&mut SeriesScanJob {
@@ -119,13 +119,13 @@ pub async fn dispatch_job(
 			)
 			.await
 		},
-		StumpJob::ThumbnailGeneration { options, params } => {
+		LongboxJob::ThumbnailGeneration { options, params } => {
 			run_job(&job_ctx, &mut ThumbnailGenerationJob { options, params }).await
 		},
-		StumpJob::PlaceholderGeneration { config } => {
+		LongboxJob::PlaceholderGeneration { config } => {
 			run_job(&job_ctx, &mut PlaceholderGenerationJob { config }).await
 		},
-		StumpJob::MetadataFetch { params } => {
+		LongboxJob::MetadataFetch { params } => {
 			run_job(
 				&job_ctx,
 				&mut MetadataFetchJob {
@@ -135,7 +135,7 @@ pub async fn dispatch_job(
 			)
 			.await
 		},
-		StumpJob::AnalyzeMedia { config } => {
+		LongboxJob::AnalyzeMedia { config } => {
 			run_job(&job_ctx, &mut AnalyzeMediaJob { config }).await
 		},
 	};

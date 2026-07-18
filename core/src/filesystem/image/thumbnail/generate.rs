@@ -15,7 +15,7 @@ use sea_orm::{
 use tokio::{fs, sync::oneshot, task::spawn_blocking};
 
 use crate::{
-	config::StumpConfig,
+	config::LongboxConfig,
 	filesystem::{
 		image::{
 			generate_image_metadata_from_bytes,
@@ -57,7 +57,7 @@ pub enum ThumbnailGenerateError {
 #[derive(Debug, Clone)]
 pub struct GenerateThumbnailOptions {
 	pub image_options: ImageProcessorOptions,
-	pub core_config: StumpConfig,
+	pub core_config: LongboxConfig,
 	pub force_regen: bool,
 	pub filename: Option<String>,
 }
@@ -74,7 +74,7 @@ pub type GenerateOutput = (Vec<u8>, PathBuf, DidGenerate);
 fn do_generate_book_thumbnail(
 	book_path: &str,
 	file_name: &str,
-	config: &StumpConfig,
+	config: &LongboxConfig,
 	options: ImageProcessorOptions,
 ) -> Result<GenerateOutput, ProcessorError> {
 	let (_, page_data) = get_page(book_path, options.page.unwrap_or(1), config)?;

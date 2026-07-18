@@ -1,5 +1,5 @@
 use async_graphql::{Context, Object, Result, SimpleObject};
-use longbox_core::config::StumpConfig;
+use longbox_core::config::LongboxConfig;
 use models::shared::enums::UserPermission;
 
 use crate::{data::CoreContext, guard::PermissionGuard};
@@ -16,7 +16,7 @@ pub struct ConfigQuery;
 #[Object]
 impl ConfigQuery {
 	#[graphql(guard = "PermissionGuard::one(UserPermission::ManageServer)")]
-	async fn stump_config(&self, ctx: &Context<'_>) -> Result<StumpConfig> {
+	async fn stump_config(&self, ctx: &Context<'_>) -> Result<LongboxConfig> {
 		let config = ctx.data::<CoreContext>()?.config.as_ref();
 
 		Ok(config.clone())

@@ -9,7 +9,7 @@ use models::{
 use tokio::{sync::oneshot, task::spawn_blocking};
 
 use crate::{
-	config::StumpConfig,
+	config::LongboxConfig,
 	filesystem::{
 		content_type::ContentType,
 		error::FileError,
@@ -89,7 +89,7 @@ pub trait FileProcessor {
 	fn process(
 		path: &str,
 		options: FileProcessorOptions,
-		config: &StumpConfig,
+		config: &LongboxConfig,
 	) -> Result<ProcessedFile, FileError>;
 
 	/// Process the metadata of a file. This should gather the metadata of the file
@@ -100,11 +100,11 @@ pub trait FileProcessor {
 	fn get_page(
 		path: &str,
 		page: i32,
-		config: &StumpConfig,
+		config: &LongboxConfig,
 	) -> Result<(ContentType, Vec<u8>), FileError>;
 
 	/// Get the number of pages in the file.
-	fn get_page_count(path: &str, config: &StumpConfig) -> Result<i32, FileError>;
+	fn get_page_count(path: &str, config: &LongboxConfig) -> Result<i32, FileError>;
 
 	/// Get the content types of a list of pages of the file. This should determine content
 	/// types by actually testing the bytes for each page.
@@ -118,7 +118,7 @@ pub trait FileProcessor {
 	fn analyze_page(
 		path: &str,
 		page: i32,
-		config: &StumpConfig,
+		config: &LongboxConfig,
 	) -> Result<AnalyzedPage, FileError>;
 }
 
@@ -136,7 +136,7 @@ pub trait FileConverter {
 		path: &str,
 		delete_source: bool,
 		image_format: Option<SupportedImageFormat>,
-		config: &StumpConfig,
+		config: &LongboxConfig,
 	) -> Result<PathBuf, FileError>;
 }
 
@@ -206,7 +206,7 @@ macro_rules! dispatch_processor {
 pub fn process(
 	path: &Path,
 	options: FileProcessorOptions,
-	config: &StumpConfig,
+	config: &LongboxConfig,
 ) -> Result<ProcessedFile, FileError> {
 	let path_str = path.to_str().unwrap_or_default();
 	dispatch_processor!(path, process, path_str, options, config)
@@ -218,7 +218,7 @@ pub fn process(
 pub async fn process_async(
 	path: impl AsRef<Path>,
 	options: FileProcessorOptions,
-	config: &StumpConfig,
+	config: &LongboxConfig,
 ) -> Result<ProcessedFile, FileError> {
 	let (tx, rx) = oneshot::channel();
 
@@ -337,7 +337,7 @@ pub async fn generate_hashes_async(
 pub fn get_page(
 	path: &str,
 	page: i32,
-	config: &StumpConfig,
+	config: &LongboxConfig,
 ) -> Result<(ContentType, Vec<u8>), FileError> {
 	dispatch_processor!(Path::new(path), get_page, path, page, config)
 }
@@ -349,7 +349,7 @@ pub fn get_page(
 pub async fn get_page_async(
 	path: impl AsRef<Path>,
 	page: i32,
-	config: &StumpConfig,
+	config: &LongboxConfig,
 ) -> Result<(ContentType, Vec<u8>), FileError> {
 	let path_str = path.as_ref().to_str().unwrap_or_default();
 	let mime = ContentType::from_file(path_str).mime_type();
@@ -392,7 +392,7 @@ pub async fn get_page_async(
 
 /// Get the number of pages in a file. This will call the appropriate [`FileProcessor::get_page_count`]
 /// implementation based on the file's mime type, or return an error if the file type is not supported.
-pub fn get_page_count(path: &str, config: &StumpConfig) -> Result<i32, FileError> {
+pub fn get_page_count(path: &str, config: &LongboxConfig) -> Result<i32, FileError> {
 	dispatch_processor!(Path::new(path), get_page_count, path, config)
 }
 
@@ -400,7 +400,7 @@ pub fn get_page_count(path: &str, config: &StumpConfig) -> Result<i32, FileError
 pub fn analyze_page(
 	path: &str,
 	page: i32,
-	config: &StumpConfig,
+	config: &LongboxConfig,
 ) -> Result<AnalyzedPage, FileError> {
 	dispatch_processor!(Path::new(path), analyze_page, path, page, config)
 }
@@ -410,7 +410,7 @@ pub fn analyze_page(
 #[tracing::instrument(err, fields(path = %path.as_ref().display()))]
 pub async fn get_page_count_async(
 	path: impl AsRef<Path>,
-	config: &StumpConfig,
+	config: &LongboxConfig,
 ) -> Result<i32, FileError> {
 	let (tx, rx) = oneshot::channel();
 

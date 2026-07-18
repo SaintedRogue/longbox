@@ -2,7 +2,7 @@ use std::{collections::HashMap, str::FromStr, sync::Arc};
 
 use async_trait::async_trait;
 use chrono::{DateTime, Duration, FixedOffset, Utc};
-use longbox_core::config::StumpConfig;
+use longbox_core::config::LongboxConfig;
 use models::entity::session;
 use sea_orm::{prelude::*, DatabaseConnection, Set};
 use time::OffsetDateTime;
@@ -43,13 +43,13 @@ impl From<SessionError> for session_store::Error {
 }
 
 #[derive(Clone, Debug)]
-pub struct StumpSessionStore {
+pub struct LongboxSessionStore {
 	conn: Arc<DatabaseConnection>,
-	config: Arc<StumpConfig>,
+	config: Arc<LongboxConfig>,
 }
 
-impl StumpSessionStore {
-	pub fn new(conn: Arc<DatabaseConnection>, config: Arc<StumpConfig>) -> Self {
+impl LongboxSessionStore {
+	pub fn new(conn: Arc<DatabaseConnection>, config: Arc<LongboxConfig>) -> Self {
 		Self { conn, config }
 	}
 
@@ -69,7 +69,7 @@ impl StumpSessionStore {
 }
 
 #[async_trait]
-impl ExpiredDeletion for StumpSessionStore {
+impl ExpiredDeletion for LongboxSessionStore {
 	#[tracing::instrument(skip(self))]
 	async fn delete_expired(&self) -> session_store::Result<()> {
 		let affected_rows = session::Entity::delete_many()
@@ -88,7 +88,7 @@ impl ExpiredDeletion for StumpSessionStore {
 }
 
 #[async_trait]
-impl SessionStore for StumpSessionStore {
+impl SessionStore for LongboxSessionStore {
 	#[tracing::instrument(skip(self))]
 	async fn save(&self, record: &Record) -> session_store::Result<()> {
 		let expiry_time: DateTime<FixedOffset> =

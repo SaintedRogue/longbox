@@ -9,7 +9,7 @@ use pdf::{file::FileOptions, object::ParseOptions};
 use pdfium_render::prelude::{PdfRenderConfig, Pdfium};
 
 use crate::{
-	config::StumpConfig,
+	config::LongboxConfig,
 	filesystem::{
 		archive::create_zip_archive,
 		error::FileError,
@@ -97,7 +97,7 @@ impl FileProcessor for PdfProcessor {
 	fn process(
 		path: &str,
 		options: FileProcessorOptions,
-		_: &StumpConfig,
+		_: &LongboxConfig,
 	) -> Result<ProcessedFile, FileError> {
 		let file = FileOptions::cached()
 			.parse_options(ParseOptions::tolerant())
@@ -124,13 +124,13 @@ impl FileProcessor for PdfProcessor {
 	fn get_page(
 		path: &str,
 		page: i32,
-		config: &StumpConfig,
+		config: &LongboxConfig,
 	) -> Result<(ContentType, Vec<u8>), FileError> {
 		// This is the sync version - we'll create an async wrapper that handles caching
 		PdfProcessor::render_page_sync(path, page, config)
 	}
 
-	fn get_page_count(path: &str, config: &StumpConfig) -> Result<i32, FileError> {
+	fn get_page_count(path: &str, config: &LongboxConfig) -> Result<i32, FileError> {
 		let pdfium = PdfProcessor::renderer(&config.pdfium_path)?;
 		let document = pdfium.load_pdf_from_file(path, None)?;
 
@@ -153,7 +153,7 @@ impl FileProcessor for PdfProcessor {
 	fn analyze_page(
 		path: &str,
 		page: i32,
-		config: &StumpConfig,
+		config: &LongboxConfig,
 	) -> Result<AnalyzedPage, FileError> {
 		// For PDFs, we need to render the page to get dimensions since it isn't an image.
 		// This is very sub-optimal
@@ -195,7 +195,7 @@ impl PdfProcessor {
 	pub fn render_page_sync(
 		path: &str,
 		page: i32,
-		config: &StumpConfig,
+		config: &LongboxConfig,
 	) -> Result<(ContentType, Vec<u8>), FileError> {
 		Self::render_page_with_quality(path, page, config, false)
 	}
@@ -204,7 +204,7 @@ impl PdfProcessor {
 	pub fn render_page_with_quality(
 		path: &str,
 		page: i32,
-		config: &StumpConfig,
+		config: &LongboxConfig,
 		force_high_quality: bool,
 	) -> Result<(ContentType, Vec<u8>), FileError> {
 		tracing::debug!(path, page, force_high_quality, "Starting PDF page render");
@@ -294,7 +294,7 @@ impl PdfProcessor {
 	pub async fn get_page_async(
 		path: &str,
 		page: i32,
-		config: &StumpConfig,
+		config: &LongboxConfig,
 	) -> Result<(ContentType, Vec<u8>), FileError> {
 		tracing::debug!(
 			path,
@@ -400,7 +400,7 @@ impl PdfProcessor {
 	async fn generate_cache_key(
 		pdf_path: &str,
 		page: i32,
-		config: &StumpConfig,
+		config: &LongboxConfig,
 	) -> Result<String, FileError> {
 		// Use file metadata and config to create a unique cache key
 		let metadata = tokio::fs::metadata(pdf_path).await?;
@@ -444,7 +444,7 @@ impl PdfProcessor {
 	async fn get_cached_page(
 		pdf_path: &str,
 		page: i32,
-		config: &StumpConfig,
+		config: &LongboxConfig,
 	) -> Result<Option<(ContentType, Vec<u8>)>, FileError> {
 		if !config.pdf_cache_pages {
 			return Ok(None);
@@ -506,7 +506,7 @@ impl PdfProcessor {
 		pdf_path: &str,
 		page: i32,
 		content: &[u8],
-		config: &StumpConfig,
+		config: &LongboxConfig,
 	) -> Result<(), FileError> {
 		if !config.pdf_cache_pages || content.is_empty() {
 			return Ok(());
@@ -573,7 +573,7 @@ impl PdfProcessor {
 	async fn prerender_adjacent_pages(
 		pdf_path: &str,
 		current_page: i32,
-		config: &StumpConfig,
+		config: &LongboxConfig,
 	) {
 		// Skip pre-rendering if disabled
 		if !config.pdf_cache_pages || config.pdf_prerender_range == 0 {
@@ -687,7 +687,7 @@ impl FileConverter for PdfProcessor {
 		path: &str,
 		delete_source: bool,
 		format: Option<SupportedImageFormat>,
-		config: &StumpConfig,
+		config: &LongboxConfig,
 	) -> Result<PathBuf, FileError> {
 		let pdfium = PdfProcessor::renderer(&config.pdfium_path)?;
 
@@ -795,7 +795,7 @@ mod tests {
 	#[test]
 	fn test_process() {
 		let path = get_test_pdf_path();
-		let config = StumpConfig::debug();
+		let config = LongboxConfig::debug();
 
 		let processed_file = PdfProcessor::process(
 			&path,

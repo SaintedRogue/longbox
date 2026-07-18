@@ -6,7 +6,7 @@ use sea_orm::{self, DatabaseConnection, FromQueryResult, SqlxSqliteConnector};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
-use crate::{config::StumpConfig, CoreError};
+use crate::{config::LongboxConfig, CoreError};
 
 pub const FORCE_RESET_KEY: &str = "FORCE_DB_RESET";
 
@@ -14,7 +14,7 @@ pub const FORCE_RESET_KEY: &str = "FORCE_DB_RESET";
 /// the default is 999
 pub const SQLITE_BIND_LIMIT: usize = 900;
 
-pub async fn connect(config: &StumpConfig) -> Result<DatabaseConnection, CoreError> {
+pub async fn connect(config: &LongboxConfig) -> Result<DatabaseConnection, CoreError> {
 	let config_dir = config.get_config_dir();
 
 	let sqlite_url = if let Some(path) = config.db_path.clone() {

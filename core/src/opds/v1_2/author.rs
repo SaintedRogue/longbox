@@ -1,4 +1,4 @@
-//! This module defines [`StumpAuthor`] struct for representing the `atom:author` of an OPDS feed entry
+//! This module defines [`LongboxAuthor`] struct for representing the `atom:author` of an OPDS feed entry
 //! as specified at https://specs.opds.io/opds-1.2#51-metadata
 
 use xml::EventWriter;
@@ -8,12 +8,12 @@ use crate::error::CoreResult;
 
 /// Represents an author in an OPDS feed as specified at
 /// https://specs.opds.io/opds-1.2#51-metadata
-pub struct StumpAuthor {
+pub struct LongboxAuthor {
 	pub name: String,
 	pub uri: Option<String>,
 }
 
-impl Default for StumpAuthor {
+impl Default for LongboxAuthor {
 	fn default() -> Self {
 		Self {
 			name: "Stump".to_string(),
@@ -22,20 +22,20 @@ impl Default for StumpAuthor {
 	}
 }
 
-impl StumpAuthor {
+impl LongboxAuthor {
 	/// Creates a new author.
-	pub fn new(name: String, uri: Option<String>) -> StumpAuthor {
-		StumpAuthor { name, uri }
+	pub fn new(name: String, uri: Option<String>) -> LongboxAuthor {
+		LongboxAuthor { name, uri }
 	}
 
-	/// Writes the [`StumpAuthor`] instance as XML.
+	/// Writes the [`LongboxAuthor`] instance as XML.
 	///
 	/// ## Example
 	/// ```no_run
-	/// use longbox_core::opds::v1_2::author::StumpAuthor;
+	/// use longbox_core::opds::v1_2::author::LongboxAuthor;
 	/// use xml::EventWriter;
 	///
-	/// let author = StumpAuthor::new("Aaron Leopold".to_string(), None);
+	/// let author = LongboxAuthor::new("Aaron Leopold".to_string(), None);
 	/// let xml_str = r#"<?xml version="1.0" encoding="UTF-8"?><author><name>Aaron Leopold</name></author>"#;
 	///
 	/// let mut writer = EventWriter::new(Vec::new());
@@ -65,7 +65,7 @@ mod tests {
 
 	#[test]
 	fn test_author_with_only_name() {
-		let author = StumpAuthor::new("Stump".to_string(), None);
+		let author = LongboxAuthor::new("Stump".to_string(), None);
 
 		let mut writer = EventWriter::new(Vec::new());
 		author.write(&mut writer).unwrap();
@@ -85,7 +85,7 @@ mod tests {
 
 	#[test]
 	fn test_author_with_name_and_uri() {
-		let author = StumpAuthor::new(
+		let author = LongboxAuthor::new(
 			"Stump".to_string(),
 			Some("https://www.stumpapp.dev/".to_string()),
 		);

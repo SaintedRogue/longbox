@@ -4,7 +4,7 @@ use longbox_core::filesystem::{
 	image::{generate_book_thumbnail, GenerateThumbnailOptions},
 	media::analysis::{AnalysisJobConfig, MediaAnalysisJobScope},
 };
-use longbox_core::job::stump_job::StumpJob;
+use longbox_core::job::stump_job::LongboxJob;
 use models::{
 	entity::{favorite_series, library, library_config, media, series},
 	shared::enums::UserPermission,
@@ -45,7 +45,7 @@ impl SeriesMutation {
 				.await?
 				.ok_or("Series not found")?;
 
-		core.enqueue(StumpJob::analyze_media(AnalysisJobConfig {
+		core.enqueue(LongboxJob::analyze_media(AnalysisJobConfig {
 			force_reanalysis,
 			scope: MediaAnalysisJobScope::Series(model.id),
 		}))
@@ -185,7 +185,7 @@ impl SeriesMutation {
 				.await?
 				.ok_or("Series not found")?;
 
-		core.enqueue(StumpJob::series_scan(model.id, model.path, None))
+		core.enqueue(LongboxJob::series_scan(model.id, model.path, None))
 			.await?;
 
 		Ok(true)

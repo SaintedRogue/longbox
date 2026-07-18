@@ -1,7 +1,7 @@
 use async_graphql::{Result, SimpleObject};
 use chrono::offset::Utc;
 use chrono::DateTime;
-use longbox_core::config::StumpConfig;
+use longbox_core::config::LongboxConfig;
 use models::entity::log;
 
 #[derive(Clone, Debug, SimpleObject)]
@@ -29,7 +29,7 @@ pub struct LogDeleteOutput {
 }
 
 impl LogFileInfo {
-	pub async fn try_from(config: &StumpConfig) -> Result<Self> {
+	pub async fn try_from(config: &LongboxConfig) -> Result<Self> {
 		let log_file_path = config.get_log_file();
 		let metadata = tokio::fs::metadata(log_file_path.clone()).await?;
 		let system_time = metadata.modified()?;
@@ -57,7 +57,7 @@ mod tests {
 		let mut file = File::create(&log_file_path).unwrap();
 		writeln!(file, "Hello, world!").unwrap();
 
-		let config = StumpConfig::new(dir.path().to_string_lossy().to_string());
+		let config = LongboxConfig::new(dir.path().to_string_lossy().to_string());
 		let log_file_info = LogFileInfo::try_from(&config).await.unwrap();
 
 		assert_eq!(

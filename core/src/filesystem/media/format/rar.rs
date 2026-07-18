@@ -9,7 +9,7 @@ use tracing::{debug, error, trace, warn};
 use unrar::{Archive, CursorBeforeHeader, List, OpenArchive, Process, UnrarResult};
 
 use crate::{
-	config::StumpConfig,
+	config::LongboxConfig,
 	filesystem::{
 		archive::create_zip_archive,
 		content_type::ContentType,
@@ -158,7 +158,7 @@ impl FileProcessor for RarProcessor {
 	fn process(
 		path: &str,
 		options: FileProcessorOptions,
-		config: &StumpConfig,
+		config: &LongboxConfig,
 	) -> Result<ProcessedFile, FileError> {
 		if options.convert_rar_to_zip {
 			let zip_path_buf = RarProcessor::to_zip(
@@ -235,7 +235,7 @@ impl FileProcessor for RarProcessor {
 	fn get_page(
 		file: &str,
 		page: i32,
-		_: &StumpConfig,
+		_: &LongboxConfig,
 	) -> Result<(ContentType, Vec<u8>), FileError> {
 		let archive = RarProcessor::open_for_listing(file)?;
 
@@ -282,7 +282,7 @@ impl FileProcessor for RarProcessor {
 		Ok((content_type, bytes))
 	}
 
-	fn get_page_count(path: &str, _: &StumpConfig) -> Result<i32, FileError> {
+	fn get_page_count(path: &str, _: &LongboxConfig) -> Result<i32, FileError> {
 		let archive = RarProcessor::open_for_listing(path)?;
 
 		let page_count = archive
@@ -339,7 +339,7 @@ impl FileProcessor for RarProcessor {
 	fn analyze_page(
 		path: &str,
 		page: i32,
-		_: &StumpConfig,
+		_: &LongboxConfig,
 	) -> Result<AnalyzedPage, FileError> {
 		let archive = RarProcessor::open_for_listing(path)?;
 
@@ -395,7 +395,7 @@ impl FileConverter for RarProcessor {
 		path: &str,
 		delete_source: bool,
 		_: Option<SupportedImageFormat>,
-		config: &StumpConfig,
+		config: &LongboxConfig,
 	) -> Result<PathBuf, FileError> {
 		debug!(path, "Converting RAR to ZIP");
 
@@ -463,7 +463,7 @@ mod tests {
 			.to_string();
 		fs::write(&temp_rar_file_path, get_test_rar_file_data())
 			.expect("Failed to write temporary book.rar");
-		let config = StumpConfig::debug();
+		let config = LongboxConfig::debug();
 
 		// We can test deletion since it's a temporary file
 		let processed_file = RarProcessor::process(
@@ -493,7 +493,7 @@ mod tests {
 			.to_string();
 		fs::write(&temp_rar_file_path, get_test_rar_file_data())
 			.expect("Failed to write temporary book.rar");
-		let config = StumpConfig::debug();
+		let config = LongboxConfig::debug();
 
 		// We have a temporary file, so we may as well test deletion also
 		let zip_result = RarProcessor::to_zip(&temp_rar_file_path, true, None, &config);
@@ -515,7 +515,7 @@ mod tests {
 	fn test_rar_with_complex_file_tree() {
 		let path = get_test_complex_rar_path();
 
-		let config = StumpConfig::debug();
+		let config = LongboxConfig::debug();
 		let processed_file = RarProcessor::process(
 			&path,
 			FileProcessorOptions {

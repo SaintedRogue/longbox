@@ -2,12 +2,12 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote, ToTokens};
 use syn::Ident;
 
-use crate::{config_vars::StumpConfigVariable, InputAttributes};
+use crate::{config_vars::LongboxConfigVariable, InputAttributes};
 
 pub fn gen_longbox_config_impls(
 	struct_ident: &Ident,
 	input_attrs: &InputAttributes,
-	config_vars: &[StumpConfigVariable],
+	config_vars: &[LongboxConfigVariable],
 ) -> TokenStream {
 	let new_impl = gen_new_impl(config_vars);
 	let debug_impl = gen_debug_impl(config_vars);
@@ -28,7 +28,7 @@ pub fn gen_longbox_config_impls(
 	}
 }
 
-fn gen_new_impl(config_vars: &[StumpConfigVariable]) -> TokenStream {
+fn gen_new_impl(config_vars: &[LongboxConfigVariable]) -> TokenStream {
 	let mut setters = Vec::new();
 	let mut args = Vec::new();
 
@@ -62,7 +62,7 @@ fn gen_new_impl(config_vars: &[StumpConfigVariable]) -> TokenStream {
 	}
 }
 
-fn gen_debug_impl(config_vars: &[StumpConfigVariable]) -> TokenStream {
+fn gen_debug_impl(config_vars: &[LongboxConfigVariable]) -> TokenStream {
 	let mut setters = Vec::new();
 
 	for var in config_vars {
@@ -118,7 +118,7 @@ fn gen_with_file_impl(
 
 fn gen_with_env_impl(
 	partial_struct_name: &Ident,
-	config_vars: &[StumpConfigVariable],
+	config_vars: &[LongboxConfigVariable],
 ) -> TokenStream {
 	let env_var_extractors = config_vars.iter().map(gen_env_var_extractors);
 
@@ -136,7 +136,7 @@ fn gen_with_env_impl(
 	}
 }
 
-fn gen_env_var_extractors(var: &StumpConfigVariable) -> TokenStream {
+fn gen_env_var_extractors(var: &LongboxConfigVariable) -> TokenStream {
 	if let Some(var_env_key) = &var.attributes.env_key {
 		let env_key_str = var_env_key.to_token_stream().to_string();
 		let var_name = &var.variable_name;

@@ -8,7 +8,7 @@ use chrono::{DateTime, Utc};
 use xml::{writer::XmlEvent, EventWriter};
 
 use super::{
-	author::StumpAuthor,
+	author::LongboxAuthor,
 	entry::OpdsEntry,
 	link::{OpdsLinkRel, OpdsLinkType},
 	util,
@@ -62,7 +62,7 @@ impl OpdsFeed {
 		util::write_xml_element("title", &self.title, &mut writer)?;
 		util::write_xml_element("updated", &updated.to_rfc3339(), &mut writer)?;
 
-		let author = StumpAuthor::default();
+		let author = LongboxAuthor::default();
 		author.write(&mut writer)?;
 
 		if let Some(links) = &self.links {

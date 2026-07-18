@@ -8,7 +8,7 @@ use axum::{
 };
 use graphql::data::AuthContext;
 use longbox_core::{
-	config::StumpConfig,
+	config::LongboxConfig,
 	filesystem::{
 		get_saved_thumbnail, get_thumbnail, media::get_page_async, ContentType, FileError,
 	},
@@ -52,7 +52,7 @@ pub(crate) async fn get_media_file(
 pub(crate) async fn get_media_thumbnail(
 	book: &media::MediaThumbSelect,
 	image_format: Option<SupportedImageFormat>,
-	config: &StumpConfig,
+	config: &LongboxConfig,
 ) -> APIResult<(ContentType, Vec<u8>)> {
 	// Note: This doesn't hard-fail because if the saved thumbnail is missing or corrupt, we want
 	// to just pull something else instead of erroring out entirely.
@@ -68,7 +68,7 @@ pub(crate) async fn get_media_thumbnail(
 	let generated_thumb =
 		get_thumbnail(config.get_thumbnails_dir(), &book.id, image_format).await?;
 
-	let adjusted_config = StumpConfig {
+	let adjusted_config = LongboxConfig {
 		pdf_prerender_range: 0, // Disable PDF prerendering for thumbnails since we only need the first page
 		..config.clone()
 	};

@@ -9,7 +9,7 @@ use axum_extra::extract::Host;
 use longbox_core::opds::v2_0::link::OPDSLinkFinalizer;
 use reqwest::header::FORWARDED;
 
-use crate::{config::state::AppState, errors::APIError, http_server::StumpRequestInfo};
+use crate::{config::state::AppState, errors::APIError, http_server::LongboxRequestInfo};
 
 const X_FORWARDED_PROTO_HEADER_KEY: &str = "X-Forwarded-Proto";
 const X_REAL_IP: &str = "X-Real-IP";
@@ -211,7 +211,7 @@ fn extract_client_ip(
 		);
 	}
 
-	if let Some(info) = extensions.get::<StumpRequestInfo>() {
+	if let Some(info) = extensions.get::<LongboxRequestInfo>() {
 		tracing::trace!(
 			ip = ?info.ip_addr,
 			"Using direct connection IP"
@@ -268,7 +268,7 @@ mod tests {
 	fn test_extract_client_ip_fallback_to_connection_info() {
 		let headers = HeaderMap::new();
 		let mut extensions = Extensions::new();
-		extensions.insert(StumpRequestInfo {
+		extensions.insert(LongboxRequestInfo {
 			ip_addr: "192.0.2.1".parse().unwrap(),
 		});
 
@@ -294,7 +294,7 @@ mod tests {
 		headers.insert(X_FORWARDED_FOR, HeaderValue::from_static("198.51.100.1"));
 
 		let mut extensions = Extensions::new();
-		extensions.insert(StumpRequestInfo {
+		extensions.insert(LongboxRequestInfo {
 			ip_addr: "192.0.2.1".parse().unwrap(),
 		});
 		let ip = extract_client_ip(&headers, &extensions, false);

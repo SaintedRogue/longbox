@@ -5,7 +5,7 @@ use axum::http::{
 	HeaderName, HeaderValue, Method,
 };
 use local_ip_address::local_ip;
-use longbox_core::config::StumpConfig;
+use longbox_core::config::LongboxConfig;
 use tower_http::cors::{AllowOrigin, CorsLayer};
 
 use crate::middleware::auth::STUMP_SAVE_BASIC_SESSION_HEADER;
@@ -23,7 +23,7 @@ fn merge_origins(origins: &[&str], local_origins: Vec<String>) -> Vec<HeaderValu
 		.collect::<Vec<HeaderValue>>()
 }
 
-pub fn get_cors_layer(config: StumpConfig) -> CorsLayer {
+pub fn get_cors_layer(config: LongboxConfig) -> CorsLayer {
 	let is_debug = config.is_debug();
 
 	// Create CORS layer

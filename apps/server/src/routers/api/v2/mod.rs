@@ -54,7 +54,7 @@ async fn ping() -> APIResult<String> {
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct StumpVersion {
+pub struct LongboxVersion {
 	pub semver: String,
 	// E.g., nightly, experimental, unstable, etc.
 	pub build_channel: Option<String>,
@@ -62,8 +62,8 @@ pub struct StumpVersion {
 	pub compile_time: String,
 }
 
-async fn version() -> APIResult<Json<StumpVersion>> {
-	Ok(Json(StumpVersion {
+async fn version() -> APIResult<Json<LongboxVersion>> {
+	Ok(Json(LongboxVersion {
 		semver: env!("CARGO_PKG_VERSION").to_string(),
 		build_channel: option_env!("BUILD_CHANNEL").map(|s| s.to_string()),
 		rev: env!("GIT_REV").to_string(),

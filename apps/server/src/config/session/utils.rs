@@ -4,14 +4,14 @@ use time::Duration;
 
 use tower_sessions::{cookie::SameSite, Expiry, SessionManagerLayer};
 
-use super::StumpSessionStore;
+use super::LongboxSessionStore;
 
 pub const SESSION_USER_KEY: &str = "user_id";
 pub const SESSION_NAME: &str = "stump_session";
 pub const SESSION_PATH: &str = "/";
 
-pub fn get_session_layer(ctx: Arc<Ctx>) -> SessionManagerLayer<StumpSessionStore> {
-	let store = StumpSessionStore::new(ctx.conn.clone(), ctx.config.clone());
+pub fn get_session_layer(ctx: Arc<Ctx>) -> SessionManagerLayer<LongboxSessionStore> {
+	let store = LongboxSessionStore::new(ctx.conn.clone(), ctx.config.clone());
 
 	let cleanup_interval = ctx.config.expired_session_cleanup_interval;
 	if cleanup_interval > 0 {

@@ -11,7 +11,7 @@ use axum::{
 use chrono::Utc;
 use graphql::{data::AuthContext, pagination::OffsetPagination};
 use longbox_core::{
-	config::StumpConfig,
+	config::LongboxConfig,
 	filesystem::{
 		image::{GenericImageProcessor, ImageProcessor},
 		media::get_page_async,
@@ -825,7 +825,7 @@ async fn get_book_thumbnail(
 		.await?
 		.ok_or(APIError::NotFound("Book not found".to_string()))?;
 
-	let adjusted_config = StumpConfig {
+	let adjusted_config = LongboxConfig {
 		pdf_prerender_range: 0, // Disable PDF prerendering for thumbnails since we only need the first page
 		..ctx.config.as_ref().clone()
 	};

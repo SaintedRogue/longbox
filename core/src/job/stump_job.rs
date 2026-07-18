@@ -16,7 +16,7 @@ use models::shared::image_processor_options::ImageProcessorOptions;
 /// Each variant contains the data needed to construct and run the corresponding job.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "type")]
-pub enum StumpJob {
+pub enum LongboxJob {
 	LibraryScan {
 		id: String,
 		path: String,
@@ -42,64 +42,64 @@ pub enum StumpJob {
 	},
 }
 
-impl StumpJob {
+impl LongboxJob {
 	/// Returns the human-readable name of the job
 	pub fn name(&self) -> &'static str {
 		match self {
-			StumpJob::LibraryScan { .. } => "library_scan",
-			StumpJob::SeriesScan { .. } => "series_scan",
-			StumpJob::ThumbnailGeneration { .. } => "thumbnail_generation",
-			StumpJob::PlaceholderGeneration { .. } => "placeholder_generation",
-			StumpJob::MetadataFetch { .. } => "metadata_fetch",
-			StumpJob::AnalyzeMedia { .. } => "analyze_media",
+			LongboxJob::LibraryScan { .. } => "library_scan",
+			LongboxJob::SeriesScan { .. } => "series_scan",
+			LongboxJob::ThumbnailGeneration { .. } => "thumbnail_generation",
+			LongboxJob::PlaceholderGeneration { .. } => "placeholder_generation",
+			LongboxJob::MetadataFetch { .. } => "metadata_fetch",
+			LongboxJob::AnalyzeMedia { .. } => "analyze_media",
 		}
 	}
 
 	/// Returns a description for the job
 	pub fn description(&self) -> Option<String> {
 		match self {
-			StumpJob::LibraryScan { path, .. } => Some(path.clone()),
-			StumpJob::SeriesScan { path, .. } => Some(path.clone()),
-			StumpJob::ThumbnailGeneration { params, .. } => {
+			LongboxJob::LibraryScan { path, .. } => Some(path.clone()),
+			LongboxJob::SeriesScan { path, .. } => Some(path.clone()),
+			LongboxJob::ThumbnailGeneration { params, .. } => {
 				Some(format!("Thumbnail generation: {:?}", params))
 			},
-			StumpJob::PlaceholderGeneration { .. } => Some(
+			LongboxJob::PlaceholderGeneration { .. } => Some(
 				"Generate placeholder thumbnail metadata for media, series, or libraries"
 					.to_string(),
 			),
-			StumpJob::MetadataFetch { params } => {
+			LongboxJob::MetadataFetch { params } => {
 				Some(format!("Metadata fetch: {:?}", params.scope))
 			},
-			StumpJob::AnalyzeMedia { config } => {
+			LongboxJob::AnalyzeMedia { config } => {
 				Some(format!("Analyze media: {:?}", config.scope))
 			},
 		}
 	}
 
 	pub fn library_scan(id: String, path: String, options: Option<ScanOptions>) -> Self {
-		StumpJob::LibraryScan { id, path, options }
+		LongboxJob::LibraryScan { id, path, options }
 	}
 
 	pub fn series_scan(id: String, path: String, options: Option<ScanOptions>) -> Self {
-		StumpJob::SeriesScan { id, path, options }
+		LongboxJob::SeriesScan { id, path, options }
 	}
 
 	pub fn thumbnail_generation(
 		options: ImageProcessorOptions,
 		params: ThumbnailGenerationJobParams,
 	) -> Self {
-		StumpJob::ThumbnailGeneration { options, params }
+		LongboxJob::ThumbnailGeneration { options, params }
 	}
 
 	pub fn placeholder_generation(config: PlaceholderGenerationJobConfig) -> Self {
-		StumpJob::PlaceholderGeneration { config }
+		LongboxJob::PlaceholderGeneration { config }
 	}
 
 	pub fn metadata_fetch(params: MetadataFetchJobParams) -> Self {
-		StumpJob::MetadataFetch { params }
+		LongboxJob::MetadataFetch { params }
 	}
 
 	pub fn analyze_media(config: AnalysisJobConfig) -> Self {
-		StumpJob::AnalyzeMedia { config }
+		LongboxJob::AnalyzeMedia { config }
 	}
 }

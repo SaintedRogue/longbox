@@ -8,11 +8,11 @@ use std::{
 use apalis::prelude::MemoryStorage;
 use criterion::{criterion_group, BenchmarkId, Criterion};
 use longbox_core::{
-	config::StumpConfig,
+	config::LongboxConfig,
 	database::connect_at,
 	filesystem::scanner::LibraryScanJob,
 	job::{
-		stump_job::StumpJob, ApalisWorkerState, JobContext, JobLifecycle, JobOutputExt,
+		stump_job::LongboxJob, ApalisWorkerState, JobContext, JobLifecycle, JobOutputExt,
 	},
 };
 use models::{
@@ -257,7 +257,7 @@ async fn setup_test(
 	.await?;
 
 	let config_dir = format!("{}/benches/config", env!("CARGO_MANIFEST_DIR"));
-	let config = StumpConfig::new(config_dir);
+	let config = LongboxConfig::new(config_dir);
 	let job_storage = MemoryStorage::new();
 	let job_ctx = Arc::new(ApalisWorkerState::new(
 		Arc::new(conn),
@@ -340,7 +340,7 @@ async fn scan_new_library(test_ctx: TestCtx) {
 	let handle = JobContext::new(
 		job_ctx,
 		job_id,
-		&StumpJob::LibraryScan {
+		&LongboxJob::LibraryScan {
 			id: job.id.clone(),
 			path: job.path.clone(),
 			options: Some(job.options),

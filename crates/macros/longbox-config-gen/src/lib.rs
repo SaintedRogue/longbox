@@ -59,7 +59,7 @@ use gen_partial_config::gen_partial_longbox_config;
 /// reference to a private function of the input struct.
 ///
 #[proc_macro_derive(
-	StumpConfigGenerator,
+	LongboxConfigGenerator,
 	attributes(
 		default_value,
 		debug_value,

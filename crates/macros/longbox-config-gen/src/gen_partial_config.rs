@@ -2,11 +2,11 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::Ident;
 
-use crate::config_vars::StumpConfigVariable;
+use crate::config_vars::LongboxConfigVariable;
 
 pub fn gen_partial_longbox_config(
 	struct_ident: &Ident,
-	config_vars: &[StumpConfigVariable],
+	config_vars: &[LongboxConfigVariable],
 ) -> TokenStream {
 	let mut struct_defs = Vec::new();
 	let mut empty_setters = Vec::new();
@@ -48,7 +48,7 @@ fn gen_empty_impl(empty_setters: &[TokenStream]) -> TokenStream {
 
 fn gen_apply_impl(
 	struct_ident: &Ident,
-	config_vars: &[StumpConfigVariable],
+	config_vars: &[LongboxConfigVariable],
 ) -> TokenStream {
 	// Generate the setters for each config var
 	let apply_setters = config_vars.iter().map(config_var_to_setter);
@@ -61,7 +61,7 @@ fn gen_apply_impl(
 	}
 }
 
-fn config_var_to_setter(var: &StumpConfigVariable) -> TokenStream {
+fn config_var_to_setter(var: &LongboxConfigVariable) -> TokenStream {
 	let var_name = &var.variable_name;
 
 	let setter = match (var.is_vec, var.is_optional) {

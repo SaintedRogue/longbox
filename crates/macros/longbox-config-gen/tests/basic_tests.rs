@@ -16,9 +16,9 @@ use std::{env, path::PathBuf};
 use itertools::Itertools;
 use serde::Deserialize;
 
-use longbox_config_gen::StumpConfigGenerator;
+use longbox_config_gen::LongboxConfigGenerator;
 
-#[derive(StumpConfigGenerator, Deserialize)]
+#[derive(LongboxConfigGenerator, Deserialize)]
 #[config_file_location(get_mock_config_file())]
 struct EmptyConfig {}
 
@@ -29,7 +29,7 @@ mod env_keys {
 }
 use env_keys::*;
 
-#[derive(StumpConfigGenerator, Deserialize, PartialEq, Debug)]
+#[derive(LongboxConfigGenerator, Deserialize, PartialEq, Debug)]
 #[config_file_location(get_mock_config_file())]
 struct BasicConfig {
 	#[default_value(3000)]

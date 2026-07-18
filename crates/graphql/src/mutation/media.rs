@@ -5,7 +5,7 @@ use longbox_core::{
 		image::{generate_book_thumbnail, GenerateThumbnailOptions},
 		media::analysis::{AnalysisJobConfig, MediaAnalysisJobScope},
 	},
-	job::stump_job::StumpJob,
+	job::stump_job::LongboxJob,
 };
 use models::{
 	entity::{favorite_media, library, library_config, media, series},
@@ -49,7 +49,7 @@ impl MediaMutation {
 			.await?
 			.ok_or("Media not found")?;
 
-		core.enqueue(StumpJob::analyze_media(AnalysisJobConfig {
+		core.enqueue(LongboxJob::analyze_media(AnalysisJobConfig {
 			force_reanalysis,
 			scope: MediaAnalysisJobScope::Book(model.id),
 		}))

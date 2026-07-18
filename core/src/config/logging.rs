@@ -3,14 +3,14 @@ use tracing_subscriber::{
 	util::SubscriberInitExt, EnvFilter,
 };
 
-use super::StumpConfig;
+use super::LongboxConfig;
 
 pub const STUMP_SHADOW_TEXT: &str = include_str!("stump_shadow_text.txt");
 
 /// Initializes the logging system, which uses the [tracing] crate. Logs are written to
 /// both the console and a file in the config directory. The file is called `Stump.log`
 /// by default.
-pub fn init_tracing(config: &StumpConfig) {
+pub fn init_tracing(config: &LongboxConfig) {
 	let log_dir = config.get_log_dir();
 	let file_appender = tracing_appender::rolling::never(log_dir, "Stump.log");
 
