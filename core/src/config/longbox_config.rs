@@ -95,12 +95,12 @@ use defaults::*;
 ///
 ///   // Create a LongboxConfig using the config file and environment variables.
 ///   let config = LongboxConfig::new(config_dir)
-///     // Load Stump.toml file (if any)
+///     // Load Longbox.toml file (if any)
 ///     .with_config_file().unwrap()
 ///     // Overlay environment variables
 ///     .with_environment().unwrap();
 ///
-///   // Ensure that config directory exists and write Stump.toml.
+///   // Ensure that config directory exists and write Longbox.toml.
 ///   config.write_config_dir().unwrap();
 ///   // Create an instance of the stump core.
 ///   let core = LongboxCore::new(config).await;
@@ -110,7 +110,7 @@ use defaults::*;
 	LongboxConfigGenerator, Serialize, Deserialize, Debug, Clone, PartialEq, SimpleObject,
 )]
 #[graphql(name = "LongboxConfig")]
-#[config_file_location(self.get_config_dir().join("Stump.toml"))]
+#[config_file_location(self.get_config_dir().join("Longbox.toml"))]
 pub struct LongboxConfig {
 	/// The "release" | "debug" profile with which the application is running.
 	#[default_value("release".to_string())]
@@ -295,10 +295,10 @@ impl LongboxConfig {
 	}
 
 	/// Ensures that the configuration directory exists and saves the `LongboxConfig`'s current values
-	/// to Stump.toml in the configuration directory.
+	/// to Longbox.toml in the configuration directory.
 	///
 	/// This function first checks if `config_dir` exists and creates it if it does not, then does the
-	/// same for the thumbnails and cache directories. Finally, a Stump.toml file containing the current
+	/// same for the thumbnails and cache directories. Finally, a Longbox.toml file containing the current
 	/// configuration values is written. Returns `Ok` on success and `Err` if paths are misconfigured or
 	/// file IO errors are encountered.
 	pub fn write_config_dir(&self) -> CoreResult<()> {
@@ -346,11 +346,11 @@ impl LongboxConfig {
 			std::fs::create_dir_all(pdf_cache_dir).unwrap();
 		}
 
-		// Save configuration to Stump.toml
-		let stump_toml = config_dir.join("Stump.toml");
+		// Save configuration to Longbox.toml
+		let longbox_toml = config_dir.join("Longbox.toml");
 
 		std::fs::write(
-			stump_toml.as_path(),
+			longbox_toml.as_path(),
 			toml::to_string(&self).map_err(|e| {
 				eprintln!("Failed to serialize LongboxConfig to toml: {e}");
 				CoreError::InitializationError(e.to_string())
@@ -402,9 +402,9 @@ impl LongboxConfig {
 		self.get_cache_dir().join("pdf_pages")
 	}
 
-	/// Returns a `PathBuf` to the Stump log file.
+	/// Returns a `PathBuf` to the Longbox log file.
 	pub fn get_log_file(&self) -> PathBuf {
-		self.get_config_dir().join("Stump.log")
+		self.get_config_dir().join("Longbox.log")
 	}
 
 	/// Parse the configured PDF render format into a SupportedImageFormat.
@@ -479,7 +479,7 @@ mod tests {
 		config.write_config_dir().unwrap();
 
 		// Load the toml that should have been created
-		let new_toml_path = tempdir.path().join("Stump.toml");
+		let new_toml_path = tempdir.path().join("Longbox.toml");
 		let new_toml_content = std::fs::read_to_string(new_toml_path).unwrap();
 		let new_toml_vals =
 			toml::from_str::<PartialLongboxConfig>(&new_toml_content).unwrap();
@@ -548,7 +548,7 @@ mod tests {
 				let config_dir = tempdir.path().to_string_lossy().to_string();
 				let generated = LongboxConfig::new(config_dir.clone())
 					.with_config_file()
-					.expect("Failed to generate LongboxConfig from Stump.toml")
+					.expect("Failed to generate LongboxConfig from Longbox.toml")
 					.with_environment()
 					.expect("Failed to generate LongboxConfig from environment");
 

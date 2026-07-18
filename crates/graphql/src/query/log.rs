@@ -38,8 +38,8 @@ impl LogQuery {
 		get_paginated_results(query, log::Column::Id, conn, pagination, get_cursor).await
 	}
 
-	/// Get information about the Stump log file, located at STUMP_CONFIG_DIR/Stump.log, or
-	/// ~/.stump/Stump.log by default. Information such as the file size, last modified date, etc.
+	/// Get information about the Stump log file, located at LONGBOX_CONFIG_DIR/Longbox.log, or
+	/// ~/.stump/Longbox.log by default. Information such as the file size, last modified date, etc.
 	#[graphql(guard = "PermissionGuard::one(UserPermission::ManageLibrary)")]
 	async fn logfile_info(&self, ctx: &Context<'_>) -> Result<LogFileInfo> {
 		let config = ctx.data::<CoreContext>()?.config.as_ref();

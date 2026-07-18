@@ -53,7 +53,7 @@ mod tests {
 	#[tokio::test]
 	async fn test_logfile_info() {
 		let dir = tempdir().unwrap();
-		let log_file_path = dir.path().join("Stump.log");
+		let log_file_path = dir.path().join("Longbox.log");
 		let mut file = File::create(&log_file_path).unwrap();
 		writeln!(file, "Hello, world!").unwrap();
 

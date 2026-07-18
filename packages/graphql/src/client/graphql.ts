@@ -1392,12 +1392,12 @@ export enum LogModelOrdering {
  *
  * // Create a LongboxConfig using the config file and environment variables.
  * let config = LongboxConfig::new(config_dir)
- * // Load Stump.toml file (if any)
+ * // Load Longbox.toml file (if any)
  * .with_config_file().unwrap()
  * // Overlay environment variables
  * .with_environment().unwrap();
  *
- * // Ensure that config directory exists and write Stump.toml.
+ * // Ensure that config directory exists and write Longbox.toml.
  * config.write_config_dir().unwrap();
  * // Create an instance of the stump core.
  * let core = LongboxCore::new(config).await;
@@ -3489,8 +3489,8 @@ export type Query = {
   libraryMissingEntities: PaginatedMissingEntityResponse;
   listDirectory: PaginatedDirectoryListingResponse;
   /**
-   * Get information about the Stump log file, located at STUMP_CONFIG_DIR/Stump.log, or
-   * ~/.stump/Stump.log by default. Information such as the file size, last modified date, etc.
+   * Get information about the Stump log file, located at LONGBOX_CONFIG_DIR/Longbox.log, or
+   * ~/.stump/Longbox.log by default. Information such as the file size, last modified date, etc.
    */
   logfileInfo: LogFileInfo;
   loginActivity: Array<UserLoginActivity>;

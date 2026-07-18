@@ -51,7 +51,7 @@ type JwtSecretsInitialized = bool;
 ///
 /// [`LongboxCore`] expects the consuming application to determine its configuration prior to startup.
 /// [`config::bootstrap_config_dir`] enables consumers to fetch the configuration directory automatically,
-/// and [`LongboxCore::init_config`](#method.init_config) will load any Stump.toml in the config directory
+/// and [`LongboxCore::init_config`](#method.init_config) will load any Longbox.toml in the config directory
 /// or environment variables to return a [`LongboxConfig`] struct.
 ///
 /// ## Example:
@@ -84,13 +84,13 @@ impl LongboxCore {
 
 	/// A three-step configuration initialization function.
 	///
-	/// 1. Loads configuration variables from Stump.toml, located at the input
+	/// 1. Loads configuration variables from Longbox.toml, located at the input
 	///    `config_dir`, if such a file exists.
 	///
 	/// 2. Overrides variables with those set in the environment.
 	///
 	/// 3. Creates the configuration directory (if it does not exist) and writes
-	///    to Stump.toml.
+	///    to Longbox.toml.
 	///
 	/// Returns the configuration variables in a `LongboxConfig` struct.
 	pub fn init_config(config_dir: String) -> CoreResult<LongboxConfig> {
@@ -105,7 +105,7 @@ impl LongboxCore {
 			config.oidc = Some(env_oidc);
 		}
 
-		// Write ensure that config directory exists and write Stump.toml
+		// Write ensure that config directory exists and write Longbox.toml
 		config.write_config_dir()?;
 
 		Ok(config)

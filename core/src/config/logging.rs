@@ -8,11 +8,11 @@ use super::LongboxConfig;
 pub const LONGBOX_SHADOW_TEXT: &str = include_str!("longbox_shadow_text.txt");
 
 /// Initializes the logging system, which uses the [tracing] crate. Logs are written to
-/// both the console and a file in the config directory. The file is called `Stump.log`
+/// both the console and a file in the config directory. The file is called `Longbox.log`
 /// by default.
 pub fn init_tracing(config: &LongboxConfig) {
 	let log_dir = config.get_log_dir();
-	let file_appender = tracing_appender::rolling::never(log_dir, "Stump.log");
+	let file_appender = tracing_appender::rolling::never(log_dir, "Longbox.log");
 
 	let max_level = match config.verbosity {
 		0 => LevelFilter::OFF,
