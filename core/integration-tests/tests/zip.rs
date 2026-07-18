@@ -1,4 +1,4 @@
-use stump_core::{
+use longbox_core::{
 	db::models::{LibraryPattern, LibraryScanMode},
 	fs::{checksum, media_file::zip},
 	prelude::{CoreResult, Ctx},

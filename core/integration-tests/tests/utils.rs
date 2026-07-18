@@ -1,9 +1,9 @@
-extern crate stump_core;
+extern crate longbox_core;
 
 use std::{fs, path::PathBuf};
 use tempfile::{Builder, NamedTempFile, TempDir};
 
-use stump_core::{
+use longbox_core::{
 	db::{
 		migration::run_migrations,
 		models::{LibraryPattern, LibraryScanMode},

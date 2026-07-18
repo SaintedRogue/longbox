@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use async_graphql::{
 	dataloader::DataLoader, ComplexObject, Context, Result, SimpleObject,
 };
-use stump_core::filesystem::PathUtils;
+use longbox_core::filesystem::PathUtils;
 
 use crate::{loader::media::MediaLoader, object::media::Media};
 

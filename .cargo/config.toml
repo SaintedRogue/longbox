@@ -1,7 +1,7 @@
 [alias]
 integration-tests = "test --package integration-tests -- --test-threads 1"
 doc-tests = "cargo test --doc -- --show-output"
-build-server = "build --package stump_server --bin stump_server --release --"
+build-server = "build --package longbox_server --bin longbox_server --release --"
 codegen = "run --package codegen --bin codegen"
 dump-schema = "run --package graphql --bin graphql-gen"
 migrate = "run --manifest-path ./crates/migrations/Cargo.toml --bin migrate --"

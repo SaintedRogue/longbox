@@ -1,6 +1,17 @@
 use async_graphql::{Context, Json, Object, Result, SimpleObject, ID};
 use chrono::Utc;
 use itertools::chain;
+use longbox_core::filesystem::{
+	image::{
+		generate_book_thumbnail, remove_thumbnails, GenerateThumbnailOptions,
+		ImageProcessorOptionsExt, PlaceholderGenerationJobConfig,
+		PlaceholderGenerationJobScope, ThumbnailGenerationJobParams,
+	},
+	media::analysis::{AnalysisJobConfig, MediaAnalysisJobScope},
+	metadata::{MetadataFetchJobParams, MetadataFetchScope},
+	scanner::ScanOptions,
+};
+use longbox_core::job::stump_job::StumpJob;
 use metadata_integrations::MetadataField;
 use models::{
 	entity::{
@@ -16,17 +27,6 @@ use sea_orm::{
 	sea_query::{OnConflict, Query},
 	Condition, IntoActiveModel, QuerySelect, Set, TransactionTrait,
 };
-use stump_core::filesystem::{
-	image::{
-		generate_book_thumbnail, remove_thumbnails, GenerateThumbnailOptions,
-		ImageProcessorOptionsExt, PlaceholderGenerationJobConfig,
-		PlaceholderGenerationJobScope, ThumbnailGenerationJobParams,
-	},
-	media::analysis::{AnalysisJobConfig, MediaAnalysisJobScope},
-	metadata::{MetadataFetchJobParams, MetadataFetchScope},
-	scanner::ScanOptions,
-};
-use stump_core::job::stump_job::StumpJob;
 use tokio::fs;
 
 use crate::{

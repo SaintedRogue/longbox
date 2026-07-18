@@ -18,7 +18,7 @@ pub struct APIKeyInput {
 
 impl APIKeyInput {
 	pub fn into_create(self, user: &AuthUser) -> Result<(api_key::ActiveModel, String)> {
-		let (pek, hash) = stump_core::api_key::create_prefixed_key()?;
+		let (pek, hash) = longbox_core::api_key::create_prefixed_key()?;
 
 		let active_model = api_key::ActiveModel {
 			id: NotSet, // auto-incremented

@@ -1,7 +1,7 @@
 use async_graphql::{ComplexObject, SimpleObject};
+use longbox_core::utils::serde::comma_separated_list_to_vec;
 use metadata_integrations::MetadataField;
 use models::{entity::series_metadata, shared::series_metadata::CollectedItem};
-use stump_core::utils::serde::comma_separated_list_to_vec;
 
 #[derive(Clone, Debug, SimpleObject)]
 #[graphql(complex)]

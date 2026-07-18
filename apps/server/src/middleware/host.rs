@@ -6,8 +6,8 @@ use axum::{
 };
 use axum_extra::extract::Host;
 
+use longbox_core::opds::v2_0::link::OPDSLinkFinalizer;
 use reqwest::header::FORWARDED;
-use stump_core::opds::v2_0::link::OPDSLinkFinalizer;
 
 use crate::{config::state::AppState, errors::APIError, http_server::StumpRequestInfo};
 

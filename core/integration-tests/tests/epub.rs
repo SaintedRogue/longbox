@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use crate::utils::{init_test, TempLibrary};
 
-use stump_core::{
+use longbox_core::{
 	db::models::Epub,
 	fs::media_file::epub::{
 		get_epub_chapter, get_epub_resource, normalize_resource_path,

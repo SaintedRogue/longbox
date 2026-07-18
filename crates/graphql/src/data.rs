@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
 use async_graphql::Result;
+use longbox_core::Ctx;
 use models::{
 	entity::user::AuthUser,
 	shared::{enums::UserPermission, permission_set::user_has_all_permissions},
 };
-use stump_core::Ctx;
 
 use crate::error_message;
 

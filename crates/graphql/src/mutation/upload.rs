@@ -7,19 +7,19 @@ use async_graphql::{
 	Context, Error, InputObject, Object, Result, Upload, UploadValue, ID,
 };
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
-use models::{
-	entity::{library, library_config, media, series},
-	shared::enums::UserPermission,
-};
-use sea_orm::{prelude::*, sea_query::Query};
-use stump_core::filesystem::{
+use longbox_core::filesystem::{
 	image::{
 		place_thumbnail, remove_thumbnails, PlaceholderGenerationJobConfig,
 		PlaceholderGenerationJobScope,
 	},
 	ContentType,
 };
-use stump_core::job::stump_job::StumpJob;
+use longbox_core::job::stump_job::StumpJob;
+use models::{
+	entity::{library, library_config, media, series},
+	shared::enums::UserPermission,
+};
+use sea_orm::{prelude::*, sea_query::Query};
 use tokio::fs;
 use zip::{read::ZipFile, ZipArchive};
 

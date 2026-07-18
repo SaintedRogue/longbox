@@ -1,5 +1,5 @@
 use std::sync::Arc;
 
-use stump_core::Ctx;
+use longbox_core::Ctx;
 
 pub type AppState = Arc<Ctx>;

@@ -1,5 +1,12 @@
 use async_graphql::{Context, Object, Result, ID};
 use chrono::Utc;
+use longbox_core::{
+	filesystem::{
+		image::{generate_book_thumbnail, GenerateThumbnailOptions},
+		media::analysis::{AnalysisJobConfig, MediaAnalysisJobScope},
+	},
+	job::stump_job::StumpJob,
+};
 use models::{
 	entity::{favorite_media, library, library_config, media, series},
 	shared::enums::UserPermission,
@@ -8,13 +15,6 @@ use sea_orm::{
 	prelude::*,
 	sea_query::{OnConflict, Query},
 	IntoActiveModel, QuerySelect, Set,
-};
-use stump_core::{
-	filesystem::{
-		image::{generate_book_thumbnail, GenerateThumbnailOptions},
-		media::analysis::{AnalysisJobConfig, MediaAnalysisJobScope},
-	},
-	job::stump_job::StumpJob,
 };
 
 use crate::{

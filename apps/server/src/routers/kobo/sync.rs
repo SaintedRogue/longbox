@@ -9,7 +9,7 @@ use sea_orm::prelude::*;
 use sea_orm::query::*;
 
 use crate::routers::kobo::sync_token::SyncToken;
-use stump_core::kobo::{entity::MediaWithMetadataAndReadingSessions, sync_types::*};
+use longbox_core::kobo::{entity::MediaWithMetadataAndReadingSessions, sync_types::*};
 
 pub struct KoboSync {
 	model: kobo_sync_session::Model,
@@ -301,7 +301,7 @@ mod tests {
 		sync::{KoboSync, SyncPage},
 		sync_token::SyncToken,
 	};
-	use stump_core::kobo::sync_types::SyncItem;
+	use longbox_core::kobo::sync_types::SyncItem;
 
 	#[tokio::test]
 	async fn test_first_sync() {

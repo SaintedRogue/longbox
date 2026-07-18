@@ -15,14 +15,14 @@ runs:
     - name: Compile server (Linux)
       if: runner.os == 'Linux'
       shell: bash
-      run: cargo build --package stump_server --release
+      run: cargo build --package longbox_server --release
     - name: Compile server (macOS)
       # Alternatively, when running macOS
       if: runner.os == 'macOS'
       shell: bash
-      run: cargo build --package stump_server --release
+      run: cargo build --package longbox_server --release
     - name: Compile server (Windows)
       # Alternatively, when running Windows
       if: runner.os == 'Windows'
       shell: powershell
-      run: cargo build --package stump_server --release
+      run: cargo build --package longbox_server --release

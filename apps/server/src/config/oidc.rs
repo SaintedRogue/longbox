@@ -1,3 +1,4 @@
+use longbox_core::config::OidcConfig;
 use openidconnect::{
 	core::{
 		CoreAuthDisplay, CoreAuthPrompt, CoreAuthenticationFlow, CoreClient,
@@ -12,7 +13,6 @@ use openidconnect::{
 	TokenResponse,
 };
 use serde::{Deserialize, Serialize};
-use stump_core::config::OidcConfig;
 
 use crate::errors::APIError;
 

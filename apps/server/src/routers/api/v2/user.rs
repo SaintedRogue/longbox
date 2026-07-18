@@ -4,9 +4,9 @@ use axum::{
 	routing::get,
 	Router,
 };
+use longbox_core::filesystem::ContentType;
 use models::entity::user;
 use sea_orm::{prelude::*, ColumnTrait, QuerySelect};
-use stump_core::filesystem::ContentType;
 
 use crate::{
 	config::state::AppState,

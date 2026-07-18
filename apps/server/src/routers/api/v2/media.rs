@@ -7,18 +7,18 @@ use axum::{
 	Extension, Router,
 };
 use graphql::data::AuthContext;
-use models::{
-	entity::{library, library_config, media, series, user::AuthUser},
-	shared::image_processor_options::SupportedImageFormat,
-};
-use sea_orm::{prelude::*, sea_query::Query, QuerySelect};
-use stump_core::{
+use longbox_core::{
 	config::StumpConfig,
 	filesystem::{
 		get_saved_thumbnail, get_thumbnail, media::get_page_async, ContentType, FileError,
 	},
 	Ctx,
 };
+use models::{
+	entity::{library, library_config, media, series, user::AuthUser},
+	shared::image_processor_options::SupportedImageFormat,
+};
+use sea_orm::{prelude::*, sea_query::Query, QuerySelect};
 
 use crate::{
 	config::state::AppState,

@@ -1,7 +1,7 @@
 use async_graphql::{ComplexObject, Json, SimpleObject};
 
+use longbox_core::filesystem::scanner::ScanOptions;
 use models::entity::library_scan_record;
-use stump_core::filesystem::scanner::ScanOptions;
 
 #[derive(Debug, SimpleObject)]
 #[graphql(complex)]

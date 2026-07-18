@@ -1,4 +1,4 @@
-use stump_core::CoreError;
+use longbox_core::CoreError;
 
 #[derive(Debug, thiserror::Error)]
 pub enum CliError {

@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use clap::Subcommand;
 use indicatif::{ProgressBar, ProgressStyle};
-use stump_core::config::StumpConfig;
+use longbox_core::config::StumpConfig;
 
 use crate::error::CliResult;
 

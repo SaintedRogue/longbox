@@ -8,6 +8,13 @@ use axum::{
 	Extension, Router,
 };
 use graphql::data::AuthContext;
+use longbox_core::{
+	filesystem::{
+		image::{GenericImageProcessor, ImageProcessor},
+		ContentType,
+	},
+	kobo::entity::MediaWithMetadataAndReadingSessions,
+};
 use models::shared::{
 	enums::UserPermission,
 	image_processor_options::{
@@ -16,13 +23,6 @@ use models::shared::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map};
-use stump_core::{
-	filesystem::{
-		image::{GenericImageProcessor, ImageProcessor},
-		ContentType,
-	},
-	kobo::entity::MediaWithMetadataAndReadingSessions,
-};
 
 use crate::{
 	config::state::AppState,
@@ -32,7 +32,7 @@ use crate::{
 	utils::http::ImageResponse,
 	utils::serve_media,
 };
-use stump_core::kobo::sync_types::*;
+use longbox_core::kobo::sync_types::*;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct KoboAPIKey {

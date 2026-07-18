@@ -1,6 +1,6 @@
 use crate::data::CoreContext;
 use async_graphql::{Context, Result, Subscription};
-use stump_core::CoreEvent;
+use longbox_core::CoreEvent;
 
 #[derive(Default)]
 pub struct EventSubscription;

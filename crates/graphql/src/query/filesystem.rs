@@ -8,9 +8,9 @@ use crate::pagination::{
 };
 use async_graphql::{Object, Result};
 use itertools::Itertools;
+use longbox_core::filesystem::PathUtils;
 use models::shared::enums::UserPermission;
 use std::fs::DirEntry;
-use stump_core::filesystem::PathUtils;
 
 #[derive(Default)]
 pub struct FilesystemQuery;

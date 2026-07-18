@@ -1,6 +1,6 @@
 use crate::utils::{init_test, run_test_scan, TempLibrary};
 
-use stump_core::{
+use longbox_core::{
 	db::models::{LibraryPattern, LibraryScanMode},
 	prelude::{CoreResult, Ctx},
 	prisma::{library, PrismaClient},

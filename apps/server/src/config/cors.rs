@@ -5,7 +5,7 @@ use axum::http::{
 	HeaderName, HeaderValue, Method,
 };
 use local_ip_address::local_ip;
-use stump_core::config::StumpConfig;
+use longbox_core::config::StumpConfig;
 use tower_http::cors::{AllowOrigin, CorsLayer};
 
 use crate::middleware::auth::STUMP_SAVE_BASIC_SESSION_HEADER;

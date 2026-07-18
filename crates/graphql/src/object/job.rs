@@ -1,8 +1,8 @@
 use async_graphql::{
 	dataloader::DataLoader, ComplexObject, Context, Json, Result, SimpleObject,
 };
+use longbox_core::job::CoreJobOutput;
 use models::{entity::job, shared::enums::UserPermission};
-use stump_core::job::CoreJobOutput;
 
 use crate::{
 	guard::PermissionGuard, loader::log::JobAssociatedLogLoader, object::log::Log,

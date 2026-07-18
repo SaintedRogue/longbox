@@ -1,8 +1,8 @@
 use async_graphql::{Result, SimpleObject};
 use chrono::offset::Utc;
 use chrono::DateTime;
+use longbox_core::config::StumpConfig;
 use models::entity::log;
-use stump_core::config::StumpConfig;
 
 #[derive(Clone, Debug, SimpleObject)]
 pub struct Log {

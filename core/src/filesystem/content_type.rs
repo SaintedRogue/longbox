@@ -61,7 +61,7 @@ impl ContentType {
 	///
 	/// ### Example
 	/// ```no_run
-	/// use stump_core::filesystem::ContentType;
+	/// use longbox_core::filesystem::ContentType;
 	///
 	/// let content_type = ContentType::from_extension("png");
 	/// assert_eq!(content_type, ContentType::PNG);
@@ -95,7 +95,7 @@ impl ContentType {
 	///
 	/// ### Example
 	/// ```no_run
-	/// use stump_core::filesystem::ContentType;
+	/// use longbox_core::filesystem::ContentType;
 	///
 	/// let content_type = ContentType::from_file("test.png");
 	/// assert_eq!(content_type, ContentType::PNG);
@@ -110,7 +110,7 @@ impl ContentType {
 	///
 	/// ### Example
 	/// ```no_run
-	/// use stump_core::filesystem::ContentType;
+	/// use longbox_core::filesystem::ContentType;
 	///
 	/// let buf = [0xFF, 0xD8, 0xFF, 0xAA];
 	/// let content_type = ContentType::from_bytes(&buf);
@@ -127,7 +127,7 @@ impl ContentType {
 	///
 	/// ### Example
 	/// ```no_run
-	/// use stump_core::filesystem::ContentType;
+	/// use longbox_core::filesystem::ContentType;
 	///
 	/// // This is NOT a valid PNG buff
 	/// let buf = [0xFF, 0xD8, 0xBB, 0xBB];
@@ -178,7 +178,7 @@ impl ContentType {
 	///
 	/// ### Example
 	/// ```no_run
-	/// use stump_core::filesystem::ContentType;
+	/// use longbox_core::filesystem::ContentType;
 	/// use std::path::Path;
 	///
 	/// let path = Path::new("test.png");
@@ -207,7 +207,7 @@ impl ContentType {
 	///
 	/// ## Example
 	/// ```no_run
-	/// use stump_core::filesystem::ContentType;
+	/// use longbox_core::filesystem::ContentType;
 	///
 	/// let content_type = ContentType::PNG;
 	/// assert!(content_type.is_image());
@@ -225,7 +225,7 @@ impl ContentType {
 	/// ## Example
 	///
 	/// ```no_run
-	/// use stump_core::filesystem::ContentType;
+	/// use longbox_core::filesystem::ContentType;
 	///
 	/// let content_type = ContentType::PNG;
 	/// assert!(content_type.is_opds_legacy_image());
@@ -245,7 +245,7 @@ impl ContentType {
 	/// ## Example
 	///
 	/// ```no_run
-	/// use stump_core::filesystem::ContentType;
+	/// use longbox_core::filesystem::ContentType;
 	///
 	/// let content_type = ContentType::PNG;
 	/// assert!(content_type.is_decodable_image());
@@ -262,7 +262,7 @@ impl ContentType {
 	/// ## Example
 	///
 	/// ```no_run
-	/// use stump_core::filesystem::ContentType;
+	/// use longbox_core::filesystem::ContentType;
 	///
 	/// let content_type = ContentType::ZIP;
 	/// assert!(content_type.is_zip());
@@ -287,7 +287,7 @@ impl ContentType {
 	/// ## Example
 	///
 	/// ```no_run
-	/// use stump_core::filesystem::ContentType;
+	/// use longbox_core::filesystem::ContentType;
 	///
 	/// let content_type = ContentType::RAR;
 	/// assert!(content_type.is_rar());
@@ -301,7 +301,7 @@ impl ContentType {
 	/// ## Example
 	///
 	/// ```no_run
-	/// use stump_core::filesystem::ContentType;
+	/// use longbox_core::filesystem::ContentType;
 	///
 	/// let content_type = ContentType::EPUB_ZIP;
 	/// assert!(content_type.is_epub());

@@ -2,10 +2,10 @@ use std::sync::OnceLock;
 
 use chrono::{DateTime, Duration, FixedOffset, Utc};
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
+use longbox_core::config::StumpConfig;
 use models::entity::{refresh_token, server_config};
 use sea_orm::{prelude::*, ActiveValue, IntoActiveModel, QuerySelect};
 use serde::{Deserialize, Serialize};
-use stump_core::config::StumpConfig;
 
 use crate::{
 	config::state::AppState,
@@ -245,9 +245,9 @@ pub(crate) async fn exchange_refresh_token(
 #[cfg(test)]
 mod tests {
 	use ::tests::{db::test_database, fake_data};
+	use longbox_core::config::StumpConfig;
 	use models::entity::server_config;
 	use sea_orm::{ActiveValue::Set, DbConn};
-	use stump_core::config::StumpConfig;
 
 	use super::*;
 

@@ -2,6 +2,7 @@ use std::{thread, time::Duration};
 
 use clap::Subcommand;
 use dialoguer::{theme::ColorfulTheme, Confirm, Input, Password};
+use longbox_core::{config::StumpConfig, database::connect};
 use models::entity::{
 	api_key, book_club_member, bookmark, favorite_library, favorite_media,
 	favorite_series, last_library_visit, library_exclusion, media_annotation,
@@ -11,7 +12,6 @@ use models::entity::{
 use sea_orm::{
 	prelude::*, ActiveValue::Set, IntoActiveModel, QueryTrait, TransactionTrait,
 };
-use stump_core::{config::StumpConfig, database::connect};
 
 use crate::{error::CliResult, CliError};
 

@@ -2,9 +2,9 @@ use std::{collections::HashMap, str::FromStr, sync::Arc};
 
 use async_trait::async_trait;
 use chrono::{DateTime, Duration, FixedOffset, Utc};
+use longbox_core::config::StumpConfig;
 use models::entity::session;
 use sea_orm::{prelude::*, DatabaseConnection, Set};
-use stump_core::config::StumpConfig;
 use time::OffsetDateTime;
 use tokio::time::MissedTickBehavior;
 use tower_sessions::{

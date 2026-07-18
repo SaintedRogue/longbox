@@ -4,7 +4,7 @@ version.workspace = true
 edition = "2021"
 
 [lib]
-name = "stump_core"
+name = "longbox_core"
 
 [dependencies]
 alphanumeric-sort.workspace = true

@@ -1,4 +1,5 @@
 use async_graphql::{Context, Object, Result, ID};
+use longbox_core::filesystem::metadata::ProviderClientCache;
 use metadata_integrations::{
 	MatchCandidate, MergeStrategy, MetadataField, MetadataFieldOverride,
 };
@@ -7,7 +8,6 @@ use models::{
 	shared::enums::{MetadataFetchStatus, MetadataResetImpact, UserPermission},
 };
 use sea_orm::{prelude::*, sea_query::Query, IntoActiveModel, Set, TransactionTrait};
-use stump_core::filesystem::metadata::ProviderClientCache;
 
 use crate::{
 	data::{AuthContext, CoreContext},
@@ -148,7 +148,7 @@ impl SeriesMetadataMutation {
 			.and_then(|m| m.title.clone())
 			.unwrap_or_else(|| model.series.name.clone());
 
-		let candidates = stump_core::filesystem::metadata::fetch_series_metadata(
+		let candidates = longbox_core::filesystem::metadata::fetch_series_metadata(
 			conn,
 			&model.series.id,
 			&search_name,
@@ -198,7 +198,7 @@ impl SeriesMetadataMutation {
 			.get(candidate_index as usize)
 			.ok_or("Candidate index out of bounds")?;
 
-		stump_core::filesystem::metadata::apply_series_match(
+		longbox_core::filesystem::metadata::apply_series_match(
 			conn,
 			series_id.as_ref(),
 			candidate,

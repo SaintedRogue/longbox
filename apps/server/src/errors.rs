@@ -5,7 +5,7 @@ use axum::{
 	Json,
 };
 use cli::CliError;
-use stump_core::{
+use longbox_core::{
 	error::CoreError,
 	filesystem::{
 		image::{ProcessorError, ThumbnailGenerateError},

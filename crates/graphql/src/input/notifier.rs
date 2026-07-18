@@ -1,7 +1,7 @@
 use async_graphql::{InputObject, OneofObject, Result};
+use longbox_core::utils::encryption::encrypt_string;
 use models::entity::notifier::{self, NotifierConfig, NotifierType};
 use sea_orm::{ActiveValue::NotSet, Set};
-use stump_core::utils::encryption::encrypt_string;
 
 #[derive(InputObject)]
 pub struct DiscordConfigInput {

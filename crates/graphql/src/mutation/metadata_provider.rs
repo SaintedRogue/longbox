@@ -6,6 +6,7 @@ use crate::{
 	},
 };
 use async_graphql::{Context, Object, Result};
+use longbox_core::utils::encryption::decrypt_string;
 use metadata_integrations::{
 	create_provider, MatchCandidate, MergeStrategy, MetadataField,
 	ProviderValidationResult, ProviderValidationStatus,
@@ -15,7 +16,6 @@ use models::{
 	shared::enums::{MetadataFetchStatus, MetadataProvider, UserPermission},
 };
 use sea_orm::{prelude::*, IntoActiveModel, Set, TransactionTrait, TryIntoModel};
-use stump_core::utils::encryption::decrypt_string;
 
 #[derive(Default)]
 pub struct MetadataProviderMutation;
@@ -162,7 +162,7 @@ impl MetadataProviderMutation {
 			};
 
 			let result = if record.media_id.is_some() {
-				stump_core::filesystem::metadata::apply_media_match(
+				longbox_core::filesystem::metadata::apply_media_match(
 					&tx,
 					record.media_id.as_deref().unwrap(),
 					candidate,
@@ -172,7 +172,7 @@ impl MetadataProviderMutation {
 				)
 				.await
 			} else if record.series_id.is_some() {
-				stump_core::filesystem::metadata::apply_series_match(
+				longbox_core::filesystem::metadata::apply_series_match(
 					&tx,
 					record.series_id.as_deref().unwrap(),
 					candidate,

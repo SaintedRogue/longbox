@@ -5,15 +5,15 @@ use axum::{
 	Extension, Router,
 };
 use graphql::data::AuthContext;
+use longbox_core::{
+	config::StumpConfig,
+	filesystem::{get_saved_thumbnail, get_thumbnail, ContentType},
+};
 use models::{
 	entity::{library_config, media, series},
 	shared::image_processor_options::SupportedImageFormat,
 };
 use sea_orm::{prelude::*, sea_query::Query, QueryOrder};
-use stump_core::{
-	config::StumpConfig,
-	filesystem::{get_saved_thumbnail, get_thumbnail, ContentType},
-};
 
 use crate::{
 	config::state::AppState,

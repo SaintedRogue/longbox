@@ -10,6 +10,13 @@ use axum::{
 };
 use base64::{engine::general_purpose::STANDARD, Engine};
 use graphql::data::{AuthContext, ServiceContext};
+use longbox_core::opds::v2_0::{
+	authentication::{
+		OPDSAuthenticationDocumentBuilder, OPDSSupportedAuthFlow,
+		OPDS_AUTHENTICATION_DOCUMENT_REL, OPDS_AUTHENTICATION_DOCUMENT_TYPE,
+	},
+	link::OPDSLink,
+};
 use models::{
 	entity::{
 		api_key::{self, APIKeyWithUser},
@@ -24,13 +31,6 @@ use prefixed_api_key::{PrefixedApiKey, PrefixedApiKeyController};
 use reqwest::Method;
 use sea_orm::{prelude::*, Condition, DatabaseConnection};
 use serde::Deserialize;
-use stump_core::opds::v2_0::{
-	authentication::{
-		OPDSAuthenticationDocumentBuilder, OPDSSupportedAuthFlow,
-		OPDS_AUTHENTICATION_DOCUMENT_REL, OPDS_AUTHENTICATION_DOCUMENT_TYPE,
-	},
-	link::OPDSLink,
-};
 use tower_sessions::Session;
 
 use crate::{

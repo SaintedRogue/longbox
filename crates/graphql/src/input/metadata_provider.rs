@@ -1,8 +1,8 @@
 use async_graphql::{InputObject, Json, OneofObject, Result};
+use longbox_core::utils::encryption::encrypt_string;
 use metadata_integrations::merge::AutoApplyConfig;
 use models::{entity::metadata_provider_config, shared::enums::MetadataProvider};
 use sea_orm::{ActiveValue::NotSet, Set, Unchanged};
-use stump_core::utils::encryption::encrypt_string;
 
 /// Input object for creating a metadata provider configuration
 #[derive(InputObject)]

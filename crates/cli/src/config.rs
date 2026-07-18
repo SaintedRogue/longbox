@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use clap::Parser;
-use stump_core::config::StumpConfig;
+use longbox_core::config::StumpConfig;
 
 #[derive(Default, Parser)]
 pub struct CliConfig {

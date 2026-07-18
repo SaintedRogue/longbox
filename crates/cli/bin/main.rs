@@ -1,5 +1,5 @@
 use cli::{handle_command, Cli, Parser};
-use stump_core::{config, StumpCore};
+use longbox_core::{config, StumpCore};
 
 /// This is just an example of how to use this crate. It is going to be used in the
 /// server app. This is not meant to be a real CLI binary.

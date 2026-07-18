@@ -2,7 +2,7 @@ use std::{net::SocketAddr, sync::Arc, time::Duration};
 
 use apalis::prelude::*;
 use axum::{extract::connect_info::Connected, serve::IncomingStream, Extension, Router};
-use stump_core::{
+use longbox_core::{
 	config::{bootstrap_config_dir, logging::init_tracing},
 	job::dispatch_job,
 	StumpCore,
@@ -17,7 +17,7 @@ use crate::{
 	routers,
 	utils::shutdown_signal_with_cleanup,
 };
-use stump_core::config::StumpConfig;
+use longbox_core::config::StumpConfig;
 
 pub async fn run_http_server(config: StumpConfig) -> ServerResult<()> {
 	let core = StumpCore::new(config.clone()).await;

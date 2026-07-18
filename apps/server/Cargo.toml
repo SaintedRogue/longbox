@@ -5,7 +5,7 @@ edition = "2021"
 default-run = "longbox_server"
 
 [lib]
-name = "stump_server"
+name = "longbox_server"
 
 [dependencies]
 alphanumeric-sort.workspace = true

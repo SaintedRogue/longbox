@@ -1,8 +1,8 @@
 use async_graphql::{InputObject, OneofObject, Result, ID};
 use email::EmailerClientConfig;
+use longbox_core::utils::encryption::encrypt_string;
 use models::entity::emailer;
 use sea_orm::{ActiveValue::NotSet, Set};
-use stump_core::utils::encryption::encrypt_string;
 
 /// Input object for creating or updating an emailer
 #[derive(InputObject)]

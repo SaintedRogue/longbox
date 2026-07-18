@@ -1,5 +1,5 @@
+use longbox_core::Ctx;
 use std::sync::Arc;
-use stump_core::Ctx;
 use time::Duration;
 
 use tower_sessions::{cookie::SameSite, Expiry, SessionManagerLayer};

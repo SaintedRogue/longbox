@@ -2,11 +2,11 @@ use std::str::FromStr;
 
 use clap::Subcommand;
 use dialoguer::Confirm;
-use sea_orm::{ConnectionTrait, DatabaseBackend, Statement};
-use stump_core::{
+use longbox_core::{
 	config::StumpConfig,
 	database::{connect, JournalMode},
 };
+use sea_orm::{ConnectionTrait, DatabaseBackend, Statement};
 
 use super::default_progress_spinner;
 use crate::{error::CliResult, CliError};

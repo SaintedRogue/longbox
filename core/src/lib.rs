@@ -56,7 +56,7 @@ type JwtSecretsInitialized = bool;
 ///
 /// ## Example:
 /// ```no_run
-/// use stump_core::{config, StumpCore};
+/// use longbox_core::{config, StumpCore};
 ///
 /// #[tokio::main]
 /// async fn main() {

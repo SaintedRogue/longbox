@@ -32,7 +32,7 @@ impl StumpAuthor {
 	///
 	/// ## Example
 	/// ```no_run
-	/// use stump_core::opds::v1_2::author::StumpAuthor;
+	/// use longbox_core::opds::v1_2::author::StumpAuthor;
 	/// use xml::EventWriter;
 	///
 	/// let author = StumpAuthor::new("Aaron Leopold".to_string(), None);

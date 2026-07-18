@@ -7,9 +7,9 @@ use axum::{
 	Extension, Router,
 };
 use graphql::data::AuthContext;
+use longbox_core::filesystem::media::EpubProcessor;
 use models::entity::media;
 use sea_orm::prelude::*;
-use stump_core::filesystem::media::EpubProcessor;
 
 use crate::{
 	config::state::AppState,

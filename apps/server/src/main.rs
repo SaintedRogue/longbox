@@ -1,6 +1,6 @@
 use cli::{handle_command, Cli, Parser};
 use errors::EntryError;
-use stump_core::{
+use longbox_core::{
 	config::bootstrap_config_dir, config::logging::init_tracing, StumpCore,
 };
 

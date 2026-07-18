@@ -36,7 +36,7 @@ impl Ctx {
 	///
 	/// ## Example
 	/// ```no_run
-	/// use stump_core::{Ctx, config::StumpConfig};
+	/// use longbox_core::{Ctx, config::StumpConfig};
 	/// use tokio::sync::mpsc::unbounded_channel;
 	///
 	/// #[tokio::main]
@@ -134,7 +134,7 @@ impl Ctx {
 	///
 	/// ## Example
 	/// ```no_run
-	/// use stump_core::{Ctx, config::StumpConfig};
+	/// use longbox_core::{Ctx, config::StumpConfig};
 	/// use std::sync::Arc;
 	///
 	/// #[tokio::main]

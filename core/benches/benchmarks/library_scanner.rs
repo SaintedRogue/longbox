@@ -7,6 +7,14 @@ use std::{
 
 use apalis::prelude::MemoryStorage;
 use criterion::{criterion_group, BenchmarkId, Criterion};
+use longbox_core::{
+	config::StumpConfig,
+	database::connect_at,
+	filesystem::scanner::LibraryScanJob,
+	job::{
+		stump_job::StumpJob, ApalisWorkerState, JobContext, JobLifecycle, JobOutputExt,
+	},
+};
 use models::{
 	entity::{job, library, library_config, media, series},
 	shared::enums::{
@@ -15,14 +23,6 @@ use models::{
 };
 use sea_orm::prelude::*;
 use sea_orm::{ActiveValue::Set, DatabaseConnection};
-use stump_core::{
-	config::StumpConfig,
-	database::connect_at,
-	filesystem::scanner::LibraryScanJob,
-	job::{
-		stump_job::StumpJob, ApalisWorkerState, JobContext, JobLifecycle, JobOutputExt,
-	},
-};
 use tempfile::{Builder as TempDirBuilder, TempDir};
 use tokio::{runtime::Builder, sync::broadcast};
 use uuid::Uuid;
@@ -351,7 +351,7 @@ async fn scan_new_library(test_ctx: TestCtx) {
 
 	let working_state = job.init(&handle).await.expect("Failed to init job");
 
-	let stump_core::job::WorkingState {
+	let longbox_core::job::WorkingState {
 		output: initial_output,
 		mut tasks,
 		..

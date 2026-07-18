@@ -1,6 +1,6 @@
 use async_graphql::{Context, Object, Result, SimpleObject};
+use longbox_core::config::StumpConfig;
 use models::shared::enums::UserPermission;
-use stump_core::config::StumpConfig;
 
 use crate::{data::CoreContext, guard::PermissionGuard};
 

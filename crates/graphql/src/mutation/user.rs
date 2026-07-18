@@ -10,6 +10,7 @@ use crate::{
 	utils::save_user_session,
 };
 use async_graphql::{Context, Object, Result, Upload, ID};
+use longbox_core::config::StumpConfig;
 use models::{
 	entity::{
 		age_restriction, session,
@@ -25,7 +26,6 @@ use sea_orm::{
 	Set, TransactionTrait, TryIntoModel,
 };
 use std::{io::Read, path::Path};
-use stump_core::config::StumpConfig;
 use tower_sessions::Session;
 
 #[derive(Default)]
@@ -76,7 +76,7 @@ impl UserMutation {
 			.content_type
 			.clone()
 			.as_deref()
-			.map(stump_core::filesystem::ContentType::from)
+			.map(longbox_core::filesystem::ContentType::from)
 			.ok_or("Could not verify content type of uploaded file")?;
 
 		if !content_type.is_image() {

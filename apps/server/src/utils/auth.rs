@@ -1,6 +1,6 @@
+use longbox_core::config::StumpConfig;
 use models::entity::user::{AuthUser, LoginUser};
 use sea_orm::DatabaseConnection;
-use stump_core::config::StumpConfig;
 use tower_sessions::Session;
 
 use crate::{

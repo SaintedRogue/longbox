@@ -23,14 +23,14 @@ pub fn init_tracing(config: &StumpConfig) {
 
 	let mut env_filter = EnvFilter::from_default_env()
 		.add_directive(
-			"stump_core=trace"
+			"longbox_core=trace"
 				.parse()
-				.expect("Error invalid tracing directive for stump_core!"),
+				.expect("Error invalid tracing directive for longbox_core!"),
 		)
 		.add_directive(
-			"stump_server=trace"
+			"longbox_server=trace"
 				.parse()
-				.expect("Error invalid tracing directive for stump_server!"),
+				.expect("Error invalid tracing directive for longbox_server!"),
 		)
 		.add_directive(
 			"metadata_integrations=trace"

@@ -9,24 +9,7 @@ use axum::{
 	Extension, Json, Router,
 };
 use graphql::{data::AuthContext, pagination::OffsetPagination};
-use models::{
-	domain::reading_progress::compute_page_based_percentage,
-	services::reading_progress::{upsert_reading_session, NormalizedProgression},
-};
-use models::{
-	entity::{
-		library, media, media_metadata, reading_device, reading_session, series,
-		series_metadata, user::AuthUser,
-	},
-	shared::enums::ReadingStatus,
-};
-use sea_orm::{
-	prelude::*, sea_query::Expr, ActiveValue::Set, Condition, Order, QueryOrder,
-	QueryTrait,
-};
-use sea_orm::{PaginatorTrait, QuerySelect};
-use serde::{Deserialize, Serialize};
-use stump_core::{
+use longbox_core::{
 	filesystem::media::get_page_async,
 	opds::v2_0::{
 		authentication::{
@@ -47,6 +30,23 @@ use stump_core::{
 	utils::chain_optional_iter,
 	Ctx,
 };
+use models::{
+	domain::reading_progress::compute_page_based_percentage,
+	services::reading_progress::{upsert_reading_session, NormalizedProgression},
+};
+use models::{
+	entity::{
+		library, media, media_metadata, reading_device, reading_session, series,
+		series_metadata, user::AuthUser,
+	},
+	shared::enums::ReadingStatus,
+};
+use sea_orm::{
+	prelude::*, sea_query::Expr, ActiveValue::Set, Condition, Order, QueryOrder,
+	QueryTrait,
+};
+use sea_orm::{PaginatorTrait, QuerySelect};
+use serde::{Deserialize, Serialize};
 
 use crate::{
 	config::state::AppState,

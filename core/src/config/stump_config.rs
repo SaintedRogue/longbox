@@ -87,7 +87,7 @@ use defaults::*;
 ///
 /// Example:
 /// ```
-/// use stump_core::{config::{self, StumpConfig}, StumpCore};
+/// use longbox_core::{config::{self, StumpConfig}, StumpCore};
 ///
 /// #[tokio::main]
 /// async fn main() {

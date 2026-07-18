@@ -8,11 +8,11 @@ use async_graphql::Result;
 use email::{
 	AttachmentPayload, EmailContentType, EmailResult, EmailerClient, EmailerClientConfig,
 };
-use sea_orm::{prelude::*, IntoActiveModel, NotSet, Set};
-use stump_core::{
+use longbox_core::{
 	filesystem::{ContentType, FileParts, PathUtils},
 	utils::encryption::decrypt_string,
 };
+use sea_orm::{prelude::*, IntoActiveModel, NotSet, Set};
 
 use models::entity::{
 	emailer,
@@ -399,10 +399,10 @@ mod tests {
 		tests::common::*,
 	};
 	use email::EmailError;
+	use longbox_core::utils::encryption::encrypt_string;
 	use models::shared::enums::FileStatus;
 	use pretty_assertions::assert_eq;
 	use sea_orm::{DatabaseBackend::Sqlite, MockDatabase};
-	use stump_core::utils::encryption::encrypt_string;
 
 	fn get_default_media() -> media::Model {
 		media::Model {

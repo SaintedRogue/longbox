@@ -2,12 +2,12 @@ use axum::{
 	http::{header, HeaderValue},
 	response::{IntoResponse, Response},
 };
-use stump_core::filesystem::ContentType;
+use longbox_core::filesystem::ContentType;
 use tracing::error;
 
 /// [`ImageResponse`] is a thin wrapper struct to return an image correctly in Axum.
 /// It contains a subset of actual Content-Type's (using [`ContentType`] enum from
-/// `stump_core`), as well as the raw image data. This is mostly the same as [`BufferResponse`],
+/// `longbox_core`), as well as the raw image data. This is mostly the same as [`BufferResponse`],
 /// but adds the Cache-Control header.
 pub struct ImageResponse {
 	pub content_type: ContentType,
@@ -137,7 +137,7 @@ pub async fn download_image(url: &str) -> Result<(Vec<u8>, String), String> {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use stump_core::filesystem::ContentType;
+	use longbox_core::filesystem::ContentType;
 
 	#[test]
 	fn test_buffer_response() {

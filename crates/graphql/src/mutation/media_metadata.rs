@@ -5,6 +5,7 @@ use crate::{
 	object::{media::Media, metadata_fetch_record::MetadataFetchRecord},
 };
 use async_graphql::{Context, Object, Result, ID};
+use longbox_core::filesystem::metadata::ProviderClientCache;
 use metadata_integrations::{
 	MatchCandidate, MergeStrategy, MetadataField, MetadataFieldOverride, SearchQuery,
 };
@@ -13,7 +14,6 @@ use models::{
 	shared::enums::{MetadataFetchStatus, UserPermission},
 };
 use sea_orm::{prelude::*, ActiveValue::Set, IntoActiveModel};
-use stump_core::filesystem::metadata::ProviderClientCache;
 
 /// Resolve the [`library_config::Model`] that governs the library a piece of
 /// media belongs to, via media -> series -> library_config. Returns `None`
@@ -104,14 +104,15 @@ impl MediaMetadataMutation {
 						.metadata
 						.as_ref()
 						.expect("metadata was just set to Some above");
-					let xml =
-						stump_core::filesystem::media::ComicInfoXml::from(metadata_model)
-							.to_xml_string();
+					let xml = longbox_core::filesystem::media::ComicInfoXml::from(
+						metadata_model,
+					)
+					.to_xml_string();
 					let path = std::path::PathBuf::from(&model.media.path);
 					match xml {
 						Ok(xml) => {
 							let result = tokio::task::spawn_blocking(move || {
-								stump_core::filesystem::media::write_comic_info_to_zip(
+								longbox_core::filesystem::media::write_comic_info_to_zip(
 									&path, &xml,
 								)
 							})
@@ -181,7 +182,7 @@ impl MediaMetadataMutation {
 			.as_ref()
 			.and_then(|m| m.identifier_isbn.clone());
 
-		let candidates = stump_core::filesystem::metadata::fetch_media_metadata(
+		let candidates = longbox_core::filesystem::metadata::fetch_media_metadata(
 			conn,
 			&model.media.id,
 			SearchQuery {
@@ -236,7 +237,7 @@ impl MediaMetadataMutation {
 			.get(candidate_index as usize)
 			.ok_or("Candidate index out of bounds")?;
 
-		stump_core::filesystem::metadata::apply_media_match(
+		longbox_core::filesystem::metadata::apply_media_match(
 			conn,
 			media_id.as_ref(),
 			candidate,
