@@ -13,6 +13,8 @@ pub struct CreateMetadataProviderConfigInput {
 	pub api_token: String,
 	/// Whether the provider is enabled
 	pub enabled: Option<bool>,
+	/// Preference order among providers (lower = preferred). Optional; defaults to 0.
+	pub position: Option<i32>,
 	/// Auto-apply configuration
 	pub auto_apply_config: Option<Json<AutoApplyConfig>>,
 	/// Optional expiration date for the API key. This is exclusively a QOL thing,
@@ -37,6 +39,7 @@ impl CreateMetadataProviderConfigInput {
 			id: NotSet,
 			provider_type: Set(self.provider_type),
 			enabled: Set(self.enabled.unwrap_or(true)),
+			position: self.position.map(Set).unwrap_or(NotSet),
 			encrypted_api_token: Set(Some(encrypted_api_token)),
 			api_token_expires_at: Set(self.api_token_expires_at),
 			auto_apply_config: auto_apply_json.map(|v| Set(Some(v))).unwrap_or(NotSet),
@@ -56,6 +59,8 @@ pub struct PatchMetadataProviderConfigInput {
 	pub api_token: Option<String>,
 	/// Whether the provider is enabled
 	pub enabled: Option<bool>,
+	/// Preference order among providers (lower = preferred).
+	pub position: Option<i32>,
 	/// Auto-apply configuration
 	pub auto_apply_config: Option<Json<AutoApplyConfig>>,
 	/// Optional expiration date for the API key. This is exclusively a QOL thing,
@@ -84,6 +89,7 @@ impl PatchMetadataProviderConfigInput {
 			id: Unchanged(model.id),
 			provider_type: Unchanged(model.provider_type),
 			enabled: self.enabled.map(Set).unwrap_or(Unchanged(model.enabled)),
+			position: self.position.map(Set).unwrap_or(Unchanged(model.position)),
 			encrypted_api_token: encrypted_api_token
 				.map(|t| Set(Some(t)))
 				.unwrap_or(Unchanged(model.encrypted_api_token)),

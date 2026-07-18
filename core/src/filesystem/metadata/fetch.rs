@@ -56,10 +56,14 @@ fn filter_providers_for_library_type(
 	provider_configs: Vec<metadata_provider_config::Model>,
 	library_type: &LibraryType,
 ) -> Vec<metadata_provider_config::Model> {
-	provider_configs
+	let mut filtered: Vec<metadata_provider_config::Model> = provider_configs
 		.into_iter()
 		.filter(|c| library_type.has_provider_overlap(&c.provider_type))
-		.collect()
+		.collect();
+	// Preference order: lowest `position` first (ties broken by id), so the preferred
+	// provider is queried first and wins auto-apply tie-breaks.
+	filtered.sort_by_key(|c| (c.position, c.id));
+	filtered
 }
 
 /// Fetch metadata candidates for a series from all enabled providers

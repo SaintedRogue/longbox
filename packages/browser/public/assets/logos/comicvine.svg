@@ -1,0 +1,13 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Comic Vine">
+  <defs>
+    <linearGradient id="cv-bg" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2b3a55"/>
+      <stop offset="1" stop-color="#131c2b"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="#1b2537"/>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#cv-bg)"/>
+  <path d="M20 22h6l4 14 4-14h6l-7 20h-6z" fill="#f2b705"/>
+  <circle cx="44" cy="26" r="4" fill="#e0592a"/>
+  <rect x="40" y="34" width="8" height="8" rx="2" fill="#cbd5e1"/>
+</svg>

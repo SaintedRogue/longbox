@@ -143,23 +143,31 @@ pub fn find_auto_apply_candidate(
 	candidates: &[MatchCandidate],
 	provider_configs: &[models::entity::metadata_provider_config::Model],
 ) -> Option<(MatchCandidate, AutoApplyConfig)> {
-	for candidate in candidates {
-		if let Some(config) = provider_configs
-			.iter()
-			.find(|c| c.provider_type.to_string() == candidate.provider)
-		{
-			if let Some(auto_config) = config
-				.auto_apply_config
-				.as_ref()
-				.and_then(|v| serde_json::from_value::<AutoApplyConfig>(v.clone()).ok())
-			{
-				let confidence =
-					Decimal::from_f32(candidate.confidence).unwrap_or(Decimal::ZERO);
+	// Evaluate providers in preference order (lowest `position` first, ties by id) so
+	// that when more than one provider returns a confident match, the user's preferred
+	// provider wins. Candidates are pre-sorted by confidence within each provider.
+	let mut ordered: Vec<_> = provider_configs.iter().collect();
+	ordered.sort_by_key(|c| (c.position, c.id));
 
-				if auto_config.enabled && confidence >= auto_config.threshold {
-					return Some((candidate.clone(), auto_config));
-				}
-			}
+	for config in ordered {
+		let Some(auto_config) = config
+			.auto_apply_config
+			.as_ref()
+			.and_then(|v| serde_json::from_value::<AutoApplyConfig>(v.clone()).ok())
+		else {
+			continue;
+		};
+		if !auto_config.enabled {
+			continue;
+		}
+
+		let best = candidates.iter().find(|candidate| {
+			candidate.provider == config.provider_type.provider_id()
+				&& Decimal::from_f32(candidate.confidence).unwrap_or(Decimal::ZERO)
+					>= auto_config.threshold
+		});
+		if let Some(candidate) = best {
+			return Some((candidate.clone(), auto_config));
 		}
 	}
 
@@ -560,5 +568,47 @@ fn build_media_metadata_insert(
 		metadata_source: Set(Some(provider.to_string())),
 		metadata_external_id: Set(Some(external_id.to_string())),
 		..Default::default()
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	fn comic_ext(
+		series: Option<&str>,
+		number_raw: Option<&str>,
+	) -> ExternalMediaMetadata {
+		ExternalMediaMetadata {
+			series_name: series.map(String::from),
+			number_raw: number_raw.map(String::from),
+			..Default::default()
+		}
+	}
+
+	// The composed clean title now lives in the provider mapping (map_issue etc.); the
+	// apply layer just writes ext.title. These guard the enum's comic-provider gate,
+	// which the mapping relies on to decide whether to compose.
+	#[test]
+	fn comic_providers_are_recognized() {
+		use models::shared::enums::MetadataProvider;
+		assert!(MetadataProvider::from_provider_id("comicvine")
+			.is_some_and(|p| p.is_comic_provider()));
+		assert!(MetadataProvider::from_provider_id("metron")
+			.is_some_and(|p| p.is_comic_provider()));
+		assert!(!MetadataProvider::from_provider_id("hardcover")
+			.is_some_and(|p| p.is_comic_provider()));
+	}
+
+	#[test]
+	fn insert_uses_provider_supplied_title() {
+		// The provider mapping is responsible for composing "{Series} #{n}"; the apply
+		// layer must pass ext.title through untouched.
+		let ext = ExternalMediaMetadata {
+			title: Some("Absolute Batman #1".to_string()),
+			..comic_ext(Some("Absolute Batman"), Some("1"))
+		};
+		let model = build_media_metadata_insert("m1", &ext, "comicvine", "78901");
+		assert_eq!(model.title, Set(Some("Absolute Batman #1".to_string())));
 	}
 }

@@ -15,6 +15,10 @@ pub struct Model {
 	pub id: i32,
 	pub provider_type: MetadataProvider,
 	pub enabled: bool,
+	/// Preference order among providers (lower = higher priority; the lowest is the
+	/// "preferred" provider). Breaks ties when multiple providers return a confident
+	/// match. Defaults to 0 at the DB layer.
+	pub position: i32,
 	#[graphql(skip)]
 	pub encrypted_api_token: Option<String>,
 	#[sea_orm(column_type = "custom(\"DATETIME\")", nullable)]
