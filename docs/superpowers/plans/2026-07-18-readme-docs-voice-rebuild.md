@@ -670,10 +670,19 @@ recipe is the complete instruction for those tasks — do not improvise beyond i
    prefix its text with a **bold label from the fixed set** that fits its purpose
    (`HOUSE RULES`, `MINT CONDITION`, `CONTINUITY`, `FROM THE LONGBOX`,
    `BAGGED & BOARDED`, `PULL LIST`). Do **not** add new callouts.
+4. **Repoint functional stale links** (the Global Constraint, applied per file).
+   Any **functional** `stumpapp/stump` CTA — a generic "open an issue / feature
+   request / report a bug" link like `stumpapp/stump/issues` or
+   `.../issues/new/choose` — MUST be repointed to the same path under
+   `SaintedRogue/longbox`. **Keep unchanged:** attribution links (fork credit,
+   LICENSE) and **specific upstream issue-number citations** (e.g.
+   `stumpapp/stump/issues/62`) — repointing those fabricates a wrong link. If a
+   link is genuinely ambiguous, leave it and note it.
 
 **Never touch:** frontmatter keys, code fences, commands, flags, file paths, env
 var names, `<Steps>`/`<Files>`/`<Tabs>` structures, tables, or any step-by-step
-body text. Reframe any first-person author "I" to "we" where it appears in prose.
+body text. Reframe any first-person author "I" to "we" where it appears in prose
+(never inside code fences/comments).
 
 **Per-task gate (identical for Tasks 5–13):**
 
