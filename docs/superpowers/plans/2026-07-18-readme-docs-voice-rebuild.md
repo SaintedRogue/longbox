@@ -19,7 +19,7 @@
 - **Commands, paths, and code fences stay byte-for-byte exact** in every rewrite.
 - **Caption-box device is markdown-only.** In `.md` files use `> **LABEL** — …`. In `.mdx` files the idiom is the fumadocs `<Callout>` component — put the voice in a **bold voiced label** as the callout's first line; never inject raw markdown blockquote caption-boxes into MDX.
 - **Fixed caption-box / callout label set** (do not invent new ones): `MINT CONDITION` (data safety/backups), `BAGGED & BOARDED` (offline/durability), `PULL LIST` (roadmap), `HOUSE RULES` (config/permissions), `CONTINUITY` (compatibility/attribution), `FROM THE LONGBOX` (tips).
-- **MDX validity gate:** `yarn workspace @longbox/docs types:check` must pass after any `docs/content` change.
+- **MDX validity gate:** `yarn workspace @longbox/docs exec fumadocs-mdx` must exit 0 after any `docs/content` change. (Note: the fuller `types:check` = `fumadocs-mdx && tsc --noEmit` also runs `tsc` over the docs app, which fails on a **pre-existing, unrelated** type error in `src/components/landing/Hero.tsx` — not caused by any doc change on this branch. So the per-task gate is the `fumadocs-mdx` MDX-compile step alone; the final Task 14 `vite build` is the comprehensive gate and is isolated from that tsc error because vite/esbuild strips types.)
 
 ---
 
@@ -503,7 +503,7 @@ Expected: `DE-STUMP OK`
 
 - [ ] **Step 3: Verify MDX still compiles**
 
-Run: `cd /home/rogue/longbox && yarn workspace @longbox/docs types:check`
+Run: `cd /home/rogue/longbox && yarn workspace @longbox/docs exec fumadocs-mdx`
 Expected: exits 0 (no MDX/type errors).
 
 - [ ] **Step 4: Commit**
@@ -633,7 +633,7 @@ Library, Anilist, and ComicVine — to fill in the details on every issue.
 
 - [ ] **Step 7: Verify all MDX compiles**
 
-Run: `cd /home/rogue/longbox && yarn workspace @longbox/docs types:check`
+Run: `cd /home/rogue/longbox && yarn workspace @longbox/docs exec fumadocs-mdx`
 Expected: exits 0.
 
 - [ ] **Step 8: Assert docs/README dev block intact**
@@ -677,7 +677,7 @@ body text. Reframe any first-person author "I" to "we" where it appears in prose
 
 **Per-task gate (identical for Tasks 5–13):**
 
-- Run `yarn workspace @longbox/docs types:check` → exits 0.
+- Run `yarn workspace @longbox/docs exec fumadocs-mdx` → exits 0.
 - Run `git diff --stat` and confirm only that batch's files changed.
 - Commit with the batch's message.
 
@@ -693,7 +693,7 @@ body text. Reframe any first-person author "I" to "we" where it appears in prose
 
 - [ ] **Step 1:** Read `docs/longbox-voice-notes.md`, then read all three files.
 - [ ] **Step 2:** Apply the deep-guide recipe to each. Keep every command, image tag, env var, and code block byte-for-byte.
-- [ ] **Step 3:** Run `cd /home/rogue/longbox && yarn workspace @longbox/docs types:check` → expect exit 0.
+- [ ] **Step 3:** Run `cd /home/rogue/longbox && yarn workspace @longbox/docs exec fumadocs-mdx` → expect exit 0.
 - [ ] **Step 4:** `git diff --stat` shows only these three files.
 - [ ] **Step 5:** Commit:
 
@@ -714,7 +714,7 @@ git commit -m "docs(install): voiced framing on binaries/docker/source guides"
 
 - [ ] **Step 1:** Read the voice notes, then all three files.
 - [ ] **Step 2:** Apply the deep-guide recipe to each.
-- [ ] **Step 3:** `yarn workspace @longbox/docs types:check` → exit 0.
+- [ ] **Step 3:** `yarn workspace @longbox/docs exec fumadocs-mdx` → exit 0.
 - [ ] **Step 4:** `git diff --stat` shows only these three files.
 - [ ] **Step 5:** Commit:
 
@@ -735,7 +735,7 @@ git commit -m "docs(web): voiced framing on layout/readers/themes guides"
 
 - [ ] **Step 1:** Read the voice notes, then all three files.
 - [ ] **Step 2:** Apply the deep-guide recipe. In `contributing.mdx`, reframe any first-person author voice to "we"; keep any `stumpapp/stump` **attribution** links, fix only functional stale links (issues/roadmap) to `SaintedRogue/longbox`.
-- [ ] **Step 3:** `yarn workspace @longbox/docs types:check` → exit 0.
+- [ ] **Step 3:** `yarn workspace @longbox/docs exec fumadocs-mdx` → exit 0.
 - [ ] **Step 4:** `git diff --stat` shows only these three files.
 - [ ] **Step 5:** Commit:
 
@@ -761,7 +761,7 @@ git commit -m "docs(developer): voiced framing on api/cli/contributing guides"
 
 - [ ] **Step 1:** Read the voice notes, then all eight files.
 - [ ] **Step 2:** Apply the deep-guide recipe. For `libraries.mdx`, use the exact worked example in the voice notes (intro + `» How the shelf gets sorted (supported patterns)`); leave all `<Files>`/`<Tabs>`/`<Steps>` trees and the `<Callout>` about pattern names intact (fold a `FROM THE LONGBOX` label into that callout). `books.mdx` and `series.mdx` may gloss "issue"/"run" once in the intro only.
-- [ ] **Step 3:** `yarn workspace @longbox/docs types:check` → exit 0.
+- [ ] **Step 3:** `yarn workspace @longbox/docs exec fumadocs-mdx` → exit 0.
 - [ ] **Step 4:** `git diff --stat` shows only these eight files.
 - [ ] **Step 5:** Commit:
 
@@ -786,7 +786,7 @@ git commit -m "docs(fundamentals): voiced framing on the eight fundamentals guid
 
 - [ ] **Step 1:** Read the voice notes, then all seven files.
 - [ ] **Step 2:** Apply the deep-guide recipe. `opds.mdx` intro is a good spot for the "read your run on any OPDS client / e-ink device" framing; keep all spec links and endpoints exact.
-- [ ] **Step 3:** `yarn workspace @longbox/docs types:check` → exit 0.
+- [ ] **Step 3:** `yarn workspace @longbox/docs exec fumadocs-mdx` → exit 0.
 - [ ] **Step 4:** `git diff --stat` shows only these seven files.
 - [ ] **Step 5:** Commit:
 
@@ -807,7 +807,7 @@ git commit -m "docs(features): voiced framing on the feature guides"
 
 - [ ] **Step 1:** Read the voice notes, then all three files.
 - [ ] **Step 2:** Apply the deep-guide recipe. `rbac.mdx` callouts, if any, suit a `HOUSE RULES` label.
-- [ ] **Step 3:** `yarn workspace @longbox/docs types:check` → exit 0.
+- [ ] **Step 3:** `yarn workspace @longbox/docs exec fumadocs-mdx` → exit 0.
 - [ ] **Step 4:** `git diff --stat` shows only these three files.
 - [ ] **Step 5:** Commit:
 
@@ -831,7 +831,7 @@ git commit -m "docs(book-clubs): voiced framing on the book-club guides"
 
 - [ ] **Step 1:** Read the voice notes, then all six files.
 - [ ] **Step 2:** Apply the deep-guide recipe. Access-control callouts suit the `HOUSE RULES` label. Keep every permission string, scope name, and OIDC field exact.
-- [ ] **Step 3:** `yarn workspace @longbox/docs types:check` → exit 0.
+- [ ] **Step 3:** `yarn workspace @longbox/docs exec fumadocs-mdx` → exit 0.
 - [ ] **Step 4:** `git diff --stat` shows only these six files.
 - [ ] **Step 5:** Commit:
 
@@ -850,7 +850,7 @@ git commit -m "docs(access-control): voiced framing on the access-control guides
 
 - [ ] **Step 1:** Read the voice notes, then the file.
 - [ ] **Step 2:** Apply the deep-guide recipe. This page is env-var/config heavy — **every env var name, default, and code block stays exact**; voice lives only in the intro + section names. Config callouts suit `HOUSE RULES`.
-- [ ] **Step 3:** `yarn workspace @longbox/docs types:check` → exit 0.
+- [ ] **Step 3:** `yarn workspace @longbox/docs exec fumadocs-mdx` → exit 0.
 - [ ] **Step 4:** `git diff --stat` shows only this file.
 - [ ] **Step 5:** Commit:
 
@@ -871,7 +871,7 @@ git commit -m "docs(config): voiced framing on the server-config guide"
 
 - [ ] **Step 1:** Read the voice notes, then all three files.
 - [ ] **Step 2:** Apply the deep-guide recipe. `kobo.mdx`/`koreader.mdx` sync intros suit the "bagged & boarded, read anywhere" framing; keep every sync endpoint and setup step exact. `providers.mdx` — keep provider names/fields exact.
-- [ ] **Step 3:** `yarn workspace @longbox/docs types:check` → exit 0.
+- [ ] **Step 3:** `yarn workspace @longbox/docs exec fumadocs-mdx` → exit 0.
 - [ ] **Step 4:** `git diff --stat` shows only these three files.
 - [ ] **Step 5:** Commit:
 
@@ -900,7 +900,7 @@ cd /home/rogue/longbox
 grep -rhoE '\]\(/docs/[^)#]+' docs/content | sed -E 's/^\]\(//' | sort -u
 ```
 
-For each printed path, confirm a matching file exists under `docs/content` (paths map to `.mdx`; section roots map to their `index.mdx`). Any path with no file is a broken link — fix the link, re-run `types:check`, and amend the relevant commit.
+For each printed path, confirm a matching file exists under `docs/content` (paths map to `.mdx`; section roots map to their `index.mdx`). Any path with no file is a broken link — fix the link, re-run the MDX gate, and amend the relevant commit.
 
 - [ ] **Step 3: Scope check — no product source touched**
 
@@ -950,4 +950,4 @@ Report the branch (`docs/voice-rebuild`), commit count, and the `git diff --stat
 
 **Placeholder scan:** Flagship surfaces (voice-notes, README, Overview) and the small chrome pages carry full final content. Deep-guide tasks reference a complete recipe (defined once, with a full worked example in Task 1) rather than "TBD" — the recipe is the actual instruction, not a placeholder. Two chrome files (`developer/cli/index.mdx`, `book-clubs/index.mdx`) are handled by "read-then-apply-recipe" because they weren't pre-imaged; their recipe is fully specified. ✅
 
-**Type/name consistency:** Validity command is `yarn workspace @longbox/docs types:check` everywhere; full build is `yarn workspace @longbox/docs build`. Label set is identical across Global Constraints, Task 1, and the deep-guide tasks. Branch name `docs/voice-rebuild` is consistent. ✅
+**Type/name consistency:** Validity command is `yarn workspace @longbox/docs exec fumadocs-mdx` everywhere; full build is `yarn workspace @longbox/docs build`. Label set is identical across Global Constraints, Task 1, and the deep-guide tasks. Branch name `docs/voice-rebuild` is consistent. ✅
