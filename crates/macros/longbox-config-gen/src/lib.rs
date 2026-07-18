@@ -6,8 +6,8 @@ mod type_utils;
 use quote::quote;
 use syn::{parse_macro_input, Data, DeriveInput, Expr};
 
-use gen_config_impls::gen_stump_config_impls;
-use gen_partial_config::gen_partial_stump_config;
+use gen_config_impls::gen_longbox_config_impls;
+use gen_partial_config::gen_partial_longbox_config;
 
 /// A procedural macro for generating the internals of the configuration struct
 /// used in Stump.
@@ -79,10 +79,10 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 		let config_vars = config_vars::get_config_variables(data_struct);
 
 		let generated_partial_config =
-			gen_partial_stump_config(struct_ident, &config_vars);
+			gen_partial_longbox_config(struct_ident, &config_vars);
 
 		let generated_config_impls =
-			gen_stump_config_impls(struct_ident, &input_attrs, &config_vars);
+			gen_longbox_config_impls(struct_ident, &input_attrs, &config_vars);
 
 		let tokens = quote! {
 			#generated_partial_config

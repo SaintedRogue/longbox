@@ -4,7 +4,7 @@ use syn::Ident;
 
 use crate::{config_vars::StumpConfigVariable, InputAttributes};
 
-pub fn gen_stump_config_impls(
+pub fn gen_longbox_config_impls(
 	struct_ident: &Ident,
 	input_attrs: &InputAttributes,
 	config_vars: &[StumpConfigVariable],

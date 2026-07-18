@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 
 use super::oidc_config::OidcConfig;
 use crate::{CoreError, CoreResult};
-use stump_config_gen::StumpConfigGenerator;
+use longbox_config_gen::StumpConfigGenerator;
 
 // TODO(env): prefix with STUMP_ for consistency
 pub mod env_keys {

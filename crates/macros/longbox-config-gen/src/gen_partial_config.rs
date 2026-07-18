@@ -4,7 +4,7 @@ use syn::Ident;
 
 use crate::config_vars::StumpConfigVariable;
 
-pub fn gen_partial_stump_config(
+pub fn gen_partial_longbox_config(
 	struct_ident: &Ident,
 	config_vars: &[StumpConfigVariable],
 ) -> TokenStream {

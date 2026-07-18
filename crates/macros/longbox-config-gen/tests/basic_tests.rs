@@ -16,7 +16,7 @@ use std::{env, path::PathBuf};
 use itertools::Itertools;
 use serde::Deserialize;
 
-use stump_config_gen::StumpConfigGenerator;
+use longbox_config_gen::StumpConfigGenerator;
 
 #[derive(StumpConfigGenerator, Deserialize)]
 #[config_file_location(get_mock_config_file())]

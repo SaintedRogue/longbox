@@ -3895,6 +3895,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "34080505efa8e45a4b816c349525ebe327ceaa8559756f0356cba97ef3bf7432"
 
 [[package]]
+name = "longbox-config-gen"
+version = "0.1.5"
+dependencies = [
+ "itertools 0.14.0",
+ "proc-macro2",
+ "quote",
+ "serde",
+ "syn 2.0.106",
+ "temp-env",
+ "thiserror 2.0.17",
+ "toml 0.9.7",
+]
+
+[[package]]
 name = "longbox_core"
 version = "0.1.5"
 dependencies = [
@@ -3923,6 +3937,7 @@ dependencies = [
  "itertools 0.14.0",
  "kmeans_colors",
  "libc",
+ "longbox-config-gen",
  "md5 0.8.0",
  "merge",
  "metadata_integrations",
@@ -3946,7 +3961,6 @@ dependencies = [
  "serde_json",
  "serde_with",
  "simple_crypt",
- "stump-config-gen",
  "temp-env",
  "tempfile",
  "tests",
@@ -7143,20 +7157,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.106",
-]
-
-[[package]]
-name = "stump-config-gen"
-version = "0.1.5"
-dependencies = [
- "itertools 0.14.0",
- "proc-macro2",
- "quote",
- "serde",
- "syn 2.0.106",
- "temp-env",
- "thiserror 2.0.17",
- "toml 0.9.7",
 ]
 
 [[package]]

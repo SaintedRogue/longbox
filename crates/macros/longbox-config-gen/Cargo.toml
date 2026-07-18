@@ -1,5 +1,5 @@
 [package]
-name = "stump-config-gen"
+name = "longbox-config-gen"
 version = "0.1.5"
 description = "A procedural macro for generating the StumpConfig struct."
 edition = "2021"
