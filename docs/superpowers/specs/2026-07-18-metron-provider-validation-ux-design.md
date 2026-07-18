@@ -56,6 +56,14 @@ that distinction, and on success affirms nothing (only clears the error), so the
 cannot tell "verified" from "not yet checked." Separately, the single masked `user:pass`
 field makes entry errors invisible.
 
+There are **two** surfaces with this conflation. The create/edit dialog
+(`ProviderApiKeyInput.tsx`) is one. The other is the saved-provider card
+(`ExistingProviderCard.tsx:128-139`), whose **Test** button runs `testMetadataProvider`
+(the saved config) and renders the result binary: `Valid` → green, **everything else** →
+red `text-destructive`. This is the surface hit when testing an already-saved provider — the
+production scenario — so both must use the same status-aware mapping. The shared
+`metronStatusToFeedback` + `ProviderValidationFeedback` are reused in both.
+
 ## Approach — validation feedback
 
 Route each status to one of three channels; the server `message` remains the single source
