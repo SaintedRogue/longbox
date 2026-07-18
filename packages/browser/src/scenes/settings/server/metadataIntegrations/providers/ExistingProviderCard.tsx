@@ -4,7 +4,6 @@ import {
 	FragmentType,
 	graphql,
 	MetadataProvider,
-	ProviderValidationStatus,
 	useFragment,
 	UserPermission,
 } from '@longbox/graphql'
@@ -17,6 +16,8 @@ import { useAppContext } from '@/context'
 import { PROVIDER_LABELS } from './constants'
 import { EditProviderDialog } from './EditProviderDialog'
 import { ProviderLogo } from './ProviderLogo'
+import { ProviderValidationFeedback } from './ProviderValidationFeedback'
+import { metronStatusToFeedback } from './providerValidationFeedback'
 
 const fragment = graphql(`
 	fragment ExistingProviderCard on MetadataProviderConfigModel {
@@ -126,16 +127,9 @@ export function ExistingProviderCard({ data }: Props) {
 			</div>
 
 			{testResult && (
-				<Text
-					size="xs"
-					className={
-						testResult.status === ProviderValidationStatus.Valid
-							? 'text-success'
-							: 'text-destructive'
-					}
-				>
-					{testResult.message}
-				</Text>
+				<ProviderValidationFeedback
+					feedback={metronStatusToFeedback(testResult.status, testResult.message)}
+				/>
 			)}
 		</Card>
 	)
