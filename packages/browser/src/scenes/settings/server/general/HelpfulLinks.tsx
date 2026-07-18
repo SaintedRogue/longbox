@@ -38,7 +38,7 @@ export default function HelpfulLinks() {
 				</Link>
 
 				<Link
-					href="https://github.com/stumpapp/stump/blob/main/.github/CHANGELOG.md"
+					href="https://github.com/SaintedRogue/longbox/releases"
 					target="__blank"
 					rel="noopener noreferrer"
 					className={cn('space-x-2 text-sm flex items-center hover:underline', TEXT_VARIANTS.label)}
