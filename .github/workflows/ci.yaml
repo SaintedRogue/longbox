@@ -30,6 +30,13 @@ jobs:
               - './apps/web/**'
               - './packages/**'
               - './.github/actions/setup-yarn/action.yml'
+              # Root config that governs the frontend lint/type-check/test run — a change
+              # here (e.g. the check-types task ordering) must re-run the frontend job.
+              - './nx.json'
+              - './package.json'
+              - './tsconfig.json'
+              - './yarn.lock'
+              - './lerna.json'
             rust:
               - './apps/server/**'
               - './core/**'
