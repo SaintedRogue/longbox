@@ -6,7 +6,7 @@ description: Installing Longbox using Docker
 import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
 
 <Callout type="info">
-Please ensure to adjust `PUID` and `PGID` to the user your config and data directories belong to.
+**HOUSE RULES** — Please ensure to adjust `PUID` and `PGID` to the user your config and data directories belong to.
 You can print those by executing:
 
 ```bash copy
@@ -14,7 +14,7 @@ echo -e "PUID=$(id -u)\nPGID=$(id -g)"
 ```
 </Callout>
 
-The Longbox image is published to the GitHub Container Registry at
+Cracking the box open with Docker means one image and one command — no toolchain, no manual binary wrangling. The Longbox image is published to the GitHub Container Registry at
 `ghcr.io/saintedrogue/longbox`. It is **public**, so it pulls with no `docker login`, and
 each build carries a signed provenance attestation you can verify with:
 
