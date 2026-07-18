@@ -16,7 +16,7 @@ pub struct ConfigQuery;
 #[Object]
 impl ConfigQuery {
 	#[graphql(guard = "PermissionGuard::one(UserPermission::ManageServer)")]
-	async fn stump_config(&self, ctx: &Context<'_>) -> Result<LongboxConfig> {
+	async fn longbox_config(&self, ctx: &Context<'_>) -> Result<LongboxConfig> {
 		let config = ctx.data::<CoreContext>()?.config.as_ref();
 
 		Ok(config.clone())

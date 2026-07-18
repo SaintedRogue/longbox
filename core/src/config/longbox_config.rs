@@ -110,7 +110,7 @@ use defaults::*;
 #[derive(
 	LongboxConfigGenerator, Serialize, Deserialize, Debug, Clone, PartialEq, SimpleObject,
 )]
-#[graphql(name = "StumpConfig")]
+#[graphql(name = "LongboxConfig")]
 #[config_file_location(self.get_config_dir().join("Stump.toml"))]
 pub struct LongboxConfig {
 	/// The "release" | "debug" profile with which the application is running.
