@@ -7,14 +7,14 @@ import { Step, Steps } from 'fumadocs-ui/components/steps';
 import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
 
 
-There are a couple key concepts to go over regarding how Longbox represents libraries:
+A **Library** is where a run lives on disk — point Longbox at a folder and it files everything inside. A couple of concepts shape how it reads that shelf:
 
 - Libraries are really just paths on your computer that contain subdirectories representing series of books.
 - A library paths _must_ be recursively unique. This means if you have a library at `/books`, you cannot have a library at `/books/comics`.
 
 As long as a directory is accessible by Longbox, and abides by the above specification, you can create a library with it. This allows for convenient configurations like network drives, etc.
 
-## Supported Patterns
+## » How the shelf gets sorted (supported patterns)
 
 There are way too many varying organizational preferences for Longbox to support all of them. Instead, Longbox supports two different patterns for organizing your library:
 
@@ -22,8 +22,8 @@ There are way too many varying organizational preferences for Longbox to support
 - **Series-Priority**: Will create a separate series for each folder that directly contains media files, not just the top most folder.
 
 <Callout>
-	I'm **very** actively trying to figure out better names for these patterns. Please reach out if
-	you have any suggestions!
+	**FROM THE LONGBOX** — We're **very** actively trying to figure out better names for these
+	patterns. Please reach out if you have any suggestions!
 </Callout>
 
 ### Collection-Priority
@@ -213,7 +213,7 @@ Let's consider the following file tree:
 
 </Files>
 
-Notice how I started mixing stand alone novels and book series, grouping the book series by folders, for each author.
+Notice how we started mixing stand alone novels and book series, grouping the book series by folders, for each author.
 
 When Longbox scans this library as a collection-priority library, it will create 3 series:
 
@@ -325,7 +325,7 @@ There is no right and wrong when it comes to configuring a library as either col
 
 In general, if you plan on having nested folders in your library that can be grouped by the upper most level, then you should use a collection-priority library. If your library is flat, or you don't want to group books by the upper most level, then you should use a series-priority library.
 
-Personally, I use a collection-priority library for my ebooks and a series-priority library for my comics. I find that the collection-priority library works well for ebooks, as I can group them all by author, regardless of how I organize the underlying filesystem, and the series-priority library works well for comics, as I can group them by major arcs.
+Personally, we use a collection-priority library for our ebooks and a series-priority library for our comics. We find that the collection-priority library works well for ebooks, as we can group them all by author, regardless of how we organize the underlying filesystem, and the series-priority library works well for comics, as we can group them by major arcs.
 
 #### Alternative Options
 
@@ -388,7 +388,7 @@ You can edit a library by navigating to the library's settings page. From there,
 #### Analysis
 
 <Callout>
-	This section is not feature complete and is subject to change in the future.
+	**PULL LIST** — This section is not feature complete and is subject to change in the future.
 </Callout>
 
 There are more resource-intensive analysis operations which can be done on a library. At the moment, the only option is `Analyze books`.
