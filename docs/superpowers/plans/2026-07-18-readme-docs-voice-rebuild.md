@@ -18,7 +18,7 @@
 - **Metaphor seasons, never renames.** In step-by-step text the real product noun (Library, Series, Book, Collection, Reading List, Smart List) always wins; the comic word is a one-time gloss.
 - **Commands, paths, and code fences stay byte-for-byte exact** in every rewrite.
 - **Caption-box device is markdown-only.** In `.md` files use `> **LABEL** — …`. In `.mdx` files the idiom is the fumadocs `<Callout>` component — put the voice in a **bold voiced label** as the callout's first line; never inject raw markdown blockquote caption-boxes into MDX.
-- **Fixed caption-box / callout label set** (do not invent new ones): `MINT CONDITION` (beta/data-safety), `BAGGED & BOARDED` (offline/durability), `PULL LIST` (roadmap), `HOUSE RULES` (config/permissions), `CONTINUITY` (compatibility/attribution), `FROM THE LONGBOX` (tips).
+- **Fixed caption-box / callout label set** (do not invent new ones): `MINT CONDITION` (data safety/backups), `BAGGED & BOARDED` (offline/durability), `PULL LIST` (roadmap), `HOUSE RULES` (config/permissions), `CONTINUITY` (compatibility/attribution), `FROM THE LONGBOX` (tips).
 - **MDX validity gate:** `yarn workspace @longbox/docs types:check` must pass after any `docs/content` change.
 
 ---
@@ -119,7 +119,7 @@ Smart List); the comic word is a one-time gloss, not a rename.
   `docs/content`): use the fumadocs `<Callout>` component with a **bold voiced
   label** as the first line — never inject a raw markdown blockquote.
 - **Fixed label set** (do not invent new labels):
-  - `MINT CONDITION` — beta status, data safety, backups
+  - `MINT CONDITION` — data safety, backups
   - `BAGGED & BOARDED` — offline, durability, sync-on-reconnect
   - `PULL LIST` — roadmap / planned work
   - `HOUSE RULES` — configuration, permissions, access control
@@ -253,11 +253,6 @@ Leopold, whose excellent Rust core and fast scanner we kept and built on. Where
 Stump ships desktop and mobile apps alongside the web UI, **Longbox goes all-in
 on a single installable PWA** — and spends that focus on navigation, comic
 metadata, and offline reading.
-
-> **MINT CONDITION** — Longbox is pre-`1.0` and should be treated as beta. We
-> handle your files like mint back-issues and avoid breaking or data-losing
-> changes where we can, but make no guarantees. Pin versions and keep your own
-> backups until we hit a clean `1.0`.
 
 — · — · —
 

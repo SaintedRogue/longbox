@@ -63,7 +63,7 @@ always wins; the comic word is a one-time gloss, not a rename.
 
 - **Caption-box callouts** — `> **LABEL** — one line.` Fixed label set (do not
   invent new labels ad hoc):
-  - `MINT CONDITION` — beta status, data safety, backups
+  - `MINT CONDITION` — data safety, backups
   - `BAGGED & BOARDED` — offline, durability, sync-on-reconnect
   - `PULL LIST` — roadmap / planned work
   - `HOUSE RULES` — configuration, permissions, access control
@@ -104,7 +104,8 @@ amber/teal/ink palette). Voice changes; a few functional links get fixed.
 2. **What is Longbox?** → voiced; keeps the honest fork origin.
 3. **What's different in this fork** → same 6 differentiators; headers reworded to
    voice (e.g. "One longbox, everywhere," "Bagged & boarded offline reading").
-4. **Beta notice** → the `MINT CONDITION` caption-box.
+4. **No beta notice.** The old beta warning is dropped from the README front
+   door; `MINT CONDITION` stays in the label set for data-safety/backup asides.
 5. **Features · Getting Started · Developer Guide · Repository Structure** → voiced
    framing + section names. **All commands, paths, and code fences stay
    byte-for-byte exact.**
