@@ -22,10 +22,10 @@ The [contributing guide](/docs/developer/contributing) provides detailed instruc
 Afterwards, you can run the following command to build Longbox locally:
 
 ```bash copy
-yarn web build && cargo build --package stump_server --release
+yarn web build && cargo build --package longbox_server --release
 ```
 
-This will bundle the web application and build the Longbox server. The server binary is located at `target/release/stump_server`, and the web bundle at `apps/web/dist`. You can place those two items anywhere you'd like, just be sure they are either next to each other or you have set the appropriate [environment variable](/docs/guides/configuration/server-config#stump_client_dir).
+This will bundle the web application and build the Longbox server. The server binary is located at `target/release/longbox_server`, and the web bundle at `apps/web/dist`. You can place those two items anywhere you'd like, just be sure they are either next to each other or you have set the appropriate [environment variable](/docs/guides/configuration/server-config#longbox_client_dir).
 
 ## Community packages
 

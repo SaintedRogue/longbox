@@ -1,7 +1,7 @@
 [package]
 name = "longbox-config-gen"
 version = "0.1.5"
-description = "A procedural macro for generating the StumpConfig struct."
+description = "A procedural macro for generating the LongboxConfig struct."
 edition = "2021"
 
 [lib]

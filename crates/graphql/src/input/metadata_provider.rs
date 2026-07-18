@@ -16,7 +16,7 @@ pub struct CreateMetadataProviderConfigInput {
 	/// Auto-apply configuration
 	pub auto_apply_config: Option<Json<AutoApplyConfig>>,
 	/// Optional expiration date for the API key. This is exclusively a QOL thing,
-	/// since the creds don't live within the management domain of Stump
+	/// since the creds don't live within the management domain of Longbox
 	pub api_token_expires_at: Option<chrono::DateTime<chrono::FixedOffset>>,
 }
 
@@ -59,7 +59,7 @@ pub struct PatchMetadataProviderConfigInput {
 	/// Auto-apply configuration
 	pub auto_apply_config: Option<Json<AutoApplyConfig>>,
 	/// Optional expiration date for the API key. This is exclusively a QOL thing,
-	/// since the creds don't live within the management domain of Stump
+	/// since the creds don't live within the management domain of Longbox
 	pub api_token_expires_at: Option<chrono::DateTime<chrono::FixedOffset>>,
 }
 

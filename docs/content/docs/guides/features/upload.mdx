@@ -14,7 +14,7 @@ import { Accordion, Accordions } from 'fumadocs-ui/components/accordion';
 
 ## Enabling upload
 
-Uploading is **disabled by default**, and is gated behind the `enable_upload` configuration variable (`true` enables uploading). This variable can be set by modifying your `Longbox.toml` file to set `enable_upload = true` or by setting the environment variable `STUMP_ENABLE_UPLOAD=true`.
+Uploading is **disabled by default**, and is gated behind the `enable_upload` configuration variable (`true` enables uploading). This variable can be set by modifying your `Longbox.toml` file to set `enable_upload = true` or by setting the environment variable `LONGBOX_ENABLE_UPLOAD=true`.
 
 When uploading is not enabled, the routes for uploading **will not be attached to your server** and, consequently, the web UI **will not show the upload interface**. Attempting to upload directly through the API will result in HTTP Error 404.
 
@@ -29,7 +29,7 @@ The server owner can assign these permissions to users on the user management se
 
 ### Configuration
 
-The server limits the maximum upload size based on your configuration, you can change `max_file_upload_size` in `Longbox.toml` or the `STUMP_MAX_FILE_UPLOAD_SIZE` environment variable to set the maximum allowed upload size **in bytes**.
+The server limits the maximum upload size based on your configuration, you can change `max_file_upload_size` in `Longbox.toml` or the `LONGBOX_MAX_FILE_UPLOAD_SIZE` environment variable to set the maximum allowed upload size **in bytes**.
 
 ## How it works
 
@@ -124,11 +124,11 @@ This section provides explanations for possible errors you may encounter when up
   </Accordion>
 
   <Accordion title="404 Not found" id="404-not-found">
-      This error may indicate that uploading has not been enabled for your server. Double check that you have `enable_upload = true` in your `Longbox.toml` or `STUMP_ENABLE_UPLOAD = true` set in your environment.
+      This error may indicate that uploading has not been enabled for your server. Double check that you have `enable_upload = true` in your `Longbox.toml` or `LONGBOX_ENABLE_UPLOAD = true` set in your environment.
   </Accordion>
 
   <Accordion title="413 Payload too large" id="413-payload-too-large">
-      The uploaded files exceeded your configured maximum upload size. Consider increasing the value of `max_file_upload_size` in `Longbox.toml` or changing the value of the `STUMP_MAX_FILE_UPLOAD_SIZE` environment variable.
+      The uploaded files exceeded your configured maximum upload size. Consider increasing the value of `max_file_upload_size` in `Longbox.toml` or changing the value of the `LONGBOX_MAX_FILE_UPLOAD_SIZE` environment variable.
   </Accordion>
 </Accordions>
 

@@ -16,7 +16,7 @@ use crate::{
 
 type EventChannel = (Sender<CoreEvent>, Receiver<CoreEvent>);
 
-/// Struct that holds the main context for a Stump application. This is passed around
+/// Struct that holds the main context for a Longbox application. This is passed around
 /// to all the different parts of the application, and is used to access the database
 /// and manage the event channels.
 #[derive(Clone)]

@@ -186,7 +186,7 @@ export function AppLayout({ overlayLocation, navigationType }: AppLayoutProps) {
 	)
 
 	/**
-	 * Whenever we are in a Stump reader, we remove all navigation elements from
+	 * Whenever we are in a Longbox reader, we remove all navigation elements from
 	 * the DOM
 	 */
 	const hideAllNavigation = useMemo(

@@ -194,7 +194,7 @@ impl APIKeyPath {
 /// 3. A way to authenticate users for the Kobo sync API
 ///
 /// This isn't necessary for OPDS v2.0 as it has a more robust authentication mechanism. The koreader
-/// frontend app will send an md5 hash of whatever password you provide. Stump does not use the same
+/// frontend app will send an md5 hash of whatever password you provide. Longbox does not use the same
 /// hashing algorithm, therefore the default auth method would not work.
 pub async fn api_key_middleware(
 	State(ctx): State<AppState>,
@@ -452,7 +452,7 @@ impl IntoResponse for OPDSBasicAuth {
 				.header("Authorization", "Basic")
 				.header(
 					"WWW-Authenticate",
-					format!("Basic realm=\"stump OPDS v{}\"", self.version),
+					format!("Basic realm=\"longbox OPDS v{}\"", self.version),
 				)
 				.header(
 					"Content-Type",
@@ -478,7 +478,7 @@ impl IntoResponse for OPDSBasicAuth {
 				.header("Authorization", "Basic")
 				.header(
 					"WWW-Authenticate",
-					format!("Basic realm=\"stump OPDS v{}\"", self.version),
+					format!("Basic realm=\"longbox OPDS v{}\"", self.version),
 				)
 				.body(Body::default())
 				.unwrap_or_else(|e| {
@@ -633,7 +633,7 @@ mod tests {
 		assert_eq!(response.headers().get("Authorization").unwrap(), "Basic");
 		assert_eq!(
 			response.headers().get("WWW-Authenticate").unwrap(),
-			"Basic realm=\"stump OPDS v1.2\""
+			"Basic realm=\"longbox OPDS v1.2\""
 		);
 	}
 
@@ -646,7 +646,7 @@ mod tests {
 		assert_eq!(response.headers().get("Authorization").unwrap(), "Basic");
 		assert_eq!(
 			response.headers().get("WWW-Authenticate").unwrap(),
-			"Basic realm=\"stump OPDS v2.0\""
+			"Basic realm=\"longbox OPDS v2.0\""
 		);
 		assert_eq!(
 			response.headers().get("Link").unwrap(),

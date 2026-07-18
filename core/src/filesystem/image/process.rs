@@ -65,7 +65,7 @@ impl ImageProcessorOptionsExt for ImageProcessorOptions {
 	}
 }
 
-/// Trait defining a standard API for processing images throughout Stump.
+/// Trait defining a standard API for processing images throughout Longbox.
 pub trait ImageProcessor {
 	/// Generate an image from a buffer. If options are provided,
 	/// the image will be adjusted accordingly.

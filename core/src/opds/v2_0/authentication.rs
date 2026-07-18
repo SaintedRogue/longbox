@@ -29,8 +29,8 @@ pub struct OPDSAuthenticationDocument {
 }
 
 // Note: The default implementation of OPDSAuthenticationDocument only contains
-// basic authentication. This is simply because Stump doesn't support any alternatives.
-// This should be revisited once Stump supports more authentication methods.
+// basic authentication. This is simply because Longbox doesn't support any alternatives.
+// This should be revisited once Longbox supports more authentication methods.
 
 impl Default for OPDSAuthenticationDocument {
 	fn default() -> Self {

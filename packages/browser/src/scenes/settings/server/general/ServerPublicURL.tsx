@@ -55,7 +55,7 @@ export default function ServerPublicURL() {
 			<Input
 				label={t(getKey('label'))}
 				description={t(getKey('description'))}
-				placeholder="https://my-stump-instance.cloud"
+				placeholder="https://my-longbox-instance.cloud"
 				value={publicUrl}
 				onChange={(e) => setPublicUrl(e.target.value)}
 				containerClassName="md:max-w-sm max-w-[unset]"

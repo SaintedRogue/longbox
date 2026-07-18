@@ -8,7 +8,7 @@ import MobileSheet from './MobileSheet'
 export const TOPBAR_HEIGHT_PX = 53
 
 /**
- * The top bar of Stump, only visible on mobile. This is mostly because many scenes
+ * The top bar of Longbox, only visible on mobile. This is mostly because many scenes
  * have their own topbar, and they are too different from each other to be generalized
  * into a single component like this one.
  */

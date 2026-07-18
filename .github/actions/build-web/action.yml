@@ -1,5 +1,5 @@
 name: Compile Web Application
-description: Compile stump web
+description: Compile longbox web
 
 runs:
   using: composite

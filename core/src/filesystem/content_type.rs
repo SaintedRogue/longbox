@@ -6,7 +6,7 @@ use serde::Serialize;
 use crate::CoreError;
 
 /// [`ContentType`] is an enum that represents the HTTP content type. This is a smaller
-/// subset of the full list of content types, mostly focusing on types supported by Stump.
+/// subset of the full list of content types, mostly focusing on types supported by Longbox.
 #[allow(non_camel_case_types)]
 #[derive(Serialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ContentType {
@@ -238,7 +238,7 @@ impl ContentType {
 	}
 
 	/// Returns true if the content type is a decodable image. A decodable image is an image that
-	/// can be decoded by the `image` crate or by a custom image processor in Stump.
+	/// can be decoded by the `image` crate or by a custom image processor in Longbox.
 	///
 	/// See https://github.com/image-rs/image?tab=readme-ov-file#supported-image-formats
 	///

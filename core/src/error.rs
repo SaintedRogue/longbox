@@ -21,7 +21,7 @@ pub enum CoreError {
 	EncryptionFailed(String),
 	#[error("Failed to decrypt: {0}")]
 	DecryptionFailed(String),
-	#[error("Failed to initialize Stump core: {0}")]
+	#[error("Failed to initialize Longbox core: {0}")]
 	InitializationError(String),
 	#[error("{0}")]
 	EmailerError(#[from] email::EmailError),

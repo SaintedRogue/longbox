@@ -51,4 +51,4 @@ runs:
       if: ${{ inputs.cache-dependencies == 'true' }}
       uses: Swatinem/rust-cache@42dc69e1aa15d09112580998cf2ef0119e2e91ae # v2
       with:
-        shared-key: stump-rust-cache
+        shared-key: longbox-rust-cache

@@ -502,7 +502,7 @@ export type CreateMetadataProviderConfigInput = {
   apiToken: Scalars['String']['input'];
   /**
    * Optional expiration date for the API key. This is exclusively a QOL thing,
-   * since the creds don't live within the management domain of Stump
+   * since the creds don't live within the management domain of Longbox
    */
   apiTokenExpiresAt?: InputMaybe<Scalars['DateTime']['input']>;
   /** Auto-apply configuration */
@@ -585,7 +585,7 @@ export type CursorPaginationInfo = {
   /**
    * The cursor of the current page. This should only be None if there are no results,
    * since there is no cursor present to pull from. This technically deviates from
-   * popular (read: Relay) specs, but it works better for Stump
+   * popular (read: Relay) specs, but it works better for Longbox
    */
   currentCursor?: Maybe<Scalars['String']['output']>;
   /** The limit used when querying the database */
@@ -1399,7 +1399,7 @@ export enum LogModelOrdering {
  *
  * // Ensure that config directory exists and write Longbox.toml.
  * config.write_config_dir().unwrap();
- * // Create an instance of the stump core.
+ * // Create an instance of the longbox core.
  * let core = LongboxCore::new(config).await;
  * }
  * ```
@@ -1413,7 +1413,7 @@ export type LongboxConfig = {
   clientDir: Scalars['String']['output'];
   /** Whether or not to include ANSI color codes in log files. */
   colorfulLogs: Scalars['Boolean']['output'];
-  /** The configuration root for the Stump application, contains thumbnails, cache, and logs. */
+  /** The configuration root for the Longbox application, contains thumbnails, cache, and logs. */
   configDir: Scalars['String']['output'];
   /** An optional custom path for the database. */
   dbPath?: Maybe<Scalars['String']['output']>;
@@ -3248,7 +3248,7 @@ export type PageBasedThumbnailInput = {
 };
 
 /**
- * Represents a page dimension for a page of a Stump media item. It consists of a
+ * Represents a page dimension for a page of a Longbox media item. It consists of a
  * height and a width.
  */
 export type PageDimension = {
@@ -3324,7 +3324,7 @@ export type PaginatedUserResponse = {
 };
 
 /**
- * A union of the supported pagination flavors which Stump supports. The resulting
+ * A union of the supported pagination flavors which Longbox supports. The resulting
  * response will be dependent on the pagination type used, e.g. a [CursorPaginatedResponse]
  * will be returned if the [CursorPagination] type is used.
  *
@@ -3366,7 +3366,7 @@ export type PatchMetadataProviderConfigInput = {
   apiToken?: InputMaybe<Scalars['String']['input']>;
   /**
    * Optional expiration date for the API key. This is exclusively a QOL thing,
-   * since the creds don't live within the management domain of Stump
+   * since the creds don't live within the management domain of Longbox
    */
   apiTokenExpiresAt?: InputMaybe<Scalars['DateTime']['input']>;
   /** Auto-apply configuration */
@@ -3489,8 +3489,8 @@ export type Query = {
   libraryMissingEntities: PaginatedMissingEntityResponse;
   listDirectory: PaginatedDirectoryListingResponse;
   /**
-   * Get information about the Stump log file, located at LONGBOX_CONFIG_DIR/Longbox.log, or
-   * ~/.stump/Longbox.log by default. Information such as the file size, last modified date, etc.
+   * Get information about the Longbox log file, located at LONGBOX_CONFIG_DIR/Longbox.log, or
+   * ~/.longbox/Longbox.log by default. Information such as the file size, last modified date, etc.
    */
   logfileInfo: LogFileInfo;
   loginActivity: Array<UserLoginActivity>;
@@ -4232,7 +4232,7 @@ export type SeriesMetadata = {
   status?: Maybe<Scalars['String']['output']>;
   /**
    * Description taken from source (un-edited) with no line breaks, carriage returns, etc.
-   * Stump calls this 'summary' to align with other models, but is derived from 'description_text' in series.json
+   * Longbox calls this 'summary' to align with other models, but is derived from 'description_text' in series.json
    */
   summary?: Maybe<Scalars['String']['output']>;
   /** Title of series */

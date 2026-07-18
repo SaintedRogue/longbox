@@ -13,14 +13,14 @@ const Demo = () => (
 	<HoverCard
 		trigger={
 			<Button variant="ghost" className="underline underline-offset-2">
-				@stumpapp
+				@longbox
 			</Button>
 		}
 	>
 		<React.Fragment>
 			<div className="space-x-4 flex justify-between">
 				<div className="space-y-1">
-					<h4 className="text-sm font-semibold text-gray-900 dark:text-gray-50">@stumpapp</h4>
+					<h4 className="text-sm font-semibold text-gray-900 dark:text-gray-50">@longbox</h4>
 					<p className="text-sm text-gray-800 dark:text-gray-100">A WIP media server</p>
 				</div>
 			</div>

@@ -49,7 +49,7 @@ impl AttachmentSender for AttachmentSenderImpl {
 		payloads: Vec<AttachmentPayload>,
 	) -> EmailResult<()> {
 		self.emailer_client
-			.send_attachments("Attachment from Stump", recipient, payloads)
+			.send_attachments("Attachment from Longbox", recipient, payloads)
 			.await
 	}
 }
@@ -239,14 +239,14 @@ async fn book_to_attachment_with_content(
 		_ => {},
 	}
 
-	let stump_content_type =
+	let sniffed_content_type =
 		ContentType::from_bytes_with_fallback(&content[..5], &extension);
-	let mime_str = stump_content_type.mime_type();
+	let mime_str = sniffed_content_type.mime_type();
 
 	tracing::debug!(
 		?file_name,
 		?extension,
-		?stump_content_type,
+		?sniffed_content_type,
 		%mime_str,
 		"Resolved content type for attachment"
 	);
@@ -642,7 +642,7 @@ mod tests {
 		let sender = MockEmailerSender { is_error: true };
 
 		let (records, errors) =
-			send_attachments(&user, &emailer, &vec![book], &recipients, &sender)
+			send_attachments(&user, &emailer, &[book], &recipients, &sender)
 				.await
 				.unwrap();
 
@@ -665,7 +665,7 @@ mod tests {
 		let sender = MockEmailerSender { is_error: false };
 
 		let (records, errors) =
-			send_attachments(&user, &emailer, &vec![book], &recipients, &sender)
+			send_attachments(&user, &emailer, &[book], &recipients, &sender)
 				.await
 				.unwrap();
 

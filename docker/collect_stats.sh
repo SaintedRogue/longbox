@@ -1,7 +1,7 @@
 #!/bin/bash
 
 _STATS_FILE=${STATS_FILE:-"docker_stats.log"}
-_CONTAINER_NAME=${CONTAINER_NAME:-"stump"}
+_CONTAINER_NAME=${CONTAINER_NAME:-"longbox"}
 _INTERVAL_SECS=${INTERVAL_SECS:-5}
 _DO_PLOT=${DO_PLOT:-false}
 

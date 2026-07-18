@@ -110,13 +110,13 @@ pub async fn run_http_server(config: LongboxConfig) -> ServerResult<()> {
 		.await
 		.map_err(|e| ServerError::ServerStartError(e.to_string()))?;
 
-	tracing::info!("⚡️ Stump HTTP server starting on http://{}", addr);
+	tracing::info!("⚡️ Longbox HTTP server starting on http://{}", addr);
 
 	// TODO: Experiment with higher concurrency, YEARS ago at this point (before enforcing WAL even)
 	// I experienced multi-writer issues but perhaps with SeaORM + WAL we can have parallel scans.
 	let monitor = Monitor::new()
 		.register(
-			WorkerBuilder::new("stump-worker")
+			WorkerBuilder::new("longbox-worker")
 				.enable_tracing()
 				.data(server_ctx.apalis_state.clone())
 				.concurrency(1)

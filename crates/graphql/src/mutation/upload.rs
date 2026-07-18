@@ -247,7 +247,7 @@ impl UploadMutation {
 			"Enqueuing placeholder generation job for uploaded library thumbnail"
 		);
 
-		// Note: We do NOT enqueue a thumbnail generation job since that just overwrites the uploaded one lol. Stump will assume your
+		// Note: We do NOT enqueue a thumbnail generation job since that just overwrites the uploaded one lol. Longbox will assume your
 		// uploaded image is sized accordingly. We DO enqueue a placeholder generation job to ensure the colors etc are updated
 		if let Err(e) = core
 			.enqueue(LongboxJob::PlaceholderGeneration {
@@ -353,7 +353,7 @@ impl UploadMutation {
 			"Enqueuing placeholder generation job for uploaded series thumbnail"
 		);
 
-		// Note: We do NOT enqueue a thumbnail generation job since that just overwrites the uploaded one lol. Stump will assume your
+		// Note: We do NOT enqueue a thumbnail generation job since that just overwrites the uploaded one lol. Longbox will assume your
 		// uploaded image is sized accordingly. We DO enqueue a placeholder generation job to ensure the colors etc are updated
 		if let Err(e) = core
 			.enqueue(LongboxJob::PlaceholderGeneration {
@@ -469,7 +469,7 @@ impl UploadMutation {
 			"Enqueuing placeholder generation job for uploaded media thumbnail"
 		);
 
-		// Note: We do NOT enqueue a thumbnail generation job since that just overwrites the uploaded one lol. Stump will assume your
+		// Note: We do NOT enqueue a thumbnail generation job since that just overwrites the uploaded one lol. Longbox will assume your
 		// uploaded image is sized accordingly. We DO enqueue a placeholder generation job to ensure the colors etc are updated
 		if let Err(e) = core
 			.enqueue(LongboxJob::PlaceholderGeneration {
@@ -564,7 +564,7 @@ impl UploadMutation {
 			"Enqueuing placeholder generation job for uploaded series thumbnail"
 		);
 
-		// Note: We do NOT enqueue a thumbnail generation job since that just overwrites the uploaded one lol. Stump will assume your
+		// Note: We do NOT enqueue a thumbnail generation job since that just overwrites the uploaded one lol. Longbox will assume your
 		// uploaded image is sized accordingly. We DO enqueue a placeholder generation job to ensure the colors etc are updated
 		if let Err(e) = core
 			.enqueue(LongboxJob::PlaceholderGeneration {
@@ -664,7 +664,7 @@ impl UploadMutation {
 			"Enqueuing placeholder generation job for uploaded media thumbnail"
 		);
 
-		// Note: We do NOT enqueue a thumbnail generation job since that just overwrites the uploaded one lol. Stump will assume your
+		// Note: We do NOT enqueue a thumbnail generation job since that just overwrites the uploaded one lol. Longbox will assume your
 		// uploaded image is sized accordingly. We DO enqueue a placeholder generation job to ensure the colors etc are updated
 		if let Err(e) = core
 			.enqueue(LongboxJob::PlaceholderGeneration {

@@ -1,6 +1,6 @@
 # Core 🏭
 
-The `core` crate contains Stump's core functionalities
+The `core` crate contains Longbox's core functionalities
 
 ## Structure 📦
 

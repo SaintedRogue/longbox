@@ -54,7 +54,7 @@ pub struct Model {
 	#[sea_orm(column_type = "Text", nullable)]
 	pub status: Option<String>,
 	/// Description taken from source (un-edited) with no line breaks, carriage returns, etc.
-	/// Stump calls this 'summary' to align with other models, but is derived from 'description_text' in series.json
+	/// Longbox calls this 'summary' to align with other models, but is derived from 'description_text' in series.json
 	#[sea_orm(column_type = "Text", nullable)]
 	pub summary: Option<String>,
 	/// Title of series

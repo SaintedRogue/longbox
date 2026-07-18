@@ -76,7 +76,7 @@ impl MediaMutation {
 
 		// if media.extension != "cbr" || media.extension != "rar" {
 		//     return Err(APIError::BadRequest(String::from(
-		//         "Stump only supports RAR to ZIP conversions at this time",
+		//         "Longbox only supports RAR to ZIP conversions at this time",
 		//     )));
 		// }
 

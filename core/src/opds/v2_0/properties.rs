@@ -13,7 +13,7 @@ use super::link::OPDSLinkType;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OPDSDynamicProperties(pub serde_json::Value);
 
-/// The route for the authentication document for Stump's OPDS 2.0 implementation
+/// The route for the authentication document for Longbox's OPDS 2.0 implementation
 pub const AUTH_ROUTE: &str = "/opds/v2.0/auth";
 
 /// A struct for representing properties of an OPDS feed or collection

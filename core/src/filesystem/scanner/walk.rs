@@ -266,7 +266,7 @@ pub struct WalkedSeries {
 	/// A list of media IDs that were previously marked as missing but have been found on disk
 	pub recovered_media: Vec<String>,
 	/// The paths for media that need to be visited, i.e. the timestamp on disk has changed and
-	/// Stump will reconcile the media with the database
+	/// Longbox will reconcile the media with the database
 	pub media_to_visit: Vec<(PathBuf, BookVisitOperation)>,
 	/// The paths for media that are missing from the filesystem
 	pub missing_media: Vec<PathBuf>,

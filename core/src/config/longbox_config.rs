@@ -102,7 +102,7 @@ use defaults::*;
 ///
 ///   // Ensure that config directory exists and write Longbox.toml.
 ///   config.write_config_dir().unwrap();
-///   // Create an instance of the stump core.
+///   // Create an instance of the longbox core.
 ///   let core = LongboxCore::new(config).await;
 /// }
 /// ```
@@ -160,7 +160,7 @@ pub struct LongboxConfig {
 	#[env_key(CLIENT_KEY)]
 	pub client_dir: String,
 
-	/// The configuration root for the Stump application, contains thumbnails, cache, and logs.
+	/// The configuration root for the Longbox application, contains thumbnails, cache, and logs.
 	#[debug_value(super::get_default_config_dir())]
 	#[env_key(CONFIG_DIR_KEY)]
 	#[required_by_new]
@@ -316,7 +316,7 @@ impl LongboxConfig {
 				Ok(_) => (),
 				Err(e) => {
 					return Err(CoreError::InitializationError(format!(
-						"Failed to create Stump configuration directory at {:?}: {:?}",
+						"Failed to create Longbox configuration directory at {:?}: {:?}",
 						config_dir,
 						e.to_string()
 					)));
@@ -365,7 +365,7 @@ impl LongboxConfig {
 		self.profile.as_str() == "debug"
 	}
 
-	/// Returns a `PathBuf` to the Stump configuration directory.
+	/// Returns a `PathBuf` to the Longbox configuration directory.
 	pub fn get_config_dir(&self) -> PathBuf {
 		PathBuf::from(&self.config_dir)
 	}
@@ -377,22 +377,22 @@ impl LongboxConfig {
 		}
 	}
 
-	/// Returns a `PathBuf` to the Stump cache directory.
+	/// Returns a `PathBuf` to the Longbox cache directory.
 	pub fn get_cache_dir(&self) -> PathBuf {
 		PathBuf::from(&self.config_dir).join("cache")
 	}
 
-	/// Returns a `PathBuf` to the Stump thumbnails directory.
+	/// Returns a `PathBuf` to the Longbox thumbnails directory.
 	pub fn get_thumbnails_dir(&self) -> PathBuf {
 		PathBuf::from(&self.config_dir).join("thumbnails")
 	}
 
-	/// Returns a `PathBuf` to the Stump avatars directory
+	/// Returns a `PathBuf` to the Longbox avatars directory
 	pub fn get_avatars_dir(&self) -> PathBuf {
 		PathBuf::from(&self.config_dir).join("avatars")
 	}
 
-	/// Returns a `PathBuf` to the Stump custom emojis directory
+	/// Returns a `PathBuf` to the Longbox custom emojis directory
 	pub fn get_emojis_dir(&self) -> PathBuf {
 		PathBuf::from(&self.config_dir).join("emojis")
 	}

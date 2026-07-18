@@ -99,7 +99,7 @@ async fn collection_based_library_batch_scan() -> CoreResult<()> {
 }
 
 // Note: This test is ignored because it kind of needs to be run with multiple threads,
-// but the test runner for stump will only run one test at a time. It would just take too long
+// but the test runner for longbox will only run one test at a time. It would just take too long
 // otherwise.
 #[tokio::test(flavor = "multi_thread")]
 #[ignore]

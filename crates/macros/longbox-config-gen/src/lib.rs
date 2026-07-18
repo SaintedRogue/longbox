@@ -10,7 +10,7 @@ use gen_config_impls::gen_longbox_config_impls;
 use gen_partial_config::gen_partial_longbox_config;
 
 /// A procedural macro for generating the internals of the configuration struct
-/// used in Stump.
+/// used in Longbox.
 ///
 /// This macro generates four main functions for the struct that it is applied to:
 /// `new`, `debug`, `with_config_file`, and `with_environment`. Each member of the

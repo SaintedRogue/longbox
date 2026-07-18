@@ -112,7 +112,7 @@ pub struct Unpaginated {
 	unpaginated: bool,
 }
 
-/// A union of the supported pagination flavors which Stump supports. The resulting
+/// A union of the supported pagination flavors which Longbox supports. The resulting
 /// response will be dependent on the pagination type used, e.g. a [CursorPaginatedResponse]
 /// will be returned if the [CursorPagination] type is used.
 ///
@@ -196,7 +196,7 @@ impl CustomValidator<Pagination> for PaginationValidator {
 pub struct CursorPaginationInfo {
 	/// The cursor of the current page. This should only be None if there are no results,
 	/// since there is no cursor present to pull from. This technically deviates from
-	/// popular (read: Relay) specs, but it works better for Stump
+	/// popular (read: Relay) specs, but it works better for Longbox
 	pub current_cursor: Option<String>,
 	/// The cursor the next page should use, if it exists.
 	pub next_cursor: Option<String>,

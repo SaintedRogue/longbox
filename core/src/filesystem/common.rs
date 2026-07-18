@@ -116,7 +116,7 @@ pub trait PathUtils {
 	/// Returns true if the file is hidden (i.e. starts with a dot). Also checks for
 	/// files within a __MACOSX directory.
 	fn is_hidden_file(&self) -> bool;
-	/// Returns true if the file is supported by Stump.
+	/// Returns true if the file is supported by Longbox.
 	fn is_default_ignored(&self) -> bool;
 	/// Returns true if the file is an image.
 	fn is_supported(&self) -> bool;
@@ -214,7 +214,7 @@ impl PathUtils for Path {
 
 	/// Returns true when the scanner should not persist the file to the database.
 	/// First checks if the file is hidden (i.e. starts with a dot), then checks if
-	/// the file is supported by Stump.
+	/// the file is supported by Longbox.
 	fn is_default_ignored(&self) -> bool {
 		if self.is_hidden_file() {
 			return true;

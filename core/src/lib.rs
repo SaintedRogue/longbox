@@ -44,7 +44,7 @@ type EncryptionKeySet = bool;
 /// A type alias strictly for explicitness in the return type of `init_jwt_secrets`.
 type JwtSecretsInitialized = bool;
 
-/// The [`LongboxCore`] struct is the main entry point for any server-side Stump
+/// The [`LongboxCore`] struct is the main entry point for any server-side Longbox
 /// applications. It is responsible for managing incoming tasks ([`InternalCoreTask`]),
 /// outgoing events ([`CoreEvent`](event::CoreEvent)), and providing access to the database
 /// via the core's [`Ctx`].

@@ -68,7 +68,7 @@ impl IntoResponse for Xml {
 	}
 }
 
-/// [`BufferResponse`] is a wrapper struct to return a buffer of any Stump-compliant (see [`ContentType`])
+/// [`BufferResponse`] is a wrapper struct to return a buffer of any Longbox-compliant (see [`ContentType`])
 /// Content-Type correctly in Axum.
 pub struct BufferResponse {
 	pub content_type: ContentType,

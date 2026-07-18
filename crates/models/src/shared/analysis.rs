@@ -75,7 +75,7 @@ pub enum RunLengthParserError {
 	ErrorParsingInt(#[from] std::num::ParseIntError),
 }
 
-/// Represents a page dimension for a page of a Stump media item. It consists of a
+/// Represents a page dimension for a page of a Longbox media item. It consists of a
 /// height and a width.
 #[derive(
 	Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromJsonQueryResult, SimpleObject,

@@ -27,7 +27,7 @@ pub type ServerResult<T> = Result<T, ServerError>;
 /// A type alias for the result of an API operation, e.g. the response of an axum handler
 pub type APIResult<T> = Result<T, APIError>;
 
-/// The top-level error type for the Stump server binary. The entry is a CLI app which either
+/// The top-level error type for the Longbox server binary. The entry is a CLI app which either
 /// performs a given command _or_ starts the server.
 ///
 /// Note: If there is an invalid configuration, neither of these can happen, so there is a

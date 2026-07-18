@@ -15,7 +15,7 @@ import { Toaster } from './components/Toaster'
 import { useApplyTheme } from './hooks'
 import { useAppStore, useDebugStore, useUserStore } from './stores'
 
-export default function StumpWebClient(props: LongboxClientProps) {
+export default function LongboxWebClient(props: LongboxClientProps) {
 	return (
 		<ErrorBoundary FallbackComponent={ErrorFallback}>
 			<RouterContainer {...props} />

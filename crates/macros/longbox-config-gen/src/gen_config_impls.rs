@@ -106,7 +106,7 @@ fn gen_with_file_impl(
 			let toml_content_str = std::fs::read_to_string(config_toml)?;
 			let toml_configs = toml::from_str::<#partial_struct_name>(&toml_content_str)
 				.map_err(|e| {
-					eprintln!("Failed to parse Stump config file: {e}");
+					eprintln!("Failed to parse Longbox config file: {e}");
 					crate::CoreError::InitializationError(e.to_string())
 				})?;
 

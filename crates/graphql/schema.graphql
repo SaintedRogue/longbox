@@ -452,7 +452,7 @@ input CreateMetadataProviderConfigInput {
 	autoApplyConfig: JSON
 	"""
 	Optional expiration date for the API key. This is exclusively a QOL thing,
-	since the creds don't live within the management domain of Stump
+	since the creds don't live within the management domain of Longbox
 	"""
 	apiTokenExpiresAt: DateTime
 }
@@ -523,7 +523,7 @@ type CursorPaginationInfo {
 	"""
 	The cursor of the current page. This should only be None if there are no results,
 	since there is no cursor present to pull from. This technically deviates from
-	popular (read: Relay) specs, but it works better for Stump
+	popular (read: Relay) specs, but it works better for Longbox
 	"""
 	currentCursor: String
 	"The cursor the next page should use, if it exists."
@@ -1297,7 +1297,7 @@ let config = LongboxConfig::new(config_dir)
 
 // Ensure that config directory exists and write Longbox.toml.
 config.write_config_dir().unwrap();
-// Create an instance of the stump core.
+// Create an instance of the longbox core.
 let core = LongboxCore::new(config).await;
 }
 ```
@@ -1321,7 +1321,7 @@ type LongboxConfig {
 	dbPath: String
 	"The client directory."
 	clientDir: String!
-	"The configuration root for the Stump application, contains thumbnails, cache, and logs."
+	"The configuration root for the Longbox application, contains thumbnails, cache, and logs."
 	configDir: String!
 	"A list of origins for CORS."
 	allowedOrigins: [String!]!
@@ -2373,7 +2373,7 @@ input PageBasedThumbnailInput {
 }
 
 """
-Represents a page dimension for a page of a Stump media item. It consists of a
+Represents a page dimension for a page of a Longbox media item. It consists of a
 height and a width.
 """
 type PageDimension {
@@ -2438,7 +2438,7 @@ type PaginatedUserResponse {
 }
 
 """
-A union of the supported pagination flavors which Stump supports. The resulting
+A union of the supported pagination flavors which Longbox supports. The resulting
 response will be dependent on the pagination type used, e.g. a [CursorPaginatedResponse]
 will be returned if the [CursorPagination] type is used.
 
@@ -2485,7 +2485,7 @@ input PatchMetadataProviderConfigInput {
 	autoApplyConfig: JSON
 	"""
 	Optional expiration date for the API key. This is exclusively a QOL thing,
-	since the creds don't live within the management domain of Stump
+	since the creds don't live within the management domain of Longbox
 	"""
 	apiTokenExpiresAt: DateTime
 }
@@ -2640,8 +2640,8 @@ type Query {
 	scheduledJobs: [ScheduledJob!]!
 	logs(filter: LogFilterInput! = {level: null, jobId: null, _and: null, _not: null, _or: null}, orderBy: [LogModelOrderBy!]! = [], pagination: Pagination! = {offset: {page: 1, pageSize: 20, zeroBased: false}}): PaginatedLogResponse!
 	"""
-	Get information about the Stump log file, located at LONGBOX_CONFIG_DIR/Longbox.log, or
-	~/.stump/Longbox.log by default. Information such as the file size, last modified date, etc.
+	Get information about the Longbox log file, located at LONGBOX_CONFIG_DIR/Longbox.log, or
+	~/.longbox/Longbox.log by default. Information such as the file size, last modified date, etc.
 	"""
 	logfileInfo: LogFileInfo!
 	longboxConfig: LongboxConfig!
@@ -3041,7 +3041,7 @@ type SeriesMetadata {
 	status: String
 	"""
 	Description taken from source (un-edited) with no line breaks, carriage returns, etc.
-	Stump calls this 'summary' to align with other models, but is derived from 'description_text' in series.json
+	Longbox calls this 'summary' to align with other models, but is derived from 'description_text' in series.json
 	"""
 	summary: String
 	"Title of series"

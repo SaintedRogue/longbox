@@ -17,7 +17,7 @@ use crate::{error::CliResult, CliError};
 
 use super::default_progress_spinner;
 
-/// Subcommands for interacting with Stump accounts
+/// Subcommands for interacting with Longbox accounts
 #[derive(Subcommand, Debug)]
 pub enum Account {
 	/// Lock an account, preventing any further logins until unlocked
@@ -646,7 +646,7 @@ mod tests {
 			db: &DbConn,
 			user: Option<user::ActiveModel>,
 		) -> user::Model {
-			let model = user.unwrap_or_else(|| Self::active_model());
+			let model = user.unwrap_or_else(Self::active_model);
 
 			let user = model.insert(db).await.expect("could not insert user");
 			let user_preferences = user_preferences::ActiveModel {
@@ -762,10 +762,10 @@ mod tests {
 			.expect("could not fetch media");
 
 		// let's have an active session for books 0 and 2, and a finished reading session for book 1
-		for i in 0..3 {
+		for (i, media) in media_list.iter().enumerate().take(3) {
 			let mut active = reading_session::ActiveModel {
 				user_id: Set(local_user.id.clone()),
-				media_id: Set(media_list[i].id.clone()),
+				media_id: Set(media.id.clone()),
 				end_page: Set(Some(10)),
 				session_date: Set(Date::parse_from_str("2026-05-22", "%Y-%m-%d")
 					.expect("failed to parse date")),
@@ -774,10 +774,9 @@ mod tests {
 			if i == 1 {
 				active.status = Set(ReadingStatus::Finished)
 			}
-			active
-				.insert(db)
-				.await
-				.expect(&format!("could not insert reading session for media {}", i));
+			active.insert(db).await.unwrap_or_else(|_| {
+				panic!("could not insert reading session for media {i}")
+			});
 		}
 
 		// let's create a review for media 0 as well

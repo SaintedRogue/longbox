@@ -449,7 +449,7 @@ mod tests {
 			.into_connection();
 
 		let finalizer =
-			OPDSLinkFinalizer::new("https://my-stump-instance.cloud".to_string());
+			OPDSLinkFinalizer::new("https://my-longbox-instance.cloud".to_string());
 		let publications = OPDSPublication::vec_from_books(&db, finalizer, books)
 			.await
 			.expect("Failed to generate publications");
@@ -513,7 +513,7 @@ mod tests {
 			.into_connection();
 
 		let finalizer =
-			OPDSLinkFinalizer::new("https://my-stump-instance.cloud".to_string());
+			OPDSLinkFinalizer::new("https://my-longbox-instance.cloud".to_string());
 		let publication = OPDSPublication::from_book(&db, finalizer, book)
 			.await
 			.expect("Failed to generate publication");

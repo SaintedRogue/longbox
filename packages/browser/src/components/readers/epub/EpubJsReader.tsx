@@ -438,9 +438,9 @@ export default function EpubJsReader({ id, isIncognito }: EpubJsReaderProps) {
 	/**
 	 * This effect is responsible for initializing the epubjs book, which gets stored in
 	 * this component's state. It will only run once when media entity is fetched from the
-	 * Stump server.
+	 * Longbox server.
 	 *
-	 * Note: epubjs uses the download endpoint from the Stump server to locally load the
+	 * Note: epubjs uses the download endpoint from the Longbox server to locally load the
 	 * epub file. This is why the requestCredentials option is set to true, as it would
 	 * otherwise not be able to authenticate with the server.
 	 *

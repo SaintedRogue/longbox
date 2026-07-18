@@ -80,7 +80,7 @@ RUN --mount=type=cache,target=/var/cache/apt --mount=type=cache,target=/var/lib/
         curl \
         libsqlite3-dev;
 
-# Cargo build for stump
+# Cargo build for longbox
 WORKDIR /app
 
 COPY . .

@@ -2,7 +2,7 @@
 /// <reference types="vite-plugin-pwa/react" />
 
 interface ImportMetaEnv {
-	readonly VITE_STUMP_SERVER_BASE_URL: string
+	readonly VITE_LONGBOX_SERVER_BASE_URL: string
 }
 
 interface ImportMeta {

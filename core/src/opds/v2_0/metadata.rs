@@ -198,7 +198,7 @@ pub struct OPDSEntryBelongsToEntity {
 
 // TODO(OPDS-V2): should each variant be ArrayOrItem<OPDSEntryBelongsToEntity> ?
 /// An enum representing the supported types of entities that an OPDS entry can belong to
-/// in Stump. All variants will use the same [`OPDSEntryBelongsToEntity`] struct - this
+/// in Longbox. All variants will use the same [`OPDSEntryBelongsToEntity`] struct - this
 /// is primarily a (de)serialization convenience to enforce allowed keys.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

@@ -3,7 +3,7 @@
 _ENGINE=${ENGINE:-docker}
 _FORMAT=${FORMAT:-auto}
 _PLATFORMS=${PLATFORMS:-linux/amd64}
-_TAGS=${TAGS:-"aaronleopold/stump:nightly"}
+_TAGS=${TAGS:-"ghcr.io/saintedrogue/longbox:nightly"}
 _GIT_REV=${GIT_REV:-$(git rev-parse --short HEAD)}
 _BUILD_CHANNEL=${BUILD_CHANNEL:-}
 _PUSH=${PUSH:-false}

@@ -45,7 +45,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
-      - name: Build stump server
+      - name: Build longbox server
         uses: ./.github/actions/build-server
 
       - name: Copy bundled web app
@@ -78,38 +78,38 @@ jobs:
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: linux-artifact
-          path: StumpServer-linux
+          path: LongboxServer-linux
 
       - name: Download artifact (macOS Intel)
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: macos-intel-artifact
-          path: StumpServer-macos-intel
+          path: LongboxServer-macos-intel
 
       - name: Download artifact (macOS ARM)
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: macos-arm-artifact
-          path: StumpServer-macos-arm
+          path: LongboxServer-macos-arm
 
       - name: Download artifact (Windows)
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: windows-artifact
-          path: StumpServer-windows
+          path: LongboxServer-windows
 
       - name: Install dependencies
         run: sudo apt-get install -y gh zip
 
       - name: Zip artifacts
         run: |
-          cd StumpServer-linux
+          cd LongboxServer-linux
           zip -r ../linux-build-results.zip *
-          cd ../StumpServer-macos-intel
+          cd ../LongboxServer-macos-intel
           zip -r ../macos-intel-build-results.zip *
-          cd ../StumpServer-macos-arm
+          cd ../LongboxServer-macos-arm
           zip -r ../macos-arm-build-results.zip *
-          cd ../StumpServer-windows
+          cd ../LongboxServer-windows
           zip -r ../windows-build-results.zip *
           cd ..
 
@@ -120,7 +120,7 @@ jobs:
             --target main \
             --title 'v${{ github.event.inputs.version }}' \
             --generate-notes \
-            linux-build-results.zip#StumpServer-${{ github.event.inputs.version }}-linux-x86_64.zip \
-            macos-intel-build-results.zip#StumpServer-${{ github.event.inputs.version }}-macos-intel.zip \
-            macos-arm-build-results.zip#StumpServer-${{ github.event.inputs.version }}-macos-arm.zip \
-            windows-build-results.zip#StumpServer-${{ github.event.inputs.version }}-windows-x86_64.zip
+            linux-build-results.zip#LongboxServer-${{ github.event.inputs.version }}-linux-x86_64.zip \
+            macos-intel-build-results.zip#LongboxServer-${{ github.event.inputs.version }}-macos-intel.zip \
+            macos-arm-build-results.zip#LongboxServer-${{ github.event.inputs.version }}-macos-arm.zip \
+            windows-build-results.zip#LongboxServer-${{ github.event.inputs.version }}-windows-x86_64.zip

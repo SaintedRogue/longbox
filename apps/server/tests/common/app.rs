@@ -9,7 +9,7 @@ use serde_json::{json, Value};
 use tests::db::test_database;
 use tokio::sync::RwLock;
 
-/// a running test instance of the stump server that will contain:
+/// a running test instance of the longbox server that will contain:
 /// - in-memory database
 /// - initialized server (e.g. config, jwt secrets, etc)
 pub struct TestApp {
@@ -42,7 +42,7 @@ impl TestApp {
 			.layer(get_session_layer(app_state.clone()));
 
 		let mut server = TestServer::new(router).expect("failed to create test server");
-		server.add_header("user-agent", "stump-server-tests"); // all requests fails without this
+		server.add_header("user-agent", "longbox-server-tests"); // all requests fails without this
 
 		Self {
 			server,

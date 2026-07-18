@@ -36,7 +36,7 @@ pub struct ProcessedMediaMetadata {
 	#[serde(alias = "TitleSort")]
 	pub title_sort: Option<String>,
 	/// The series name which the media belongs to. This isn't necessarily the same as the
-	/// series name as it was interpreted by Stump.
+	/// series name as it was interpreted by Longbox.
 	#[serde(alias = "Series")]
 	pub series: Option<String>,
 	/// The series group which the media belongs to.
@@ -76,7 +76,7 @@ pub struct ProcessedMediaMetadata {
 	/// Optional notes about the media.
 	#[serde(alias = "Notes")]
 	pub notes: Option<String>,
-	/// The age rating of the media. This varies a lot between media, but Stump will try
+	/// The age rating of the media. This varies a lot between media, but Longbox will try
 	/// to normalize it to a number between 0 and 18.
 	#[serde(
 		default,

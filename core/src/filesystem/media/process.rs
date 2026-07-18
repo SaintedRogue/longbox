@@ -67,7 +67,7 @@ pub struct ProcessedFileHashes {
 }
 
 // TODO(perf): Implement generic hasher which just takes X bytes from the file (and async version)
-/// Trait defining a standard API for processing files throughout Stump. Every
+/// Trait defining a standard API for processing files throughout Longbox. Every
 /// supported file type should implement this trait.
 pub trait FileProcessor {
 	/// Get the sample size for a file. This is used for generating a hash of the file.
@@ -130,7 +130,7 @@ pub struct AnalyzedPage {
 	pub content_type: ContentType,
 }
 
-/// Trait defining a standard API for converting files throughout Stump.
+/// Trait defining a standard API for converting files throughout Longbox.
 pub trait FileConverter {
 	fn to_zip(
 		path: &str,

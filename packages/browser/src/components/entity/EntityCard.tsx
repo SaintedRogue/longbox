@@ -51,7 +51,7 @@ type Props = {
 } & ContainerProps
 
 /**
- * A card that displays a Stump entity, namely a book, series, or library. The card will display an image, title, subtitle,
+ * A card that displays a Longbox entity, namely a book, series, or library. The card will display an image, title, subtitle,
  * and progress bar. All of these are optional, except for the image URL. If the image fails to load, a placeholder will be
  * displayed instead.
  */

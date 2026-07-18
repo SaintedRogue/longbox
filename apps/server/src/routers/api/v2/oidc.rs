@@ -76,7 +76,7 @@ pub struct AuthorizeQuery {
 	/// If true, the callback will return JWT tokens instead of creating a session
 	#[serde(default)]
 	pub generate_token: bool,
-	/// Optional redirect URL for the mobile app (e.g., "stump://auth/callback")
+	/// Optional redirect URL for the mobile app (e.g., "longbox://auth/callback")
 	/// If provided with generate_token=true, redirects to this URL with tokens as query params
 	pub redirect_uri: Option<String>,
 }

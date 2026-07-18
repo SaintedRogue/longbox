@@ -401,7 +401,7 @@ mod tests {
 
 	#[tokio::test]
 	async fn test_library_watcher_init() {
-		let tmp_dir = std::env::temp_dir().join("stump_test");
+		let tmp_dir = std::env::temp_dir().join("longbox_test");
 		std::fs::create_dir_all(&tmp_dir).unwrap();
 		let libraries = create_test_libraries(tmp_dir.to_string_lossy().to_string());
 
@@ -427,7 +427,7 @@ mod tests {
 
 	#[tokio::test]
 	async fn test_remove() {
-		let tmp_dir = std::env::temp_dir().join("stump_test");
+		let tmp_dir = std::env::temp_dir().join("longbox_test");
 		std::fs::create_dir_all(&tmp_dir).unwrap();
 		let libraries = create_test_libraries(tmp_dir.to_string_lossy().to_string());
 
@@ -454,7 +454,7 @@ mod tests {
 
 	#[tokio::test]
 	async fn test_add_watcher_twice() {
-		let tmp_dir = std::env::temp_dir().join("stump_test");
+		let tmp_dir = std::env::temp_dir().join("longbox_test");
 		std::fs::create_dir_all(&tmp_dir).unwrap();
 		let libraries = create_test_libraries(tmp_dir.to_string_lossy().to_string());
 
@@ -473,7 +473,7 @@ mod tests {
 
 	#[tokio::test]
 	async fn test_library_watcher_stop() {
-		let tmp_dir = std::env::temp_dir().join("stump_test");
+		let tmp_dir = std::env::temp_dir().join("longbox_test");
 		std::fs::create_dir_all(&tmp_dir).unwrap();
 		let libraries = create_test_libraries(tmp_dir.to_string_lossy().to_string());
 
@@ -494,7 +494,7 @@ mod tests {
 
 	#[tokio::test]
 	async fn test_start_jobs() {
-		let tmp_dir = std::env::temp_dir().join("stump_test");
+		let tmp_dir = std::env::temp_dir().join("longbox_test");
 		std::fs::create_dir_all(&tmp_dir).unwrap();
 		let libraries = create_test_libraries(tmp_dir.to_string_lossy().to_string());
 
@@ -517,7 +517,7 @@ mod tests {
 
 	#[tokio::test]
 	async fn test_start_jobs_on_bad_library() {
-		let tmp_dir = std::env::temp_dir().join("stump_test");
+		let tmp_dir = std::env::temp_dir().join("longbox_test");
 		std::fs::create_dir_all(&tmp_dir).unwrap();
 		let libraries = create_test_libraries(tmp_dir.to_string_lossy().to_string());
 

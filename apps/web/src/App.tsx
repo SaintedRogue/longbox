@@ -1,4 +1,4 @@
-import { StumpWebClient } from '@longbox/browser'
+import { LongboxWebClient } from '@longbox/browser'
 import { BrowserRouter } from 'react-router-dom'
 
 import PWAUpdatePrompt from './PWAUpdatePrompt'
@@ -13,7 +13,7 @@ export const baseUrl = import.meta.env.PROD ? window.location.origin : getDebugU
 export default function App() {
 	return (
 		<BrowserRouter>
-			<StumpWebClient platform={'browser'} baseUrl={baseUrl} />
+			<LongboxWebClient platform={'browser'} baseUrl={baseUrl} />
 			{import.meta.env.PROD && <PWAUpdatePrompt />}
 		</BrowserRouter>
 	)

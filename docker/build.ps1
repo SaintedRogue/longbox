@@ -12,5 +12,5 @@ docker buildx build `
     --load `
     --progress=$FORMAT `
     --platform=$PLATFORMS `
-    -t aaronleopold/stump:$TAG `
+    -t ghcr.io/saintedrogue/longbox:$TAG `
     --build-arg GIT_REV=$GIT_REV .

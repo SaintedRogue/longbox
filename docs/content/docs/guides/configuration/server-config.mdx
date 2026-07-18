@@ -15,7 +15,7 @@ Below are the available configuration options, loosely grouped by category. If y
 
 ## Core
 
-### STUMP_IP
+### LONGBOX_IP
 
 The OP address that the Longbox server listens on.
 
@@ -23,7 +23,7 @@ The OP address that the Longbox server listens on.
 | ------ | ------------- | -------- |
 | String | `0.0.0.0`     | `ip`     |
 
-### STUMP_PORT
+### LONGBOX_PORT
 
 The port for the Longbox server.
 
@@ -31,15 +31,15 @@ The port for the Longbox server.
 | ------- | ------------- | -------- |
 | Integer | `10801`       | `port`   |
 
-### STUMP_CONFIG_DIR
+### LONGBOX_CONFIG_DIR
 
 The directory where Longbox will look for its configuration file.
 
 | Type   | Default Value | TOML Key     |
 | ------ | ------------- | ------------ |
-| String | `~/.stump`    | `config_dir` |
+| String | `~/.longbox`  | `config_dir` |
 
-### STUMP_CLIENT_DIR
+### LONGBOX_CLIENT_DIR
 
 The directory the contains the web bundle for the web UI
 
@@ -47,15 +47,15 @@ The directory the contains the web bundle for the web UI
 | ------ | ------------- | ------------ |
 | String | `./dist`      | `client_dir` |
 
-### STUMP_DB_PATH
+### LONGBOX_DB_PATH
 
-Overrides the path where Longbox stores its database file. By default this path is same as parent directory of `STUMP_CONFIG_DIR`. If set the database would be put at `STUMP_DB_PATH/stump.db`.
+Overrides the path where Longbox stores its database file. By default this path is same as parent directory of `LONGBOX_CONFIG_DIR`. If set the database would be put at `LONGBOX_DB_PATH/longbox.db`.
 
 | Type   | Default Value | TOML Key  |
 | ------ | ------------- | --------- |
 | String |               | `db_path` |
 
-### STUMP_ALLOWED_ORIGINS
+### LONGBOX_ALLOWED_ORIGINS
 
 A **comma-delineated** list of allowed origins for the Longbox API. If you're trying to access the API from a different domain, you'll need to add it to this list. By default, the host machine's IP address with the configured port is allowed for both HTTP and HTTPS.
 
@@ -67,7 +67,7 @@ Stored as a valid array in the configuration file.
 
 **Be sure to replace `{machine_ip}` and `{configured_port}` with the appropriate values for your environment.**
 
-### STUMP_TRUST_PROXY_HEADERS
+### LONGBOX_TRUST_PROXY_HEADERS
 
 Whether or not to trust proxy headers like `X-Forwarded-For` and `X-Real-IP` for determining the client's IP address. This should only be set to `true` if Longbox is running behind a reverse proxy that is properly configured to set these headers, since it increases the risk of IP spoofing.
 
@@ -77,7 +77,7 @@ Whether or not to trust proxy headers like `X-Forwarded-For` and `X-Real-IP` for
 
 ## Logging
 
-### STUMP_VERBOSITY
+### LONGBOX_VERBOSITY
 
 The verbosity level for Longbox logs. Verbosity levels are integers that correspond to a list of log levels that will be visible, and are inclusive of all the levels below them.
 
@@ -98,7 +98,7 @@ The available verbosity levels are:
 | ------- | ------------- | ----------- |
 | Integer | `1`           | `verbosity` |
 
-### STUMP_PRETTY_LOGS
+### LONGBOX_PRETTY_LOGS
 
 Controls whether logs are formatted in a human-friendly, pretty-printed style.
 
@@ -149,7 +149,7 @@ issuer_url = "https://example.com"
 
 </Callout>
 
-### STUMP_OIDC_ENABLED
+### LONGBOX_OIDC_ENABLED
 
 Whether or not to enable OpenID Connect (OIDC) authentication. When enabled, users can sign in using an external identity provider. See the [OIDC](/docs/guides/access-control/oidc) guide for more information.
 
@@ -157,11 +157,11 @@ Whether or not to enable OpenID Connect (OIDC) authentication. When enabled, use
 | ------- | ------------- | ---------------- |
 | Boolean | `false`       | `[oidc].enabled` |
 
-### STUMP_OIDC_ISSUER_URL
+### LONGBOX_OIDC_ISSUER_URL
 
 The base URL of your OIDC provider. This should be the URL where the provider's `.well-known/openid-configuration` endpoint can be found.
 
-**Required when `STUMP_OIDC_ENABLED` is `true`.**
+**Required when `LONGBOX_OIDC_ENABLED` is `true`.**
 
 | Type   | Default Value | TOML Key            |
 | ------ | ------------- | ------------------- |
@@ -169,27 +169,27 @@ The base URL of your OIDC provider. This should be the URL where the provider's 
 
 **Example:** `https://pocketid.stump.mycloud`
 
-### STUMP_OIDC_CLIENT_ID
+### LONGBOX_OIDC_CLIENT_ID
 
 The client ID provided by your OIDC provider for the Longbox application
 
-**Required when `STUMP_OIDC_ENABLED` is `true`.**
+**Required when `LONGBOX_OIDC_ENABLED` is `true`.**
 
 | Type   | Default Value | TOML Key           |
 | ------ | ------------- | ------------------ |
 | String | N/A           | `[oidc].client_id` |
 
-### STUMP_OIDC_CLIENT_SECRET
+### LONGBOX_OIDC_CLIENT_SECRET
 
 The client secret provided by your OIDC provider for the Longbox application
 
-**Required when `STUMP_OIDC_ENABLED` is `true`.**
+**Required when `LONGBOX_OIDC_ENABLED` is `true`.**
 
 | Type   | Default Value | TOML Key               |
 | ------ | ------------- | ---------------------- |
 | String | N/A           | `[oidc].client_secret` |
 
-### STUMP_OIDC_SCOPES
+### LONGBOX_OIDC_SCOPES
 
 A **comma-separated** list of additional scopes to request from the OIDC provider
 
@@ -197,7 +197,7 @@ A **comma-separated** list of additional scopes to request from the OIDC provide
 | ------ | ---------------------- | --------------- |
 | String | `openid,email,profile` | `[oidc].scopes` |
 
-### STUMP_OIDC_ALLOW_REGISTRATION
+### LONGBOX_OIDC_ALLOW_REGISTRATION
 
 Whether or not to allow automatic user registration via OIDC on first login. When enabled, users who sign in with OIDC for the first time will have an account automatically created for them.
 
@@ -205,7 +205,7 @@ Whether or not to allow automatic user registration via OIDC on first login. Whe
 | ------- | ------------- | --------------------------- |
 | Boolean | `true`        | `[oidc].allow_registration` |
 
-### STUMP_OIDC_DISABLE_LOCAL_AUTH
+### LONGBOX_OIDC_DISABLE_LOCAL_AUTH
 
 Whether or not to disable local username/password authentication when OIDC is enabled. When set to `true`, the username/password login form will be hidden and only OIDC authentication will be available.
 
@@ -215,7 +215,7 @@ Whether or not to disable local username/password authentication when OIDC is en
 | ------- | ------------- | --------------------------- |
 | Boolean | `false`       | `[oidc].disable_local_auth` |
 
-### STUMP_OIDC_EXTRA_AUDIENCES
+### LONGBOX_OIDC_EXTRA_AUDIENCES
 
 A **comma-separated** list of additional trusted audiences for ID token verification. This is required when using providers like Zitadel that inject extra values (e.g. the project ID) into the JWT `aud` claim. See the [OIDC](/docs/guides/access-control/oidc) guide for more information.
 
@@ -261,7 +261,7 @@ The path to the PDFium binary. This is only required if you want PDF support and
 | ------ | ----------------------------- | ------------- |
 | String | `/lib/libpdfium.so` in Docker | `pdfium_path` |
 
-### STUMP_PDF_CACHE_PAGES
+### LONGBOX_PDF_CACHE_PAGES
 
 Controls whether rendered PDF pages are cached.
 
@@ -269,7 +269,7 @@ Controls whether rendered PDF pages are cached.
 | ------- | ------------- | ----------------- |
 | Boolean | `true`        | `pdf_cache_pages` |
 
-### STUMP_PDF_HIGH_QUALITY
+### LONGBOX_PDF_HIGH_QUALITY
 
 Enables higher-quality PDF rendering at the cost of increased resource usage.
 
@@ -277,7 +277,7 @@ Enables higher-quality PDF rendering at the cost of increased resource usage.
 | ------- | ------------- | ------------------ |
 | Boolean | `true`        | `pdf_high_quality` |
 
-### STUMP_PDF_MAX_DIMENSION
+### LONGBOX_PDF_MAX_DIMENSION
 
 Controls the maximum width or height (in pixels) for rendered PDF images.
 
@@ -285,7 +285,7 @@ Controls the maximum width or height (in pixels) for rendered PDF images.
 | ------- | ------------- | ------------------- |
 | Integer | `1200`        | `pdf_max_dimension` |
 
-### STUMP_PDF_PRERENDER_RANGE
+### LONGBOX_PDF_PRERENDER_RANGE
 
 Controls how many pages before and after the current page should be pre-rendered.
 
@@ -293,7 +293,7 @@ Controls how many pages before and after the current page should be pre-rendered
 | ------- | ------------- | --------------------- |
 | Integer | `5`           | `pdf_prerender_range` |
 
-### STUMP_PDF_RENDER_DPI
+### LONGBOX_PDF_RENDER_DPI
 
 Sets the DPI (dots per inch) used when rendering PDF pages. High values increases image clarity at the cost of memory usage and render time.
 
@@ -301,7 +301,7 @@ Sets the DPI (dots per inch) used when rendering PDF pages. High values increase
 | ------- | ------------- | ---------------- |
 | Integer | `150`         | `pdf_render_dpi` |
 
-### STUMP_PDF_RENDER_FORMAT
+### LONGBOX_PDF_RENDER_FORMAT
 
 Specifies the images format used when rendering PDF pages.
 
@@ -311,13 +311,13 @@ Specifies the images format used when rendering PDF pages.
 
 ## File Uploads
 
-### STUMP_ENABLE_UPLOAD
+### LONGBOX_ENABLE_UPLOAD
 
 | Type    | Default Value | TOML Key        |
 | ------- | ------------- | --------------- |
 | Boolean | `false`       | `enable_upload` |
 
-### STUMP_MAX_FILE_UPLOAD_SIZE
+### LONGBOX_MAX_FILE_UPLOAD_SIZE
 
 The maximum allowed size, in bytes, of files uploaded via the upload interface. This configuration variable will have no effect unless `ENABLE_UPLOAD` is `true`.
 
@@ -325,7 +325,7 @@ The maximum allowed size, in bytes, of files uploaded via the upload interface. 
 | ------- | ------------------ | ---------------------- |
 | Integer | `20971520` (20 MB) | `max_file_upload_size` |
 
-### STUMP_MAX_IMAGE_UPLOAD_SIZE
+### LONGBOX_MAX_IMAGE_UPLOAD_SIZE
 
 The maximum size, in bytes, for images uploaded as thumbnails for users, libraries, series, or media.
 
@@ -335,7 +335,7 @@ The maximum size, in bytes, for images uploaded as thumbnails for users, librari
 
 ## Performance
 
-### STUMP_PARALLELISM_MULTIPLIER
+### LONGBOX_PARALLELISM_MULTIPLIER
 
 A multiplier applied to the number of logical CPUs available to the process to derive concurrency limits for processing-heavy tasks (e.g., the scanner and thumbnail generator).
 
@@ -345,7 +345,7 @@ For example, a value of `2` on a 6-CPU machine yields a concurrency of `12`. Inc
 | ------- | ------------- | ------------------------ |
 | Integer | `2`           | `parallelism_multiplier` |
 
-### STUMP_BOOK_COMPLETION_DEDUP_TIMEOUT_SECS
+### LONGBOX_BOOK_COMPLETION_DEDUP_TIMEOUT_SECS
 
 The number of seconds after which a book can be re-completed.
 
@@ -355,7 +355,7 @@ The number of seconds after which a book can be re-completed.
 
 ## Developer / Advanced
 
-### STUMP_ENABLE_PLAYGROUND
+### LONGBOX_ENABLE_PLAYGROUND
 
 Whether or not to enable the GraphQL playground. The playground is an interactive in-browser IDE for exploring the Longbox GraphQL API. It is always enabled in development builds.
 
@@ -371,7 +371,7 @@ The version of the Longbox API to use. This should really be left alone and **no
 | ------- | ------------- | ------------- |
 | Integer | `1`           | `api_version` |
 
-### STUMP_PROFILE
+### LONGBOX_PROFILE
 
 The profile to use when running Longbox. This should really be left alone and **not** manually set.
 
