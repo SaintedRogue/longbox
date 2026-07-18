@@ -60,3 +60,6 @@ graphify-out/
 
 # Claude Code — personal per-machine config; shared config (settings.json, skills/, CLAUDE.md) stays tracked
 .claude/settings.local.json
+
+# local runtime env / secrets (never commit)
+longbox.env
