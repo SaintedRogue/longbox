@@ -4,43 +4,55 @@ title: Overview
 
 ## What is Longbox?
 
-Longbox is an open source, self hostable, media server for digital books (ebooks, comic books, manga, etc). It is designed to be _easy to use_ and _easy to deploy_.
+Longbox is an open-source, self-hostable media server for the digital books you
+own — ebooks, comics, manga, the lot. It's built to be _easy to run_ and _easy
+to live in_.
 
-The short on how it works:
+The short version of how it works:
 
-- Install and run Longbox on a computer or NAS (Network Attached Storage).
-- Configure your libraries
-- Read your media using the web interface or any compatible client
+- Run Longbox on a computer or NAS (Network Attached Storage).
+- Point it at your libraries — the folders where your run lives on disk.
+- Read your collection through the web app or any compatible OPDS client.
 
-Longbox **is not** a tool used for fetching or downloading any kind of media. It is a tool used to host and access **your own media**. Think of it like a personal Netflix for comic books/manga/etc that lives on a computer in your home.
+Longbox **is not** a tool for fetching or downloading media. It hosts and serves
+**your own files** — think of it as a personal Netflix for the comics, manga, and
+books already on your shelf, running on a box in your home. Your box, your rules.
 
-## Motivations
+## Why it exists
 
-There are some really solid, self-hostable, OPDS media servers out there. I started out using [Komga](https://komga.org) and started developing Longbox because I thought it would be cool to learn what goes into making something like Komga myself. I chose Rust to get more experience with the language.
+Longbox is a fork of [Stump](https://github.com/stumpapp/stump), which grew out
+of a simple itch: self-hosted OPDS servers like [Komga](https://komga.org) are
+excellent, and building one in Rust was a great way to learn what goes into them.
+The goals we carry forward from that start:
 
-When I started, I had a few goals in mind:
+- Small footprint and low resource usage.
+- Efficiency and performance even on modest hardware (a Raspberry Pi is plenty) —
+  the bar isn't "fastest on the shelf," it's "you never _notice_ it working."
+- An interface that's intuitive, easy on the eyes, and easy to use.
+- Wide format support (PDF, EPUB, CBZ/CBR).
 
-- Small footprint and low resource usage
-- Efficiency and performance, even on less powerful hardware (e.g., Raspberry Pi)
-  - Personally, I don't need it to be the fastest out there. I mostly care about not _noticing_, if that makes sense 
-- Intuitive, pretty, and easy to use interface
-- Wide format support (e.g., PDF, EPUB, CBZ/CBR)
-
-Longbox has grown [quite a bit since then](https://www.star-history.com/?repos=stumpapp%2Fstump&type=date&logscale=&legend=bottom-right) and there are a lot of surfaces to it now to juggle in my spare time. A lot of the decisions made are a combination of my own personal needs and community feedback. So if you have any ideas or suggestions, please don't hesitate to share them by opening an issue.
+There's a lot of surface area to Longbox now. Many decisions come from a mix of
+real personal use and community feedback — so if you have an idea or a request,
+please don't hesitate to open an issue.
 
 ## Compatibility
 
-Longbox should work on all major browsers and operating systems. Generally speaking, 1GB of RAM and disk space is enough. Longbox also runs well on low-powered ARM-based single board computers, such as a Raspberry Pi.
+> **CONTINUITY** — Longbox runs on all major browsers and operating systems.
+> 1 GB of RAM and disk is generally enough, and it runs well on low-powered
+> ARM single-board computers like a Raspberry Pi.
 
-## Roadmap
+## The pull list (roadmap)
 
-If you're interested in tracking the active or planned development of features, you can take a look at [GitHub issues](https://github.com/stumpapp/stump/issues).
+To track active or planned work, take a look at
+[GitHub issues](https://github.com/SaintedRogue/longbox/issues).
 
-## Similar Projects
+## If this box isn't for you
 
-There are a number of other projects that are similar to Longbox. It certainly isn't the first or only digital book media server out there. If Longbox isn't for you, or you want to check out similar projects in the rust and/or self hosting spaces, I encourage you to check out these other great open source projects:
+Longbox isn't the first or only digital-book media server, and it won't be the
+right fit for everyone. If it isn't yours — or you just want to see what else
+lives in the Rust and self-hosting spaces — these are worth a look:
 
-- [audiobookshelf](https://github.com/advplyr/audiobookshelf) (_Audio books, Podcasts_)
+- [audiobookshelf](https://github.com/advplyr/audiobookshelf) (_audiobooks, podcasts_)
 - [Codex](https://github.com/ajslater/codex)
 - [Kavita](https://github.com/Kareadita/Kavita)
 - [Komga](https://github.com/gotson/komga)
