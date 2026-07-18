@@ -16,12 +16,12 @@ import { useCallback, useEffect, useState } from 'react'
 import { useFormContext, useFormState, useWatch } from 'react-hook-form'
 import { useDebouncedValue } from 'rooks'
 
+import { ProviderValidationFeedback } from './ProviderValidationFeedback'
 import {
 	composeMetronToken,
 	type Feedback,
 	metronStatusToFeedback,
 } from './providerValidationFeedback'
-import { ProviderValidationFeedback } from './ProviderValidationFeedback'
 import { CreateProviderConfigSchema } from './schema'
 
 const validateCredentialsMutation = graphql(`
