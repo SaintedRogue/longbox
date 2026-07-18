@@ -5,7 +5,7 @@ use tracing_subscriber::{
 
 use super::LongboxConfig;
 
-pub const STUMP_SHADOW_TEXT: &str = include_str!("stump_shadow_text.txt");
+pub const LONGBOX_SHADOW_TEXT: &str = include_str!("longbox_shadow_text.txt");
 
 /// Initializes the logging system, which uses the [tracing] crate. Logs are written to
 /// both the console and a file in the config directory. The file is called `Stump.log`

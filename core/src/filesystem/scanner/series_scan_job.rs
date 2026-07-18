@@ -18,8 +18,8 @@ use crate::{
 		ThumbnailGenerationJobParams,
 	},
 	job::{
-		error::JobError, stump_job::LongboxJob, CoreJobOutput, JobContext, JobLifecycle,
-		JobOutputExt, JobProgress, JobTaskOutput, WorkingState,
+		error::JobError, longbox_job::LongboxJob, CoreJobOutput, JobContext,
+		JobLifecycle, JobOutputExt, JobProgress, JobTaskOutput, WorkingState,
 	},
 	utils::chain_optional_iter,
 	CoreEvent,

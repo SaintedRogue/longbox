@@ -20,8 +20,8 @@ mod progress;
 mod run;
 mod scheduler;
 
+pub mod longbox_job;
 pub mod state;
-pub mod stump_job;
 
 use chrono::{DateTime, Utc};
 use error::JobError;

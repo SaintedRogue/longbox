@@ -31,8 +31,9 @@ use crate::{
 		scanner::utils::safely_insert_series,
 	},
 	job::{
-		error::JobError, stump_job::LongboxJob, CoreJobOutput, JobContext, JobExecuteLog,
-		JobLifecycle, JobOutputExt, JobProgress, JobTaskOutput, WorkingState,
+		error::JobError, longbox_job::LongboxJob, CoreJobOutput, JobContext,
+		JobExecuteLog, JobLifecycle, JobOutputExt, JobProgress, JobTaskOutput,
+		WorkingState,
 	},
 	utils::chain_optional_iter,
 	CoreEvent,

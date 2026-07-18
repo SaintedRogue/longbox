@@ -12,7 +12,8 @@ use longbox_core::{
 	database::connect_at,
 	filesystem::scanner::LibraryScanJob,
 	job::{
-		stump_job::LongboxJob, ApalisWorkerState, JobContext, JobLifecycle, JobOutputExt,
+		longbox_job::LongboxJob, ApalisWorkerState, JobContext, JobLifecycle,
+		JobOutputExt,
 	},
 };
 use models::{

@@ -76,7 +76,7 @@ pub trait FileProcessor {
 	/// Generate a hash of the file. In most cases, the hash is generated from select pages
 	/// of the file, rather than the entire file. This is to prevent the hash from changing
 	/// when the metadata of the file changes.
-	fn generate_stump_hash(path: &str) -> Option<String>;
+	fn generate_longbox_hash(path: &str) -> Option<String>;
 
 	/// Generate both hashes for a file, depending on the options provided.
 	fn generate_hashes(

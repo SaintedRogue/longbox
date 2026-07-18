@@ -53,7 +53,7 @@ impl FileProcessor for EpubProcessor {
 		Ok(sample_size)
 	}
 
-	fn generate_stump_hash(path: &str) -> Option<String> {
+	fn generate_longbox_hash(path: &str) -> Option<String> {
 		let sample_result = EpubProcessor::get_sample_size(path);
 
 		if let Ok(sample) = sample_result {
@@ -78,7 +78,7 @@ impl FileProcessor for EpubProcessor {
 		}: FileProcessorOptions,
 	) -> Result<ProcessedFileHashes, FileError> {
 		let hash = generate_file_hashes
-			.then(|| EpubProcessor::generate_stump_hash(path))
+			.then(|| EpubProcessor::generate_longbox_hash(path))
 			.flatten();
 		let koreader_hash = generate_koreader_hashes
 			.then(|| generate_koreader_hash(path))

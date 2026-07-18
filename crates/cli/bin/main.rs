@@ -12,7 +12,7 @@ async fn main() {
 		.expect("Failed to initialize stump configuration");
 
 	if let Some(command) = app.command {
-		handle_command(command, &app.config.merge_stump_config(stump_config))
+		handle_command(command, &app.config.merge_longbox_config(stump_config))
 			.await
 			.expect("Failed to handle command");
 	} else {

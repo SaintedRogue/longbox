@@ -14,7 +14,7 @@ use longbox_core::filesystem::{
 	},
 	ContentType,
 };
-use longbox_core::job::stump_job::LongboxJob;
+use longbox_core::job::longbox_job::LongboxJob;
 use models::{
 	entity::{library, library_config, media, series},
 	shared::enums::UserPermission,

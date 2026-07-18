@@ -11,7 +11,7 @@ use longbox_core::filesystem::{
 	metadata::{MetadataFetchJobParams, MetadataFetchScope},
 	scanner::ScanOptions,
 };
-use longbox_core::job::stump_job::LongboxJob;
+use longbox_core::job::longbox_job::LongboxJob;
 use metadata_integrations::MetadataField;
 use models::{
 	entity::{

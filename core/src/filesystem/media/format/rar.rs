@@ -82,7 +82,7 @@ impl FileProcessor for RarProcessor {
 		}
 	}
 
-	fn generate_stump_hash(path: &str) -> Option<String> {
+	fn generate_longbox_hash(path: &str) -> Option<String> {
 		let sample_result = RarProcessor::get_sample_size(path).ok();
 
 		if let Some(sample) = sample_result {
@@ -108,7 +108,7 @@ impl FileProcessor for RarProcessor {
 		}: FileProcessorOptions,
 	) -> Result<ProcessedFileHashes, FileError> {
 		let hash = generate_file_hashes
-			.then(|| RarProcessor::generate_stump_hash(path))
+			.then(|| RarProcessor::generate_longbox_hash(path))
 			.flatten();
 		// TODO(koreader): Do we want to hash RAR files?
 		// let koreader_hash = generate_koreader_hashes

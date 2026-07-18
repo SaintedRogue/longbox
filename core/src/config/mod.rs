@@ -1,12 +1,12 @@
 pub mod logging;
+mod longbox_config;
 pub mod oidc_config;
-mod stump_config;
 
 use std::env;
 
+use longbox_config::env_keys::{CONFIG_DIR_KEY, IN_DOCKER_KEY};
+pub use longbox_config::{defaults, env_keys, LongboxConfig};
 pub use oidc_config::OidcConfig;
-use stump_config::env_keys::{CONFIG_DIR_KEY, IN_DOCKER_KEY};
-pub use stump_config::{defaults, env_keys, LongboxConfig};
 
 /// Gets the default config directory located at `~/.stump` where `~` is the
 /// user's home directory.
@@ -55,7 +55,7 @@ pub fn bootstrap_config_dir() -> String {
 ///   1. The `STUMP_IN_DOCKER` environment variable.
 ///   2. The existence of `/run/.containerenv` and `/.dockerenv`.
 ///   3. The presence of "docker" or "containerd" processes.
-pub fn stump_in_docker() -> bool {
+pub fn longbox_in_docker() -> bool {
 	let env_set = std::env::var(IN_DOCKER_KEY).is_ok();
 	if env_set {
 		return true;

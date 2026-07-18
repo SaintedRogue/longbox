@@ -5,7 +5,7 @@ use longbox_core::{
 		image::{generate_book_thumbnail, GenerateThumbnailOptions},
 		media::analysis::{AnalysisJobConfig, MediaAnalysisJobScope},
 	},
-	job::stump_job::LongboxJob,
+	job::longbox_job::LongboxJob,
 };
 use models::{
 	entity::{favorite_media, library, library_config, media, series},

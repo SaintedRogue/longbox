@@ -13,7 +13,7 @@ use crate::{
 		scanner::{LibraryScanJob, SeriesScanJob},
 	},
 	job::{
-		error::JobError, stump_job::LongboxJob, ApalisWorkerState, CoreJobOutput,
+		error::JobError, longbox_job::LongboxJob, ApalisWorkerState, CoreJobOutput,
 		JobContext, JobLifecycle, JobOutputExt, JobProgress, WorkingState,
 	},
 	CoreEvent,

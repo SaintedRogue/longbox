@@ -40,7 +40,7 @@ impl FileProcessor for ZipProcessor {
 		Ok(sample_size)
 	}
 
-	fn generate_stump_hash(path: &str) -> Option<String> {
+	fn generate_longbox_hash(path: &str) -> Option<String> {
 		let sample_result = Self::get_sample_size(path);
 
 		if let Ok(sample) = sample_result {
@@ -66,7 +66,7 @@ impl FileProcessor for ZipProcessor {
 		}: FileProcessorOptions,
 	) -> Result<ProcessedFileHashes, FileError> {
 		let hash = generate_file_hashes
-			.then(|| ZipProcessor::generate_stump_hash(path))
+			.then(|| ZipProcessor::generate_longbox_hash(path))
 			.flatten();
 		// TODO(koreader): Do we want to hash ZIP files?
 		// let koreader_hash = generate_koreader_hashes

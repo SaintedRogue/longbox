@@ -34,9 +34,9 @@ async fn main() -> Result<(), EntryError> {
 	let cli = Cli::parse();
 
 	if let Some(command) = cli.command {
-		Ok(handle_command(command, &cli.config.merge_stump_config(config)).await?)
+		Ok(handle_command(command, &cli.config.merge_longbox_config(config)).await?)
 	} else {
-		let resolved_config = cli.config.merge_stump_config(config);
+		let resolved_config = cli.config.merge_longbox_config(config);
 		// Note: init_tracing after loading the environment so the correct verbosity
 		// level is used for logging.
 		init_tracing(&resolved_config);

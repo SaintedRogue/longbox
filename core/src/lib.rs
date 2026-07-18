@@ -18,7 +18,7 @@ pub mod kobo;
 pub mod opds;
 pub mod utils;
 
-use config::logging::STUMP_SHADOW_TEXT;
+use config::logging::LONGBOX_SHADOW_TEXT;
 use config::LongboxConfig;
 use job::JobScheduler;
 use models::entity::server_config;
@@ -126,7 +126,7 @@ impl LongboxCore {
 	/// Returns the shadow text for the core. This is just the fun ascii art that
 	/// is printed to the console when the server starts.
 	pub fn get_shadow_text(&self) -> &str {
-		STUMP_SHADOW_TEXT
+		LONGBOX_SHADOW_TEXT
 	}
 
 	/// Initializes the server configuration record. This will only create a new record if one

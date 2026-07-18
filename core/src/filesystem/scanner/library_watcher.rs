@@ -1,4 +1,4 @@
-use crate::{job::stump_job::LongboxJob, CoreError, CoreResult};
+use crate::{job::longbox_job::LongboxJob, CoreError, CoreResult};
 use apalis::prelude::MemoryStorage;
 use async_trait::async_trait;
 use models::entity::{library, library_config};

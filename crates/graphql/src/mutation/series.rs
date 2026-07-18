@@ -4,7 +4,7 @@ use longbox_core::filesystem::{
 	image::{generate_book_thumbnail, GenerateThumbnailOptions},
 	media::analysis::{AnalysisJobConfig, MediaAnalysisJobScope},
 };
-use longbox_core::job::stump_job::LongboxJob;
+use longbox_core::job::longbox_job::LongboxJob;
 use models::{
 	entity::{favorite_series, library, library_config, media, series},
 	shared::enums::UserPermission,

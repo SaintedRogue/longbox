@@ -16,7 +16,7 @@ pub struct CliConfig {
 impl CliConfig {
 	/// Consume both a [CliConfig] and [LongboxConfig] to produce a [LongboxConfig] with
 	/// any values set in the [CliConfig] overriding the [LongboxConfig]'s values.
-	pub fn merge_stump_config(self, mut config: LongboxConfig) -> LongboxConfig {
+	pub fn merge_longbox_config(self, mut config: LongboxConfig) -> LongboxConfig {
 		if let Some(config_dir) = self.config_dir {
 			config.config_dir = config_dir.to_string_lossy().to_string();
 		}

@@ -19,7 +19,7 @@ use tokio_util::sync::CancellationToken;
 use apalis::prelude::{MemoryStorage, MessageQueue};
 
 use super::{
-	error::JobError, stump_job::LongboxJob, CoreJobOutput, JobExecuteLog, JobOutputExt,
+	error::JobError, longbox_job::LongboxJob, CoreJobOutput, JobExecuteLog, JobOutputExt,
 	JobProgress, JobStatus,
 };
 

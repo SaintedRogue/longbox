@@ -10,7 +10,7 @@ use crate::{
 	database,
 	event::CoreEvent,
 	filesystem::scanner::LibraryWatcher,
-	job::{state::ApalisWorkerState, stump_job::LongboxJob},
+	job::{longbox_job::LongboxJob, state::ApalisWorkerState},
 	CoreError, CoreResult,
 };
 

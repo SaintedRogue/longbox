@@ -49,7 +49,7 @@ impl FileProcessor for PdfProcessor {
 		Ok(size / 10)
 	}
 
-	fn generate_stump_hash(path: &str) -> Option<String> {
+	fn generate_longbox_hash(path: &str) -> Option<String> {
 		let sample_result = PdfProcessor::get_sample_size(path);
 
 		if let Ok(sample) = sample_result {
@@ -74,7 +74,7 @@ impl FileProcessor for PdfProcessor {
 		}: FileProcessorOptions,
 	) -> Result<ProcessedFileHashes, FileError> {
 		let hash = generate_file_hashes
-			.then(|| PdfProcessor::generate_stump_hash(path))
+			.then(|| PdfProcessor::generate_longbox_hash(path))
 			.flatten();
 		let koreader_hash = generate_koreader_hashes
 			.then(|| generate_koreader_hash(path))
