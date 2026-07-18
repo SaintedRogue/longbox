@@ -1,0 +1,28 @@
+{
+	"hooks": {
+		"PreToolUse": [
+			{
+				"matcher": "Edit|Write",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "f=$(jq -r '.tool_input.file_path // empty'); case \"$f\" in *.env|*/Cargo.lock|*/yarn.lock) echo \"Blocked: $f is protected (secret or lockfile). Edit it by hand, or update lockfiles via cargo/yarn — not through Claude.\" >&2; exit 2 ;; esac",
+						"statusMessage": "Checking protected paths…"
+					}
+				]
+			}
+		],
+		"PostToolUse": [
+			{
+				"matcher": "Edit|Write",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "{ f=$(jq -r '.tool_input.file_path // empty'); case \"$f\" in *.rs) cargo fmt --all ;; *.js|*.jsx|*.ts|*.tsx|*.md|*.json) node_modules/.bin/prettier --config prettier.config.js --ignore-path .prettierignore --write \"$f\" ;; esac ; } 2>/dev/null || true",
+						"statusMessage": "Formatting…"
+					}
+				]
+			}
+		]
+	}
+}

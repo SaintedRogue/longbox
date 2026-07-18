@@ -54,3 +54,9 @@ apps/server/client/*
 #Code coverage
 lcov.info
 tarpaulin-report.html
+
+# graphify knowledge graph (local eval, not committed)
+graphify-out/
+
+# Claude Code — personal per-machine config; shared config (settings.json, skills/, CLAUDE.md) stays tracked
+.claude/settings.local.json
