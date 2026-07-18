@@ -1,4 +1,4 @@
-import { useStumpVersion } from '@longbox/client'
+import { useLongboxVersion } from '@longbox/client'
 import {
 	Alert,
 	AlertDescription,
@@ -20,7 +20,7 @@ const REPO_URL = 'https://github.com/stumpapp/stump'
 const IS_DEV = import.meta.env.DEV
 
 export default function ServerInfoSection() {
-	const version = useStumpVersion()
+	const version = useLongboxVersion()
 
 	const { t } = useLocaleContext()
 

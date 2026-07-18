@@ -210,7 +210,7 @@ function parseMissingKeyHandler(missingKey: string) {
 type RecursiveResource = string | RecursiveResource[] | { [key: string]: RecursiveResource }
 
 function sentenceCase(obj: RecursiveResource): ResourceKey {
-	const preservedWords = new Set(['Stump', 'OPDS', 'URL', 'URLs', 'PDF'])
+	const preservedWords = new Set(['Longbox', 'OPDS', 'URL', 'URLs', 'PDF'])
 
 	if (typeof obj === 'string') {
 		let isFirstMatch = true

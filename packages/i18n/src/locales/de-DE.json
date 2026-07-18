@@ -2928,7 +2928,7 @@
 			"unknownSeriesName": "Serie"
 		},
 		"emptyState": {
-			"noStumpServers": "Keine Longbox Server hinzugefügt",
+			"noLongboxServers": "Keine Longbox Server hinzugefügt",
 			"noOPDSServers": "Keine OPDS Server hinzugefügt",
 			"noServers": "Keine Server konfiguriert",
 			"cta": "Lege los mit einem Server hinzuzufügen, um auf deine Buchsammlungen zuzugreifen",
@@ -3065,7 +3065,7 @@
 				"disableDismissGesture": "Deaktiviere Zurück-Geste",
 				"incognitoReading": "Inkognito lesen"
 			},
-			"stump": {
+			"longbox": {
 				"label": "Longbox",
 				"description": "Longbox-Funktionen sind optional und können deaktiviert, wenn du diese nicht benötigst",
 				"bookClubsEnabled": "Buchclubfunktionen"
@@ -3084,7 +3084,7 @@
 				"label": "Verwaltung",
 				"dataUsage": {
 					"label": "Datennutzung",
-					"nonStumpData": "Nicht-Longbox Daten",
+					"nonLongboxData": "Nicht-Longbox Daten",
 					"serversTotal": "Server insgesamt",
 					"totalFiles": "Dateien gesamt",
 					"totalSize": "Gesamtgröße",
@@ -3156,7 +3156,7 @@
 				"suuportIdentifier": "Support-Identifikator: {{supportID}}"
 			}
 		},
-		"stumpServer": {
+		"longboxServer": {
 			"browse": {
 				"books": "Bücher",
 				"favorites": "Favoriten",

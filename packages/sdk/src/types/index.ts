@@ -29,7 +29,7 @@ export type APIError =
 	| { code: 'Unknown'; details: string }
 	| { code: 'Redirect'; details: string }
 
-export type StumpVersion = {
+export type LongboxVersion = {
 	semver: string
 	rev: string
 	compileTime: string

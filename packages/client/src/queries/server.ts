@@ -2,7 +2,7 @@ import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 
 import { useSDK } from '../sdk'
 
-export function useStumpVersion() {
+export function useLongboxVersion() {
 	const { sdk } = useSDK()
 	const { data: version } = useQuery({
 		queryKey: [sdk.server.keys.version],

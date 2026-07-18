@@ -32,13 +32,13 @@ import { AxiosRequestConfig, isAxiosError } from 'axios'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { match } from 'ts-pattern'
 
-import { IStumpClientContext, useClientContext } from '../context'
+import { ILongboxClientContext, useClientContext } from '../context'
 import { useSDK } from '../sdk'
 
 type ErrorHandlerParams = {
 	sdk: Api
 	error: unknown
-} & Pick<IStumpClientContext, 'onUnauthenticatedResponse' | 'onConnectionWithServerChanged'>
+} & Pick<ILongboxClientContext, 'onUnauthenticatedResponse' | 'onConnectionWithServerChanged'>
 const handleError = ({
 	sdk,
 	error,

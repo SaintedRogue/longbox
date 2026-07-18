@@ -12,7 +12,7 @@ const EPUB_ROUTE = '/epub'
 const epubURL = createRouteURLHandler(EPUB_ROUTE)
 
 /**
- * The epub API controller, used for interacting with the epub endpoints of the Stump API
+ * The epub API controller, used for interacting with the epub endpoints of the Longbox API
  */
 export class EpubAPI extends APIBase {
 	/**

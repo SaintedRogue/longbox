@@ -11,7 +11,7 @@ const LIBRARY_ROUTE = '/libraries'
 const libraryURL = createRouteURLHandler(LIBRARY_ROUTE)
 
 /**
- * The library API controller, used for interacting with the library endpoints of the Stump API
+ * The library API controller, used for interacting with the library endpoints of the Longbox API
  */
 export class LibraryAPI extends APIBase {
 	/**

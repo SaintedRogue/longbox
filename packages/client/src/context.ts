@@ -7,7 +7,7 @@ export const QueryClientContext = createContext<QueryClient | undefined>(undefin
 
 export type CredentialStoreTokenState = Record<string, boolean>
 
-export type IStumpClientContext = {
+export type ILongboxClientContext = {
 	onRedirect?: (url: string) => void
 	onUnauthenticatedResponse?: (redirectUrl?: string, data?: unknown) => void
 	onConnectionWithServerChanged?: (isConnected: boolean) => void
@@ -15,7 +15,7 @@ export type IStumpClientContext = {
 	onLogout?: () => Promise<void>
 }
 
-export const StumpClientContext = createContext<IStumpClientContext | undefined>(undefined)
+export const LongboxClientContext = createContext<ILongboxClientContext | undefined>(undefined)
 
 // TODO: 'android' | 'ios' --> https://reactnative.dev/docs/platform
 /**
@@ -26,16 +26,16 @@ export type Platform = 'browser' | 'macOS' | 'windows' | 'linux' | 'mobile' | 'u
 /**
  * The props that are passed to the root of the application
  */
-export type StumpClientProps = {
+export type LongboxClientProps = {
 	authMethod?: AuthenticationMethod
 	platform: Platform
 	baseUrl?: string
-} & Pick<IStumpClientContext, 'onAuthenticated' | 'onLogout' | 'onUnauthenticatedResponse'>
+} & Pick<ILongboxClientContext, 'onAuthenticated' | 'onLogout' | 'onUnauthenticatedResponse'>
 
 export const useClientContext = () => {
-	const context = useContext(StumpClientContext)
+	const context = useContext(LongboxClientContext)
 	if (!context) {
-		throw new Error('StumpContext not found')
+		throw new Error('LongboxContext not found')
 	}
 	return context
 }

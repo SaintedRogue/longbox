@@ -13,7 +13,7 @@ const MEDIA_ROUTE = '/media'
 const mediaURL = createRouteURLHandler(MEDIA_ROUTE)
 
 /**
- * The media API controller, used for interacting with the media endpoints of the Stump API
+ * The media API controller, used for interacting with the media endpoints of the Longbox API
  */
 export class MediaAPI extends APIBase {
 	/**

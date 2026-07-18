@@ -2928,7 +2928,7 @@
 			"unknownSeriesName": "seria"
 		},
 		"emptyState": {
-			"noStumpServers": "Nie dodano żadnych serwerów Longbox",
+			"noLongboxServers": "Nie dodano żadnych serwerów Longbox",
 			"noOPDSServers": "Nie dodano żadnych serwerów OPDS",
 			"noServers": "Brak skonfigurowanych serwerów",
 			"cta": "Zacznij od dodania serwera, aby uzyskać do swojej kolekcji książek",
@@ -3065,7 +3065,7 @@
 				"disableDismissGesture": "Wyłącz gest odrzucania",
 				"incognitoReading": "Czytanie w trybie prywatnym"
 			},
-			"stump": {
+			"longbox": {
 				"label": "Longbox",
 				"description": "Funkcje Longbox są opcjonalne i, jeśli ich nie potrzebujesz, możesz je wyłączyć",
 				"bookClubsEnabled": "Funkcje klubu książki"
@@ -3084,7 +3084,7 @@
 				"label": "Zarządzanie",
 				"dataUsage": {
 					"label": "Wykorzystanie danych",
-					"nonStumpData": "Dane inne niż Longbox",
+					"nonLongboxData": "Dane inne niż Longbox",
 					"serversTotal": "Łącznie z serwerów",
 					"totalFiles": "Łącznie plików",
 					"totalSize": "Łączny rozmiar",
@@ -3156,7 +3156,7 @@
 				"suuportIdentifier": "Identyfikator wsparcia: {{supportID}}"
 			}
 		},
-		"stumpServer": {
+		"longboxServer": {
 			"browse": {
 				"books": "Książki",
 				"favorites": "Ulubione",

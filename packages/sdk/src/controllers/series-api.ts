@@ -11,7 +11,7 @@ const SERIES_ROUTE = '/series'
 const seriesURL = createRouteURLHandler(SERIES_ROUTE)
 
 /**
- * The series API controller, used for interacting with the series endpoints of the Stump API
+ * The series API controller, used for interacting with the series endpoints of the Longbox API
  */
 export class SeriesAPI extends APIBase {
 	/**

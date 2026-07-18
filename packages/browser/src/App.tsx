@@ -1,7 +1,7 @@
 import './styles/index.css'
 import '@longbox/components/styles/overrides.css'
 
-import { SDKProvider, StumpClientContextProvider, StumpClientProps } from '@longbox/client'
+import { LongboxClientContextProvider, LongboxClientProps, SDKProvider } from '@longbox/client'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { useEffect, useState } from 'react'
 import { ErrorBoundary } from 'react-error-boundary'
@@ -15,7 +15,7 @@ import { Toaster } from './components/Toaster'
 import { useApplyTheme } from './hooks'
 import { useAppStore, useDebugStore, useUserStore } from './stores'
 
-export default function StumpWebClient(props: StumpClientProps) {
+export default function StumpWebClient(props: LongboxClientProps) {
 	return (
 		<ErrorBoundary FallbackComponent={ErrorFallback}>
 			<RouterContainer {...props} />
@@ -23,7 +23,7 @@ export default function StumpWebClient(props: StumpClientProps) {
 	)
 }
 
-const RouterContainer = (props: StumpClientProps) => {
+const RouterContainer = (props: LongboxClientProps) => {
 	const location = useLocation()
 	const navigate = useNavigate()
 
@@ -84,7 +84,7 @@ const RouterContainer = (props: StumpClientProps) => {
 	}
 
 	return (
-		<StumpClientContextProvider
+		<LongboxClientContextProvider
 			onUnauthenticatedResponse={handleUnauthenticatedResponse}
 			onConnectionWithServerChanged={handleConnectionWithServerChanged}
 			onAuthenticated={props.onAuthenticated}
@@ -98,6 +98,6 @@ const RouterContainer = (props: StumpClientProps) => {
 				<AppRouter />
 				<Toaster />
 			</SDKProvider>
-		</StumpClientContextProvider>
+		</LongboxClientContextProvider>
 	)
 }

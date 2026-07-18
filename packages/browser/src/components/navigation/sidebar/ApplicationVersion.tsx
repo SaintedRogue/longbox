@@ -1,9 +1,9 @@
-import { useStumpVersion } from '@longbox/client'
+import { useLongboxVersion } from '@longbox/client'
 import { cx, Link, TEXT_VARIANTS } from '@longbox/components'
 import { useMemo } from 'react'
 
 export default function ApplicationVersion() {
-	const version = useStumpVersion()
+	const version = useLongboxVersion()
 
 	const url = useMemo(() => {
 		if (!version) return undefined

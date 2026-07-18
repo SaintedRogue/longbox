@@ -2928,7 +2928,7 @@
 			"unknownSeriesName": "系列"
 		},
 		"emptyState": {
-			"noStumpServers": "未添加 Longbox 服务器",
+			"noLongboxServers": "未添加 Longbox 服务器",
 			"noOPDSServers": "未添加 OPDS 服务器",
 			"noServers": "No Servers Configured",
 			"cta": "通过添加服务器来开始访问您的书籍收藏",
@@ -3065,7 +3065,7 @@
 				"disableDismissGesture": "禁用关闭手势",
 				"incognitoReading": "隐身阅读"
 			},
-			"stump": {
+			"longbox": {
 				"label": "Longbox 功能",
 				"description": "Longbox 功能是可选的，如果您不需要可以关闭",
 				"bookClubsEnabled": "读书俱乐部功能"
@@ -3084,7 +3084,7 @@
 				"label": "管理",
 				"dataUsage": {
 					"label": "数据使用",
-					"nonStumpData": "Non-Longbox Data",
+					"nonLongboxData": "Non-Longbox Data",
 					"serversTotal": "Servers Total",
 					"totalFiles": "Total Files",
 					"totalSize": "Total Size",
@@ -3156,7 +3156,7 @@
 				"suuportIdentifier": "支持标识符：{{supportID}}"
 			}
 		},
-		"stumpServer": {
+		"longboxServer": {
 			"browse": {
 				"books": "Books",
 				"favorites": "Favorites",

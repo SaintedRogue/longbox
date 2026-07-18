@@ -40,7 +40,7 @@ export type ApiParams = {
 )
 
 /**
- * A class representing the Stump API
+ * A class representing the Longbox API
  */
 export class Api {
 	/**
@@ -75,7 +75,7 @@ export class Api {
 
 	/**
 	 * Create a new instance of the API
-	 * @param baseURL The base URL to the Stump server
+	 * @param baseURL The base URL to the Longbox server
 	 */
 	constructor({ baseURL, authMethod = 'session', apiKey, ...params }: ApiParams) {
 		this.baseURL = baseURL
@@ -221,7 +221,7 @@ export class Api {
 	}
 
 	/**
-	 * Get the URL of the Stump service
+	 * Get the URL of the Longbox service
 	 */
 	get serviceURL(): string {
 		return this._shouldFormatURL
@@ -234,7 +234,7 @@ export class Api {
 	}
 
 	/**
-	 * Set the URL of the Stump service
+	 * Set the URL of the Longbox service
 	 */
 	set serviceURL(url: string) {
 		this.baseURL = url

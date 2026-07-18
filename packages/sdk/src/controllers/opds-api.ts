@@ -30,7 +30,7 @@ const OPDS_V2_ROUTE = '/opds/v2.0'
 export const opdsURL = createRouteURLHandler(OPDS_V2_ROUTE)
 
 /**
- * The OPDS API controller, used for interacting with the OPDS v2 endpoints of the Stump API
+ * The OPDS API controller, used for interacting with the OPDS v2 endpoints of the Longbox API
  */
 export class OPDSV2API extends APIBase {
 	get config(): AxiosRequestConfig {
@@ -61,7 +61,7 @@ export class OPDSV2API extends APIBase {
 	}
 
 	/**
-	 * A generic method to fetch an OPDS feed from a URL that may not be from a Stump server
+	 * A generic method to fetch an OPDS feed from a URL that may not be from a Longbox server
 	 */
 	async feed(url: string, params?: OPDSPageQuery): Promise<OPDSFeed> {
 		const absoluteUrl = resolveUrl(url, this.api.rootURL)
@@ -183,7 +183,7 @@ export class OPDSV2API extends APIBase {
 	}
 
 	/**
-	 * A generic method to fetch a publication from a URL that may not be from a Stump server
+	 * A generic method to fetch a publication from a URL that may not be from a Longbox server
 	 * @param url The URL of the publication to fetch
 	 */
 	async publication(url: string): Promise<OPDSPublication> {

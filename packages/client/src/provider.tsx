@@ -2,17 +2,17 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { PropsWithChildren } from 'react'
 
 import { queryClient } from './client'
-import { IStumpClientContext, QueryClientContext, StumpClientContext } from './context'
+import { ILongboxClientContext, LongboxClientContext, QueryClientContext } from './context'
 
-export function StumpClientContextProvider({
+export function LongboxClientContextProvider({
 	children,
 	...context
-}: PropsWithChildren<IStumpClientContext>) {
+}: PropsWithChildren<ILongboxClientContext>) {
 	return (
-		<StumpClientContext.Provider value={context}>
+		<LongboxClientContext.Provider value={context}>
 			<QueryClientContext.Provider value={queryClient}>
 				<QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
 			</QueryClientContext.Provider>
-		</StumpClientContext.Provider>
+		</LongboxClientContext.Provider>
 	)
 }

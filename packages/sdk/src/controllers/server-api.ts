@@ -1,5 +1,5 @@
 import { APIBase } from '../base'
-import { StumpVersion } from '../types'
+import { LongboxVersion } from '../types'
 import { ClaimResponse } from '../types/rest'
 import { APIResult, ClassQueryKeys } from './types'
 import { createRouteURLHandler } from './utils'
@@ -14,26 +14,26 @@ const SERVER_ROUTE = ''
 const serverURL = createRouteURLHandler(SERVER_ROUTE)
 
 /**
- * The server API controller, used for interacting with the server endpoints of the Stump API
+ * The server API controller, used for interacting with the server endpoints of the Longbox API
  */
 export class ServerAPI extends APIBase {
 	/**
-	 * Get the version of the Stump instance
+	 * Get the version of the Longbox instance
 	 */
-	async version(): Promise<StumpVersion> {
-		const { data: version } = await this.axios.post<StumpVersion>(serverURL('/version'))
+	async version(): Promise<LongboxVersion> {
+		const { data: version } = await this.axios.post<LongboxVersion>(serverURL('/version'))
 		return version
 	}
 
 	/**
-	 * Ping the Stump service to check if it is available
+	 * Ping the Longbox service to check if it is available
 	 */
 	async ping(): Promise<APIResult<string>> {
 		return this.axios.get('/ping')
 	}
 
 	/**
-	 * Check if the Stump instance has been claimed (at least one user who is the owner)
+	 * Check if the Longbox instance has been claimed (at least one user who is the owner)
 	 */
 	async claimedStatus(): Promise<APIResult<ClaimResponse>> {
 		const { data, ...response } = await this.axios.get('/claim')

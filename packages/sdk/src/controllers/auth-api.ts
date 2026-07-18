@@ -43,7 +43,7 @@ const AUTH_PATH = '/auth'
 const authURL = createRouteURLHandler(AUTH_PATH)
 
 /**
- * The auth API controller, used for interacting with the auth endpoints of the Stump API
+ * The auth API controller, used for interacting with the auth endpoints of the Longbox API
  */
 export class AuthAPI extends APIBase {
 	/**
