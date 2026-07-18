@@ -2,10 +2,15 @@
 
 Self-hosted server for comics, manga, and digital books — a hard fork of
 [Stump](https://github.com/stumpapp/stump), rebranded as Longbox and published
-under `SaintedRogue`. **Internal identifiers are still `stump`**: the server
-binary/package is `stump_server`, TS packages are `@stump/*`, env vars are
-`STUMP_*`, and CI is titled "Stump Checks CI". Don't "fix" these to `longbox` —
-they're load-bearing. User-facing branding is Longbox.
+under `SaintedRogue`. The fork is **fully rebranded to `longbox`**: the server
+binary/package is `longbox_server`, the core lib is `longbox_core`, TS packages
+are `@longbox/*`, env vars are `LONGBOX_*`, the config file is `Longbox.toml`,
+and the data dir is `~/.longbox`; CI is titled "Longbox Checks CI". Two
+transitional shims remain for one release: legacy `STUMP_*` env vars are still
+honored (with a deprecation warning), and the server auto-migrates an old
+`~/.stump` data dir → `~/.longbox` on boot. Upstream attribution — `stumpapp/stump`
+links, the MIT `LICENSE`, "fork of Stump" credit, and the sample data in
+`crates/email` — is deliberately preserved; don't "fix" those to Longbox.
 
 ## Layout — a two-language monorepo
 
@@ -15,8 +20,8 @@ are separate per language, and a change to one rarely touches the other.
 
 **Rust** (`cargo`, edition workspace, rust-version 1.92):
 
-- `apps/server` — axum HTTP server (package/bin `stump_server`)
-- `core` — core library (business logic, models, jobs)
+- `apps/server` — axum HTTP server (package/bin `longbox_server`)
+- `core` — core library / lib `longbox_core` (business logic, models, jobs)
 - `crates/*` — `cli`, `email`, `graphql`, `migrations`, `models`, `tests`
 - `crates/integrations/*` — `metadata`, `notification` (external APIs)
 - `crates/macros/*` — proc-macros
@@ -25,7 +30,7 @@ are separate per language, and a change to one rarely touches the other.
 
 **TypeScript** (`yarn` classic 1.22, lerna, Node ≥20):
 
-- `apps/web` — React 19 PWA (`@stump/web`), Vite 7, Tailwind 4, React Router 6,
+- `apps/web` — React 19 PWA (`@longbox/web`), Vite 7, Tailwind 4, React Router 6,
   vite-plugin-pwa
 - `packages/*` — `sdk`, `client`, `browser`, `components`, `graphql`, `i18n`
 - `docs` — documentation app
@@ -41,14 +46,17 @@ yarn setup
 yarn dev:web
 
 # Rust
-cargo build-server          # release build of stump_server (alias)
+cargo build-server          # release build of longbox_server (alias)
 cargo test
 cargo fmt --all             # format
 cargo clippy -- -D warnings # lint (CI treats warnings as errors)
 cargo dump-schema           # regenerate GraphQL SDL from resolvers
 cargo dump-schema -- --check# verify SDL matches code (CI gate)
-cargo codegen               # regenerate TS types from the schema
 cargo migrate               # run DB migrations  (cargo rollback = down 1)
+
+# Regenerate the TS GraphQL client from the schema (the `cargo codegen` alias
+# is stale — there is no `codegen` package):
+yarn workspace @longbox/graphql codegen
 
 # TypeScript (run from repo root)
 yarn lint                   # eslint + prettier + check-types
@@ -56,8 +64,10 @@ yarn format                 # eslint --fix + prettier --write
 yarn test                   # jest across packages
 ```
 
-Cargo aliases (`cargo build-server`, `dump-schema`, `codegen`, `migrate`,
-`rollback`, `integration-tests`) are defined in `.cargo/config.toml`.
+Cargo aliases (`cargo build-server`, `dump-schema`, `migrate`, `rollback`,
+`integration-tests`) are defined in `.cargo/config.toml`. (A `codegen` alias is
+also declared there but is stale — it points at a `codegen` package that doesn't
+exist; use `yarn workspace @longbox/graphql codegen` instead.)
 
 ## Before you push — reproduce CI locally
 
@@ -78,7 +88,8 @@ Use the **`ci-preflight` skill** to run exactly these locally, scoped to your
 diff, before pushing: `.claude/skills/ci-preflight/scripts/preflight.sh`.
 `clippy -D warnings` and schema-drift are the two that most often surprise —
 adding a GraphQL field means you must `cargo dump-schema` (and usually
-`cargo codegen`) and commit the regenerated output.
+regenerate the TS client via `yarn workspace @longbox/graphql codegen`) and
+commit the regenerated output.
 
 ## Conventions & gotchas
 
@@ -103,6 +114,7 @@ on a **self-hosted runner** (see the `devbox build host` memory for the image
 build machine).
 
 - **Reverse-proxy gotcha**: behind NPM/Traefik, set
-  `STUMP_TRUST_PROXY_HEADERS=true` — otherwise server-built cover/thumbnail URLs
-  point at the internal `:10801` and 404 (covers render blank). See the
-  `reverse-proxy-trust-headers` memory.
+  `LONGBOX_TRUST_PROXY_HEADERS=true` (legacy `STUMP_TRUST_PROXY_HEADERS` still
+  honored this release with a deprecation warning) — otherwise server-built
+  cover/thumbnail URLs point at the internal `:10801` and 404 (covers render
+  blank). See the `reverse-proxy-trust-headers` memory.
