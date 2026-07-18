@@ -1,17 +1,19 @@
 # Metron Provider Validation UX — Design
 
 Date: 2026-07-18
-Status: Design approved (interaction model + scope chosen); pending spec review
+Status: Design approved + revised (Forbidden→red; username/password split added); implementing
 
 ## Goal
 
 Make the metadata-provider credential form tell the user **which kind** of failure they
-hit, instead of painting every failure as a wrong password. Today a network/IP problem, a
-rate-limit, a bot-filter, and an actual bad password are visually identical — all render as
-one red error on the password field. Split them so that only a genuine authentication
-failure (`InvalidCredentials`) marks the field wrong; connectivity/service conditions read
-as "we couldn't verify — not your credentials"; and a success shows a positive **Verified**
-confirmation (which neither provider shows today).
+hit, instead of painting every failure as a wrong password, and let them **see the
+username/password they entered** so a typo/truncation is catchable before saving.
+
+Today a network/IP problem, a rate-limit, a bot-filter, and an actual bad password are
+visually identical — all render as one red error on the password field. And Metron's
+credentials are crammed into a single masked `username:password` field, which is how a
+production password silently lost its last character. This change splits failure feedback
+by kind and splits the Metron input into a visible Username + a revealable Password.
 
 This directly resolves the reported confusion: on a production box whose egress IP is
 firewall-banned by Metron, the server's validation `NetworkError`s after a ~10s hang, and
@@ -22,14 +24,13 @@ the UI labels that as a password error — so a correct password looks wrong.
 - **No backend or GraphQL changes.** The `validateMetadataProviderCredentials` mutation
   already returns `{ status, message }`, and `ProviderValidationStatus` is already imported
   in the web app. This is a frontend-only change (CI gates: `yarn lint` / `yarn test`).
-- **Not** changing the trigger model: debounced auto-validation, the 500ms debounce, and
-  the "only fire once the value contains `:`" guard for Metron all stay as-is.
-- **Not** splitting Metron's single `username:password` field into two inputs. That would
-  have prevented the original dropped-character truncation, but it is an input-restructuring
-  change out of scope for this feedback-focused fix. Flagged as the natural follow-up.
-- **Not** adding a password reveal/show toggle (optional; see "Deferred" below).
-- **Not** touching credential storage: Metron creds remain `username:password` encrypted
-  into the single `encrypted_api_token` column.
+- **Not** changing the trigger model beyond the composition tweak below: debounced
+  auto-validation and the 500ms debounce stay.
+- **Not** touching credential storage: Metron creds are still composed to
+  `username:password` and encrypted into the single `encrypted_api_token` column. The split
+  is purely a form-presentation concern; the wire/DB shape is unchanged.
+- **Not** applying the two-field split to Hardcover (it uses a single opaque token, not
+  basic auth).
 
 ## Problem being solved
 
@@ -51,89 +52,101 @@ The backend already distinguishes seven statuses
 `InvalidCredentials`, `Forbidden`, `RateLimited`, `ProviderError`, `NetworkError`,
 `Unsupported`, and returns a tailored `message` per status
 (`crates/integrations/metadata/src/providers/metron.rs:280-325`). The frontend discards
-that distinction by treating all of them as a password-field error. On success, neither
-provider affirms anything — it only clears the error — so the user cannot tell "verified"
-from "not yet checked."
+that distinction, and on success affirms nothing (only clears the error), so the user
+cannot tell "verified" from "not yet checked." Separately, the single masked `user:pass`
+field makes entry errors invisible.
 
-## Approach
+## Approach — validation feedback
 
-Reserve the red **field-error channel for `InvalidCredentials` only**. Every other status
-routes to one of two other channels: a positive inline **success** indicator (`Valid`), or a
-non-credential **callout** (amber warning) that carries the server message plus an optional
-hint. The classification is a pure function of the status; the server `message` stays the
-single source of truth for the human-readable text.
+Route each status to one of three channels; the server `message` remains the single source
+of truth for human-readable text.
 
-Structure (chosen option "B" — pure mapping + presentational component):
+Structure (pure mapping + presentational component):
 
 - **`providerValidationFeedback.ts`** — pure `metronStatusToFeedback(status, message)`
-  returning a plain object:
-  `{ severity: 'success' | 'warning', asFieldError: boolean, title: string, description: string, hint?: string }`.
-  No React, unit-testable in isolation.
-- **`ProviderValidationFeedback.tsx`** — presentational component that renders a `Feedback`
-  as a success line or an `Alert` (reusing `@longbox/components` `Alert`/`AlertTitle`/
-  `AlertDescription`, already imported in this scene).
+  returning `{ severity: 'success' | 'warning' | 'error', asFieldError: boolean, title:
+string, description: string, hint?: string }`. No React, unit-testable.
+- **`ProviderValidationFeedback.tsx`** — renders a `Feedback`: a green success line, or an
+  `Alert` whose variant follows `severity` (`error` → destructive/red, `warning` → amber),
+  reusing `@longbox/components` `Alert`/`AlertTitle`/`AlertDescription`.
 - **`ProviderApiKeyInput.tsx`** — orchestrator: holds `feedback` state, calls the mapping,
-  decides field-error vs. callout vs. success, renders `<ProviderValidationFeedback>`.
+  decides field-error vs. callout vs. success.
 
-## Status → treatment mapping
+### Status → treatment mapping
 
 | Status               | Channel                 | Severity        | asFieldError | Copy source                                                                                                                                            |
 | -------------------- | ----------------------- | --------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `Valid`              | inline success on field | success (green) | no           | literal "Verified"                                                                                                                                     |
 | `InvalidCredentials` | **field error (red)**   | error           | **yes**      | server message ("Username or password rejected.")                                                                                                      |
+| `Forbidden`          | callout                 | **error (red)** | no           | server message + hint: account may be filtered/banned/inactive; check the account email is verified. Not a password problem                            |
 | `NetworkError`       | callout                 | warning (amber) | no           | server message + hint: connectivity/IP, not credentials — if this server's IP is blocked by Metron, validation fails here even with a correct password |
-| `Forbidden`          | callout                 | warning (amber) | no           | server message + hint: account may be filtered/banned/inactive; check the account email is verified. Not a password problem                            |
 | `RateLimited`        | callout                 | warning (amber) | no           | server message (transient — try again shortly)                                                                                                         |
 | `ProviderError`      | callout                 | warning (amber) | no           | server message (transient — provider server issue)                                                                                                     |
 | `Unsupported`        | none                    | —               | no           | render nothing (not reachable for Metron)                                                                                                              |
 
-Decision: `Forbidden` is an **amber warning**, not a red field error — it is ambiguous
-(bot-filter / IP / account state), so it must not read as "your password is wrong," but its
-hint tells the user to check account status. `NetworkError` carries the IP-ban hint because
-that is the exact failure a self-hoster behind a blocked IP hits.
+Decisions:
 
-## State & flow
+- The **field-error (red field)** channel is reserved for `InvalidCredentials` alone — it is
+  the only status that means "your password is wrong."
+- `Forbidden` is **red** (destructive callout) — it is a serious, action-required state
+  (account filtered/banned/inactive), distinct from the transient amber warnings — but it is
+  a **callout, not a field error**, because the password may be correct; the problem is
+  account/access, so it must not imply "re-type your password."
+- `NetworkError` carries the IP-ban hint (the exact failure a blocked self-hoster hits).
 
-Add one `feedback: Feedback | null` state (`useState`, compatible with react-compiler —
-state, not ref). On each validation result:
+### State & flow
 
-- `Valid` → `clearErrors('apiToken')`; `feedback = { severity: 'success', ... }`
+Add one `feedback: Feedback | null` state (`useState`; react-compiler-safe). On each result:
+
+- `Valid` → `clearErrors('apiToken')`; `feedback = { severity: 'success', title: 'Verified' }`
 - `InvalidCredentials` → `setError('apiToken', message)`; `feedback = null`
-  (field turns red and shows the message; no duplicate callout)
+  (field turns red with the message; no duplicate callout)
 - any other status → `clearErrors('apiToken')`; `feedback = metronStatusToFeedback(...)`
-  (field is **not** red; the callout explains)
 - new keystroke / empty value → reset `feedback` to `null`
 - while `isPending` → subtle "Checking…" affordance (no error styling)
 
-`fetchError` (our own server/GraphQL unreachable — distinct from the provider's
-`NetworkError`) keeps its existing dedicated `Alert` block.
+`fetchError` (our own server/GraphQL unreachable — distinct from provider `NetworkError`)
+keeps its existing dedicated `Alert` block. **Hardcover** reuses the success path (green
+"Verified" on pass; today's `setError` on fail).
 
-**Hardcover** reuses the same success path: on a passing client-side validation, set
-`feedback = { success }` (green "Verified"); on failure it keeps today's `setError`
-behavior. This delivers the "shared success state" scope decision without giving Hardcover
-Metron's status machinery (its client-side validator returns pass/fail, not granular
-statuses).
+## Approach — Metron username/password split
+
+For Metron only, replace the single masked `user:pass` `PasswordInput` with two inputs:
+
+- **Username** — a plain visible `Input` (basic-auth username, safe to show).
+- **Password** — a `PasswordInput`, which already has a built-in reveal (eye) toggle.
+
+The form keeps a single `apiToken` field as its source of truth (schema and submit path
+unchanged). The two inputs compose it: on change, `apiToken = \`${username}:${password}\``via`form.setValue('apiToken', …, { shouldValidate: true })`. When editing an existing
+config where `apiToken`is pre-seeded, split it back on the **first** colon to populate the
+two inputs. Composition is lossless because the backend parses with`split_once(':')` (first
+colon only), so a colon inside the password is preserved; only the username must be
+colon-free (Metron usernames are).
+
+Validation fires once **both** username and password are non-empty (replacing the current
+"value contains `:`" guard, which `rogue:` alone would wrongly satisfy). Hardcover keeps its
+single-field rendering.
 
 ## i18n
 
 Metron's new hint/label copy is added as **inline literals**, matching the existing pattern
-in this file (the current Metron description is a literal with a comment that locale keys
-are another stream's territory). If locale keys are preferred later, the strings are
-centralized in `providerValidationFeedback.ts` and easy to lift.
+in this file. Strings are centralized in `providerValidationFeedback.ts` (feedback) and the
+component (field labels), easy to lift to locale keys later.
 
 ## Testing
 
 - **`providerValidationFeedback.test.ts`** (jest) — one assertion per status verifying
-  `severity` and `asFieldError` (the critical invariant: `asFieldError === true` **iff**
-  status is `InvalidCredentials`), plus that the server `message` is preserved in
-  `description`.
+  `severity` and `asFieldError`. Critical invariants: `asFieldError === true` **iff**
+  `InvalidCredentials`; `Forbidden` and `InvalidCredentials` are both `error` severity while
+  `NetworkError`/`RateLimited`/`ProviderError` are `warning`; the server `message` is
+  preserved in `description`.
+- **Compose/split** unit coverage for the username+password ⇄ `apiToken` helpers
+  (`compose('rogue','a:b') === 'rogue:a:b'`; `split('rogue:a:b') === ['rogue','a:b']`).
 - Existing `yarn lint` (eslint + prettier + check-types, incl. eslint-plugin-react-compiler)
-  and `yarn test` gates cover the component wiring.
+  and `yarn test` gates cover component wiring.
 
-## Deferred (flagged, not in this change)
+## Deferred
 
-- Split Metron into separate **username** + **password** inputs (prevents the dropped-char
-  truncation at the source).
-- Password **reveal toggle** so a user can eyeball a typo before saving.
-
-Both are small, additive follow-ups; either can be pulled forward on request.
+None outstanding — the earlier deferred items (two-field split, password reveal) are now in
+scope. The reveal toggle itself already exists in `PasswordInput`; the split makes it useful
+by giving the password its own field.
