@@ -96,6 +96,104 @@ impl ComicVineClient {
 			.await?;
 		Ok(envelope)
 	}
+
+	/// Resolve issues via the volume→issue path: look up the series' volume(s) by
+	/// name, then fetch the exact issue(s) by `(volume, issue_number)`. ComicVine's
+	/// free-text `/search` has poor recall for a specific issue (it surfaces related
+	/// series and other issues first), so this is the primary path when the query
+	/// carries a series name and an issue number. Returns an empty vec — signalling a
+	/// fall back to `/search` — when there's no number, no matching volume, or nothing
+	/// found.
+	async fn search_issues_by_volume(
+		&self,
+		query: &SearchQuery,
+	) -> Result<Vec<MatchCandidate>, MetadataProviderError> {
+		let series = query
+			.series_name
+			.as_deref()
+			.filter(|s| !s.is_empty())
+			.unwrap_or(&query.title);
+		let number = match query.number.as_deref().filter(|n| !n.is_empty()) {
+			Some(number) => number,
+			None => return Ok(Vec::new()),
+		};
+		if series.is_empty() {
+			return Ok(Vec::new());
+		}
+
+		// 1. Find candidate volumes by name (a `contains` match on ComicVine's side).
+		let envelope = self
+			.request(
+				"volumes",
+				&[
+					// `name:` is a substring match, so a popular franchise ("Absolute
+					// Batman") returns many "…: Subtitle" volumes; fetch the max page so
+					// the exact-name volume is present for the client-side filter below.
+					("filter", format!("name:{series}")),
+					("field_list", "id,name".to_string()),
+					("limit", "100".to_string()),
+				],
+			)
+			.await?;
+		let volumes: Vec<CvVolumeHit> = envelope.into_results()?;
+
+		// 2. Prefer volumes whose name matches the series exactly; otherwise take the
+		//    first couple of near-matches. Keeps the follow-up issue queries bounded.
+		let (exact, inexact): (Vec<CvVolumeHit>, Vec<CvVolumeHit>) =
+			volumes.into_iter().partition(|v| {
+				v.name
+					.as_deref()
+					.is_some_and(|n| n.eq_ignore_ascii_case(series))
+			});
+		let selected: Vec<CvVolumeHit> = if exact.is_empty() {
+			inexact.into_iter().take(2).collect()
+		} else {
+			exact.into_iter().take(3).collect()
+		};
+
+		// 3. For each selected volume, fetch the issue(s) matching the number.
+		let mut issue_ids: Vec<i64> = Vec::new();
+		for volume in &selected {
+			let envelope = self
+				.request(
+					"issues",
+					&[
+						(
+							"filter",
+							format!("volume:{},issue_number:{number}", volume.id),
+						),
+						("field_list", "id".to_string()),
+						("limit", "5".to_string()),
+					],
+				)
+				.await?;
+			let hits: Vec<CvSearchHit> = envelope.into_results().unwrap_or_default();
+			issue_ids.extend(hits.into_iter().map(|h| h.id));
+		}
+		issue_ids.sort_unstable();
+		issue_ids.dedup();
+
+		// 4. Fetch full detail for each resolved issue.
+		let limit = query.limit.unwrap_or(10) as usize;
+		let mut candidates = Vec::with_capacity(issue_ids.len().min(limit));
+		for id in issue_ids.into_iter().take(limit) {
+			match self.fetch_media_metadata(&id.to_string()).await {
+				Ok(metadata) => candidates.push(MatchCandidate {
+					provider: self.id().to_string(),
+					external_id: id.to_string(),
+					metadata: ExternalMetadata::Media(metadata),
+					confidence: 0.0,
+					confidence_factors: Vec::new(),
+				}),
+				Err(e) => tracing::error!(
+					external_id = id,
+					error = ?e,
+					"Failed to fetch ComicVine issue detail (volume path)"
+				),
+			}
+		}
+		Ok(candidates)
+	}
 }
 
 #[async_trait::async_trait]
@@ -178,6 +276,16 @@ impl MetadataProvider for ComicVineClient {
 					"ComicVine direct id lookup failed; falling back to fuzzy search"
 				),
 			}
+		}
+
+		// Precise path first: resolve the exact issue via the series' volume, since the
+		// free-text /search below has poor recall for a specific issue number.
+		let by_volume = self
+			.search_issues_by_volume(query)
+			.await
+			.unwrap_or_default();
+		if !by_volume.is_empty() {
+			return Ok(self.score_search(query, by_volume));
 		}
 
 		let envelope = self
@@ -557,6 +665,13 @@ struct CvSearchHit {
 }
 
 #[derive(Debug, Deserialize)]
+struct CvVolumeHit {
+	id: i64,
+	#[serde(default)]
+	name: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
 struct CvIssue {
 	id: i64,
 	#[serde(default)]
@@ -821,6 +936,60 @@ mod tests {
 		let candidates = client(server.uri()).search_media(&query).await.unwrap();
 		assert_eq!(candidates.len(), 1);
 		assert_eq!(candidates[0].confidence, 1.0);
+	}
+
+	#[tokio::test]
+	async fn search_media_resolves_exact_issue_via_volume() {
+		let server = MockServer::start().await;
+		// Volume lookup by name returns the exact volume plus a decoy near-match.
+		Mock::given(method("GET"))
+			.and(path("/volumes/"))
+			.respond_with(ResponseTemplate::new(200).set_body_json(json!({
+				"status_code": 1,
+				"results": [
+					{ "id": 4412, "name": "Absolute Batman" },
+					{ "id": 9999, "name": "Absolute Batman: Hush" }
+				]
+			})))
+			.mount(&server)
+			.await;
+		// Issue lookup by (volume, issue_number) resolves the exact issue id.
+		Mock::given(method("GET"))
+			.and(path("/issues/"))
+			.respond_with(ResponseTemplate::new(200).set_body_json(json!({
+				"status_code": 1,
+				"results": [ { "id": 78901 } ]
+			})))
+			.mount(&server)
+			.await;
+		Mock::given(method("GET"))
+			.and(path("/issue/4000-78901/"))
+			.respond_with(ResponseTemplate::new(200).set_body_json(json!({
+				"status_code": 1,
+				"results": serde_json::from_str::<serde_json::Value>(ISSUE_DETAIL).unwrap()
+			})))
+			.mount(&server)
+			.await;
+
+		let query = SearchQuery {
+			title: "Absolute Batman".into(),
+			series_name: Some("Absolute Batman".into()),
+			number: Some("1".into()),
+			..Default::default()
+		};
+		let candidates = client(server.uri()).search_media(&query).await.unwrap();
+
+		// The exact issue is retrieved (not reachable via free-text /search) and, with
+		// the scorer's series+number signal, ranks first at auto-apply confidence.
+		assert_eq!(
+			candidates.first().map(|c| c.external_id.as_str()),
+			Some("78901")
+		);
+		assert!(
+			candidates[0].confidence >= 0.95,
+			"exact volume+issue match should be >= 0.95, got {}",
+			candidates[0].confidence
+		);
 	}
 
 	#[tokio::test]
