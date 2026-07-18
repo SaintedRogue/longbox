@@ -7,7 +7,7 @@
 //!
 //! That warning is emitted with `eprintln!` rather than `tracing::warn!`: the legacy
 //! `STUMP_*` fallback is read during config bootstrap, which happens before tracing is
-//! initialized (and the `stump` CLI binary never initializes tracing at all), so a
+//! initialized (and the `longbox` CLI binary never initializes tracing at all), so a
 //! `tracing::warn!` here would be silently dropped.
 
 use std::{

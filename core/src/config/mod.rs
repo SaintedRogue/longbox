@@ -87,7 +87,7 @@ pub fn bootstrap_config_dir() -> String {
 	}
 }
 
-/// Checks if Stump is running in docker by checking each of:
+/// Checks if Longbox is running in docker by checking each of:
 ///   1. The `LONGBOX_IN_DOCKER` (or legacy `STUMP_IN_DOCKER`) environment variable.
 ///   2. The existence of `/run/.containerenv` and `/.dockerenv`.
 ///   3. The presence of "docker" or "containerd" processes.
@@ -104,7 +104,7 @@ pub fn longbox_in_docker() -> bool {
 	}
 
 	// NOTE: this should never hit, since I manually set the env var in the Dockerfile... However,
-	// in case someone decides to run Stump in a container while overriding that var, this should
+	// in case someone decides to run Longbox in a container while overriding that var, this should
 	// prevent any issues.
 	std::fs::read_to_string("/proc/self/cgroup")
 		.map(|cgroup| {
