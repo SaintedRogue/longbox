@@ -142,3 +142,122 @@ Each phase = its own branch/PR, `ci-preflight` green before merge.
 - Renaming the upstream project or its git remote history.
 - Publishing renamed packages to any registry.
 - Feature changes; this is a rename/branding effort only.
+
+---
+
+## 10. Discovery Addendum (2026-07-17) — supersedes earlier counts/scope where in conflict
+
+A 4-agent discovery swarm mapped the real footprint. Key corrections to §3–§8:
+
+### 10.1 The repo is already ~60% rebranded
+
+README prose, body copy, and the logos already read "Longbox". Most raw
+`grep stump` hits are **legitimate references that must stay** (see §10.6). The
+net remaining work is smaller than the 2,668 raw count implies, but the
+runtime-contract tier is **larger and riskier** than the spec stated.
+
+### 10.2 Env vars: 43 keys, not 38 — and only the prefixed ones are renamed
+
+- `core/src/config/stump_config.rs` `mod env_keys` holds **40 constants**; plus
+  **2 inline `#[env_key("…")]`** on struct fields (`ACCESS_TOKEN_TTL`,
+  `REFRESH_TOKEN_TTL`) and **1 in `database.rs`** (`FORCE_DB_RESET`) = **43 total**.
+- **33 are `STUMP_`-prefixed → renamed to `LONGBOX_`** with `STUMP_` fallback + warn.
+- **10 are NOT `STUMP_`-prefixed → LEFT AS-IS** (decision locked): `PDFIUM_PATH`,
+  `ENABLE_KOREADER_SYNC`, `ENABLE_KOBO_SYNC`, `ENABLE_OPDS_PROGRESSION`,
+  `HASH_COST`, `SESSION_TTL`, `SESSION_EXPIRY_CLEANUP_INTERVAL`, `ACCESS_TOKEN_TTL`,
+  `REFRESH_TOKEN_TTL`, `FORCE_DB_RESET`. No `LONGBOX_` variants added.
+- **Fallback must be wired in THREE places, not one:** (a) the
+  `stump-config-gen` derive macro `gen_env_var_extractors`
+  (`crates/macros/stump-config-gen/src/gen_config_impls.rs:139-192`) covers ~32
+  fields; (b) `OidcConfig::from_env()` (`core/src/config/oidc_config.rs:89-162`)
+  reads 9 OIDC keys directly; (c) `stump_in_docker()` (`core/src/config/mod.rs:59`)
+  reads `IN_DOCKER`. Only the 33 prefixed keys get the fallback+warn treatment.
+- `debug_setup()` (`apps/server/src/main.rs:15-22`) sets `STUMP_*` in-process for
+  dev — update it to `LONGBOX_*` so dev runs don't self-trigger the deprecation warn.
+
+### 10.3 Data-dir migration mechanics (revised, more precise)
+
+- **Hook point:** `bootstrap_config_dir()` (`core/src/config/mod.rs:22`) is the
+  first on-disk resolution (`main.rs:29`). Migration runs there, before it returns.
+- **Default dir literal:** `core/src/config/mod.rs:15` — `home.join(".stump")`.
+- **DB path:** `core/src/database.rs:17-26`. `STUMP_DB_PATH`/`db_path` is a
+  **directory**; `stump.db` is appended. Migration must rename `stump.db→longbox.db`
+  **inside whichever directory applies** (config dir OR custom db_path).
+- **WAL sidecars:** WAL mode is on (`core/src/lib.rs:235`), so `stump.db-wal` and
+  `stump.db-shm` sit beside the DB and must move atomically with it (or checkpoint first).
+- **Third file:** `Stump.log` (`logging.rs:15`, `stump_config.rs:408`) → `Longbox.log`.
+- **Docker:** `STUMP_CONFIG_DIR=/config` (`docker/Dockerfile:123`) means the
+  **dir-migration is a no-op in Docker** (env wins) — but the **DB-file rename
+  `/config/stump.db→/config/longbox.db` still applies**. Keep `STUMP_CONFIG_DIR`
+  working via fallback so existing `/config` deployments don't break.
+
+### 10.4 THREE new categories (not in original spec) — decisions locked
+
+1. **Browser persisted state (Tier 4, frontend).** ~10 `stump-*`/`stump:*`
+   localStorage/zustand-persist keys (`stump-user-store`, `stump-main-store`,
+   `stump-${key}-layout-store`, `stump:entity-card-density`, `stump-explorer-layout`,
+   `stump-image-sizes`, `stump:epubjs-locations-cache`, `stump-fonts-stylesheet`,
+   `stump-debug-storage`, `stump-alert-dismissed-*`, plus `stump-user-store` in
+   `apps/web/src/index.html`). **Decision: rename to `longbox-*`/`longbox:*` + a
+   one-time read-old→write-new migration shim** so saved UI/reader state carries over.
+2. **Client↔server wire contracts (Tier 4).** **Decision: full rename, in lockstep
+   on both sides.** `X-Stump-Save-Session`→`X-Longbox-Save-Session`
+   (`STUMP_SAVE_BASIC_SESSION_HEADER` in `packages/sdk/src/constants.ts:1` + the
+   server header) **and** the `stump_` API-key prefix→`longbox_` (server issues +
+   validates; `CreateAPIKeyModal.tsx:49`). **Existing API keys are invalidated —
+   release notes must say "re-create API keys after upgrade."**
+3. **i18n JSON keys.** Keys `stump`, `stumpServer`, `noStumpServers`, `nonStumpData`
+   in ~40 `packages/i18n/src/locales/*.json` (values already say "Longbox").
+   **Decision (default): rename keys + every `t('…')` call-site in lockstep.**
+
+### 10.5 Branding assets & the app-linked changelog
+
+- **README hero (`docs/public/images/landing-{dark,light}.png`), `og.png`, and
+  `favicon.ico/png` are still UPSTREAM STUMP assets.** They must be replaced with
+  Longbox captures. The three root `mobile-*.png` are staged but unreferenced.
+  → Phase 1 needs **new desktop screenshots** (the mobile ones aren't a hero).
+- `.github/CHANGELOG.md` (deleted) is **linked from the running app** at
+  `packages/browser/src/scenes/settings/server/general/HelpfulLinks.tsx:41` — update
+  or remove that link in the same phase.
+- CI: renaming `ci.yaml` title `'Stump Checks CI'`→`'Longbox Checks CI'` is **safe** —
+  no required status-check context (`Rust checks`, `TypeScript checks`, …) contains
+  `stump`, so branch protection is unaffected.
+
+### 10.6 Hard constraint — attribution & upstream links are PRESERVED
+
+The following are **never** renamed (MIT attribution + link integrity):
+
+- `LICENSE` "Copyright (c) 2022 Aaron Leopold"; "fork of Stump" provenance in
+  `README.md:15,41,128`, `deploy/unraid/*`, `Footer.tsx` copyright.
+- All `github.com/stumpapp/stump/{issues,pull,commit,discussions}/…` links (dead if
+  the org is swapped — hundreds across docs + the changelog).
+- Upstream community/funding/infra: Crowdin `crowdin.com/project/stump`,
+  `opencollective.com/stump`, upstream Discord, `github.com/sponsors/aaronleopold`,
+  `aaronleopold/stump:latest` image in OIDC examples.
+- False positives a blind replace would corrupt: `.stumpignore` (in a
+  "no-longer-supported" sentence), `stump.db`/`stump-legacy.db`/`/stump-old/` in
+  migration-instruction docs, `stump_policy` Authelia example, example hostnames
+  (`stump.example.com`), and git SHAs inside upstream commit URLs.
+- **Distinct from the above:** the fork's own canonical URLs currently pointing at
+  `stumpapp.dev` (`Head.tsx`, `__root.tsx`, issue templates) ARE rebrand targets, not
+  attribution — fix them.
+
+### 10.7 Docs are almost entirely LIVE (rebrand in place, not prune)
+
+43 of 44 `docs/content/**` files are real Longbox docs → rebrand in place (mostly
+just the `stumpapp.dev` self-URLs + stale removed-app mentions). Only
+`guides/breaking-changes/0.1.0.mdx` is upstream-legacy → prune (with its `meta.json`
+nav entry). Several LIVE files carry stale references to the deleted Tauri
+desktop / Expo mobile apps (`contributing.mdx`, `server-config.mdx` default origins,
+`themes.mdx`, `thumbnails.mdx`) → prune those snippets inline.
+
+### 10.8 Revised risk additions
+
+| Risk                                                       | Mitigation                                                              |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Fallback wired only in the macro → OIDC/docker keys missed | Wire fallback in all 3 read sites (§10.2); test an OIDC + docker key    |
+| WAL sidecar left behind → DB inconsistency                 | Move `stump.db`+`-wal`+`-shm` together, or checkpoint before rename     |
+| Custom `STUMP_DB_PATH` dir not migrated                    | Rename `stump.db` inside the resolved db dir, not just the config dir   |
+| API-key prefix rename invalidates keys silently            | Release-note "re-create API keys"; surface in-app if feasible           |
+| localStorage rename wipes prefs                            | Read-old→write-new shim, verified in live-verify                        |
+| Upstream links/attribution vandalized by a blind replace   | §10.6 exclusion list is a hard constraint; no global `s/stump/longbox/` |
