@@ -65,7 +65,11 @@ else
 fi
 
 # --- gate runner ------------------------------------------------------------
-declare -a FAILED
+# Initialize empty (not just `declare -a`): under `set -u`, an array that is
+# declared but never assigned is treated as unset, so `${#FAILED[@]}` in the
+# summary would error with "unbound variable" precisely when every gate passed
+# (and FAILED was never appended to).
+declare -a FAILED=()
 gate() { # gate "label" cmd [args...]
 	local label="$1"; shift
 	printf '\n%s▶ %s%s\n' "$B" "$label" "$Z"
