@@ -2215,7 +2215,10 @@ export type Mutation = {
    *
    * `query` optionally overrides the auto-derived search fields (see
    * [`MetadataSearchInput`]); omitting it preserves the original behavior of
-   * searching by the item's stored metadata / parsed filename.
+   * searching by the item's stored metadata / parsed filename. `provider`
+   * scopes the search to a single provider (default: all enabled). `autoApply`
+   * defaults to `true`; the interactive match UI passes `false` so the record
+   * stays awaiting review and the user selects a candidate themselves.
    */
   fetchMediaMetadata: Array<MatchCandidate>;
   /**
@@ -2223,7 +2226,10 @@ export type Mutation = {
    *
    * `query` optionally overrides the search term (series title) and year;
    * omitting it preserves the original behavior of searching by the series'
-   * stored title / name.
+   * stored title / name. `provider` scopes the search to a single provider
+   * (default: all enabled). `autoApply` defaults to `true`; the interactive
+   * match UI passes `false` so the record stays awaiting review and the user
+   * selects a candidate themselves.
    */
   fetchSeriesMetadata: Array<MatchCandidate>;
   /**
@@ -2759,13 +2765,17 @@ export type MutationFetchLibraryMetadataArgs = {
 
 
 export type MutationFetchMediaMetadataArgs = {
+  autoApply?: InputMaybe<Scalars['Boolean']['input']>;
   id: Scalars['ID']['input'];
+  provider?: InputMaybe<MetadataProvider>;
   query?: InputMaybe<MetadataSearchInput>;
 };
 
 
 export type MutationFetchSeriesMetadataArgs = {
+  autoApply?: InputMaybe<Scalars['Boolean']['input']>;
   id: Scalars['ID']['input'];
+  provider?: InputMaybe<MetadataProvider>;
   query?: InputMaybe<MetadataSearchInput>;
 };
 
@@ -5187,6 +5197,66 @@ export type SetSeriesLockedFieldsMutationVariables = Exact<{
 
 export type SetSeriesLockedFieldsMutation = { __typename?: 'Mutation', setSeriesLockedFields: { __typename?: 'Series', id: string } };
 
+export type ProviderMatchMediaContextQueryVariables = Exact<{
+  id: Scalars['ID']['input'];
+}>;
+
+
+export type ProviderMatchMediaContextQuery = { __typename?: 'Query', mediaById?: { __typename?: 'Media', id: string, name: string, resolvedName: string } | null };
+
+export type ProviderMatchSeriesContextQueryVariables = Exact<{
+  id: Scalars['ID']['input'];
+}>;
+
+
+export type ProviderMatchSeriesContextQuery = { __typename?: 'Query', seriesById?: { __typename?: 'Series', id: string, name: string, resolvedName: string } | null };
+
+export type ProviderMatchParseQueryVariables = Exact<{
+  name: Scalars['String']['input'];
+}>;
+
+
+export type ProviderMatchParseQuery = { __typename?: 'Query', parseComicFilename: { __typename?: 'ParsedComicFilename', series?: string | null, number?: string | null, year?: number | null } };
+
+export type ProviderMatchProvidersQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type ProviderMatchProvidersQuery = { __typename?: 'Query', metadataProviderConfigs: Array<{ __typename?: 'MetadataProviderConfigModel', id: number, providerType: MetadataProvider, enabled: boolean, position: number }> };
+
+export type ProviderMatchFindMediaMutationVariables = Exact<{
+  id: Scalars['ID']['input'];
+  query?: InputMaybe<MetadataSearchInput>;
+  provider?: InputMaybe<MetadataProvider>;
+}>;
+
+
+export type ProviderMatchFindMediaMutation = { __typename?: 'Mutation', fetchMediaMetadata: Array<{ __typename?: 'MatchCandidate', provider: string, externalId: string, confidence: number, metadata: { __typename: 'ExternalMediaMetadata', title?: string | null, seriesName?: string | null, numberRaw?: string | null, year?: number | null, publisher?: string | null, writers?: Array<string> | null, coverUrl?: string | null } | { __typename: 'ExternalSeriesMetadata' } }> };
+
+export type ProviderMatchFindSeriesMutationVariables = Exact<{
+  id: Scalars['ID']['input'];
+  query?: InputMaybe<MetadataSearchInput>;
+  provider?: InputMaybe<MetadataProvider>;
+}>;
+
+
+export type ProviderMatchFindSeriesMutation = { __typename?: 'Mutation', fetchSeriesMetadata: Array<{ __typename?: 'MatchCandidate', provider: string, externalId: string, confidence: number, metadata: { __typename: 'ExternalMediaMetadata' } | { __typename: 'ExternalSeriesMetadata', title: string, year?: number | null, publisher?: string | null, authors?: Array<string> | null, coverUrl?: string | null } }> };
+
+export type ProviderMatchAcceptMediaMutationVariables = Exact<{
+  mediaId: Scalars['ID']['input'];
+  candidateIndex: Scalars['Int']['input'];
+}>;
+
+
+export type ProviderMatchAcceptMediaMutation = { __typename?: 'Mutation', acceptMediaMatch: { __typename?: 'MetadataFetchRecord', id: number, status: MetadataFetchStatus } };
+
+export type ProviderMatchAcceptSeriesMutationVariables = Exact<{
+  seriesId: Scalars['ID']['input'];
+  candidateIndex: Scalars['Int']['input'];
+}>;
+
+
+export type ProviderMatchAcceptSeriesMutation = { __typename?: 'Mutation', acceptSeriesMatch: { __typename?: 'MetadataFetchRecord', id: number, status: MetadataFetchStatus } };
+
 export type SideBarQueryQueryVariables = Exact<{ [key: string]: never; }>;
 
 
@@ -5342,57 +5412,6 @@ export type BookLibrarySeriesLinksQueryVariables = Exact<{
 export type BookLibrarySeriesLinksQuery = { __typename?: 'Query', seriesById?: { __typename?: 'Series', id: string, resolvedName: string, library: { __typename?: 'Library', id: string, name: string } } | null };
 
 export type BookMetadataFragment = { __typename?: 'Media', metadata?: { __typename?: 'MediaMetadata', ageRating?: number | null, characters: Array<string>, colorists: Array<string>, coverArtists: Array<string>, editors: Array<string>, genres: Array<string>, inkers: Array<string>, letterers: Array<string>, links: Array<string>, pencillers: Array<string>, publisher?: string | null, teams: Array<string>, writers: Array<string>, year?: number | null, month?: number | null, day?: number | null, volume?: number | null, number?: any | null } | null } & { ' $fragmentName'?: 'BookMetadataFragment' };
-
-export type BookMetadataSearchContextQueryVariables = Exact<{
-  media: Scalars['ID']['input'];
-}>;
-
-
-export type BookMetadataSearchContextQuery = { __typename?: 'Query', mediaById?: { __typename?: 'Media', id: string, name: string, series: { __typename?: 'Series', id: string, name: string } } | null };
-
-export type ParseComicNamesQueryVariables = Exact<{
-  issueName: Scalars['String']['input'];
-  seriesName: Scalars['String']['input'];
-}>;
-
-
-export type ParseComicNamesQuery = { __typename?: 'Query', issue: { __typename?: 'ParsedComicFilename', series?: string | null, number?: string | null, year?: number | null }, series: { __typename?: 'ParsedComicFilename', series?: string | null, year?: number | null } };
-
-export type BookFindMetadataMatchMutationVariables = Exact<{
-  id: Scalars['ID']['input'];
-  query?: InputMaybe<MetadataSearchInput>;
-}>;
-
-
-export type BookFindMetadataMatchMutation = { __typename?: 'Mutation', fetchMediaMetadata: Array<{ __typename?: 'MatchCandidate', provider: string }> };
-
-export type SeriesFindMetadataMatchMutationVariables = Exact<{
-  id: Scalars['ID']['input'];
-  query?: InputMaybe<MetadataSearchInput>;
-}>;
-
-
-export type SeriesFindMetadataMatchMutation = { __typename?: 'Mutation', fetchSeriesMetadata: Array<{ __typename?: 'MatchCandidate', provider: string }> };
-
-export type BookMetadataFetchRecordQueryVariables = Exact<{
-  media: Scalars['String']['input'];
-}>;
-
-
-export type BookMetadataFetchRecordQuery = { __typename?: 'Query', metadataFetchRecord?: (
-    { __typename?: 'MetadataFetchRecord' }
-    & { ' $fragmentRefs'?: { 'PendingMatchRecordFragment': PendingMatchRecordFragment } }
-  ) | null };
-
-export type SeriesMetadataFetchRecordQueryVariables = Exact<{
-  series: Scalars['String']['input'];
-}>;
-
-
-export type SeriesMetadataFetchRecordQuery = { __typename?: 'Query', metadataFetchRecord?: (
-    { __typename?: 'MetadataFetchRecord' }
-    & { ' $fragmentRefs'?: { 'PendingMatchRecordFragment': PendingMatchRecordFragment } }
-  ) | null };
 
 export type BooksAfterCurrentQueryQueryVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -7860,6 +7879,109 @@ export const SetSeriesLockedFieldsDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<SetSeriesLockedFieldsMutation, SetSeriesLockedFieldsMutationVariables>;
+export const ProviderMatchMediaContextDocument = new TypedDocumentString(`
+    query ProviderMatchMediaContext($id: ID!) {
+  mediaById(id: $id) {
+    id
+    name
+    resolvedName
+  }
+}
+    `) as unknown as TypedDocumentString<ProviderMatchMediaContextQuery, ProviderMatchMediaContextQueryVariables>;
+export const ProviderMatchSeriesContextDocument = new TypedDocumentString(`
+    query ProviderMatchSeriesContext($id: ID!) {
+  seriesById(id: $id) {
+    id
+    name
+    resolvedName
+  }
+}
+    `) as unknown as TypedDocumentString<ProviderMatchSeriesContextQuery, ProviderMatchSeriesContextQueryVariables>;
+export const ProviderMatchParseDocument = new TypedDocumentString(`
+    query ProviderMatchParse($name: String!) {
+  parseComicFilename(name: $name) {
+    series
+    number
+    year
+  }
+}
+    `) as unknown as TypedDocumentString<ProviderMatchParseQuery, ProviderMatchParseQueryVariables>;
+export const ProviderMatchProvidersDocument = new TypedDocumentString(`
+    query ProviderMatchProviders {
+  metadataProviderConfigs {
+    id
+    providerType
+    enabled
+    position
+  }
+}
+    `) as unknown as TypedDocumentString<ProviderMatchProvidersQuery, ProviderMatchProvidersQueryVariables>;
+export const ProviderMatchFindMediaDocument = new TypedDocumentString(`
+    mutation ProviderMatchFindMedia($id: ID!, $query: MetadataSearchInput, $provider: MetadataProvider) {
+  fetchMediaMetadata(
+    id: $id
+    query: $query
+    provider: $provider
+    autoApply: false
+  ) {
+    provider
+    externalId
+    confidence
+    metadata {
+      __typename
+      ... on ExternalMediaMetadata {
+        title
+        seriesName
+        numberRaw
+        year
+        publisher
+        writers
+        coverUrl
+      }
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<ProviderMatchFindMediaMutation, ProviderMatchFindMediaMutationVariables>;
+export const ProviderMatchFindSeriesDocument = new TypedDocumentString(`
+    mutation ProviderMatchFindSeries($id: ID!, $query: MetadataSearchInput, $provider: MetadataProvider) {
+  fetchSeriesMetadata(
+    id: $id
+    query: $query
+    provider: $provider
+    autoApply: false
+  ) {
+    provider
+    externalId
+    confidence
+    metadata {
+      __typename
+      ... on ExternalSeriesMetadata {
+        title
+        year
+        publisher
+        authors
+        coverUrl
+      }
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<ProviderMatchFindSeriesMutation, ProviderMatchFindSeriesMutationVariables>;
+export const ProviderMatchAcceptMediaDocument = new TypedDocumentString(`
+    mutation ProviderMatchAcceptMedia($mediaId: ID!, $candidateIndex: Int!) {
+  acceptMediaMatch(mediaId: $mediaId, candidateIndex: $candidateIndex) {
+    id
+    status
+  }
+}
+    `) as unknown as TypedDocumentString<ProviderMatchAcceptMediaMutation, ProviderMatchAcceptMediaMutationVariables>;
+export const ProviderMatchAcceptSeriesDocument = new TypedDocumentString(`
+    mutation ProviderMatchAcceptSeries($seriesId: ID!, $candidateIndex: Int!) {
+  acceptSeriesMatch(seriesId: $seriesId, candidateIndex: $candidateIndex) {
+    id
+    status
+  }
+}
+    `) as unknown as TypedDocumentString<ProviderMatchAcceptSeriesMutation, ProviderMatchAcceptSeriesMutationVariables>;
 export const SideBarQueryDocument = new TypedDocumentString(`
     query SideBarQuery {
   me {
@@ -8188,241 +8310,6 @@ export const BookLibrarySeriesLinksDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<BookLibrarySeriesLinksQuery, BookLibrarySeriesLinksQueryVariables>;
-export const BookMetadataSearchContextDocument = new TypedDocumentString(`
-    query BookMetadataSearchContext($media: ID!) {
-  mediaById(id: $media) {
-    id
-    name
-    series {
-      id
-      name
-    }
-  }
-}
-    `) as unknown as TypedDocumentString<BookMetadataSearchContextQuery, BookMetadataSearchContextQueryVariables>;
-export const ParseComicNamesDocument = new TypedDocumentString(`
-    query ParseComicNames($issueName: String!, $seriesName: String!) {
-  issue: parseComicFilename(name: $issueName) {
-    series
-    number
-    year
-  }
-  series: parseComicFilename(name: $seriesName) {
-    series
-    year
-  }
-}
-    `) as unknown as TypedDocumentString<ParseComicNamesQuery, ParseComicNamesQueryVariables>;
-export const BookFindMetadataMatchDocument = new TypedDocumentString(`
-    mutation BookFindMetadataMatch($id: ID!, $query: MetadataSearchInput) {
-  fetchMediaMetadata(id: $id, query: $query) {
-    provider
-  }
-}
-    `) as unknown as TypedDocumentString<BookFindMetadataMatchMutation, BookFindMetadataMatchMutationVariables>;
-export const SeriesFindMetadataMatchDocument = new TypedDocumentString(`
-    mutation SeriesFindMetadataMatch($id: ID!, $query: MetadataSearchInput) {
-  fetchSeriesMetadata(id: $id, query: $query) {
-    provider
-  }
-}
-    `) as unknown as TypedDocumentString<SeriesFindMetadataMatchMutation, SeriesFindMetadataMatchMutationVariables>;
-export const BookMetadataFetchRecordDocument = new TypedDocumentString(`
-    query BookMetadataFetchRecord($media: String!) {
-  metadataFetchRecord(id: {media: $media}) {
-    ...PendingMatchRecord
-  }
-}
-    fragment PendingMatchRecord on MetadataFetchRecord {
-  id
-  status
-  mediaId
-  seriesId
-  matchCandidates {
-    provider
-    externalId
-    metadata {
-      __typename
-      ... on ExternalMediaMetadata {
-        title
-        seriesName
-        seriesExternalId
-        summary
-        pageCount
-        number
-        day
-        month
-        year
-        genres
-        tags
-        isbn
-        isbn13
-        writers
-        artists
-        colorists
-        letterers
-        coverArtists
-      }
-      ... on ExternalSeriesMetadata {
-        seriesTitle: title
-        alternativeTitles
-        summary
-        volumeCount
-        coverUrl
-        status
-        year
-        endYear
-        genres
-        tags
-        authors
-        ageRating
-        publisher
-      }
-    }
-    confidence
-    confidenceFactors {
-      factor
-      weight
-      matched
-    }
-  }
-  addedAt
-  updatedAt
-  media {
-    id
-    resolvedName
-    metadata {
-      title
-      summary
-      genres
-      writers
-      colorists
-      letterers
-      coverArtists
-      publisher
-      year
-      month
-      day
-      pageCount
-      identifierIsbn
-      lockedFields
-    }
-  }
-  series {
-    id
-    resolvedName
-    metadata {
-      title
-      summary
-      genres
-      writers
-      publisher
-      year
-      status
-      ageRating
-      volume
-      lockedFields
-    }
-  }
-}`) as unknown as TypedDocumentString<BookMetadataFetchRecordQuery, BookMetadataFetchRecordQueryVariables>;
-export const SeriesMetadataFetchRecordDocument = new TypedDocumentString(`
-    query SeriesMetadataFetchRecord($series: String!) {
-  metadataFetchRecord(id: {series: $series}) {
-    ...PendingMatchRecord
-  }
-}
-    fragment PendingMatchRecord on MetadataFetchRecord {
-  id
-  status
-  mediaId
-  seriesId
-  matchCandidates {
-    provider
-    externalId
-    metadata {
-      __typename
-      ... on ExternalMediaMetadata {
-        title
-        seriesName
-        seriesExternalId
-        summary
-        pageCount
-        number
-        day
-        month
-        year
-        genres
-        tags
-        isbn
-        isbn13
-        writers
-        artists
-        colorists
-        letterers
-        coverArtists
-      }
-      ... on ExternalSeriesMetadata {
-        seriesTitle: title
-        alternativeTitles
-        summary
-        volumeCount
-        coverUrl
-        status
-        year
-        endYear
-        genres
-        tags
-        authors
-        ageRating
-        publisher
-      }
-    }
-    confidence
-    confidenceFactors {
-      factor
-      weight
-      matched
-    }
-  }
-  addedAt
-  updatedAt
-  media {
-    id
-    resolvedName
-    metadata {
-      title
-      summary
-      genres
-      writers
-      colorists
-      letterers
-      coverArtists
-      publisher
-      year
-      month
-      day
-      pageCount
-      identifierIsbn
-      lockedFields
-    }
-  }
-  series {
-    id
-    resolvedName
-    metadata {
-      title
-      summary
-      genres
-      writers
-      publisher
-      year
-      status
-      ageRating
-      volume
-      lockedFields
-    }
-  }
-}`) as unknown as TypedDocumentString<SeriesMetadataFetchRecordQuery, SeriesMetadataFetchRecordQueryVariables>;
 export const BooksAfterCurrentQueryDocument = new TypedDocumentString(`
     query BooksAfterCurrentQuery($id: ID!, $pagination: Pagination) {
   mediaById(id: $id) {

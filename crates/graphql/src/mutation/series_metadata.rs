@@ -5,7 +5,9 @@ use metadata_integrations::{
 };
 use models::{
 	entity::{media, media_metadata, metadata_fetch_record, series, series_metadata},
-	shared::enums::{MetadataFetchStatus, MetadataResetImpact, UserPermission},
+	shared::enums::{
+		MetadataFetchStatus, MetadataProvider, MetadataResetImpact, UserPermission,
+	},
 };
 use sea_orm::{prelude::*, sea_query::Query, IntoActiveModel, Set, TransactionTrait};
 
@@ -125,13 +127,18 @@ impl SeriesMetadataMutation {
 	///
 	/// `query` optionally overrides the search term (series title) and year;
 	/// omitting it preserves the original behavior of searching by the series'
-	/// stored title / name.
+	/// stored title / name. `provider` scopes the search to a single provider
+	/// (default: all enabled). `autoApply` defaults to `true`; the interactive
+	/// match UI passes `false` so the record stays awaiting review and the user
+	/// selects a candidate themselves.
 	#[graphql(guard = "PermissionGuard::one(UserPermission::MetadataFetchRecordManage)")]
 	async fn fetch_series_metadata(
 		&self,
 		ctx: &Context<'_>,
 		id: ID,
 		query: Option<MetadataSearchInput>,
+		provider: Option<MetadataProvider>,
+		auto_apply: Option<bool>,
 	) -> Result<Vec<MatchCandidate>> {
 		let AuthContext { .. } = ctx.data::<AuthContext>()?;
 		let core_ctx = ctx.data::<CoreContext>()?;
@@ -163,6 +170,8 @@ impl SeriesMetadataMutation {
 			&model.series.id,
 			&search_name,
 			year_override,
+			provider,
+			auto_apply.unwrap_or(true),
 			&provider_cache,
 		)
 		.await?;
