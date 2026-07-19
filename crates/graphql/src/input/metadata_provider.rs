@@ -113,3 +113,80 @@ pub enum MetadataFetchRecordId {
 	Series(String),
 	Media(String),
 }
+
+/// Editable search fields for an on-demand metadata match. Every field is
+/// optional: a value the user supplies *overrides* what Longbox would otherwise
+/// derive from the item's stored metadata or parsed filename, while a `None`
+/// field falls back to that automatic derivation. Reused by both the media
+/// (issue) and series fetch mutations, so callers can refine a bad auto-match
+/// (e.g. a filename the parser split wrong) instead of being stuck with it.
+#[derive(InputObject, Default)]
+pub struct MetadataSearchInput {
+	/// Series / book title to search for. On a media search this overrides both
+	/// the free-text title term and the `series_name` signal, so every provider
+	/// honors it (ComicVine matches on series name, Metron on the title term).
+	pub title: Option<String>,
+	/// Issue number to search for (media search only; ignored for series).
+	pub number: Option<String>,
+	/// Release / cover year, used to disambiguate same-named results.
+	pub year: Option<i32>,
+	/// Publisher, used to disambiguate same-named results (media search only).
+	pub publisher: Option<String>,
+}
+
+impl MetadataSearchInput {
+	/// A trimmed, non-empty variant of the title override, if any. Blank input
+	/// from a cleared text field is treated as "no override".
+	pub fn title_override(&self) -> Option<String> {
+		self.title
+			.as_ref()
+			.map(|s| s.trim().to_string())
+			.filter(|s| !s.is_empty())
+	}
+
+	/// A trimmed, non-empty variant of the issue-number override, if any.
+	pub fn number_override(&self) -> Option<String> {
+		self.number
+			.as_ref()
+			.map(|s| s.trim().to_string())
+			.filter(|s| !s.is_empty())
+	}
+
+	/// A trimmed, non-empty variant of the publisher override, if any.
+	pub fn publisher_override(&self) -> Option<String> {
+		self.publisher
+			.as_ref()
+			.map(|s| s.trim().to_string())
+			.filter(|s| !s.is_empty())
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn overrides_trim_and_treat_blank_as_none() {
+		let input = MetadataSearchInput {
+			title: Some("  Absolute Batman  ".to_string()),
+			number: Some("   ".to_string()),
+			year: Some(2024),
+			publisher: Some("".to_string()),
+		};
+
+		// Non-blank values are trimmed; blank/whitespace-only values become None
+		// so a user clearing a pre-filled field falls back to auto-derivation.
+		assert_eq!(input.title_override(), Some("Absolute Batman".to_string()));
+		assert_eq!(input.number_override(), None);
+		assert_eq!(input.publisher_override(), None);
+	}
+
+	#[test]
+	fn overrides_none_when_field_absent() {
+		let input = MetadataSearchInput::default();
+		assert_eq!(input.title_override(), None);
+		assert_eq!(input.number_override(), None);
+		assert_eq!(input.publisher_override(), None);
+		assert_eq!(input.year, None);
+	}
+}

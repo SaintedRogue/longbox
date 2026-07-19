@@ -66,11 +66,16 @@ fn filter_providers_for_library_type(
 	filtered
 }
 
-/// Fetch metadata candidates for a series from all enabled providers
+/// Fetch metadata candidates for a series from all enabled providers.
+///
+/// `year_override`, when set, is used as the series' start year for
+/// disambiguation instead of the value stored in `series_metadata` — this is
+/// how the on-demand search UI lets a user pin the year for an ambiguous title.
 pub async fn fetch_series_metadata(
 	conn: &DatabaseConnection,
 	series_id: &str,
 	series_name: &str,
+	year_override: Option<i32>,
 	provider_cache: &ProviderClientCache,
 ) -> Result<Vec<MatchCandidate>, CoreError> {
 	let library_type = library_type_for_series(conn, series_id).await?;
@@ -101,7 +106,8 @@ pub async fn fetch_series_metadata(
 			Ok(provider) => {
 				let query = SearchQuery {
 					title: series_name.to_string(),
-					series_year: series_meta.as_ref().and_then(|m| m.year),
+					series_year: year_override
+						.or_else(|| series_meta.as_ref().and_then(|m| m.year)),
 					limit: Some(10),
 					..Default::default()
 				};

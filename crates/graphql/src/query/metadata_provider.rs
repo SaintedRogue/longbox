@@ -3,12 +3,37 @@ use crate::{
 	input::metadata_provider::MetadataFetchRecordId,
 	object::metadata_fetch_record::MetadataFetchRecord,
 };
-use async_graphql::{Context, Object, Result};
+use async_graphql::{Context, Object, Result, SimpleObject};
+use metadata_integrations::ParsedComicName;
 use models::{
 	entity::{metadata_fetch_record, metadata_provider_config},
 	shared::enums::{MetadataFetchStatus, UserPermission},
 };
 use sea_orm::prelude::*;
+
+/// The best-effort `{series, number, year}` heuristically parsed from a raw
+/// comic filename, used to pre-fill the editable metadata-search fields so the
+/// same parser that drives auto-matching also seeds the manual UI (no duplicated
+/// parsing logic on the frontend).
+#[derive(SimpleObject)]
+pub struct ParsedComicFilename {
+	/// Series name, with the trailing issue number and bracketed cruft removed.
+	pub series: Option<String>,
+	/// Issue number, normalized ("001" → "1", "1.MU" preserved).
+	pub number: Option<String>,
+	/// A 4-digit release year found in a bracketed group (1900–2099).
+	pub year: Option<i32>,
+}
+
+impl From<ParsedComicName> for ParsedComicFilename {
+	fn from(parsed: ParsedComicName) -> Self {
+		Self {
+			series: parsed.series,
+			number: parsed.number,
+			year: parsed.year,
+		}
+	}
+}
 
 #[derive(Default)]
 pub struct MetadataProviderQuery;
@@ -61,6 +86,18 @@ impl MetadataProviderQuery {
 			.await?;
 
 		Ok(record.map(MetadataFetchRecord::from))
+	}
+
+	/// Parse a raw comic filename into a best-effort `{series, number, year}` to
+	/// pre-fill the on-demand metadata-search fields. Pure and heuristic — it
+	/// reads no database rows or secrets, so a lightweight read guard suffices.
+	#[graphql(guard = "PermissionGuard::one(UserPermission::MetadataFetchRecordRead)")]
+	async fn parse_comic_filename(
+		&self,
+		_ctx: &Context<'_>,
+		name: String,
+	) -> Result<ParsedComicFilename> {
+		Ok(metadata_integrations::parse_comic_filename(&name).into())
 	}
 
 	/// Return all metadata fetch records that are awaiting user review.
