@@ -4,7 +4,7 @@ use models::{
 		library_config, media, media_metadata, metadata_fetch_record,
 		metadata_provider_config, series, series_metadata,
 	},
-	shared::enums::{LibraryType, MetadataFetchStatus},
+	shared::enums::{LibraryType, MetadataFetchStatus, MetadataProvider},
 };
 use sea_orm::{prelude::*, sea_query::OnConflict, QuerySelect, Set};
 
@@ -66,16 +66,42 @@ fn filter_providers_for_library_type(
 	filtered
 }
 
+/// Narrow a set of provider configs to a single provider, for the interactive
+/// "search this specific provider" flow. `None` leaves the set unchanged (search
+/// all enabled providers, the default). If the chosen provider isn't among the
+/// enabled configs the result is empty — callers treat that the same as
+/// "no providers configured".
+fn filter_to_provider(
+	configs: Vec<metadata_provider_config::Model>,
+	provider: Option<MetadataProvider>,
+) -> Vec<metadata_provider_config::Model> {
+	match provider {
+		Some(provider) => configs
+			.into_iter()
+			.filter(|c| c.provider_type == provider)
+			.collect(),
+		None => configs,
+	}
+}
+
 /// Fetch metadata candidates for a series from all enabled providers.
 ///
 /// `year_override`, when set, is used as the series' start year for
 /// disambiguation instead of the value stored in `series_metadata` — this is
 /// how the on-demand search UI lets a user pin the year for an ambiguous title.
+///
+/// `provider_filter` scopes the search to a single provider (the interactive
+/// "search this provider" flow); `None` searches all enabled providers.
+/// `auto_apply` gates the high-confidence auto-apply step: the interactive UI
+/// passes `false` so the record stays awaiting review and the user picks a
+/// candidate themselves.
 pub async fn fetch_series_metadata(
 	conn: &DatabaseConnection,
 	series_id: &str,
 	series_name: &str,
 	year_override: Option<i32>,
+	provider_filter: Option<MetadataProvider>,
+	auto_apply: bool,
 	provider_cache: &ProviderClientCache,
 ) -> Result<Vec<MatchCandidate>, CoreError> {
 	let library_type = library_type_for_series(conn, series_id).await?;
@@ -87,6 +113,7 @@ pub async fn fetch_series_metadata(
 
 	let provider_configs =
 		filter_providers_for_library_type(provider_configs, &library_type);
+	let provider_configs = filter_to_provider(provider_configs, provider_filter);
 
 	if provider_configs.is_empty() {
 		return Err(CoreError::InternalError(
@@ -173,30 +200,32 @@ pub async fn fetch_series_metadata(
 		.exec(conn)
 		.await?;
 
-	if let Some((candidate, config)) =
-		apply::find_auto_apply_candidate(&all_candidates, &provider_configs)
-	{
-		tracing::info!(
-			series_id,
-			provider = candidate.provider,
-			confidence = candidate.confidence,
-			"Auto-applying series metadata match"
-		);
-		if let Err(e) = apply::apply_series_match(
-			conn,
-			series_id,
-			&candidate,
-			config.strategy,
-			config.exclude_fields,
-			vec![],
-		)
-		.await
+	if auto_apply {
+		if let Some((candidate, config)) =
+			apply::find_auto_apply_candidate(&all_candidates, &provider_configs)
 		{
-			tracing::error!(
+			tracing::info!(
 				series_id,
-				error = ?e,
-				"Failed to auto-apply series metadata"
+				provider = candidate.provider,
+				confidence = candidate.confidence,
+				"Auto-applying series metadata match"
 			);
+			if let Err(e) = apply::apply_series_match(
+				conn,
+				series_id,
+				&candidate,
+				config.strategy,
+				config.exclude_fields,
+				vec![],
+			)
+			.await
+			{
+				tracing::error!(
+					series_id,
+					error = ?e,
+					"Failed to auto-apply series metadata"
+				);
+			}
 		}
 	}
 
@@ -269,11 +298,19 @@ pub(super) fn fill_query_from_filename(search: &mut SearchQuery) {
 	}
 }
 
-/// Fetch metadata candidates for a media item from all enabled providers
+/// Fetch metadata candidates for a media item.
+///
+/// `provider_filter` scopes the search to a single provider (the interactive
+/// "search this provider" flow); `None` searches all enabled providers.
+/// `auto_apply` gates the high-confidence auto-apply step: the interactive UI
+/// passes `false` so the record stays awaiting review and the user picks a
+/// candidate themselves.
 pub async fn fetch_media_metadata(
 	conn: &DatabaseConnection,
 	media_id: &str,
 	search: SearchQuery,
+	provider_filter: Option<MetadataProvider>,
+	auto_apply: bool,
 	provider_cache: &ProviderClientCache,
 ) -> Result<Vec<MatchCandidate>, CoreError> {
 	let library_type = library_type_for_media(conn, media_id).await?;
@@ -285,6 +322,7 @@ pub async fn fetch_media_metadata(
 
 	let provider_configs =
 		filter_providers_for_library_type(provider_configs, &library_type);
+	let provider_configs = filter_to_provider(provider_configs, provider_filter);
 
 	if provider_configs.is_empty() {
 		return Err(CoreError::InternalError(
@@ -363,30 +401,32 @@ pub async fn fetch_media_metadata(
 		.exec(conn)
 		.await?;
 
-	if let Some((candidate, config)) =
-		apply::find_auto_apply_candidate(&all_candidates, &provider_configs)
-	{
-		tracing::info!(
-			media_id,
-			provider = candidate.provider,
-			confidence = candidate.confidence,
-			"Auto-applying media metadata match"
-		);
-		if let Err(e) = apply::apply_media_match(
-			conn,
-			media_id,
-			&candidate,
-			config.strategy,
-			config.exclude_fields,
-			vec![],
-		)
-		.await
+	if auto_apply {
+		if let Some((candidate, config)) =
+			apply::find_auto_apply_candidate(&all_candidates, &provider_configs)
 		{
-			tracing::error!(
+			tracing::info!(
 				media_id,
-				error = ?e,
-				"Failed to auto-apply media metadata"
+				provider = candidate.provider,
+				confidence = candidate.confidence,
+				"Auto-applying media metadata match"
 			);
+			if let Err(e) = apply::apply_media_match(
+				conn,
+				media_id,
+				&candidate,
+				config.strategy,
+				config.exclude_fields,
+				vec![],
+			)
+			.await
+			{
+				tracing::error!(
+					media_id,
+					error = ?e,
+					"Failed to auto-apply media metadata"
+				);
+			}
 		}
 	}
 

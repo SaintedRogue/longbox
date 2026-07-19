@@ -5,11 +5,20 @@ import { DropdownItemGroup } from '@longbox/components/dropdown/DropdownMenu'
 import { extractErrorMessage, graphql, UserPermission } from '@longbox/graphql'
 import { formatHumanDurationSeparate, useLocaleContext } from '@longbox/i18n'
 import { useQueryClient } from '@tanstack/react-query'
-import { ArrowUpRight, BookCheck, BookOpen, BookOpenCheck, Clock, HardDrive } from 'lucide-react'
+import {
+	ArrowUpRight,
+	BookCheck,
+	BookOpen,
+	BookOpenCheck,
+	Clock,
+	HardDrive,
+	Wand2,
+} from 'lucide-react'
 import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { toast } from 'sonner'
 
+import { ProviderMatchDialog } from '@/components/metadata/providerMatch'
 import { EntityHeader } from '@/components/sharedLayout'
 import { useAppContext } from '@/context'
 import { usePaths } from '@/paths'
@@ -48,6 +57,11 @@ export default function SeriesHeader() {
 
 	const [showCompleteSeriesConfirmation, setShowCompleteSeriesConfirmation] = useState(false)
 	const [isOverviewSheetOpen, setIsOverviewSheetOpen] = useState(false)
+	const [showMatchDialog, setShowMatchDialog] = useState(false)
+
+	const canMatchMetadata =
+		checkPermission(UserPermission.MetadataFetchRecordManage) &&
+		checkPermission(UserPermission.MetadataFetchRecordRead)
 
 	const client = useQueryClient()
 
@@ -77,6 +91,21 @@ export default function SeriesHeader() {
 				},
 			],
 		},
+		...(canMatchMetadata
+			? [
+					{
+						items: [
+							{
+								label: 'Find metadata match',
+								leftIcon: <Wand2 className="mr-2 h-4 w-4" />,
+								onClick: () => {
+									setShowMatchDialog(true)
+								},
+							},
+						],
+					},
+				]
+			: []),
 		{
 			items: [
 				{
@@ -188,6 +217,15 @@ export default function SeriesHeader() {
 				isOpen={isOverviewSheetOpen}
 				onClose={() => setIsOverviewSheetOpen(false)}
 			/>
+
+			{canMatchMetadata && (
+				<ProviderMatchDialog
+					kind="series"
+					id={id}
+					open={showMatchDialog}
+					onOpenChange={setShowMatchDialog}
+				/>
+			)}
 		</>
 	)
 }

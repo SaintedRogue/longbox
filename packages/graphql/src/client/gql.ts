@@ -44,6 +44,14 @@ type Documents = {
     "\n\tmutation RejectSeriesMatch($seriesId: ID!, $candidateIndex: Int!) {\n\t\trejectSeriesMatch(seriesId: $seriesId, candidateIndex: $candidateIndex) {\n\t\t\t...PendingMatchRecord\n\t\t}\n\t}\n": typeof types.RejectSeriesMatchDocument,
     "\n\tmutation SetMediaLockedFields($mediaId: ID!, $lockedFields: [MetadataField!]!) {\n\t\tsetMediaLockedFields(mediaId: $mediaId, lockedFields: $lockedFields) {\n\t\t\tid\n\t\t}\n\t}\n": typeof types.SetMediaLockedFieldsDocument,
     "\n\tmutation SetSeriesLockedFields($seriesId: ID!, $lockedFields: [MetadataField!]!) {\n\t\tsetSeriesLockedFields(seriesId: $seriesId, lockedFields: $lockedFields) {\n\t\t\tid\n\t\t}\n\t}\n": typeof types.SetSeriesLockedFieldsDocument,
+    "\n\tquery ProviderMatchMediaContext($id: ID!) {\n\t\tmediaById(id: $id) {\n\t\t\tid\n\t\t\tname\n\t\t\tresolvedName\n\t\t}\n\t}\n": typeof types.ProviderMatchMediaContextDocument,
+    "\n\tquery ProviderMatchSeriesContext($id: ID!) {\n\t\tseriesById(id: $id) {\n\t\t\tid\n\t\t\tname\n\t\t\tresolvedName\n\t\t}\n\t}\n": typeof types.ProviderMatchSeriesContextDocument,
+    "\n\tquery ProviderMatchParse($name: String!) {\n\t\tparseComicFilename(name: $name) {\n\t\t\tseries\n\t\t\tnumber\n\t\t\tyear\n\t\t}\n\t}\n": typeof types.ProviderMatchParseDocument,
+    "\n\tquery ProviderMatchProviders {\n\t\tmetadataProviderConfigs {\n\t\t\tid\n\t\t\tproviderType\n\t\t\tenabled\n\t\t\tposition\n\t\t}\n\t}\n": typeof types.ProviderMatchProvidersDocument,
+    "\n\tmutation ProviderMatchFindMedia(\n\t\t$id: ID!\n\t\t$query: MetadataSearchInput\n\t\t$provider: MetadataProvider\n\t) {\n\t\tfetchMediaMetadata(id: $id, query: $query, provider: $provider, autoApply: false) {\n\t\t\tprovider\n\t\t\texternalId\n\t\t\tconfidence\n\t\t\tmetadata {\n\t\t\t\t__typename\n\t\t\t\t... on ExternalMediaMetadata {\n\t\t\t\t\ttitle\n\t\t\t\t\tseriesName\n\t\t\t\t\tnumberRaw\n\t\t\t\t\tyear\n\t\t\t\t\tpublisher\n\t\t\t\t\twriters\n\t\t\t\t\tcoverUrl\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t}\n": typeof types.ProviderMatchFindMediaDocument,
+    "\n\tmutation ProviderMatchFindSeries(\n\t\t$id: ID!\n\t\t$query: MetadataSearchInput\n\t\t$provider: MetadataProvider\n\t) {\n\t\tfetchSeriesMetadata(id: $id, query: $query, provider: $provider, autoApply: false) {\n\t\t\tprovider\n\t\t\texternalId\n\t\t\tconfidence\n\t\t\tmetadata {\n\t\t\t\t__typename\n\t\t\t\t... on ExternalSeriesMetadata {\n\t\t\t\t\ttitle\n\t\t\t\t\tyear\n\t\t\t\t\tpublisher\n\t\t\t\t\tauthors\n\t\t\t\t\tcoverUrl\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t}\n": typeof types.ProviderMatchFindSeriesDocument,
+    "\n\tmutation ProviderMatchAcceptMedia($mediaId: ID!, $candidateIndex: Int!) {\n\t\tacceptMediaMatch(mediaId: $mediaId, candidateIndex: $candidateIndex) {\n\t\t\tid\n\t\t\tstatus\n\t\t}\n\t}\n": typeof types.ProviderMatchAcceptMediaDocument,
+    "\n\tmutation ProviderMatchAcceptSeries($seriesId: ID!, $candidateIndex: Int!) {\n\t\tacceptSeriesMatch(seriesId: $seriesId, candidateIndex: $candidateIndex) {\n\t\t\tid\n\t\t\tstatus\n\t\t}\n\t}\n": typeof types.ProviderMatchAcceptSeriesDocument,
     "\n\tquery SideBarQuery {\n\t\tme {\n\t\t\tid\n\t\t\tpreferences {\n\t\t\t\tnavigationArrangement {\n\t\t\t\t\tlocked\n\t\t\t\t\tsections {\n\t\t\t\t\t\tconfig {\n\t\t\t\t\t\t\t__typename\n\t\t\t\t\t\t\t... on SystemArrangementConfig {\n\t\t\t\t\t\t\t\tvariant\n\t\t\t\t\t\t\t\tlinks\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t}\n\t\t\t\t\t\tvisible\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t}\n": typeof types.SideBarQueryDocument,
     "\n\tquery BookClubSideBarSection {\n\t\tbookClubs {\n\t\t\tid\n\t\t\tname\n\t\t\tslug\n\t\t\temoji\n\t\t\tmembers {\n\t\t\t\tid\n\t\t\t\tuserId\n\t\t\t\trole\n\t\t\t}\n\t\t}\n\t}\n": typeof types.BookClubSideBarSectionDocument,
     "\n\tmutation UpdateLibraryEmoji($id: ID!, $emoji: String) {\n\t\tupdateLibraryEmoji(id: $id, emoji: $emoji) {\n\t\t\tid\n\t\t}\n\t}\n": typeof types.UpdateLibraryEmojiDocument,
@@ -70,12 +78,6 @@ type Documents = {
     "\n\tfragment BookFileInformation on Media {\n\t\tid\n\t\tsize\n\t\textension\n\t\thash\n\t\trelativeLibraryPath\n\t}\n": typeof types.BookFileInformationFragmentDoc,
     "\n\tquery BookLibrarySeriesLinks($id: ID!) {\n\t\tseriesById(id: $id) {\n\t\t\tid\n\t\t\tresolvedName\n\t\t\tlibrary {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t}\n\t\t}\n\t}\n": typeof types.BookLibrarySeriesLinksDocument,
     "\n\tfragment BookMetadata on Media {\n\t\tmetadata {\n\t\t\tageRating\n\t\t\tcharacters\n\t\t\tcolorists\n\t\t\tcoverArtists\n\t\t\teditors\n\t\t\tgenres\n\t\t\tinkers\n\t\t\tletterers\n\t\t\tlinks\n\t\t\tpencillers\n\t\t\tpublisher\n\t\t\tteams\n\t\t\twriters\n\t\t\tyear\n\t\t\tmonth\n\t\t\tday\n\t\t\tvolume\n\t\t\tnumber\n\t\t}\n\t}\n": typeof types.BookMetadataFragmentDoc,
-    "\n\tquery BookMetadataSearchContext($media: ID!) {\n\t\tmediaById(id: $media) {\n\t\t\tid\n\t\t\tname\n\t\t\tseries {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t}\n\t\t}\n\t}\n": typeof types.BookMetadataSearchContextDocument,
-    "\n\tquery ParseComicNames($issueName: String!, $seriesName: String!) {\n\t\tissue: parseComicFilename(name: $issueName) {\n\t\t\tseries\n\t\t\tnumber\n\t\t\tyear\n\t\t}\n\t\tseries: parseComicFilename(name: $seriesName) {\n\t\t\tseries\n\t\t\tyear\n\t\t}\n\t}\n": typeof types.ParseComicNamesDocument,
-    "\n\tmutation BookFindMetadataMatch($id: ID!, $query: MetadataSearchInput) {\n\t\tfetchMediaMetadata(id: $id, query: $query) {\n\t\t\tprovider\n\t\t}\n\t}\n": typeof types.BookFindMetadataMatchDocument,
-    "\n\tmutation SeriesFindMetadataMatch($id: ID!, $query: MetadataSearchInput) {\n\t\tfetchSeriesMetadata(id: $id, query: $query) {\n\t\t\tprovider\n\t\t}\n\t}\n": typeof types.SeriesFindMetadataMatchDocument,
-    "\n\tquery BookMetadataFetchRecord($media: String!) {\n\t\tmetadataFetchRecord(id: { media: $media }) {\n\t\t\t...PendingMatchRecord\n\t\t}\n\t}\n": typeof types.BookMetadataFetchRecordDocument,
-    "\n\tquery SeriesMetadataFetchRecord($series: String!) {\n\t\tmetadataFetchRecord(id: { series: $series }) {\n\t\t\t...PendingMatchRecord\n\t\t}\n\t}\n": typeof types.SeriesMetadataFetchRecordDocument,
     "\n\tquery BooksAfterCurrentQuery($id: ID!, $pagination: Pagination) {\n\t\tmediaById(id: $id) {\n\t\t\tnextInSeries(pagination: $pagination) {\n\t\t\t\tnodes {\n\t\t\t\t\tid\n\t\t\t\t\t...BookCard\n\t\t\t\t}\n\t\t\t\tpageInfo {\n\t\t\t\t\t__typename\n\t\t\t\t\t... on CursorPaginationInfo {\n\t\t\t\t\t\tcurrentCursor\n\t\t\t\t\t\tnextCursor\n\t\t\t\t\t\tlimit\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t}\n": typeof types.BooksAfterCurrentQueryDocument,
     "\n\tquery BooksAlphabet {\n\t\tmediaAlphabet\n\t}\n": typeof types.BooksAlphabetDocument,
     "\n\tquery EmailBookDropdownDevice {\n\t\temailDevices {\n\t\t\tid\n\t\t\tname\n\t\t}\n\t}\n": typeof types.EmailBookDropdownDeviceDocument,
@@ -257,6 +259,14 @@ const documents: Documents = {
     "\n\tmutation RejectSeriesMatch($seriesId: ID!, $candidateIndex: Int!) {\n\t\trejectSeriesMatch(seriesId: $seriesId, candidateIndex: $candidateIndex) {\n\t\t\t...PendingMatchRecord\n\t\t}\n\t}\n": types.RejectSeriesMatchDocument,
     "\n\tmutation SetMediaLockedFields($mediaId: ID!, $lockedFields: [MetadataField!]!) {\n\t\tsetMediaLockedFields(mediaId: $mediaId, lockedFields: $lockedFields) {\n\t\t\tid\n\t\t}\n\t}\n": types.SetMediaLockedFieldsDocument,
     "\n\tmutation SetSeriesLockedFields($seriesId: ID!, $lockedFields: [MetadataField!]!) {\n\t\tsetSeriesLockedFields(seriesId: $seriesId, lockedFields: $lockedFields) {\n\t\t\tid\n\t\t}\n\t}\n": types.SetSeriesLockedFieldsDocument,
+    "\n\tquery ProviderMatchMediaContext($id: ID!) {\n\t\tmediaById(id: $id) {\n\t\t\tid\n\t\t\tname\n\t\t\tresolvedName\n\t\t}\n\t}\n": types.ProviderMatchMediaContextDocument,
+    "\n\tquery ProviderMatchSeriesContext($id: ID!) {\n\t\tseriesById(id: $id) {\n\t\t\tid\n\t\t\tname\n\t\t\tresolvedName\n\t\t}\n\t}\n": types.ProviderMatchSeriesContextDocument,
+    "\n\tquery ProviderMatchParse($name: String!) {\n\t\tparseComicFilename(name: $name) {\n\t\t\tseries\n\t\t\tnumber\n\t\t\tyear\n\t\t}\n\t}\n": types.ProviderMatchParseDocument,
+    "\n\tquery ProviderMatchProviders {\n\t\tmetadataProviderConfigs {\n\t\t\tid\n\t\t\tproviderType\n\t\t\tenabled\n\t\t\tposition\n\t\t}\n\t}\n": types.ProviderMatchProvidersDocument,
+    "\n\tmutation ProviderMatchFindMedia(\n\t\t$id: ID!\n\t\t$query: MetadataSearchInput\n\t\t$provider: MetadataProvider\n\t) {\n\t\tfetchMediaMetadata(id: $id, query: $query, provider: $provider, autoApply: false) {\n\t\t\tprovider\n\t\t\texternalId\n\t\t\tconfidence\n\t\t\tmetadata {\n\t\t\t\t__typename\n\t\t\t\t... on ExternalMediaMetadata {\n\t\t\t\t\ttitle\n\t\t\t\t\tseriesName\n\t\t\t\t\tnumberRaw\n\t\t\t\t\tyear\n\t\t\t\t\tpublisher\n\t\t\t\t\twriters\n\t\t\t\t\tcoverUrl\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t}\n": types.ProviderMatchFindMediaDocument,
+    "\n\tmutation ProviderMatchFindSeries(\n\t\t$id: ID!\n\t\t$query: MetadataSearchInput\n\t\t$provider: MetadataProvider\n\t) {\n\t\tfetchSeriesMetadata(id: $id, query: $query, provider: $provider, autoApply: false) {\n\t\t\tprovider\n\t\t\texternalId\n\t\t\tconfidence\n\t\t\tmetadata {\n\t\t\t\t__typename\n\t\t\t\t... on ExternalSeriesMetadata {\n\t\t\t\t\ttitle\n\t\t\t\t\tyear\n\t\t\t\t\tpublisher\n\t\t\t\t\tauthors\n\t\t\t\t\tcoverUrl\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t}\n": types.ProviderMatchFindSeriesDocument,
+    "\n\tmutation ProviderMatchAcceptMedia($mediaId: ID!, $candidateIndex: Int!) {\n\t\tacceptMediaMatch(mediaId: $mediaId, candidateIndex: $candidateIndex) {\n\t\t\tid\n\t\t\tstatus\n\t\t}\n\t}\n": types.ProviderMatchAcceptMediaDocument,
+    "\n\tmutation ProviderMatchAcceptSeries($seriesId: ID!, $candidateIndex: Int!) {\n\t\tacceptSeriesMatch(seriesId: $seriesId, candidateIndex: $candidateIndex) {\n\t\t\tid\n\t\t\tstatus\n\t\t}\n\t}\n": types.ProviderMatchAcceptSeriesDocument,
     "\n\tquery SideBarQuery {\n\t\tme {\n\t\t\tid\n\t\t\tpreferences {\n\t\t\t\tnavigationArrangement {\n\t\t\t\t\tlocked\n\t\t\t\t\tsections {\n\t\t\t\t\t\tconfig {\n\t\t\t\t\t\t\t__typename\n\t\t\t\t\t\t\t... on SystemArrangementConfig {\n\t\t\t\t\t\t\t\tvariant\n\t\t\t\t\t\t\t\tlinks\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t}\n\t\t\t\t\t\tvisible\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t}\n": types.SideBarQueryDocument,
     "\n\tquery BookClubSideBarSection {\n\t\tbookClubs {\n\t\t\tid\n\t\t\tname\n\t\t\tslug\n\t\t\temoji\n\t\t\tmembers {\n\t\t\t\tid\n\t\t\t\tuserId\n\t\t\t\trole\n\t\t\t}\n\t\t}\n\t}\n": types.BookClubSideBarSectionDocument,
     "\n\tmutation UpdateLibraryEmoji($id: ID!, $emoji: String) {\n\t\tupdateLibraryEmoji(id: $id, emoji: $emoji) {\n\t\t\tid\n\t\t}\n\t}\n": types.UpdateLibraryEmojiDocument,
@@ -283,12 +293,6 @@ const documents: Documents = {
     "\n\tfragment BookFileInformation on Media {\n\t\tid\n\t\tsize\n\t\textension\n\t\thash\n\t\trelativeLibraryPath\n\t}\n": types.BookFileInformationFragmentDoc,
     "\n\tquery BookLibrarySeriesLinks($id: ID!) {\n\t\tseriesById(id: $id) {\n\t\t\tid\n\t\t\tresolvedName\n\t\t\tlibrary {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t}\n\t\t}\n\t}\n": types.BookLibrarySeriesLinksDocument,
     "\n\tfragment BookMetadata on Media {\n\t\tmetadata {\n\t\t\tageRating\n\t\t\tcharacters\n\t\t\tcolorists\n\t\t\tcoverArtists\n\t\t\teditors\n\t\t\tgenres\n\t\t\tinkers\n\t\t\tletterers\n\t\t\tlinks\n\t\t\tpencillers\n\t\t\tpublisher\n\t\t\tteams\n\t\t\twriters\n\t\t\tyear\n\t\t\tmonth\n\t\t\tday\n\t\t\tvolume\n\t\t\tnumber\n\t\t}\n\t}\n": types.BookMetadataFragmentDoc,
-    "\n\tquery BookMetadataSearchContext($media: ID!) {\n\t\tmediaById(id: $media) {\n\t\t\tid\n\t\t\tname\n\t\t\tseries {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t}\n\t\t}\n\t}\n": types.BookMetadataSearchContextDocument,
-    "\n\tquery ParseComicNames($issueName: String!, $seriesName: String!) {\n\t\tissue: parseComicFilename(name: $issueName) {\n\t\t\tseries\n\t\t\tnumber\n\t\t\tyear\n\t\t}\n\t\tseries: parseComicFilename(name: $seriesName) {\n\t\t\tseries\n\t\t\tyear\n\t\t}\n\t}\n": types.ParseComicNamesDocument,
-    "\n\tmutation BookFindMetadataMatch($id: ID!, $query: MetadataSearchInput) {\n\t\tfetchMediaMetadata(id: $id, query: $query) {\n\t\t\tprovider\n\t\t}\n\t}\n": types.BookFindMetadataMatchDocument,
-    "\n\tmutation SeriesFindMetadataMatch($id: ID!, $query: MetadataSearchInput) {\n\t\tfetchSeriesMetadata(id: $id, query: $query) {\n\t\t\tprovider\n\t\t}\n\t}\n": types.SeriesFindMetadataMatchDocument,
-    "\n\tquery BookMetadataFetchRecord($media: String!) {\n\t\tmetadataFetchRecord(id: { media: $media }) {\n\t\t\t...PendingMatchRecord\n\t\t}\n\t}\n": types.BookMetadataFetchRecordDocument,
-    "\n\tquery SeriesMetadataFetchRecord($series: String!) {\n\t\tmetadataFetchRecord(id: { series: $series }) {\n\t\t\t...PendingMatchRecord\n\t\t}\n\t}\n": types.SeriesMetadataFetchRecordDocument,
     "\n\tquery BooksAfterCurrentQuery($id: ID!, $pagination: Pagination) {\n\t\tmediaById(id: $id) {\n\t\t\tnextInSeries(pagination: $pagination) {\n\t\t\t\tnodes {\n\t\t\t\t\tid\n\t\t\t\t\t...BookCard\n\t\t\t\t}\n\t\t\t\tpageInfo {\n\t\t\t\t\t__typename\n\t\t\t\t\t... on CursorPaginationInfo {\n\t\t\t\t\t\tcurrentCursor\n\t\t\t\t\t\tnextCursor\n\t\t\t\t\t\tlimit\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t}\n": types.BooksAfterCurrentQueryDocument,
     "\n\tquery BooksAlphabet {\n\t\tmediaAlphabet\n\t}\n": types.BooksAlphabetDocument,
     "\n\tquery EmailBookDropdownDevice {\n\t\temailDevices {\n\t\t\tid\n\t\t\tname\n\t\t}\n\t}\n": types.EmailBookDropdownDeviceDocument,
@@ -560,6 +564,38 @@ export function graphql(source: "\n\tmutation SetSeriesLockedFields($seriesId: I
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
+export function graphql(source: "\n\tquery ProviderMatchMediaContext($id: ID!) {\n\t\tmediaById(id: $id) {\n\t\t\tid\n\t\t\tname\n\t\t\tresolvedName\n\t\t}\n\t}\n"): typeof import('./graphql').ProviderMatchMediaContextDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\tquery ProviderMatchSeriesContext($id: ID!) {\n\t\tseriesById(id: $id) {\n\t\t\tid\n\t\t\tname\n\t\t\tresolvedName\n\t\t}\n\t}\n"): typeof import('./graphql').ProviderMatchSeriesContextDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\tquery ProviderMatchParse($name: String!) {\n\t\tparseComicFilename(name: $name) {\n\t\t\tseries\n\t\t\tnumber\n\t\t\tyear\n\t\t}\n\t}\n"): typeof import('./graphql').ProviderMatchParseDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\tquery ProviderMatchProviders {\n\t\tmetadataProviderConfigs {\n\t\t\tid\n\t\t\tproviderType\n\t\t\tenabled\n\t\t\tposition\n\t\t}\n\t}\n"): typeof import('./graphql').ProviderMatchProvidersDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\tmutation ProviderMatchFindMedia(\n\t\t$id: ID!\n\t\t$query: MetadataSearchInput\n\t\t$provider: MetadataProvider\n\t) {\n\t\tfetchMediaMetadata(id: $id, query: $query, provider: $provider, autoApply: false) {\n\t\t\tprovider\n\t\t\texternalId\n\t\t\tconfidence\n\t\t\tmetadata {\n\t\t\t\t__typename\n\t\t\t\t... on ExternalMediaMetadata {\n\t\t\t\t\ttitle\n\t\t\t\t\tseriesName\n\t\t\t\t\tnumberRaw\n\t\t\t\t\tyear\n\t\t\t\t\tpublisher\n\t\t\t\t\twriters\n\t\t\t\t\tcoverUrl\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t}\n"): typeof import('./graphql').ProviderMatchFindMediaDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\tmutation ProviderMatchFindSeries(\n\t\t$id: ID!\n\t\t$query: MetadataSearchInput\n\t\t$provider: MetadataProvider\n\t) {\n\t\tfetchSeriesMetadata(id: $id, query: $query, provider: $provider, autoApply: false) {\n\t\t\tprovider\n\t\t\texternalId\n\t\t\tconfidence\n\t\t\tmetadata {\n\t\t\t\t__typename\n\t\t\t\t... on ExternalSeriesMetadata {\n\t\t\t\t\ttitle\n\t\t\t\t\tyear\n\t\t\t\t\tpublisher\n\t\t\t\t\tauthors\n\t\t\t\t\tcoverUrl\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t}\n"): typeof import('./graphql').ProviderMatchFindSeriesDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\tmutation ProviderMatchAcceptMedia($mediaId: ID!, $candidateIndex: Int!) {\n\t\tacceptMediaMatch(mediaId: $mediaId, candidateIndex: $candidateIndex) {\n\t\t\tid\n\t\t\tstatus\n\t\t}\n\t}\n"): typeof import('./graphql').ProviderMatchAcceptMediaDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\tmutation ProviderMatchAcceptSeries($seriesId: ID!, $candidateIndex: Int!) {\n\t\tacceptSeriesMatch(seriesId: $seriesId, candidateIndex: $candidateIndex) {\n\t\t\tid\n\t\t\tstatus\n\t\t}\n\t}\n"): typeof import('./graphql').ProviderMatchAcceptSeriesDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
 export function graphql(source: "\n\tquery SideBarQuery {\n\t\tme {\n\t\t\tid\n\t\t\tpreferences {\n\t\t\t\tnavigationArrangement {\n\t\t\t\t\tlocked\n\t\t\t\t\tsections {\n\t\t\t\t\t\tconfig {\n\t\t\t\t\t\t\t__typename\n\t\t\t\t\t\t\t... on SystemArrangementConfig {\n\t\t\t\t\t\t\t\tvariant\n\t\t\t\t\t\t\t\tlinks\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t}\n\t\t\t\t\t\tvisible\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t}\n"): typeof import('./graphql').SideBarQueryDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
@@ -661,30 +697,6 @@ export function graphql(source: "\n\tquery BookLibrarySeriesLinks($id: ID!) {\n\
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n\tfragment BookMetadata on Media {\n\t\tmetadata {\n\t\t\tageRating\n\t\t\tcharacters\n\t\t\tcolorists\n\t\t\tcoverArtists\n\t\t\teditors\n\t\t\tgenres\n\t\t\tinkers\n\t\t\tletterers\n\t\t\tlinks\n\t\t\tpencillers\n\t\t\tpublisher\n\t\t\tteams\n\t\t\twriters\n\t\t\tyear\n\t\t\tmonth\n\t\t\tday\n\t\t\tvolume\n\t\t\tnumber\n\t\t}\n\t}\n"): typeof import('./graphql').BookMetadataFragmentDoc;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n\tquery BookMetadataSearchContext($media: ID!) {\n\t\tmediaById(id: $media) {\n\t\t\tid\n\t\t\tname\n\t\t\tseries {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t}\n\t\t}\n\t}\n"): typeof import('./graphql').BookMetadataSearchContextDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n\tquery ParseComicNames($issueName: String!, $seriesName: String!) {\n\t\tissue: parseComicFilename(name: $issueName) {\n\t\t\tseries\n\t\t\tnumber\n\t\t\tyear\n\t\t}\n\t\tseries: parseComicFilename(name: $seriesName) {\n\t\t\tseries\n\t\t\tyear\n\t\t}\n\t}\n"): typeof import('./graphql').ParseComicNamesDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n\tmutation BookFindMetadataMatch($id: ID!, $query: MetadataSearchInput) {\n\t\tfetchMediaMetadata(id: $id, query: $query) {\n\t\t\tprovider\n\t\t}\n\t}\n"): typeof import('./graphql').BookFindMetadataMatchDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n\tmutation SeriesFindMetadataMatch($id: ID!, $query: MetadataSearchInput) {\n\t\tfetchSeriesMetadata(id: $id, query: $query) {\n\t\t\tprovider\n\t\t}\n\t}\n"): typeof import('./graphql').SeriesFindMetadataMatchDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n\tquery BookMetadataFetchRecord($media: String!) {\n\t\tmetadataFetchRecord(id: { media: $media }) {\n\t\t\t...PendingMatchRecord\n\t\t}\n\t}\n"): typeof import('./graphql').BookMetadataFetchRecordDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n\tquery SeriesMetadataFetchRecord($series: String!) {\n\t\tmetadataFetchRecord(id: { series: $series }) {\n\t\t\t...PendingMatchRecord\n\t\t}\n\t}\n"): typeof import('./graphql').SeriesMetadataFetchRecordDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

@@ -11,7 +11,7 @@ use metadata_integrations::{
 };
 use models::{
 	entity::{library_config, media, media_metadata, metadata_fetch_record, series},
-	shared::enums::{MetadataFetchStatus, UserPermission},
+	shared::enums::{MetadataFetchStatus, MetadataProvider, UserPermission},
 };
 use sea_orm::{prelude::*, ActiveValue::Set, IntoActiveModel};
 
@@ -147,13 +147,18 @@ impl MediaMetadataMutation {
 	///
 	/// `query` optionally overrides the auto-derived search fields (see
 	/// [`MetadataSearchInput`]); omitting it preserves the original behavior of
-	/// searching by the item's stored metadata / parsed filename.
+	/// searching by the item's stored metadata / parsed filename. `provider`
+	/// scopes the search to a single provider (default: all enabled). `autoApply`
+	/// defaults to `true`; the interactive match UI passes `false` so the record
+	/// stays awaiting review and the user selects a candidate themselves.
 	#[graphql(guard = "PermissionGuard::one(UserPermission::MetadataFetchRecordManage)")]
 	async fn fetch_media_metadata(
 		&self,
 		ctx: &Context<'_>,
 		id: ID,
 		query: Option<MetadataSearchInput>,
+		provider: Option<MetadataProvider>,
+		auto_apply: Option<bool>,
 	) -> Result<Vec<MatchCandidate>> {
 		let AuthContext { .. } = ctx.data::<AuthContext>()?;
 		let core_ctx = ctx.data::<CoreContext>()?;
@@ -219,6 +224,8 @@ impl MediaMetadataMutation {
 			conn,
 			&model.media.id,
 			search,
+			provider,
+			auto_apply.unwrap_or(true),
 			&provider_cache,
 		)
 		.await?;
