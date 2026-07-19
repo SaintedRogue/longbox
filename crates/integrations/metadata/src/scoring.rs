@@ -95,6 +95,25 @@ fn token_overlap_score(query_title: &str, candidate_title: &str) -> f64 {
 	0.7 * candidate_coverage + 0.3 * query_coverage
 }
 
+/// Compare two issue-number strings, tolerating numeric formatting differences
+/// ("1" == "1.0") while still matching non-numeric numbers ("1.MU") case-insensitively.
+fn issue_numbers_match(a: &str, b: &str) -> bool {
+	let (a, b) = (a.trim(), b.trim());
+	if let (Ok(na), Ok(nb)) = (a.parse::<f32>(), b.parse::<f32>()) {
+		return (na - nb).abs() < f32::EPSILON;
+	}
+	a.eq_ignore_ascii_case(b)
+}
+
+/// Format a parsed issue number back to a compact string ("1", not "1.0").
+fn format_issue_number(n: f32) -> String {
+	if n.fract() == 0.0 {
+		format!("{}", n as i64)
+	} else {
+		format!("{n}")
+	}
+}
+
 impl MatchScorer {
 	const ISBN_FLOOR: f32 = 0.98;
 	const EXACT_TITLE_FLOOR: f32 = 0.90;
@@ -102,6 +121,12 @@ impl MatchScorer {
 	const FUZZY_CEILING: f32 = 0.75;
 	const FUZZY_THRESHOLD: f64 = 0.70;
 	const AUTHOR_BONUS: f32 = 0.05;
+	/// Bonus when the query's issue number matches the candidate's. Sized so an exact
+	/// series match (0.90) plus a number match clears the 0.95 auto-apply threshold.
+	const NUMBER_MATCH_BONUS: f32 = 0.06;
+	/// Penalty when the query has an issue number and the candidate's differs — a
+	/// strong signal it's the wrong issue of an otherwise-matching series.
+	const NUMBER_MISMATCH_PENALTY: f32 = 0.40;
 
 	/// Score a single candidate against the search query, populating its
 	/// `confidence` and `confidence_factors` fields in place
@@ -145,15 +170,73 @@ impl MatchScorer {
 			}
 		}
 
-		let (title_score, title_factors) = Self::score_title(
+		let (mut title_score, mut title_factors) = Self::score_title(
 			&query.title,
 			candidate_title.as_deref().unwrap_or(""),
 			&candidate_alt_titles,
 		);
+
+		// For comic issues the candidate title is the composed "{Series} #{n}", which
+		// never matches a bare series query exactly. Also score the query's series
+		// identity against the candidate's series name and keep the stronger signal.
+		if let ExternalMetadata::Media(m) = &candidate.metadata {
+			if let Some(series_name) = m.series_name.as_deref() {
+				let query_series = query.series_name.as_deref().unwrap_or(&query.title);
+				let (series_score, series_factors) =
+					Self::score_title(query_series, series_name, &[]);
+				if series_score > title_score {
+					title_score = series_score;
+					title_factors = series_factors;
+				}
+			}
+		}
 		factors.extend(title_factors);
 
-		candidate.confidence = (title_score + author_bonus).min(1.0);
+		// Issue-number signal: an exact issue number disambiguates between issues of the
+		// same series; a mismatch strongly implies the wrong issue.
+		let number_adjustment =
+			Self::score_issue_number(query, &candidate.metadata, &mut factors);
+
+		candidate.confidence =
+			(title_score + author_bonus + number_adjustment).clamp(0.0, 1.0);
 		candidate.confidence_factors = factors;
+	}
+
+	/// Score the issue-number signal for a media candidate: a positive bonus when the
+	/// query's issue number matches the candidate's, a penalty when it mismatches, and
+	/// `0.0` when there is nothing to compare (no query number, non-media candidate, or
+	/// a candidate without a number). Pushes an `issue_number` factor when it compared.
+	fn score_issue_number(
+		query: &SearchQuery,
+		metadata: &ExternalMetadata,
+		factors: &mut Vec<ConfidenceFactor>,
+	) -> f32 {
+		let Some(query_number) = query.number.as_deref() else {
+			return 0.0;
+		};
+		let ExternalMetadata::Media(m) = metadata else {
+			return 0.0;
+		};
+		let Some(candidate_number) = m
+			.number_raw
+			.clone()
+			.or_else(|| m.number.map(format_issue_number))
+		else {
+			return 0.0;
+		};
+
+		let matched = issue_numbers_match(query_number, &candidate_number);
+		let weight = if matched {
+			Self::NUMBER_MATCH_BONUS
+		} else {
+			-Self::NUMBER_MISMATCH_PENALTY
+		};
+		factors.push(ConfidenceFactor {
+			factor: "issue_number".into(),
+			weight,
+			matched,
+		});
+		weight
 	}
 
 	/// Score and sort candidates by confidence descending
@@ -306,6 +389,80 @@ mod tests {
 			confidence: 0.0,
 			confidence_factors: Vec::new(),
 		}
+	}
+
+	fn make_comic_issue(title: &str, series: &str, number_raw: &str) -> MatchCandidate {
+		MatchCandidate {
+			provider: "comicvine".into(),
+			external_id: "1".into(),
+			metadata: ExternalMetadata::Media(ExternalMediaMetadata {
+				title: Some(title.to_string()),
+				series_name: Some(series.to_string()),
+				number: number_raw.parse::<f32>().ok(),
+				number_raw: Some(number_raw.to_string()),
+				..Default::default()
+			}),
+			confidence: 0.0,
+			confidence_factors: Vec::new(),
+		}
+	}
+
+	#[test]
+	fn issue_number_match_ranks_correct_issue_first() {
+		let scorer = MatchScorer;
+		let query = SearchQuery {
+			title: "Absolute Batman".into(),
+			series_name: Some("Absolute Batman".into()),
+			number: Some("1".into()),
+			..Default::default()
+		};
+		// Composed "{Series} #{n}" titles — the real ComicVine candidate shape after
+		// mapping. #8 is listed first (mirrors the observed API order).
+		let mut candidates = vec![
+			make_comic_issue("Absolute Batman #8", "Absolute Batman", "8"),
+			make_comic_issue("Absolute Batman #1", "Absolute Batman", "1"),
+		];
+		scorer.score_and_sort(&query, &mut candidates);
+
+		let top = candidates[0]
+			.metadata
+			.as_media()
+			.and_then(|m| m.number_raw.clone());
+		assert_eq!(top.as_deref(), Some("1"), "issue #1 should rank first");
+		// Exact series + exact issue number is a strong match — auto-apply-worthy.
+		assert!(
+			candidates[0].confidence >= 0.95,
+			"exact issue match should be >= 0.95, got {}",
+			candidates[0].confidence
+		);
+		// The wrong issue of the right series must fall clearly behind.
+		assert!(
+			candidates[1].confidence < candidates[0].confidence - 0.2,
+			"mismatched issue ({}) should trail the match ({})",
+			candidates[1].confidence,
+			candidates[0].confidence
+		);
+	}
+
+	#[test]
+	fn issue_number_match_boosts_over_series_only() {
+		let scorer = MatchScorer;
+		let query = SearchQuery {
+			title: "Saga".into(),
+			series_name: Some("Saga".into()),
+			number: Some("12".into()),
+			..Default::default()
+		};
+		let mut matching = make_comic_issue("Saga #12", "Saga", "12");
+		let mut mismatched = make_comic_issue("Saga #3", "Saga", "3");
+		scorer.score_candidate(&query, &mut matching);
+		scorer.score_candidate(&query, &mut mismatched);
+
+		assert!(matching.confidence > mismatched.confidence);
+		assert!(matching
+			.confidence_factors
+			.iter()
+			.any(|f| f.factor == "issue_number" && f.matched));
 	}
 
 	#[test]

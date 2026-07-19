@@ -448,6 +448,8 @@ input CreateMetadataProviderConfigInput {
 	apiToken: String!
 	"Whether the provider is enabled"
 	enabled: Boolean
+	"Preference order among providers (lower = preferred). Optional; defaults to 0."
+	position: Int
 	"Auto-apply configuration"
 	autoApplyConfig: JSON
 	"""
@@ -753,6 +755,12 @@ type ExternalMediaMetadata {
 	seriesName: String
 	seriesExternalId: String
 	number: Float
+	"""
+	The raw, unparsed issue number as the provider returned it (e.g. "1",
+	"1.MU", "½"). Kept alongside `number` (which is lossy — non-numeric issue
+	numbers parse to `None`) so display-title composition can preserve fidelity.
+	"""
+	numberRaw: String
 	day: Int
 	month: Int
 	year: Int
@@ -1859,12 +1867,20 @@ enum MetadataProvider {
 	HARDCOVER
 	"Metron (https://metron.cloud) — comics; data CC BY-SA 4.0"
 	METRON
+	"Comic Vine (https://comicvine.gamespot.com) — comics; free API, NON-COMMERCIAL use only"
+	COMIC_VINE
 }
 
 type MetadataProviderConfigModel {
 	id: Int!
 	providerType: MetadataProvider!
 	enabled: Boolean!
+	"""
+	Preference order among providers (lower = higher priority; the lowest is the
+	"preferred" provider). Breaks ties when multiple providers return a confident
+	match. Defaults to 0 at the DB layer.
+	"""
+	position: Int!
 	apiTokenExpiresAt: DateTime
 	autoApplyConfig: JSON
 	createdAt: DateTime!
@@ -2481,6 +2497,8 @@ input PatchMetadataProviderConfigInput {
 	apiToken: String
 	"Whether the provider is enabled"
 	enabled: Boolean
+	"Preference order among providers (lower = preferred)."
+	position: Int
 	"Auto-apply configuration"
 	autoApplyConfig: JSON
 	"""

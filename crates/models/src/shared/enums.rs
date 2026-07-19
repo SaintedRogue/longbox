@@ -469,6 +469,8 @@ pub enum MetadataProvider {
 	Hardcover,
 	/// Metron (https://metron.cloud) — comics; data CC BY-SA 4.0
 	Metron,
+	/// Comic Vine (https://comicvine.gamespot.com) — comics; free API, NON-COMMERCIAL use only
+	ComicVine,
 }
 
 impl MetadataProvider {
@@ -482,7 +484,42 @@ impl MetadataProvider {
 				LibraryType::LightNovel,
 			],
 			Self::Metron => &[LibraryType::Comic],
+			Self::ComicVine => &[LibraryType::Comic],
 		}
+	}
+
+	/// The canonical, lowercase provider id — the string the provider trait's
+	/// `id()` returns and that is stored on `MatchCandidate.provider` and
+	/// `media_metadata.metadata_source`.
+	///
+	/// This is deliberately distinct from [`Display`](std::fmt::Display), which
+	/// yields the SCREAMING_SNAKE_CASE form used for the DB column and GraphQL
+	/// enum (e.g. `ComicVine` is `"comicvine"` here but `"COMIC_VINE"` via
+	/// `Display`). Comparisons against a candidate's provider MUST use this, not
+	/// `to_string()` — see `find_auto_apply_candidate`.
+	pub fn provider_id(&self) -> &'static str {
+		match self {
+			Self::Hardcover => "hardcover",
+			Self::Metron => "metron",
+			Self::ComicVine => "comicvine",
+		}
+	}
+
+	/// Inverse of [`provider_id`](Self::provider_id): resolve a provider trait id
+	/// back to the enum. Returns `None` for unknown ids.
+	pub fn from_provider_id(id: &str) -> Option<Self> {
+		match id {
+			"hardcover" => Some(Self::Hardcover),
+			"metron" => Some(Self::Metron),
+			"comicvine" => Some(Self::ComicVine),
+			_ => None,
+		}
+	}
+
+	/// Whether this provider serves comic libraries exclusively (used to gate
+	/// comic-specific behavior like issue-title composition).
+	pub fn is_comic_provider(&self) -> bool {
+		matches!(self.supported_library_types(), [LibraryType::Comic])
 	}
 }
 

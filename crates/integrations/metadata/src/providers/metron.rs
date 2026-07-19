@@ -393,11 +393,18 @@ fn map_issue_detail(detail: IssueDetail, provider_id: &str) -> ExternalMediaMeta
 		.map(|d| (Some(d.year()), Some(d.month() as i32), Some(d.day() as i32)))
 		.unwrap_or((None, None, None));
 
-	let title = detail
+	let story_title = detail
 		.story_titles
 		.as_ref()
 		.and_then(|titles| titles.first().cloned())
 		.or_else(|| detail.collection_title.clone());
+	// Compose the audiobookshelf-style "{Series} #{n}" display title (the format the
+	// user selected); fall back to the story/collection title when we can't compose one.
+	let title = crate::title::compose_comic_title(
+		&detail.series.name,
+		Some(detail.number.as_str()),
+	)
+	.or(story_title);
 
 	let story_arc = detail.arcs.as_ref().and_then(|arcs| {
 		let names: Vec<String> = arcs.iter().map(|a| a.name.clone()).collect();
@@ -427,6 +434,7 @@ fn map_issue_detail(detail: IssueDetail, provider_id: &str) -> ExternalMediaMeta
 		title,
 		summary: detail.desc,
 		number,
+		number_raw: Some(detail.number.clone()).filter(|s| !s.trim().is_empty()),
 		series_name: Some(detail.series.name),
 		series_external_id: Some(detail.series.id.to_string()),
 		day,
@@ -876,19 +884,20 @@ mod tests {
 	}
 
 	#[test]
-	fn test_map_issue_detail_title_prefers_story_title() {
+	fn test_map_issue_detail_title_is_composed() {
+		// The display title is composed as "{Series} #{n}", overriding the story title.
 		let detail: IssueDetail = serde_json::from_str(ISSUE_DETAIL_FIXTURE).unwrap();
 		let meta = map_issue_detail(detail, "metron");
 
-		assert_eq!(
-			meta.title,
-			Some("Harley Quinn: Be Careful What You Wish For".to_string())
-		);
+		assert_eq!(meta.title, Some("Harley Quinn #1".to_string()));
 	}
 
 	#[test]
-	fn test_map_issue_detail_title_falls_back_to_collection_title() {
+	fn test_map_issue_detail_title_falls_back_when_uncomposable() {
+		// With no usable issue number we can't compose "{Series} #{n}", so we fall back
+		// to the story/collection title.
 		let json = ISSUE_DETAIL_FIXTURE
+			.replace(r#""number": "1","#, r#""number": "","#)
 			.replace(
 				r#""story_titles": ["Harley Quinn: Be Careful What You Wish For"],"#,
 				r#""story_titles": null,"#,

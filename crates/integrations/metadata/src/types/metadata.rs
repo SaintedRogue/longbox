@@ -45,6 +45,10 @@ pub struct ExternalMediaMetadata {
 	pub series_name: Option<String>,
 	pub series_external_id: Option<String>,
 	pub number: Option<f32>, // TODO: string?
+	/// The raw, unparsed issue number as the provider returned it (e.g. "1",
+	/// "1.MU", "½"). Kept alongside `number` (which is lossy — non-numeric issue
+	/// numbers parse to `None`) so display-title composition can preserve fidelity.
+	pub number_raw: Option<String>,
 
 	pub day: Option<i32>,
 	pub month: Option<i32>,
