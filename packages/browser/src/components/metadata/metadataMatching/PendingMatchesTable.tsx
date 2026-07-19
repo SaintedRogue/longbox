@@ -21,7 +21,7 @@ import { useMatchReviewStore } from './useMatchReviewStore'
 
 // TODO: a CHONKER fragment, should prolly break it up
 
-const fragment = graphql(`
+export const pendingMatchRecordFragment = graphql(`
 	fragment PendingMatchRecord on MetadataFetchRecord {
 		id
 		status
@@ -172,7 +172,7 @@ export function PendingMatchesTable() {
 	const { t } = useLocaleContext()
 	const { data } = useSuspenseGraphQL(pendingMatchesQuery, ['pendingMetadataMatches'])
 
-	const records = useFragment(fragment, data.pendingMetadataMatches)
+	const records = useFragment(pendingMatchRecordFragment, data.pendingMetadataMatches)
 	const open = useMatchReviewStore((s) => s.open)
 	const client = useQueryClient()
 

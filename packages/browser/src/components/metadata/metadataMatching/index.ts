@@ -1,4 +1,5 @@
 export { default as PendingMatchesSection } from './PendingMatchesSection'
+export { pendingMatchRecordFragment } from './PendingMatchesTable'
 export { ConfidenceBadge } from './reviewDialog/ConfidenceBadge'
 export { FieldValue } from './reviewDialog/FieldValue'
 export { MatchFieldRow } from './reviewDialog/MatchFieldRow'

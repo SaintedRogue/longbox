@@ -1,5 +1,6 @@
 pub mod client;
 pub mod error;
+pub mod filename;
 pub mod merge;
 mod provider;
 mod providers;
@@ -11,6 +12,7 @@ pub mod types;
 
 pub use client::build_client_with_retry;
 pub use error::{MetadataProviderError, MetadataResult};
+pub use filename::{parse_comic_filename, ParsedComicName};
 pub use merge::{AutoApplyConfig, FieldMerger, MergeStrategy, MetadataFieldOverride};
 pub use provider::MetadataProvider;
 pub use rate_limit::RateLimiter;

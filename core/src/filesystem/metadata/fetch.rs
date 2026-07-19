@@ -1,4 +1,4 @@
-use metadata_integrations::{MatchCandidate, SearchQuery};
+use metadata_integrations::{parse_comic_filename, MatchCandidate, SearchQuery};
 use models::{
 	entity::{
 		library_config, media, media_metadata, metadata_fetch_record,
@@ -213,27 +213,54 @@ fn enrich_query_with_media_metadata(
 	mut search: SearchQuery,
 	metadata: Option<&media_metadata::Model>,
 ) -> SearchQuery {
-	let Some(metadata) = metadata else {
-		return search;
-	};
+	if let Some(metadata) = metadata {
+		if search.series_name.is_none() {
+			search.series_name = metadata.series.clone();
+		}
+		if search.number.is_none() {
+			search.number = metadata.number.map(|n| n.normalize().to_string());
+		}
+		if search.publisher.is_none() {
+			search.publisher = metadata.publisher.clone();
+		}
+		if search.year.is_none() {
+			search.year = metadata.year;
+		}
+		if search.comicvine_id.is_none() {
+			search.comicvine_id = metadata.comicvine_id.clone();
+		}
+	}
 
-	if search.series_name.is_none() {
-		search.series_name = metadata.series.clone();
-	}
-	if search.number.is_none() {
-		search.number = metadata.number.map(|n| n.normalize().to_string());
-	}
-	if search.publisher.is_none() {
-		search.publisher = metadata.publisher.clone();
-	}
-	if search.year.is_none() {
-		search.year = metadata.year;
-	}
-	if search.comicvine_id.is_none() {
-		search.comicvine_id = metadata.comicvine_id.clone();
-	}
+	// Last resort for filename-only libraries (no ComicInfo.xml, so empty
+	// media_metadata): parse the filename (carried in `search.title`) into a series
+	// + issue number so providers get a real query instead of the raw file name.
+	fill_query_from_filename(&mut search);
 
 	search
+}
+
+/// Fill still-empty comic matching signals (`series_name`, `number`, `year`) by
+/// parsing the media's filename — which every caller passes as `search.title`.
+///
+/// This is heuristic and used only to build a better provider query; the parsed
+/// values are never written back to `media_metadata`. Shared by both the on-demand
+/// [`fetch_media_metadata`] path and the bulk [`super::fetch_job`] path so a
+/// filename-only library matches the same way from either entry point.
+pub(super) fn fill_query_from_filename(search: &mut SearchQuery) {
+	if search.series_name.is_some() && search.number.is_some() {
+		return;
+	}
+
+	let parsed = parse_comic_filename(&search.title);
+	if search.series_name.is_none() {
+		search.series_name = parsed.series;
+	}
+	if search.number.is_none() {
+		search.number = parsed.number;
+	}
+	if search.year.is_none() {
+		search.year = parsed.year;
+	}
 }
 
 /// Fetch metadata candidates for a media item from all enabled providers
@@ -358,4 +385,37 @@ pub async fn fetch_media_metadata(
 	}
 
 	Ok(all_candidates)
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn enrich_falls_back_to_filename_when_metadata_empty() {
+		// Filename-only library: no media_metadata row, so series/number/year must
+		// come from parsing the filename (carried in `title`).
+		let search = SearchQuery {
+			title: "Absolute Batman 001 (2024) (digital) (Son of Ultron-Empire)"
+				.to_string(),
+			..Default::default()
+		};
+		let enriched = enrich_query_with_media_metadata(search, None);
+		assert_eq!(enriched.series_name.as_deref(), Some("Absolute Batman"));
+		assert_eq!(enriched.number.as_deref(), Some("1"));
+		assert_eq!(enriched.year, Some(2024));
+	}
+
+	#[test]
+	fn filename_fallback_never_overrides_existing_signals() {
+		let mut search = SearchQuery {
+			title: "Absolute Batman 001 (2024)".to_string(),
+			series_name: Some("Real Series".to_string()),
+			number: Some("5".to_string()),
+			..Default::default()
+		};
+		fill_query_from_filename(&mut search);
+		assert_eq!(search.series_name.as_deref(), Some("Real Series"));
+		assert_eq!(search.number.as_deref(), Some("5"));
+	}
 }

@@ -5279,6 +5279,23 @@ export type BookLibrarySeriesLinksQuery = { __typename?: 'Query', seriesById?: {
 
 export type BookMetadataFragment = { __typename?: 'Media', metadata?: { __typename?: 'MediaMetadata', ageRating?: number | null, characters: Array<string>, colorists: Array<string>, coverArtists: Array<string>, editors: Array<string>, genres: Array<string>, inkers: Array<string>, letterers: Array<string>, links: Array<string>, pencillers: Array<string>, publisher?: string | null, teams: Array<string>, writers: Array<string>, year?: number | null, month?: number | null, day?: number | null, volume?: number | null, number?: any | null } | null } & { ' $fragmentName'?: 'BookMetadataFragment' };
 
+export type BookFindMetadataMatchMutationVariables = Exact<{
+  id: Scalars['ID']['input'];
+}>;
+
+
+export type BookFindMetadataMatchMutation = { __typename?: 'Mutation', fetchMediaMetadata: Array<{ __typename?: 'MatchCandidate', provider: string }> };
+
+export type BookMetadataFetchRecordQueryVariables = Exact<{
+  media: Scalars['String']['input'];
+}>;
+
+
+export type BookMetadataFetchRecordQuery = { __typename?: 'Query', metadataFetchRecord?: (
+    { __typename?: 'MetadataFetchRecord' }
+    & { ' $fragmentRefs'?: { 'PendingMatchRecordFragment': PendingMatchRecordFragment } }
+  ) | null };
+
 export type BooksAfterCurrentQueryQueryVariables = Exact<{
   id: Scalars['ID']['input'];
   pagination?: InputMaybe<Pagination>;
@@ -8073,6 +8090,111 @@ export const BookLibrarySeriesLinksDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<BookLibrarySeriesLinksQuery, BookLibrarySeriesLinksQueryVariables>;
+export const BookFindMetadataMatchDocument = new TypedDocumentString(`
+    mutation BookFindMetadataMatch($id: ID!) {
+  fetchMediaMetadata(id: $id) {
+    provider
+  }
+}
+    `) as unknown as TypedDocumentString<BookFindMetadataMatchMutation, BookFindMetadataMatchMutationVariables>;
+export const BookMetadataFetchRecordDocument = new TypedDocumentString(`
+    query BookMetadataFetchRecord($media: String!) {
+  metadataFetchRecord(id: {media: $media}) {
+    ...PendingMatchRecord
+  }
+}
+    fragment PendingMatchRecord on MetadataFetchRecord {
+  id
+  status
+  mediaId
+  seriesId
+  matchCandidates {
+    provider
+    externalId
+    metadata {
+      __typename
+      ... on ExternalMediaMetadata {
+        title
+        seriesName
+        seriesExternalId
+        summary
+        pageCount
+        number
+        day
+        month
+        year
+        genres
+        tags
+        isbn
+        isbn13
+        writers
+        artists
+        colorists
+        letterers
+        coverArtists
+      }
+      ... on ExternalSeriesMetadata {
+        seriesTitle: title
+        alternativeTitles
+        summary
+        volumeCount
+        coverUrl
+        status
+        year
+        endYear
+        genres
+        tags
+        authors
+        ageRating
+        publisher
+      }
+    }
+    confidence
+    confidenceFactors {
+      factor
+      weight
+      matched
+    }
+  }
+  addedAt
+  updatedAt
+  media {
+    id
+    resolvedName
+    metadata {
+      title
+      summary
+      genres
+      writers
+      colorists
+      letterers
+      coverArtists
+      publisher
+      year
+      month
+      day
+      pageCount
+      identifierIsbn
+      lockedFields
+    }
+  }
+  series {
+    id
+    resolvedName
+    metadata {
+      title
+      summary
+      genres
+      writers
+      publisher
+      year
+      status
+      ageRating
+      volume
+      lockedFields
+    }
+  }
+}`) as unknown as TypedDocumentString<BookMetadataFetchRecordQuery, BookMetadataFetchRecordQueryVariables>;
 export const BooksAfterCurrentQueryDocument = new TypedDocumentString(`
     query BooksAfterCurrentQuery($id: ID!, $pagination: Pagination) {
   mediaById(id: $id) {
