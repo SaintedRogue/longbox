@@ -16,7 +16,7 @@ import toUpper from 'lodash/toUpper'
 import { Info } from 'lucide-react'
 import { useMemo } from 'react'
 
-const REPO_URL = 'https://github.com/stumpapp/stump'
+const REPO_URL = 'https://github.com/SaintedRogue/longbox'
 const IS_DEV = import.meta.env.DEV
 
 export default function ServerInfoSection() {
