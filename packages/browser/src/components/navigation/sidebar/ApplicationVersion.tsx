@@ -9,7 +9,7 @@ export default function ApplicationVersion() {
 		if (!version) return undefined
 
 		const { rev, semver } = version
-		const repoUrl = 'https://github.com/stumpapp/stump'
+		const repoUrl = 'https://github.com/SaintedRogue/longbox'
 		if (semver && semver !== '0.0.0') {
 			return `${repoUrl}/releases/tag/v${semver}`
 		} else if (rev) {
