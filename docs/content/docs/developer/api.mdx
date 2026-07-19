@@ -3,7 +3,7 @@ title: API
 description: Details about the Longbox API
 ---
 
-The core API which a Longbox server exposes is a GraphQL API. There are some RESTful endpoints, as well, but these are generally reserved for integrations and features which require it (e.g., fetching thumbnails). The API is backed by a few different [authentication methods](#authentication).
+Your longbox talks primarily in GraphQL — that's the core API a Longbox server exposes, with a handful of RESTful endpoints kept in reserve for integrations and features that need them (fetching thumbnails, for one). A few different [authentication methods](#authentication) guard the door.
 
 The API is constantly being developed, and while it is generally stable at this point it is still subject to change.
 
@@ -16,8 +16,8 @@ Longbox uses server-side sessions to authenticate users. These sessions are stor
 ### Basic Authentication
 
 <Callout type="warning">
-	This functionality is only available on OPDS endpoints. You cannot authenticate with Basic
-	Authentication on the REST API
+	**CONTINUITY** — This functionality is only available on OPDS endpoints. You cannot authenticate
+	with Basic Authentication on the REST API
 </Callout>
 
 Longbox supports [Basic Authentication](https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication) in order to properly support OPDS clients. Authenticating using this method will **not** create a server-side session. It is only intended for OPDS client authentication.
@@ -33,8 +33,8 @@ The generation of JWTs is fairly standard. Each type of token (access and refres
 ### API Keys
 
 <Callout title="Permission required">
-	This functionality is gated behind the `ACCESS_API_KEYS` user permission. To learn more about
-	permissions, see the [permissions](/docs/guides/access-control/permissions) guide.
+	**HOUSE RULES** — This functionality is gated behind the `ACCESS_API_KEYS` user permission. To
+	learn more about permissions, see the [permissions](/docs/guides/access-control/permissions) guide.
 </Callout>
 
 You can generated user-scoped API keys to authenticate requests to the REST API. These keys are stored in the database and can be revoked at any time. API keys are not subject to the same expiry as sessions, and are intended for long-term use.
@@ -52,7 +52,7 @@ For more information on API keys, see the [API keys](/docs/guides/features/api-k
 
 The playground should be enabled by default when running the server in debug mode, or if the `enable_playground` config variable is set to `true`, and will be available at `http(s)://your-server(:10801)/api/graphql`.
 
-If you're new to GraphQL, I would recommend giving the [GraphQL documentation](https://graphql.org/learn/) a quick read, and then trying out the playground.
+If you're new to GraphQL, we would recommend giving the [GraphQL documentation](https://graphql.org/learn/) a quick read, and then trying out the playground.
 
 ### Disabling GraphQL Playground
 

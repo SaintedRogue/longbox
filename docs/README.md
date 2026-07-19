@@ -1,9 +1,11 @@
 # docs
 
-This is a Tanstack Start application generated with
-[Create Fumadocs](https://github.com/fuma-nama/fumadocs).
+The Longbox documentation app — a [Fumadocs](https://github.com/fuma-nama/fumadocs)
+site (TanStack Start) that serves the guides in `content/docs`. If you're writing
+docs, read `../longbox-voice-notes.md` first: it's the shelf label for how Longbox
+talks.
 
-Run development server:
+Run the development server:
 
 ```bash
 npm run dev

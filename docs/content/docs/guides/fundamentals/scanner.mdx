@@ -4,7 +4,7 @@ title: File Scanner
 
 import { Step, Steps } from 'fumadocs-ui/components/steps'
 
-A scan is the process of indexing your filesystem to detect new media files and file changes/updates. Scans are essential for keeping your media libraries up-to-date in Longbox. The _scanner_ is a queueable process which will perform these scans for you.
+A scan is Longbox walking your shelf to catch anything new, changed, or missing. Scans are essential for keeping your media libraries up-to-date in Longbox. The _scanner_ is a queueable process which will perform these scans for you.
 
 Scans can be isolated to either the library level or the series level. There are no real differences between the two, except that a library scan will scan all series in the library, while a series scan will only scan the selected series.
 
@@ -50,9 +50,10 @@ This task doesn't do much itself aside from discovery operations. Longbox will r
 These discoveries are then queued separately to be handled in an isolated manner - they are added to the **front** of the main task queue.
 
 <Callout title="Clarification">
-	This growing queue might seem like a problem, but it is actually a feature. In order to keep the
-	scan process as efficient as possible, Longbox will not compute _all_ required tasks at the start.
-	As libraries grow in size, this can be a significant performance improvement.
+	**FROM THE LONGBOX** — This growing queue might seem like a problem, but it is actually a
+	feature. In order to keep the scan process as efficient as possible, Longbox will not compute
+	_all_ required tasks at the start. As libraries grow in size, this can be a significant
+	performance improvement.
 </Callout>
 
 </Step>
@@ -128,9 +129,9 @@ If you have files that you don't want Longbox to scan, you can define a [glob pa
 Longbox no longer supports `.stumpignore` files. Instead, ignore rules can be set during library creation or in the `Scanning` section of the library settings. There is no limit to the number of ignore rules you can set, so long as each is a valid glob.
 
 <Callout>
-	Please note that in some scenarios, updating the ignore rules may not take the desired effect. For
-	example, if you have a file which is already in the database but add an ignore rule for it, the
-	file will not be removed. This is planned to be addressed in the future.
+	**PULL LIST** — Please note that in some scenarios, updating the ignore rules may not take the
+	desired effect. For example, if you have a file which is already in the database but add an
+	ignore rule for it, the file will not be removed. This is planned to be addressed in the future.
 </Callout>
 
 ## Scheduling scans

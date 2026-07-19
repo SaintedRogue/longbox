@@ -4,11 +4,11 @@ title: OpenID Connect (OIDC)
 
 import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
 
-Longbox supports OpenID Connect (OIDC) authentication, allowing users to sign in using external identity providers like Authelia, Keycloak, PocketID, and others.
+Your longbox doesn't have to keep its own guest list. Longbox supports OpenID Connect (OIDC) authentication, allowing users to sign in using external identity providers like Authelia, Keycloak, PocketID, and others.
 
 ## Provider Configuration
 
-This section provides general guidance for configuring popular OIDC providers to work with Longbox. I cannot feasibly cover every provider, however the below examples should give you a good starting point.
+This section provides general guidance for configuring popular OIDC providers to work with Longbox. We cannot feasibly cover every provider, however the below examples should give you a good starting point.
 
 ### Callback URL
 
@@ -119,9 +119,9 @@ services:
 OIDC can be configured using either environment variables or the TOML configuration file. See [server configuration](/docs/guides/configuration/server-config) for more details.
 
 <Callout type="warning">
-	When using the `Longbox.toml` configuration file, OIDC settings must be placed under an `[oidc]`
-	table section, **not** as flat keys with an `oidc_` prefix. See the [TOML example](#toml-example)
-	below.
+	**HOUSE RULES** — When using the `Longbox.toml` configuration file, OIDC settings must be placed
+	under an `[oidc]` table section, **not** as flat keys with an `oidc_` prefix. See the [TOML
+	example](#toml-example) below.
 </Callout>
 
 ### Required Settings
@@ -188,8 +188,8 @@ disable_local_auth = false
 ```
 
 <Callout type="error">
-	Do not use flat keys like `oidc_enabled`, `oidc_client_id`, etc. in your TOML file. This format
-	only works for environment variables (`LONGBOX_OIDC_ENABLED`, etc.)
+	**HOUSE RULES** — Do not use flat keys like `oidc_enabled`, `oidc_client_id`, etc. in your TOML
+	file. This format only works for environment variables (`LONGBOX_OIDC_ENABLED`, etc.)
 </Callout>
 
 </Tab>
@@ -202,8 +202,8 @@ disable_local_auth = false
 OIDC users may optionally set a local password in Longbox. This can be useful for accessing features that require password-based authentication (such as OPDS feeds). Users with the appropriate permissions can set their own passwords through the Longbox interface.
 
 <Callout type="info">
-	For information about user permissions and managing who can set passwords, see the [User
-	Permissions](/docs/guides/access-control/permissions) guide
+	**FROM THE LONGBOX** — For information about user permissions and managing who can set passwords,
+	see the [User Permissions](/docs/guides/access-control/permissions) guide
 </Callout>
 
 ### Disabling Local Authentication
@@ -215,8 +215,9 @@ You can disable local username/password authentication globally by setting `LONG
 - Existing local users will be unable to log in via username/password
 
 <Callout type="warning">
-	Some features, such as OPDS feeds, still require username/password authentication. Users will need
-	to set a password (as described above) even when local authentication is disabled globally
+	**CONTINUITY** — Some features, such as OPDS feeds, still require username/password
+	authentication. Users will need to set a password (as described above) even when local
+	authentication is disabled globally
 </Callout>
 
 ### Account Migration
@@ -224,5 +225,6 @@ You can disable local username/password authentication globally by setting `LONG
 Longbox does not support automatic linking of existing local accounts to OIDC accounts. If you have existing users with read history, preferences, or other data that you want to migrate to OIDC accounts, you can use the Longbox CLI migration tool.
 
 <Callout type="info">
-	For instructions on migrating existing accounts to OIDC, see the [CLI](/docs/developer/cli) guide
+	**FROM THE LONGBOX** — For instructions on migrating existing accounts to OIDC, see the
+	[CLI](/docs/developer/cli) guide
 </Callout>

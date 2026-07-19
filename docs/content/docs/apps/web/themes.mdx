@@ -2,7 +2,7 @@
 title: Themes
 ---
 
-Information about theming in Longbox, including how to add new themes and fonts.
+How your longbox looks is yours to set — this page walks through adding new color palettes and fonts to Longbox's theming system.
 
 ## Color palettes
 
@@ -14,7 +14,7 @@ To add a new theme, you'll need to follow these steps:
 
 #### 1. Define the theme in CSS
 
-Add your theme to the [`packages/components/tailwind/themes.css`](https://github.com/stumpapp/stump/tree/nightly/packages/components/tailwind/themes.css) file. Each theme is defined as a CSS class with all the required color variables.
+Add your theme to the [`packages/components/tailwind/themes.css`](https://github.com/SaintedRogue/longbox/tree/main/packages/components/tailwind/themes.css) file. Each theme is defined as a CSS class with all the required color variables.
 
 For example, let's create a "midnight" theme that is based on the dark theme, but with a pure black background:
 
@@ -32,7 +32,7 @@ You can copy an existing theme (like `.dark` or `.light`) as a starting point.
 
 #### 2. Add the theme to the theme selector
 
-Update the [`ThemeSelect` component](https://github.com/stumpapp/stump/tree/nightly/packages/browser/src/scenes/settings/app/preferences/ThemeSelect.tsx) to include your new theme in the dropdown:
+Update the [`ThemeSelect` component](https://github.com/SaintedRogue/longbox/tree/main/packages/browser/src/scenes/settings/app/preferences/ThemeSelect.tsx) to include your new theme in the dropdown:
 
 ```tsx filename="packages/browser/src/scenes/settings/app/preferences/ThemeSelect.tsx" copy
 <NativeSelect
@@ -49,7 +49,7 @@ Update the [`ThemeSelect` component](https://github.com/stumpapp/stump/tree/nigh
 
 #### 3. Add translation keys
 
-Add the theme name to the translation files. The main English locale file is at [`packages/i18n/src/locales/en-US.json`](https://github.com/stumpapp/stump/tree/nightly/packages/i18n/src/locales/en-US.json):
+Add the theme name to the translation files. The main English locale file is at [`packages/i18n/src/locales/en-US.json`](https://github.com/SaintedRogue/longbox/tree/main/packages/i18n/src/locales/en-US.json):
 
 ```json filename="packages/i18n/src/locales/en-US.json" copy
 {
@@ -73,7 +73,7 @@ Add the theme name to the translation files. The main English locale file is at 
 
 #### 4. Update the dark themes list (if applicable)
 
-If your theme is a dark variant, add it to the `DARK_THEMES` array in [`packages/browser/src/hooks/useTheme.ts`](https://github.com/stumpapp/stump/tree/nightly/packages/browser/src/hooks/useTheme.ts):
+If your theme is a dark variant, add it to the `DARK_THEMES` array in [`packages/browser/src/hooks/useTheme.ts`](https://github.com/SaintedRogue/longbox/tree/main/packages/browser/src/hooks/useTheme.ts):
 
 ```ts filename="packages/browser/src/hooks/useTheme.ts" copy
 export const DARK_THEMES = ['dark', 'ocean', 'cosmic', 'pumpkin', 'autumn', 'midnight']
@@ -109,7 +109,7 @@ If you would like to add a new font, follow these steps:
 
 #### 1. Add the font files
 
-Place your font files in the [`packages/browser/public/assets/fonts`](https://github.com/stumpapp/stump/tree/main/packages/browser/public/assets/fonts) directory. Create a new folder for your font with a CSS file that defines the `@font-face` rules:
+Place your font files in the [`packages/browser/public/assets/fonts`](https://github.com/SaintedRogue/longbox/tree/main/packages/browser/public/assets/fonts) directory. Create a new folder for your font with a CSS file that defines the `@font-face` rules:
 
 ```css filename="packages/browser/public/assets/fonts/my-font/my-font.css" copy
 @font-face {
@@ -121,7 +121,7 @@ Place your font files in the [`packages/browser/public/assets/fonts`](https://gi
 
 #### 2. Register the font in Tailwind CSS
 
-Add your font to the Tailwind preset at [`packages/components/tailwind/preset.css`](https://github.com/stumpapp/stump/tree/nightly/packages/components/tailwind/preset.css). In the `@theme` block, add your font family definition:
+Add your font to the Tailwind preset at [`packages/components/tailwind/preset.css`](https://github.com/SaintedRogue/longbox/tree/main/packages/components/tailwind/preset.css). In the `@theme` block, add your font family definition:
 
 ```css filename="packages/components/tailwind/preset.css" copy
 @theme {
@@ -144,7 +144,7 @@ Also add your font to the safelist so Tailwind doesn't purge it:
 
 #### 3. Add the font to the FontSelect component
 
-Add your font to the `SUPPORTED_FONT_OPTIONS` in the [`FontSelect` component](https://github.com/stumpapp/stump/tree/nightly/packages/browser/src/scenes/settings/app/preferences/FontSelect.tsx):
+Add your font to the `SUPPORTED_FONT_OPTIONS` in the [`FontSelect` component](https://github.com/SaintedRogue/longbox/tree/main/packages/browser/src/scenes/settings/app/preferences/FontSelect.tsx):
 
 ```tsx filename="packages/browser/src/scenes/settings/app/preferences/FontSelect.tsx" copy
 export const SUPPORTED_FONT_OPTIONS = [
@@ -182,6 +182,7 @@ There are some restrictions for which fonts can be added:
 ## Future plans
 
 <Callout type="info">
-	Support for arbitrary, local CSS files to override Longbox's default themes is planned. You can
-	track the progress of this feature in [issue #383](https://github.com/stumpapp/stump/issues/383).
+	**PULL LIST** — Support for arbitrary, local CSS files to override Longbox's default themes is
+	planned. You can track the progress of this feature in [issue
+	#383](https://github.com/stumpapp/stump/issues/383).
 </Callout>
