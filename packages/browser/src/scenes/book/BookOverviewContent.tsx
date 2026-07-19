@@ -11,6 +11,7 @@ import { useAppContext } from '@/context'
 
 import BookActionMenu from './BookActionMenu'
 import BookFileInformation from './BookFileInformation'
+import BookMetadataMatch from './BookMetadataMatch'
 import BookOverviewSceneHeader from './BookOverviewSceneHeader'
 import BookReaderLink from './BookReaderLink'
 import BooksAfterCursor from './BooksAfterCursor'
@@ -74,7 +75,10 @@ export default function BookOverviewContent({ id, variant }: Props) {
 					{variant === 'page' && <BooksAfterCursor cursor={media.id} />}
 
 					<div className={cn('gap-y-2 flex flex-col', isSheet && 'pt-4 border-t border-border')}>
-						<Heading size="sm">Metadata</Heading>
+						<div className="gap-2 flex flex-wrap items-center justify-between">
+							<Heading size="sm">Metadata</Heading>
+							<BookMetadataMatch mediaId={media.id} />
+						</div>
 						<MediaMetadataEditor mediaId={media.id} data={media.metadata} />
 					</div>
 				</div>

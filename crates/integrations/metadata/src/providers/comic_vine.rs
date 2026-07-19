@@ -1101,4 +1101,31 @@ mod tests {
 		println!("comicvine search_media: {results:#?}");
 		assert!(results.is_ok());
 	}
+
+	#[ignore = "Requires COMIC_VINE_API_KEY env var (hits live API)"]
+	#[tokio::test]
+	async fn live_filename_only_match() {
+		// Filename-only library: build the query the way core's enrich path now does —
+		// parse the raw filename — and confirm it resolves the exact issue.
+		let client = live_client();
+		let filename = "Absolute Batman 001 (2024) (digital) (Son of Ultron-Empire)";
+		let parsed = crate::parse_comic_filename(filename);
+		let query = SearchQuery {
+			title: filename.to_string(),
+			series_name: parsed.series,
+			number: parsed.number,
+			year: parsed.year,
+			limit: Some(5),
+			..Default::default()
+		};
+		let results = client.search_media(&query).await.unwrap();
+		let top = results.first().expect("expected at least one candidate");
+		let title = top.metadata.as_media().and_then(|m| m.title.clone());
+		println!(
+			"filename→match top: {title:?} confidence={}",
+			top.confidence
+		);
+		assert_eq!(title.as_deref(), Some("Absolute Batman #1"));
+		assert!(top.confidence >= 0.9, "got {}", top.confidence);
+	}
 }

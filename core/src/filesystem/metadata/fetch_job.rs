@@ -660,7 +660,7 @@ impl JobLifecycle for MetadataFetchJob {
 							// `MetadataFetchTask::FetchMedia` doesn't carry a series_id,
 							// so getting series_metadata.year would require a new
 							// query/join that isn't already at hand here.
-							let query = SearchQuery {
+							let mut query = SearchQuery {
 								title: media_name.clone(),
 								series_name: metadata
 									.as_ref()
@@ -679,6 +679,9 @@ impl JobLifecycle for MetadataFetchJob {
 								limit: Some(10),
 								..Default::default()
 							};
+							// Filename fallback for filename-only libraries (see
+							// fetch::fill_query_from_filename).
+							super::fetch::fill_query_from_filename(&mut query);
 
 							match provider.search_media(&query).await {
 								Ok(candidates) => {
