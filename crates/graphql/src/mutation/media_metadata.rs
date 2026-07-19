@@ -1,7 +1,7 @@
 use crate::{
 	data::{AuthContext, CoreContext},
 	guard::PermissionGuard,
-	input::media::MediaMetadataInput,
+	input::{media::MediaMetadataInput, metadata_provider::MetadataSearchInput},
 	object::{media::Media, metadata_fetch_record::MetadataFetchRecord},
 };
 use async_graphql::{Context, Object, Result, ID};
@@ -143,12 +143,17 @@ impl MediaMetadataMutation {
 		Ok(model.into())
 	}
 
-	/// Search external metadata providers for a media item and return match candidates
+	/// Search external metadata providers for a media item and return match candidates.
+	///
+	/// `query` optionally overrides the auto-derived search fields (see
+	/// [`MetadataSearchInput`]); omitting it preserves the original behavior of
+	/// searching by the item's stored metadata / parsed filename.
 	#[graphql(guard = "PermissionGuard::one(UserPermission::MetadataFetchRecordManage)")]
 	async fn fetch_media_metadata(
 		&self,
 		ctx: &Context<'_>,
 		id: ID,
+		query: Option<MetadataSearchInput>,
 	) -> Result<Vec<MatchCandidate>> {
 		let AuthContext { .. } = ctx.data::<AuthContext>()?;
 		let core_ctx = ctx.data::<CoreContext>()?;
@@ -182,15 +187,38 @@ impl MediaMetadataMutation {
 			.as_ref()
 			.and_then(|m| m.identifier_isbn.clone());
 
+		let mut search = SearchQuery {
+			title,
+			author,
+			isbn,
+			..Default::default()
+		};
+
+		// Layer any user-provided overrides on top of the auto-derived query.
+		// Because these become `Some`, core's metadata/filename enrichment (which
+		// only fills empty fields) leaves them untouched.
+		if let Some(overrides) = query {
+			if let Some(title) = overrides.title_override() {
+				// Set both signals: ComicVine searches by `series_name`, Metron by
+				// the free-text title term — so an override must cover both.
+				search.title = title.clone();
+				search.series_name = Some(title);
+			}
+			if let Some(number) = overrides.number_override() {
+				search.number = Some(number);
+			}
+			if let Some(year) = overrides.year {
+				search.year = Some(year);
+			}
+			if let Some(publisher) = overrides.publisher_override() {
+				search.publisher = Some(publisher);
+			}
+		}
+
 		let candidates = longbox_core::filesystem::metadata::fetch_media_metadata(
 			conn,
 			&model.media.id,
-			SearchQuery {
-				title,
-				author,
-				isbn,
-				..Default::default()
-			},
+			search,
 			&provider_cache,
 		)
 		.await?;

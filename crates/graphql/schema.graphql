@@ -1919,6 +1919,29 @@ input MetadataRetryConfigInput {
 	statuses: [MetadataFetchStatus!]!
 }
 
+"""
+Editable search fields for an on-demand metadata match. Every field is
+optional: a value the user supplies *overrides* what Longbox would otherwise
+derive from the item's stored metadata or parsed filename, while a `None`
+field falls back to that automatic derivation. Reused by both the media
+(issue) and series fetch mutations, so callers can refine a bad auto-match
+(e.g. a filename the parser split wrong) instead of being stuck with it.
+"""
+input MetadataSearchInput {
+	"""
+	Series / book title to search for. On a media search this overrides both
+	the free-text title term and the `series_name` signal, so every provider
+	honors it (ComicVine matches on series name, Metron on the title term).
+	"""
+	title: String
+	"Issue number to search for (media search only; ignored for series)."
+	number: String
+	"Release / cover year, used to disambiguate same-named results."
+	year: Int
+	"Publisher, used to disambiguate same-named results (media search only)."
+	publisher: String
+}
+
 type MissingEntity {
 	id: String!
 	path: String!
@@ -1988,8 +2011,14 @@ type Mutation {
 	"""
 	updateMediaThumbnail(id: ID!, input: PageBasedThumbnailInput!): Media!
 	updateMediaMetadata(id: ID!, input: MediaMetadataInput!): Media!
-	"Search external metadata providers for a media item and return match candidates"
-	fetchMediaMetadata(id: ID!): [MatchCandidate!]!
+	"""
+	Search external metadata providers for a media item and return match candidates.
+	
+	`query` optionally overrides the auto-derived search fields (see
+	[`MetadataSearchInput`]); omitting it preserves the original behavior of
+	searching by the item's stored metadata / parsed filename.
+	"""
+	fetchMediaMetadata(id: ID!, query: MetadataSearchInput): [MatchCandidate!]!
 	"Accept a match candidate and apply it to media metadata"
 	acceptMediaMatch(mediaId: ID!, candidateIndex: Int!, strategy: MergeStrategy, excludeFields: [MetadataField!], overrides: [MetadataFieldOverride!]): MetadataFetchRecord!
 	"Reject the current match candidates for a media item"
@@ -1998,8 +2027,14 @@ type Mutation {
 	setMediaLockedFields(mediaId: ID!, lockedFields: [MetadataField!]!): Media!
 	updateSeriesMetadata(id: ID!, input: SeriesMetadataInput!): Series!
 	resetSeriesMetadata(id: ID!, impact: MetadataResetImpact!): Series!
-	"Search external metadata providers for a series and return match candidates"
-	fetchSeriesMetadata(id: ID!): [MatchCandidate!]!
+	"""
+	Search external metadata providers for a series and return match candidates.
+	
+	`query` optionally overrides the search term (series title) and year;
+	omitting it preserves the original behavior of searching by the series'
+	stored title / name.
+	"""
+	fetchSeriesMetadata(id: ID!, query: MetadataSearchInput): [MatchCandidate!]!
 	"Accept a match candidate and apply it to the series metadata"
 	acceptSeriesMatch(seriesId: ID!, candidateIndex: Int!, strategy: MergeStrategy, excludeFields: [MetadataField!], overrides: [MetadataFieldOverride!]): MetadataFetchRecord!
 	"Reject the current match candidates for a series"
@@ -2485,6 +2520,21 @@ input Pagination @oneOf {
 
 union PaginationInfo = CursorPaginationInfo | OffsetPaginationInfo
 
+"""
+The best-effort `{series, number, year}` heuristically parsed from a raw
+comic filename, used to pre-fill the editable metadata-search fields so the
+same parser that drives auto-matching also seeds the manual UI (no duplicated
+parsing logic on the frontend).
+"""
+type ParsedComicFilename {
+	"Series name, with the trailing issue number and bracketed cruft removed."
+	series: String
+	"Issue number, normalized (\"001\" → \"1\", \"1.MU\" preserved)."
+	number: String
+	"A 4-digit release year found in a bracketed group (1900–2099)."
+	year: Int
+}
+
 input PatchEmailDeviceInput {
 	name: String
 	email: String
@@ -2667,6 +2717,12 @@ type Query {
 	metadataProviderConfigs: [MetadataProviderConfigModel!]!
 	metadataProviderConfigById(id: Int!): MetadataProviderConfigModel
 	metadataFetchRecord(id: MetadataFetchRecordId!): MetadataFetchRecord
+	"""
+	Parse a raw comic filename into a best-effort `{series, number, year}` to
+	pre-fill the on-demand metadata-search fields. Pure and heuristic — it
+	reads no database rows or secrets, so a lightweight read guard suffices.
+	"""
+	parseComicFilename(name: String!): ParsedComicFilename!
 	"Return all metadata fetch records that are awaiting user review."
 	pendingMetadataMatches: [MetadataFetchRecord!]!
 	serverConfig: ServerConfigModel!

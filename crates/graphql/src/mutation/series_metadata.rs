@@ -12,7 +12,7 @@ use sea_orm::{prelude::*, sea_query::Query, IntoActiveModel, Set, TransactionTra
 use crate::{
 	data::{AuthContext, CoreContext},
 	guard::PermissionGuard,
-	input::series::SeriesMetadataInput,
+	input::{metadata_provider::MetadataSearchInput, series::SeriesMetadataInput},
 	object::{metadata_fetch_record::MetadataFetchRecord, series::Series},
 };
 
@@ -121,12 +121,17 @@ impl SeriesMetadataMutation {
 		Ok(model.into())
 	}
 
-	/// Search external metadata providers for a series and return match candidates
+	/// Search external metadata providers for a series and return match candidates.
+	///
+	/// `query` optionally overrides the search term (series title) and year;
+	/// omitting it preserves the original behavior of searching by the series'
+	/// stored title / name.
 	#[graphql(guard = "PermissionGuard::one(UserPermission::MetadataFetchRecordManage)")]
 	async fn fetch_series_metadata(
 		&self,
 		ctx: &Context<'_>,
 		id: ID,
+		query: Option<MetadataSearchInput>,
 	) -> Result<Vec<MatchCandidate>> {
 		let AuthContext { .. } = ctx.data::<AuthContext>()?;
 		let core_ctx = ctx.data::<CoreContext>()?;
@@ -142,16 +147,22 @@ impl SeriesMetadataMutation {
 		let encryption_key = core_ctx.get_encryption_key().await?;
 		let provider_cache = ProviderClientCache::new(encryption_key);
 
-		let search_name = model
-			.metadata
-			.as_ref()
-			.and_then(|m| m.title.clone())
-			.unwrap_or_else(|| model.series.name.clone());
+		let title_override = query.as_ref().and_then(|q| q.title_override());
+		let year_override = query.as_ref().and_then(|q| q.year);
+
+		let search_name = title_override.unwrap_or_else(|| {
+			model
+				.metadata
+				.as_ref()
+				.and_then(|m| m.title.clone())
+				.unwrap_or_else(|| model.series.name.clone())
+		});
 
 		let candidates = longbox_core::filesystem::metadata::fetch_series_metadata(
 			conn,
 			&model.series.id,
 			&search_name,
+			year_override,
 			&provider_cache,
 		)
 		.await?;
