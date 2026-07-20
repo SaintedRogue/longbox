@@ -1,5 +1,5 @@
 import { useGraphQL, useSDK } from '@longbox/client'
-import { Dialog } from '@longbox/components'
+import { Dialog, Text } from '@longbox/components'
 import { graphql, MetadataProvider } from '@longbox/graphql'
 import { useLocaleContext } from '@longbox/i18n'
 import { useCallback, useMemo } from 'react'
@@ -91,6 +91,14 @@ export default function OrganizeSeriesMatchDialog({
 		{ enabled: open },
 	)
 
+	// Gate mounting `MetadataSearchPanel` on the query having resolved — same
+	// shape as `ProviderMatchDialog`'s `hasContext` gate. Without this, the
+	// panel mounts on a cold open with `providers` still `[]`, its lazy
+	// `useState` default locks in as `''`, and a search with no provider
+	// selected falls through to "all enabled providers" — including Metron,
+	// which must only ever be contacted by explicit user choice.
+	const providersLoaded = !!providersData
+
 	const providers = useMemo(
 		() =>
 			(providersData?.metadataProviderConfigs ?? [])
@@ -160,13 +168,19 @@ export default function OrganizeSeriesMatchDialog({
 					<Dialog.Close />
 				</Dialog.Header>
 				<div className="min-h-0 flex-1 overflow-y-auto">
-					<MetadataSearchPanel
-						kind="series"
-						seed={{ title: seed.title, year: seed.year }}
-						providers={providers}
-						onSearch={runSearch}
-						onSelect={handleSelect}
-					/>
+					{providersLoaded ? (
+						<MetadataSearchPanel
+							kind="series"
+							seed={{ title: seed.title, year: seed.year }}
+							providers={providers}
+							onSearch={runSearch}
+							onSelect={handleSelect}
+						/>
+					) : (
+						<Text size="sm" variant="muted" className="py-10 text-center">
+							Loading providers…
+						</Text>
+					)}
 				</div>
 			</Dialog.Content>
 		</Dialog>
