@@ -1,6 +1,7 @@
 /* eslint-disable react/prop-types */
 import { UseDirectoryListingFile } from '@longbox/client'
-import { cn, Text } from '@longbox/components'
+import { cn, ContextMenu, Text } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 import {
 	createColumnHelper,
 	flexRender,
@@ -39,8 +40,9 @@ const baseColumns = [
 ]
 
 export default function FileTable() {
-	const { files, onSelect, loadMore } = useFileExplorerContext()
+	const { files, onSelect, onOrganize, canOrganize, loadMore } = useFileExplorerContext()
 	const { innerWidth } = useWindowSize()
+	const { t } = useLocaleContext()
 
 	const [sorting, setSorting] = useState<SortingState>([])
 
@@ -49,15 +51,38 @@ export default function FileTable() {
 			[
 				...baseColumns.slice(0, 1),
 				columnHelper.accessor('name', {
-					cell: ({ row: { original: file }, getValue }) => (
-						<Text
-							size="sm"
-							className="cursor-pointer hover:underline"
-							onClick={() => onSelect(file)}
-						>
-							{getValue()}
-						</Text>
-					),
+					cell: ({ row: { original: file }, getValue }) => {
+						const name = (
+							<Text
+								size="sm"
+								className="cursor-pointer hover:underline"
+								onClick={() => onSelect(file)}
+							>
+								{getValue()}
+							</Text>
+						)
+
+						if (!canOrganize) {
+							return name
+						}
+
+						return (
+							<ContextMenu
+								groups={[
+									{
+										items: [
+											{
+												label: t('fileExplorer.contextMenu.organize'),
+												onClick: () => onOrganize({ path: file.path, name: file.name }),
+											},
+										],
+									},
+								]}
+							>
+								{name}
+							</ContextMenu>
+						)
+					},
 					header: () => (
 						<Text size="sm" variant="secondary">
 							Name
@@ -71,7 +96,7 @@ export default function FileTable() {
 				// which is obviously not what we want
 				enableSorting: false,
 			})),
-		[onSelect, innerWidth],
+		[onSelect, onOrganize, canOrganize, t, innerWidth],
 	)
 
 	const table = useReactTable({
