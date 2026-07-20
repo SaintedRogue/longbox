@@ -467,7 +467,7 @@ export type ConfidenceFactor = {
 /** An event that is emitted by the core and consumed by a client */
 export type CoreEvent = CreatedManySeries | CreatedMedia | CreatedOrUpdatedManyMedia | DiscoveredMissingLibrary | JobOutput | JobStarted | JobUpdate;
 
-export type CoreJobOutput = AnalyzeMediaOutput | LibraryScanOutput | MetadataFetchJobOutput | PlaceholderGenerationOutput | SeriesScanOutput | ThumbnailGenerationOutput;
+export type CoreJobOutput = AnalyzeMediaOutput | LibraryScanOutput | MetadataFetchJobOutput | OrganizeLooseFilesOutput | PlaceholderGenerationOutput | SeriesScanOutput | ThumbnailGenerationOutput;
 
 export type CreateAnnotationInput = {
   annotationText?: InputMaybe<Scalars['String']['input']>;
@@ -1188,6 +1188,7 @@ export type LibraryStatsArgs = {
 
 export type LibraryConfig = {
   __typename?: 'LibraryConfig';
+  autoOrganizeLooseFiles: Scalars['Boolean']['output'];
   convertRarToZip: Scalars['Boolean']['output'];
   defaultLibraryViewMode: LibraryViewMode;
   defaultReadingDir: ReadingDirection;
@@ -1211,6 +1212,7 @@ export type LibraryConfig = {
 };
 
 export type LibraryConfigInput = {
+  autoOrganizeLooseFiles?: Scalars['Boolean']['input'];
   convertRarToZip: Scalars['Boolean']['input'];
   defaultLibraryViewMode: LibraryViewMode;
   defaultReadingDir: ReadingDirection;
@@ -2083,6 +2085,8 @@ export type Mutation = {
   analyzeLibrary: Scalars['Boolean']['output'];
   analyzeMedia: Scalars['Boolean']['output'];
   analyzeSeries: Scalars['Boolean']['output'];
+  /** Enqueue a job that applies the given organize decisions (moves files). */
+  applyOrganizeLooseFiles: Scalars['Boolean']['output'];
   /** Archive or unarchive a discussion (Moderator+) */
   archiveDiscussion: Scalars['Boolean']['output'];
   cancelJob: Scalars['Boolean']['output'];
@@ -2248,6 +2252,8 @@ export type Mutation = {
   patchEmailDevice: RegisteredEmailDevice;
   /** Pin or unpin a message (Moderator+) */
   pinMessage: Scalars['Boolean']['output'];
+  /** Enqueue a job that scans for loose files and builds an organize preview. */
+  planOrganizeLooseFiles: Scalars['Boolean']['output'];
   processLibraryThumbnails: Scalars['Boolean']['output'];
   /** Reject all pending metadata matches, setting their status to NoMatch */
   rejectAllPendingMatches: Scalars['Int']['output'];
@@ -2465,6 +2471,12 @@ export type MutationAnalyzeMediaArgs = {
 export type MutationAnalyzeSeriesArgs = {
   forceReanalysis?: Scalars['Boolean']['input'];
   id: Scalars['ID']['input'];
+};
+
+
+export type MutationApplyOrganizeLooseFilesArgs = {
+  decisions: Array<OrganizeDecisionInput>;
+  libraryId: Scalars['ID']['input'];
 };
 
 
@@ -2817,6 +2829,11 @@ export type MutationPatchEmailDeviceArgs = {
 export type MutationPinMessageArgs = {
   messageId: Scalars['ID']['input'];
   pinned: Scalars['Boolean']['input'];
+};
+
+
+export type MutationPlanOrganizeLooseFilesArgs = {
+  libraryId: Scalars['ID']['input'];
 };
 
 
@@ -3303,6 +3320,62 @@ export enum OrderDirection {
   Desc = 'DESC'
 }
 
+export enum OrganizeBucket {
+  Ambiguous = 'AMBIGUOUS',
+  Confident = 'CONFIDENT',
+  Unmatched = 'UNMATCHED'
+}
+
+export type OrganizeDecisionInput = {
+  canonicalName?: InputMaybe<Scalars['String']['input']>;
+  externalId?: InputMaybe<Scalars['String']['input']>;
+  provider?: InputMaybe<Scalars['String']['input']>;
+  /** Existing series to merge into (optional). */
+  seriesId?: InputMaybe<Scalars['String']['input']>;
+  /** When true, skip this file (leave it in place). */
+  skip?: Scalars['Boolean']['input'];
+  /** Absolute source path of the file to organize. */
+  src: Scalars['String']['input'];
+  year?: InputMaybe<Scalars['Int']['input']>;
+};
+
+export type OrganizeLooseFilesOutput = {
+  __typename?: 'OrganizeLooseFilesOutput';
+  failed: Scalars['Int']['output'];
+  moved: Scalars['Int']['output'];
+  proposedMoves: Scalars['Int']['output'];
+  skipped: Scalars['Int']['output'];
+  unmatched: Scalars['Int']['output'];
+};
+
+export type OrganizePreview = {
+  __typename?: 'OrganizePreview';
+  proposedMoves: Array<OrganizeProposedMove>;
+  unmatched: Array<OrganizeUnmatchedFile>;
+};
+
+export type OrganizeProposedMove = {
+  __typename?: 'OrganizeProposedMove';
+  bucket: OrganizeBucket;
+  canonicalName: Scalars['String']['output'];
+  confidence: Scalars['Float']['output'];
+  dst: Scalars['String']['output'];
+  existingSeriesId?: Maybe<Scalars['String']['output']>;
+  externalId: Scalars['String']['output'];
+  mediaId?: Maybe<Scalars['String']['output']>;
+  provider: Scalars['String']['output'];
+  src: Scalars['String']['output'];
+  year?: Maybe<Scalars['Int']['output']>;
+};
+
+export type OrganizeUnmatchedFile = {
+  __typename?: 'OrganizeUnmatchedFile';
+  mediaId?: Maybe<Scalars['String']['output']>;
+  parsedSeries?: Maybe<Scalars['String']['output']>;
+  reason: Scalars['String']['output'];
+  src: Scalars['String']['output'];
+};
+
 export type PageBasedThumbnailInput = {
   /** A flag indicating whether the page is zero based (i.e. 0 is the first page) */
   isZeroBased?: InputMaybe<Scalars['Boolean']['input']>;
@@ -3595,6 +3668,8 @@ export type Query = {
   numberOfLibraries: Scalars['Int']['output'];
   numberOfSeries: Scalars['Int']['output'];
   onDeck: PaginatedMediaResponse;
+  /** The latest computed organize preview for a library, if any. */
+  organizePreview?: Maybe<OrganizePreview>;
   /**
    * Parse a raw comic filename into a best-effort `{series, number, year}` to
    * pre-fill the on-demand metadata-search fields. Pure and heuristic — it
@@ -3839,6 +3914,11 @@ export type QueryMetadataProviderConfigByIdArgs = {
 
 export type QueryOnDeckArgs = {
   pagination?: Pagination;
+};
+
+
+export type QueryOrganizePreviewArgs = {
+  libraryId: Scalars['ID']['input'];
 };
 
 
@@ -5364,7 +5444,7 @@ export type SeriesEditorSetLockedFieldsMutation = { __typename?: 'Mutation', set
 export type UseCoreEventSubscriptionVariables = Exact<{ [key: string]: never; }>;
 
 
-export type UseCoreEventSubscription = { __typename?: 'Subscription', readEvents: { __typename: 'CreatedManySeries', count: number, libraryId: string } | { __typename: 'CreatedMedia', id: string, seriesId: string } | { __typename: 'CreatedOrUpdatedManyMedia', count: number, seriesId: string } | { __typename: 'DiscoveredMissingLibrary', id: string } | { __typename: 'JobOutput', id: string, output: { __typename: 'AnalyzeMediaOutput' } | { __typename: 'LibraryScanOutput', createdMedia: number, createdSeries: number, updatedMedia: number, updatedSeries: number } | { __typename: 'MetadataFetchJobOutput' } | { __typename: 'PlaceholderGenerationOutput' } | { __typename: 'SeriesScanOutput', createdMedia: number, updatedMedia: number } | { __typename: 'ThumbnailGenerationOutput' } } | { __typename: 'JobStarted', id: string } | { __typename: 'JobUpdate', id: string, status?: JobStatus | null, message?: string | null, completedTasks?: number | null, remainingTasks?: number | null, completedSubtasks?: number | null, totalSubtasks?: number | null, subtitle?: string | null } };
+export type UseCoreEventSubscription = { __typename?: 'Subscription', readEvents: { __typename: 'CreatedManySeries', count: number, libraryId: string } | { __typename: 'CreatedMedia', id: string, seriesId: string } | { __typename: 'CreatedOrUpdatedManyMedia', count: number, seriesId: string } | { __typename: 'DiscoveredMissingLibrary', id: string } | { __typename: 'JobOutput', id: string, output: { __typename: 'AnalyzeMediaOutput' } | { __typename: 'LibraryScanOutput', createdMedia: number, createdSeries: number, updatedMedia: number, updatedSeries: number } | { __typename: 'MetadataFetchJobOutput' } | { __typename: 'OrganizeLooseFilesOutput', moved: number, proposedMoves: number } | { __typename: 'PlaceholderGenerationOutput' } | { __typename: 'SeriesScanOutput', createdMedia: number, updatedMedia: number } | { __typename: 'ThumbnailGenerationOutput' } } | { __typename: 'JobStarted', id: string } | { __typename: 'JobUpdate', id: string, status?: JobStatus | null, message?: string | null, completedTasks?: number | null, remainingTasks?: number | null, completedSubtasks?: number | null, totalSubtasks?: number | null, subtitle?: string | null } };
 
 export type UsePreferencesMutationVariables = Exact<{
   input: UpdateUserPreferencesInput;
@@ -5677,7 +5757,7 @@ export type LibrarySeriesGridQueryVariables = Exact<{
 
 export type LibrarySeriesGridQuery = { __typename?: 'Query', series: { __typename?: 'PaginatedSeriesResponse', nodes: Array<{ __typename?: 'Series', id: string, thumbnail: { __typename?: 'ImageRef', url: string } }>, pageInfo: { __typename: 'CursorPaginationInfo', currentCursor?: string | null, nextCursor?: string | null, limit: number } | { __typename: 'OffsetPaginationInfo' } } };
 
-export type LibrarySettingsConfigFragment = { __typename?: 'Library', config: { __typename?: 'LibraryConfig', id: number, convertRarToZip: boolean, hardDeleteConversions: boolean, defaultReadingDir: ReadingDirection, defaultReadingMode: ReadingMode, defaultReadingImageScaleFit: ReadingImageScaleFit, defaultLibraryViewMode: LibraryViewMode, hideSeriesView: boolean, skipBookOverview: boolean, generateFileHashes: boolean, generateKoreaderHashes: boolean, processMetadata: boolean, writeComicinfo: boolean, watch: boolean, libraryPattern: LibraryPattern, libraryType: LibraryType, processThumbnailColorsEvenWithoutConfig: boolean, ignoreRules?: Array<string> | null, thumbnailConfig?: { __typename: 'ImageProcessorOptions', format: SupportedImageFormat, quality?: number | null, page?: number | null, resizeMethod?: { __typename: 'ExactDimensionResize', width: number, height: number } | { __typename: 'FitWithinResize' } | { __typename: 'ScaleEvenlyByFactor', factor: any } | { __typename: 'ScaledDimensionResize', dimension: Dimension, size: number } | null } | null } } & { ' $fragmentName'?: 'LibrarySettingsConfigFragment' };
+export type LibrarySettingsConfigFragment = { __typename?: 'Library', config: { __typename?: 'LibraryConfig', id: number, convertRarToZip: boolean, hardDeleteConversions: boolean, defaultReadingDir: ReadingDirection, defaultReadingMode: ReadingMode, defaultReadingImageScaleFit: ReadingImageScaleFit, defaultLibraryViewMode: LibraryViewMode, hideSeriesView: boolean, skipBookOverview: boolean, generateFileHashes: boolean, generateKoreaderHashes: boolean, processMetadata: boolean, writeComicinfo: boolean, watch: boolean, autoOrganizeLooseFiles: boolean, libraryPattern: LibraryPattern, libraryType: LibraryType, processThumbnailColorsEvenWithoutConfig: boolean, ignoreRules?: Array<string> | null, thumbnailConfig?: { __typename: 'ImageProcessorOptions', format: SupportedImageFormat, quality?: number | null, page?: number | null, resizeMethod?: { __typename: 'ExactDimensionResize', width: number, height: number } | { __typename: 'FitWithinResize' } | { __typename: 'ScaleEvenlyByFactor', factor: any } | { __typename: 'ScaledDimensionResize', dimension: Dimension, size: number } | null } | null } } & { ' $fragmentName'?: 'LibrarySettingsConfigFragment' };
 
 export type LibrarySettingsRouterEditLibraryMutationMutationVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -5754,6 +5834,28 @@ export type InitFetchJobMutationVariables = Exact<{
 
 export type InitFetchJobMutation = { __typename?: 'Mutation', fetchLibraryMetadata: boolean };
 
+export type OrganizeLooseFilesPlanMutationVariables = Exact<{
+  libraryId: Scalars['ID']['input'];
+}>;
+
+
+export type OrganizeLooseFilesPlanMutation = { __typename?: 'Mutation', planOrganizeLooseFiles: boolean };
+
+export type OrganizeLooseFilesApplyMutationVariables = Exact<{
+  libraryId: Scalars['ID']['input'];
+  decisions: Array<OrganizeDecisionInput> | OrganizeDecisionInput;
+}>;
+
+
+export type OrganizeLooseFilesApplyMutation = { __typename?: 'Mutation', applyOrganizeLooseFiles: boolean };
+
+export type OrganizePreviewQueryVariables = Exact<{
+  libraryId: Scalars['ID']['input'];
+}>;
+
+
+export type OrganizePreviewQuery = { __typename?: 'Query', organizePreview?: { __typename?: 'OrganizePreview', proposedMoves: Array<{ __typename?: 'OrganizeProposedMove', src: string, dst: string, canonicalName: string, year?: number | null, externalId: string, provider: string, confidence: number, bucket: OrganizeBucket, existingSeriesId?: string | null }>, unmatched: Array<{ __typename?: 'OrganizeUnmatchedFile', src: string, parsedSeries?: string | null, reason: string }> } | null };
+
 export type ScanHistorySectionClearHistoryMutationVariables = Exact<{
   id: Scalars['ID']['input'];
 }>;
@@ -5774,7 +5876,7 @@ export type ScanRecordInspectorJobsQueryVariables = Exact<{
 }>;
 
 
-export type ScanRecordInspectorJobsQuery = { __typename?: 'Query', jobById?: { __typename?: 'Job', id: string, outputData?: { __typename: 'AnalyzeMediaOutput' } | { __typename: 'LibraryScanOutput', totalFiles: number, totalDirectories: number, ignoredFiles: number, skippedFiles: number, ignoredDirectories: number, createdMedia: number, updatedMedia: number, createdSeries: number, updatedSeries: number } | { __typename: 'MetadataFetchJobOutput' } | { __typename: 'PlaceholderGenerationOutput' } | { __typename: 'SeriesScanOutput' } | { __typename: 'ThumbnailGenerationOutput' } | null, logs?: Array<{ __typename?: 'Log', id: number }> } | null };
+export type ScanRecordInspectorJobsQuery = { __typename?: 'Query', jobById?: { __typename?: 'Job', id: string, outputData?: { __typename: 'AnalyzeMediaOutput' } | { __typename: 'LibraryScanOutput', totalFiles: number, totalDirectories: number, ignoredFiles: number, skippedFiles: number, ignoredDirectories: number, createdMedia: number, updatedMedia: number, createdSeries: number, updatedSeries: number } | { __typename: 'MetadataFetchJobOutput' } | { __typename: 'OrganizeLooseFilesOutput' } | { __typename: 'PlaceholderGenerationOutput' } | { __typename: 'SeriesScanOutput' } | { __typename: 'ThumbnailGenerationOutput' } | null, logs?: Array<{ __typename?: 'Log', id: number }> } | null };
 
 export type DeleteLibraryThumbnailsMutationVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -6162,13 +6264,15 @@ type JobDataInspector_LibraryScanOutput_Fragment = { __typename: 'LibraryScanOut
 
 type JobDataInspector_MetadataFetchJobOutput_Fragment = { __typename: 'MetadataFetchJobOutput' } & { ' $fragmentName'?: 'JobDataInspector_MetadataFetchJobOutput_Fragment' };
 
+type JobDataInspector_OrganizeLooseFilesOutput_Fragment = { __typename: 'OrganizeLooseFilesOutput' } & { ' $fragmentName'?: 'JobDataInspector_OrganizeLooseFilesOutput_Fragment' };
+
 type JobDataInspector_PlaceholderGenerationOutput_Fragment = { __typename: 'PlaceholderGenerationOutput' } & { ' $fragmentName'?: 'JobDataInspector_PlaceholderGenerationOutput_Fragment' };
 
 type JobDataInspector_SeriesScanOutput_Fragment = { __typename: 'SeriesScanOutput', totalFiles: number, ignoredFiles: number, skippedFiles: number, createdMedia: number, updatedMedia: number } & { ' $fragmentName'?: 'JobDataInspector_SeriesScanOutput_Fragment' };
 
 type JobDataInspector_ThumbnailGenerationOutput_Fragment = { __typename: 'ThumbnailGenerationOutput', visitedFiles: number, skippedFiles: number, generatedThumbnails: number, removedThumbnails: number } & { ' $fragmentName'?: 'JobDataInspector_ThumbnailGenerationOutput_Fragment' };
 
-export type JobDataInspectorFragment = JobDataInspector_AnalyzeMediaOutput_Fragment | JobDataInspector_LibraryScanOutput_Fragment | JobDataInspector_MetadataFetchJobOutput_Fragment | JobDataInspector_PlaceholderGenerationOutput_Fragment | JobDataInspector_SeriesScanOutput_Fragment | JobDataInspector_ThumbnailGenerationOutput_Fragment;
+export type JobDataInspectorFragment = JobDataInspector_AnalyzeMediaOutput_Fragment | JobDataInspector_LibraryScanOutput_Fragment | JobDataInspector_MetadataFetchJobOutput_Fragment | JobDataInspector_OrganizeLooseFilesOutput_Fragment | JobDataInspector_PlaceholderGenerationOutput_Fragment | JobDataInspector_SeriesScanOutput_Fragment | JobDataInspector_ThumbnailGenerationOutput_Fragment;
 
 export type ScheduledJobsQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -6199,6 +6303,9 @@ export type JobTableQuery = { __typename?: 'Query', jobs: { __typename?: 'Pagina
       ) | (
         { __typename?: 'MetadataFetchJobOutput' }
         & { ' $fragmentRefs'?: { 'JobDataInspector_MetadataFetchJobOutput_Fragment': JobDataInspector_MetadataFetchJobOutput_Fragment } }
+      ) | (
+        { __typename?: 'OrganizeLooseFilesOutput' }
+        & { ' $fragmentRefs'?: { 'JobDataInspector_OrganizeLooseFilesOutput_Fragment': JobDataInspector_OrganizeLooseFilesOutput_Fragment } }
       ) | (
         { __typename?: 'PlaceholderGenerationOutput' }
         & { ' $fragmentRefs'?: { 'JobDataInspector_PlaceholderGenerationOutput_Fragment': JobDataInspector_PlaceholderGenerationOutput_Fragment } }
@@ -6873,6 +6980,7 @@ export const LibrarySettingsConfigFragmentDoc = new TypedDocumentString(`
     processMetadata
     writeComicinfo
     watch
+    autoOrganizeLooseFiles
     libraryPattern
     libraryType
     thumbnailConfig {
@@ -8264,6 +8372,10 @@ export const UseCoreEventDocument = new TypedDocumentString(`
           createdMedia
           updatedMedia
         }
+        ... on OrganizeLooseFilesOutput {
+          moved
+          proposedMoves
+        }
       }
     }
   }
@@ -8952,6 +9064,7 @@ export const LibraryLayoutDocument = new TypedDocumentString(`
     processMetadata
     writeComicinfo
     watch
+    autoOrganizeLooseFiles
     libraryPattern
     libraryType
     thumbnailConfig {
@@ -9233,6 +9346,38 @@ export const InitFetchJobDocument = new TypedDocumentString(`
   fetchLibraryMetadata(id: $id)
 }
     `) as unknown as TypedDocumentString<InitFetchJobMutation, InitFetchJobMutationVariables>;
+export const OrganizeLooseFilesPlanDocument = new TypedDocumentString(`
+    mutation OrganizeLooseFilesPlan($libraryId: ID!) {
+  planOrganizeLooseFiles(libraryId: $libraryId)
+}
+    `) as unknown as TypedDocumentString<OrganizeLooseFilesPlanMutation, OrganizeLooseFilesPlanMutationVariables>;
+export const OrganizeLooseFilesApplyDocument = new TypedDocumentString(`
+    mutation OrganizeLooseFilesApply($libraryId: ID!, $decisions: [OrganizeDecisionInput!]!) {
+  applyOrganizeLooseFiles(libraryId: $libraryId, decisions: $decisions)
+}
+    `) as unknown as TypedDocumentString<OrganizeLooseFilesApplyMutation, OrganizeLooseFilesApplyMutationVariables>;
+export const OrganizePreviewDocument = new TypedDocumentString(`
+    query OrganizePreview($libraryId: ID!) {
+  organizePreview(libraryId: $libraryId) {
+    proposedMoves {
+      src
+      dst
+      canonicalName
+      year
+      externalId
+      provider
+      confidence
+      bucket
+      existingSeriesId
+    }
+    unmatched {
+      src
+      parsedSeries
+      reason
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<OrganizePreviewQuery, OrganizePreviewQueryVariables>;
 export const ScanHistorySectionClearHistoryDocument = new TypedDocumentString(`
     mutation ScanHistorySectionClearHistory($id: ID!) {
   clearScanHistory(id: $id)

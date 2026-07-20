@@ -72,6 +72,8 @@ pub struct LibraryConfigInput {
 	pub skip_book_overview: bool,
 	pub thumbnail_config: Option<ImageProcessorOptions>,
 	pub process_thumbnail_colors_even_without_config: bool,
+	#[graphql(default)]
+	pub auto_organize_loose_files: bool,
 	pub default_reading_dir: ReadingDirection,
 	pub default_reading_mode: ReadingMode,
 	pub default_reading_image_scale_fit: ReadingImageScaleFit,
@@ -95,6 +97,7 @@ impl LibraryConfigInput {
 			skip_book_overview,
 			thumbnail_config,
 			process_thumbnail_colors_even_without_config,
+			auto_organize_loose_files,
 			default_reading_dir,
 			default_reading_mode,
 			default_reading_image_scale_fit,
@@ -123,6 +126,7 @@ impl LibraryConfigInput {
 			process_thumbnail_colors_even_without_config: Set(
 				process_thumbnail_colors_even_without_config,
 			),
+			auto_organize_loose_files: Set(auto_organize_loose_files),
 			default_reading_dir: Set(default_reading_dir),
 			default_reading_mode: Set(default_reading_mode),
 			default_reading_image_scale_fit: Set(default_reading_image_scale_fit),

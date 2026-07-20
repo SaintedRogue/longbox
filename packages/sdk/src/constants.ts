@@ -32,6 +32,7 @@ export const cacheKeys = {
 	recentlyAddedMedia: 'recentlyAddedMedia',
 	media: 'media',
 	mediaById: 'mediaById',
+	organizePreview: 'organizePreview',
 	apiKeys: 'apiKeys',
 	logs: 'logs',
 	jobs: 'jobs',

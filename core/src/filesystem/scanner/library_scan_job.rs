@@ -307,6 +307,26 @@ impl JobLifecycle for LibraryScanJob {
 			tracing::error!(error = ?error, "Failed to handle scan completion");
 		}
 
+		// Opt-in: auto-organize loose files using cached matches only. `finalize` is
+		// only invoked after `init` and every task succeed (see job/run.rs), so this
+		// fires at most once per scan and only on a normal successful completion.
+		let auto_organize = self
+			.config
+			.as_ref()
+			.map(|c| c.auto_organize_loose_files)
+			.unwrap_or(false);
+		if auto_organize {
+			if let Err(error) = ctx
+				.enqueue(LongboxJob::organize_loose_files(
+					self.id.clone(),
+					crate::filesystem::organizer::OrganizeMode::AutoScan,
+				))
+				.await
+			{
+				tracing::error!(?error, "Failed to enqueue auto-organize job");
+			}
+		}
+
 		match image_options {
 			Some(options) if did_create || did_update => {
 				tracing::trace!("Thumbnail generation job should be enqueued");

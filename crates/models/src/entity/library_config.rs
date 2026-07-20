@@ -47,6 +47,8 @@ pub struct Model {
 	pub thumbnail_config: Option<ImageProcessorOptions>,
 	#[sea_orm(default_value = "false")]
 	pub process_thumbnail_colors_even_without_config: bool,
+	#[sea_orm(default_value = "false")]
+	pub auto_organize_loose_files: bool,
 	#[sea_orm(column_type = "Json", nullable)]
 	#[graphql(skip)]
 	pub ignore_rules: Option<IgnoreRules>,
@@ -156,6 +158,10 @@ impl ActiveModelBehavior for ActiveModel {
 			.is_not_set()
 		{
 			self.process_thumbnail_colors_even_without_config = Set(false);
+		}
+
+		if self.auto_organize_loose_files.is_not_set() {
+			self.auto_organize_loose_files = Set(false);
 		}
 
 		Ok(self)

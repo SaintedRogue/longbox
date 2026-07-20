@@ -411,7 +411,7 @@ type ConfidenceFactor {
 "An event that is emitted by the core and consumed by a client"
 union CoreEvent = JobStarted | JobUpdate | JobOutput | DiscoveredMissingLibrary | CreatedMedia | CreatedManySeries | CreatedOrUpdatedManyMedia
 
-union CoreJobOutput = LibraryScanOutput | SeriesScanOutput | ThumbnailGenerationOutput | PlaceholderGenerationOutput | MetadataFetchJobOutput | AnalyzeMediaOutput
+union CoreJobOutput = LibraryScanOutput | SeriesScanOutput | ThumbnailGenerationOutput | PlaceholderGenerationOutput | MetadataFetchJobOutput | AnalyzeMediaOutput | OrganizeLooseFilesOutput
 
 input CreateAnnotationInput {
 	mediaId: String!
@@ -1109,6 +1109,7 @@ type LibraryConfig {
 	libraryType: LibraryType!
 	skipBookOverview: Boolean!
 	processThumbnailColorsEvenWithoutConfig: Boolean!
+	autoOrganizeLooseFiles: Boolean!
 	libraryId: String
 	thumbnailConfig: ImageProcessorOptions
 	ignoreRules: [String!]
@@ -1129,6 +1130,7 @@ input LibraryConfigInput {
 	skipBookOverview: Boolean!
 	thumbnailConfig: ImageProcessorOptionsInput
 	processThumbnailColorsEvenWithoutConfig: Boolean!
+	autoOrganizeLooseFiles: Boolean! = false
 	defaultReadingDir: ReadingDirection!
 	defaultReadingMode: ReadingMode!
 	defaultReadingImageScaleFit: ReadingImageScaleFit!
@@ -2180,6 +2182,10 @@ type Mutation {
 	implement multipart uploads for
 	"""
 	uploadMediaThumbnailBase64(id: ID!, image: String!): Media!
+	"Enqueue a job that scans for loose files and builds an organize preview."
+	planOrganizeLooseFiles(libraryId: ID!): Boolean!
+	"Enqueue a job that applies the given organize decisions (moves files)."
+	applyOrganizeLooseFiles(libraryId: ID!, decisions: [OrganizeDecisionInput!]!): Boolean!
 	deleteLoginActivity: Int!
 	"""
 	Upload an avatar image for either the authenticated viewer or for any user if
@@ -2420,6 +2426,58 @@ type OffsetPaginationInfo {
 enum OrderDirection {
 	ASC
 	DESC
+}
+
+enum OrganizeBucket {
+	CONFIDENT
+	AMBIGUOUS
+	UNMATCHED
+}
+
+input OrganizeDecisionInput {
+	"Absolute source path of the file to organize."
+	src: String!
+	"When true, skip this file (leave it in place)."
+	skip: Boolean! = false
+	"Existing series to merge into (optional)."
+	seriesId: String
+	canonicalName: String
+	year: Int
+	externalId: String
+	provider: String
+}
+
+type OrganizeLooseFilesOutput {
+	proposedMoves: Int!
+	unmatched: Int!
+	moved: Int!
+	skipped: Int!
+	failed: Int!
+}
+
+type OrganizePreview {
+	proposedMoves: [OrganizeProposedMove!]!
+	unmatched: [OrganizeUnmatchedFile!]!
+}
+
+type OrganizeProposedMove {
+	mediaId: String
+	src: String!
+	dst: String!
+	canonicalName: String!
+	year: Int
+	externalId: String!
+	provider: String!
+	confidence: Float!
+	bucket: OrganizeBucket!
+	existingSeriesId: String
+}
+
+type OrganizeUnmatchedFile {
+	mediaId: String
+	src: String!
+	parsedSeries: String
+	reason: String!
 }
 
 input PageBasedThumbnailInput {
@@ -2694,6 +2752,8 @@ type Query {
 	"Returns a list of all tags."
 	tags: [Tag!]!
 	mediaMetadataOverview(seriesId: ID): MediaMetadataOverview!
+	"The latest computed organize preview for a library, if any."
+	organizePreview(libraryId: ID!): OrganizePreview
 	me: User!
 	userCount: Int!
 	topReaders(take: Int): [User!]!

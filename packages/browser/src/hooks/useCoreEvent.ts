@@ -54,6 +54,10 @@ const subscription = graphql(`
 						createdMedia
 						updatedMedia
 					}
+					... on OrganizeLooseFilesOutput {
+						moved
+						proposedMoves
+					}
 				}
 			}
 		}
@@ -188,12 +192,19 @@ const handleJobOutput = async (
 		.with({ __typename: 'SeriesScanOutput' }, () => affectedBooks)
 		.otherwise(() => 0)
 
+	const organizedMoved = match(output)
+		.with({ __typename: 'OrganizeLooseFilesOutput' }, ({ moved }) => moved)
+		.otherwise(() => 0)
+	const isOrganize = output.__typename === 'OrganizeLooseFilesOutput'
+
 	const keys = [
 		sdk.cacheKeys.scanHistory,
 		sdk.cacheKeys.getStats,
 		'missingEntities', // TODO: Put behind key?
 		...(affectedBooks > 0 ? [sdk.cacheKeys.recentlyAddedMedia, sdk.cacheKeys.media] : []),
 		...(affectedSeries > 0 ? [sdk.cacheKeys.recentlyAddedSeries, sdk.cacheKeys.series] : []),
+		...(isOrganize ? [sdk.cacheKeys.organizePreview] : []),
+		...(organizedMoved > 0 ? [sdk.cacheKeys.media, sdk.cacheKeys.series] : []),
 	] as string[]
 
 	await client.invalidateQueries({

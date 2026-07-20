@@ -2,6 +2,7 @@ import { UserPermission } from '@longbox/graphql'
 import {
 	BookOpenText,
 	FlaskRound,
+	FolderTree,
 	Image,
 	NotebookTabs,
 	PackageX,
@@ -47,6 +48,13 @@ export const routeGroups: RouteGroup[] = [
 				localeKey: 'options/thumbnails',
 				permissions: [UserPermission.ManageLibrary],
 				to: 'settings/thumbnails',
+			},
+			{
+				icon: FolderTree,
+				label: 'Organize',
+				localeKey: 'options/organize',
+				permissions: [UserPermission.ManageLibrary],
+				to: 'settings/organize',
 			},
 		],
 		label: 'Configuration',

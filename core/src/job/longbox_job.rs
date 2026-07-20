@@ -4,6 +4,7 @@ use crate::filesystem::{
 	image::{PlaceholderGenerationJobConfig, ThumbnailGenerationJobParams},
 	media::analysis::AnalysisJobConfig,
 	metadata::MetadataFetchJobParams,
+	organizer::OrganizeMode,
 	scanner::ScanOptions,
 };
 
@@ -40,6 +41,10 @@ pub enum LongboxJob {
 	AnalyzeMedia {
 		config: AnalysisJobConfig,
 	},
+	OrganizeLooseFiles {
+		library_id: String,
+		mode: OrganizeMode,
+	},
 }
 
 impl LongboxJob {
@@ -52,6 +57,7 @@ impl LongboxJob {
 			LongboxJob::PlaceholderGeneration { .. } => "placeholder_generation",
 			LongboxJob::MetadataFetch { .. } => "metadata_fetch",
 			LongboxJob::AnalyzeMedia { .. } => "analyze_media",
+			LongboxJob::OrganizeLooseFiles { .. } => "organize_loose_files",
 		}
 	}
 
@@ -72,6 +78,9 @@ impl LongboxJob {
 			},
 			LongboxJob::AnalyzeMedia { config } => {
 				Some(format!("Analyze media: {:?}", config.scope))
+			},
+			LongboxJob::OrganizeLooseFiles { library_id, .. } => {
+				Some(format!("Organize loose files: {library_id}"))
 			},
 		}
 	}
@@ -101,5 +110,9 @@ impl LongboxJob {
 
 	pub fn analyze_media(config: AnalysisJobConfig) -> Self {
 		LongboxJob::AnalyzeMedia { config }
+	}
+
+	pub fn organize_loose_files(library_id: String, mode: OrganizeMode) -> Self {
+		LongboxJob::OrganizeLooseFiles { library_id, mode }
 	}
 }
