@@ -271,6 +271,7 @@ mod tests {
 			write_comicinfo: false,
 			thumbnail_config: None,
 			process_thumbnail_colors_even_without_config: false,
+			auto_organize_loose_files: false,
 			watch: false,
 			default_library_view_mode: LibraryViewMode::Series,
 			hide_series_view: false,
