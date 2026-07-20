@@ -87,10 +87,20 @@ async fn resolve_series(
 	if let Some(id) = explicit_series_id {
 		return Ok(id.to_string());
 	}
-	// Merge by external id.
-	if let Some(ext) = external_id {
+	// Merge by external id, scoped to this library (`metadata_external_id` is not
+	// unique across libraries, so an unscoped lookup could return another
+	// library's series and silently merge unrelated content).
+	if let Some(ext) = external_id.filter(|e| !e.is_empty()) {
+		let library_series_ids: Vec<String> = series::Entity::find()
+			.filter(series::Column::LibraryId.eq(library_id.to_owned()))
+			.all(txn)
+			.await?
+			.into_iter()
+			.map(|s| s.id)
+			.collect();
 		if let Some(meta) = series_metadata::Entity::find()
 			.filter(series_metadata::Column::MetadataExternalId.eq(ext.to_owned()))
+			.filter(series_metadata::Column::SeriesId.is_in(library_series_ids))
 			.one(txn)
 			.await?
 		{
@@ -169,6 +179,7 @@ pub async fn apply_plan(
 ) -> CoreResult<ApplyResult> {
 	let root = Path::new(library_path);
 	let mut result = ApplyResult::default();
+	let root_canon = std::fs::canonicalize(library_path).ok();
 
 	for decision in decisions {
 		let DecisionAction::Move {
@@ -184,6 +195,25 @@ pub async fn apply_plan(
 		};
 
 		let src = PathBuf::from(&decision.src);
+
+		// Security: only organize files that resolve to a real path inside the
+		// library root. `decision.src` is client-supplied, so a missing root, a
+		// non-existent file, or any path that escapes the root (`..`, symlink,
+		// another library) is refused rather than moved.
+		let within_library = match (&root_canon, std::fs::canonicalize(&src)) {
+			(Some(root), Ok(src_canon)) => src_canon.starts_with(root),
+			_ => false,
+		};
+		if !within_library {
+			tracing::error!(
+				?src,
+				library_path,
+				"Refusing to organize a file outside the library root"
+			);
+			result.failed += 1;
+			continue;
+		}
+
 		let Some(file_name) = src.file_name() else {
 			result.failed += 1;
 			continue;
@@ -461,5 +491,115 @@ mod tests {
 			.unwrap()
 			.unwrap();
 		assert_eq!(reloaded.series_id.as_deref(), Some(target.id.as_str()));
+	}
+
+	#[tokio::test]
+	async fn apply_refuses_src_outside_library_root() {
+		let db = ::tests::db::test_database().await;
+		let lib_root = tempfile::tempdir().unwrap();
+		let outside = tempfile::tempdir().unwrap();
+		let evil_src = outside.path().join("secret.cbz");
+		std::fs::write(&evil_src, b"secret").unwrap();
+
+		let result = apply_plan(
+			&db,
+			"lib-1",
+			lib_root.path().to_str().unwrap(),
+			vec![OrganizeDecision {
+				src: evil_src.to_string_lossy().to_string(),
+				action: DecisionAction::Move {
+					series_id: None,
+					canonical_name: "Batman".to_string(),
+					year: Some(2016),
+					external_id: None,
+					provider: None,
+				},
+			}],
+		)
+		.await
+		.unwrap();
+
+		assert_eq!(result.moved, 0);
+		assert_eq!(result.failed, 1);
+		assert!(
+			evil_src.exists(),
+			"a file outside the library root must never be moved"
+		);
+	}
+
+	#[tokio::test]
+	async fn apply_external_id_merge_is_library_scoped() {
+		let db = ::tests::db::test_database().await;
+		let root_a = tempfile::tempdir().unwrap();
+		let src = root_a.path().join("Batman 001 (2016).cbz");
+		std::fs::write(&src, b"x").unwrap();
+
+		let lib_a = ::tests::fake_data::Library {
+			id: None,
+			name: Some("A".to_string()),
+			path: Some(root_a.path().to_string_lossy().to_string()),
+		}
+		.insert(&db)
+		.await;
+		let lib_b = ::tests::fake_data::Library {
+			id: None,
+			name: Some("B".to_string()),
+			path: Some("/some/other".to_string()),
+		}
+		.insert(&db)
+		.await;
+
+		// Decoy: library B already has a series with external id "cv-1".
+		let series_b = ::tests::fake_data::Series {
+			id: None,
+			name: Some("Batman".to_string()),
+			path: Some("/some/other/Batman (2016)".to_string()),
+			library_id: Some(lib_b.id.clone()),
+		}
+		.insert(&db)
+		.await;
+		series_metadata::ActiveModel {
+			series_id: Set(series_b.id.clone()),
+			title: Set(Some("Batman".to_string())),
+			year: Set(Some(2016)),
+			metadata_external_id: Set(Some("cv-1".to_string())),
+			..Default::default()
+		}
+		.insert(&db)
+		.await
+		.unwrap();
+
+		// Apply in library A with the SAME external id but no explicit series_id.
+		let result = apply_plan(
+			&db,
+			&lib_a.id,
+			root_a.path().to_str().unwrap(),
+			vec![OrganizeDecision {
+				src: src.to_string_lossy().to_string(),
+				action: DecisionAction::Move {
+					series_id: None,
+					canonical_name: "Batman".to_string(),
+					year: Some(2016),
+					external_id: Some("cv-1".to_string()),
+					provider: Some("comicvine".to_string()),
+				},
+			}],
+		)
+		.await
+		.unwrap();
+
+		assert_eq!(result.moved, 1);
+		// A NEW series must be created in library A, NOT merged into library B's series.
+		let series_in_a = series::Entity::find()
+			.filter(series::Column::LibraryId.eq(lib_a.id.clone()))
+			.all(&db)
+			.await
+			.unwrap();
+		assert_eq!(
+			series_in_a.len(),
+			1,
+			"a new series should be created in A, not merged into B"
+		);
+		assert_ne!(series_in_a[0].id, series_b.id);
 	}
 }
