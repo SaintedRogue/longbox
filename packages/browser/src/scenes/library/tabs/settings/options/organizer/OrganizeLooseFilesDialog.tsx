@@ -5,7 +5,15 @@ import { useLocaleContext } from '@longbox/i18n'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
-import { PreviewRows, ProposedMove, toDecisions, UnmatchedFile } from './organizeMoves'
+import {
+	FindMatchSeed,
+	OrganizeOverride,
+	PreviewRows,
+	ProposedMove,
+	toDecisions,
+	UnmatchedFile,
+} from './organizeMoves'
+import OrganizeSeriesMatchDialog from './OrganizeSeriesMatchDialog'
 
 const planMutation = graphql(`
 	mutation OrganizeLooseFilesPlan($libraryId: ID!) {
@@ -49,6 +57,8 @@ export default function OrganizeLooseFilesDialog({ libraryId, open, onOpenChange
 	const { sdk } = useSDK()
 
 	const [checked, setChecked] = useState<Set<string>>(new Set())
+	const [overrides, setOverrides] = useState<Map<string, OrganizeOverride>>(new Map())
+	const [matchTarget, setMatchTarget] = useState<{ src: string; seed: FindMatchSeed } | null>(null)
 	const [awaitingPlan, setAwaitingPlan] = useState(false)
 	const prevFetching = useRef(false)
 	const sawRunningJob = useRef(false)
@@ -126,8 +136,17 @@ export default function OrganizeLooseFilesDialog({ libraryId, open, onOpenChange
 		})
 	}, [])
 
+	const handleFindMatch = useCallback((src: string, seed: FindMatchSeed) => {
+		setMatchTarget({ src, seed })
+	}, [])
+
+	const handlePicked = useCallback((src: string, override: OrganizeOverride) => {
+		setOverrides((prev) => new Map(prev).set(src, override))
+		setChecked((prev) => new Set(prev).add(src))
+	}, [])
+
 	const handleApply = useCallback(async () => {
-		const decisions = toDecisions(proposed, checked)
+		const decisions = toDecisions(proposed, checked, overrides)
 		if (decisions.length === 0) return
 		try {
 			await apply({ libraryId, decisions })
@@ -138,7 +157,7 @@ export default function OrganizeLooseFilesDialog({ libraryId, open, onOpenChange
 				description: error instanceof Error ? error.message : undefined,
 			})
 		}
-	}, [apply, libraryId, proposed, checked, onOpenChange, t])
+	}, [apply, libraryId, proposed, checked, overrides, onOpenChange, t])
 
 	const busy = awaitingPlan || isFetching
 	const checkedCount = checked.size
@@ -171,7 +190,9 @@ export default function OrganizeLooseFilesDialog({ libraryId, open, onOpenChange
 							proposed={proposed}
 							unmatched={unmatched}
 							checked={checked}
+							overrides={overrides}
 							onToggle={toggle}
+							onFindMatch={handleFindMatch}
 							t={t}
 						/>
 					</div>
@@ -191,6 +212,16 @@ export default function OrganizeLooseFilesDialog({ libraryId, open, onOpenChange
 					</Button>
 				</Dialog.Footer>
 			</Dialog.Content>
+			{matchTarget && (
+				<OrganizeSeriesMatchDialog
+					libraryId={libraryId}
+					src={matchTarget.src}
+					seed={matchTarget.seed}
+					open
+					onOpenChange={(o) => !o && setMatchTarget(null)}
+					onPicked={handlePicked}
+				/>
+			)}
 		</Dialog>
 	)
 }
@@ -201,7 +232,9 @@ function PreviewBody({
 	proposed,
 	unmatched,
 	checked,
+	overrides,
 	onToggle,
+	onFindMatch,
 	t,
 }: {
 	preview: unknown
@@ -209,7 +242,9 @@ function PreviewBody({
 	proposed: ProposedMove[]
 	unmatched: UnmatchedFile[]
 	checked: Set<string>
+	overrides: Map<string, OrganizeOverride>
 	onToggle: (src: string) => void
+	onFindMatch: (src: string, seed: FindMatchSeed) => void
 	t: (key: string) => string
 }) {
 	if (busy && !preview) {
@@ -238,7 +273,9 @@ function PreviewBody({
 			proposed={proposed}
 			unmatched={unmatched}
 			checked={checked}
+			overrides={overrides}
 			onToggle={onToggle}
+			onFindMatch={onFindMatch}
 			t={t}
 		/>
 	)

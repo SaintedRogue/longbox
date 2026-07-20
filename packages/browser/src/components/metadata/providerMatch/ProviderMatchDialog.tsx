@@ -1,12 +1,15 @@
 import { useGraphQLMutation, useSDK } from '@longbox/client'
-import { Badge, Button, Dialog, Input, NativeSelect, Text } from '@longbox/components'
+import { Dialog, Text } from '@longbox/components'
 import { graphql, MetadataProvider } from '@longbox/graphql'
 import { useQueryClient } from '@tanstack/react-query'
-import { ImageOff, Search } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
-import { ConfidenceBadge } from '@/components/metadata/metadataMatching'
+import {
+	MetadataSearchPanel,
+	type MetadataSearchQuery,
+	type SearchPanelCandidate,
+} from './MetadataSearchPanel'
 
 // Human labels for the provider dropdown. Kept local so this component doesn't
 // reach into the settings scene; the set is tiny and stable.
@@ -136,36 +139,18 @@ type Props = {
 	onOpenChange: (open: boolean) => void
 }
 
-// A single provider result normalized for the compare-grid, so media and series
-// candidates render through the same card.
-type ResultCard = {
-	provider: string
-	externalId: string
-	confidence: number
-	title: string
-	coverUrl: string | null
-	year: number | null
-	publisher: string | null
-	credit: string | null
-}
-
-const toYear = (value: string): number | null => {
-	const trimmed = value.trim()
-	if (!trimmed) return null
-	const parsed = Number.parseInt(trimmed, 10)
-	return Number.isFinite(parsed) ? parsed : null
-}
-
 const trimmedOrNull = (value: string): string | null => value.trim() || null
-
-const upperFirst = (value: string): string =>
-	value.length ? value.charAt(0).toUpperCase() + value.slice(1) : value
 
 /**
  * Audiobookshelf-style interactive metadata match. The user picks a provider,
  * refines the parser-seeded query, searches, and selects a result from a
  * compare-grid (cover + key fields + confidence). Selecting applies it via the
  * existing accept mutations. Works for both an issue and a series.
+ *
+ * The editable-query/provider-picker/search/compare-grid UI itself lives in
+ * `MetadataSearchPanel` (backend-agnostic); this component owns context
+ * loading, the GraphQL queries/mutations, and wires them in via
+ * `onSearch`/`onSelect`.
  */
 export default function ProviderMatchDialog({ kind, id, open, onOpenChange }: Props) {
 	const { sdk } = useSDK()
@@ -176,14 +161,7 @@ export default function ProviderMatchDialog({ kind, id, open, onOpenChange }: Pr
 	const [isLoadingContext, setIsLoadingContext] = useState(false)
 	const [hasContext, setHasContext] = useState(false)
 
-	const [provider, setProvider] = useState<MetadataProvider | ''>('')
-	const [title, setTitle] = useState('')
-	const [number, setNumber] = useState('')
-	const [year, setYear] = useState('')
-	const [publisher, setPublisher] = useState('')
-
-	const [results, setResults] = useState<ResultCard[] | null>(null)
-	const [isSearching, setIsSearching] = useState(false)
+	const [seed, setSeed] = useState<MetadataSearchQuery>({ title: '' })
 	const [applyingIndex, setApplyingIndex] = useState<number | null>(null)
 
 	const { mutateAsync: findMedia } = useGraphQLMutation(findMediaMutation)
@@ -217,9 +195,11 @@ export default function ProviderMatchDialog({ kind, id, open, onOpenChange }: Pr
 			)
 			// Series titles seed from the parsed series (strips a trailing "(2025)"),
 			// falling back to the raw name; issues seed series + number + year.
-			setTitle(parsed.series ?? (isMedia ? '' : context.name))
-			if (isMedia) setNumber(parsed.number ?? '')
-			setYear(parsed.year != null ? String(parsed.year) : '')
+			setSeed({
+				title: parsed.series ?? (isMedia ? '' : context.name),
+				number: isMedia ? (parsed.number ?? '') : undefined,
+				year: parsed.year ?? null,
+			})
 			setHasContext(true)
 		} catch (error) {
 			toast.error('Failed to prepare the metadata search.', {
@@ -236,83 +216,89 @@ export default function ProviderMatchDialog({ kind, id, open, onOpenChange }: Pr
 		}
 	}, [open, hasContext, isLoadingContext, loadContext])
 
-	const handleSearch = async () => {
-		setIsSearching(true)
-		setResults(null)
-		try {
-			const query = {
-				title: trimmedOrNull(title),
-				number: isMedia ? trimmedOrNull(number) : null,
-				year: toYear(year),
-				publisher: isMedia ? trimmedOrNull(publisher) : null,
-			}
-			const providerArg = provider === '' ? null : provider
+	// `MetadataSearchPanel` owns no GraphQL — it calls this with its (already
+	// parsed) query + selected provider and gets back candidates normalized
+	// for the compare-grid.
+	const runFetch = useCallback(
+		async (
+			query: MetadataSearchQuery,
+			provider: string | null,
+		): Promise<SearchPanelCandidate[]> => {
+			try {
+				const graphqlQuery = {
+					title: trimmedOrNull(query.title),
+					number: isMedia ? trimmedOrNull(query.number ?? '') : null,
+					year: query.year ?? null,
+					publisher: isMedia ? trimmedOrNull(query.publisher ?? '') : null,
+				}
+				const providerArg = provider as MetadataProvider | null
 
-			if (isMedia) {
-				const { fetchMediaMetadata } = await findMedia({ id, query, provider: providerArg })
-				setResults(
-					fetchMediaMetadata.map((c) => {
-						const m = c.metadata.__typename === 'ExternalMediaMetadata' ? c.metadata : null
-						return {
-							provider: c.provider,
-							externalId: c.externalId,
-							confidence: c.confidence,
-							title: m?.title ?? m?.seriesName ?? 'Untitled',
-							coverUrl: m?.coverUrl ?? null,
-							year: m?.year ?? null,
-							publisher: m?.publisher ?? null,
-							credit: m?.writers?.[0] ?? null,
-						}
-					}),
-				)
-			} else {
-				const { fetchSeriesMetadata } = await findSeries({ id, query, provider: providerArg })
-				setResults(
-					fetchSeriesMetadata.map((c) => {
-						const m = c.metadata.__typename === 'ExternalSeriesMetadata' ? c.metadata : null
-						return {
-							provider: c.provider,
-							externalId: c.externalId,
-							confidence: c.confidence,
-							title: m?.title ?? 'Untitled',
-							coverUrl: m?.coverUrl ?? null,
-							year: m?.year ?? null,
-							publisher: m?.publisher ?? null,
-							credit: m?.authors?.[0] ?? null,
-						}
-					}),
-				)
+				if (isMedia) {
+					const { fetchMediaMetadata } = await findMedia({
+						id,
+						query: graphqlQuery,
+						provider: providerArg,
+					})
+					return fetchMediaMetadata.map((c) => ({
+						provider: c.provider,
+						externalId: c.externalId,
+						confidence: c.confidence,
+						metadata: (c.metadata.__typename === 'ExternalMediaMetadata'
+							? c.metadata
+							: {}) as unknown as Record<string, unknown>,
+					}))
+				}
+				const { fetchSeriesMetadata } = await findSeries({
+					id,
+					query: graphqlQuery,
+					provider: providerArg,
+				})
+				return fetchSeriesMetadata.map((c) => ({
+					provider: c.provider,
+					externalId: c.externalId,
+					confidence: c.confidence,
+					metadata: (c.metadata.__typename === 'ExternalSeriesMetadata'
+						? c.metadata
+						: {}) as unknown as Record<string, unknown>,
+				}))
+			} catch (error) {
+				toast.error('Failed to search for metadata.', {
+					description: error instanceof Error ? error.message : undefined,
+				})
+				throw error
 			}
-		} catch (error) {
-			toast.error('Failed to search for metadata.', {
-				description: error instanceof Error ? error.message : undefined,
-			})
-		} finally {
-			setIsSearching(false)
-		}
-	}
+		},
+		[isMedia, id, findMedia, findSeries],
+	)
 
-	const handleSelect = async (index: number) => {
-		setApplyingIndex(index)
-		try {
-			if (isMedia) {
-				await acceptMedia({ mediaId: id, candidateIndex: index })
-			} else {
-				await acceptSeries({ seriesId: id, candidateIndex: index })
+	// Accept-by-index: `index` is the position of `candidate` within the list
+	// that was JUST returned by `runFetch` — the accept mutations re-run the
+	// same search server-side and apply whichever candidate sits at that
+	// index, so it must be the same index the compare-grid rendered.
+	const acceptAtIndex = useCallback(
+		async (_candidate: SearchPanelCandidate, index: number) => {
+			setApplyingIndex(index)
+			try {
+				if (isMedia) {
+					await acceptMedia({ mediaId: id, candidateIndex: index })
+				} else {
+					await acceptSeries({ seriesId: id, candidateIndex: index })
+				}
+				toast.success('Metadata applied from the selected match.')
+				// A deliberate one-off apply — refresh everything so book and series
+				// views reflect the new title/credits without a manual reload.
+				void client.invalidateQueries()
+				onOpenChange(false)
+			} catch (error) {
+				toast.error('Failed to apply the selected match.', {
+					description: error instanceof Error ? error.message : undefined,
+				})
+			} finally {
+				setApplyingIndex(null)
 			}
-			toast.success('Metadata applied from the selected match.')
-			// A deliberate one-off apply — refresh everything so book and series
-			// views reflect the new title/credits without a manual reload.
-			void client.invalidateQueries()
-			onOpenChange(false)
-		} catch (error) {
-			toast.error('Failed to apply the selected match.', {
-				description: error instanceof Error ? error.message : undefined,
-			})
-		} finally {
-			setApplyingIndex(null)
-		}
-	}
+		},
+		[isMedia, id, acceptMedia, acceptSeries, client, onOpenChange],
+	)
 
 	const providerOptions = [
 		{ label: 'All enabled providers', value: '' },
@@ -331,196 +317,22 @@ export default function ProviderMatchDialog({ kind, id, open, onOpenChange }: Pr
 				</Dialog.Header>
 
 				<div className="gap-4 min-h-0 flex flex-col">
-					{/* Search controls */}
-					<div className="gap-3 flex flex-col">
-						<div className="gap-3 sm:grid-cols-2 grid grid-cols-1">
-							<div className="gap-1.5 flex flex-col">
-								<Text size="sm" variant="muted">
-									Provider
-								</Text>
-								<NativeSelect
-									value={provider}
-									onChange={(e) => setProvider(e.target.value as MetadataProvider | '')}
-									options={providerOptions}
-									disabled={isLoadingContext}
-								/>
-							</div>
-							<Input
-								label={isMedia ? 'Series / title' : 'Series title'}
-								value={title}
-								onChange={(e) => setTitle(e.target.value)}
-								placeholder="e.g. Absolute Batman"
-								disabled={isLoadingContext}
-								fullWidth
-							/>
-						</div>
-						<div className="gap-3 sm:grid-cols-4 grid grid-cols-2">
-							{isMedia && (
-								<Input
-									label="Issue #"
-									value={number}
-									onChange={(e) => setNumber(e.target.value)}
-									placeholder="1"
-									disabled={isLoadingContext}
-									fullWidth
-								/>
-							)}
-							<Input
-								label="Year"
-								value={year}
-								onChange={(e) => setYear(e.target.value)}
-								placeholder="2024"
-								inputMode="numeric"
-								disabled={isLoadingContext}
-								fullWidth
-							/>
-							{isMedia && (
-								<Input
-									label="Publisher"
-									value={publisher}
-									onChange={(e) => setPublisher(e.target.value)}
-									placeholder="Optional"
-									disabled={isLoadingContext}
-									fullWidth
-								/>
-							)}
-							<div className="flex items-end">
-								<Button
-									variant="default"
-									onClick={handleSearch}
-									isLoading={isSearching}
-									disabled={isSearching || isLoadingContext}
-									className="w-full"
-								>
-									<Search className="mr-1.5 h-4 w-4" />
-									Search
-								</Button>
-							</div>
-						</div>
-					</div>
-
-					{/* Results */}
-					<div className="min-h-0 flex-1 overflow-y-auto">
-						<ResultsBody
-							results={results}
-							isSearching={isSearching}
-							applyingIndex={applyingIndex}
-							onSelect={handleSelect}
+					{hasContext ? (
+						<MetadataSearchPanel
+							kind={kind}
+							seed={seed}
+							providers={providerOptions}
+							onSearch={runFetch}
+							onSelect={acceptAtIndex}
+							selectingIndex={applyingIndex}
 						/>
-					</div>
+					) : (
+						<Text size="sm" variant="muted" className="py-10 text-center">
+							Preparing the metadata search…
+						</Text>
+					)}
 				</div>
 			</Dialog.Content>
 		</Dialog>
-	)
-}
-
-function ResultsBody({
-	results,
-	isSearching,
-	applyingIndex,
-	onSelect,
-}: {
-	results: ResultCard[] | null
-	isSearching: boolean
-	applyingIndex: number | null
-	onSelect: (index: number) => void
-}) {
-	if (isSearching) {
-		return (
-			<Text size="sm" variant="muted" className="py-10 text-center">
-				Searching the provider…
-			</Text>
-		)
-	}
-	if (results === null) {
-		return (
-			<Text size="sm" variant="muted" className="py-10 text-center">
-				Pick a provider, adjust the terms, and search to see matches.
-			</Text>
-		)
-	}
-	if (results.length === 0) {
-		return (
-			<Text size="sm" variant="muted" className="py-10 text-center">
-				No matches. Try a different provider or adjust the search terms.
-			</Text>
-		)
-	}
-	return (
-		<div className="gap-2 flex flex-col">
-			{results.map((result, index) => (
-				<ResultRow
-					key={`${result.provider}-${result.externalId}-${index}`}
-					result={result}
-					isApplying={applyingIndex === index}
-					disabled={applyingIndex !== null}
-					onSelect={() => onSelect(index)}
-				/>
-			))}
-		</div>
-	)
-}
-
-function ResultRow({
-	result,
-	isApplying,
-	disabled,
-	onSelect,
-}: {
-	result: ResultCard
-	isApplying: boolean
-	disabled: boolean
-	onSelect: () => void
-}) {
-	const [coverFailed, setCoverFailed] = useState(false)
-	const subtitle = [result.year, result.publisher, result.credit]
-		.filter((part): part is string | number => part != null && part !== '')
-		.join(' · ')
-
-	const showCover = result.coverUrl && !coverFailed
-
-	return (
-		<div className="gap-3 p-2 flex items-center rounded-lg border border-border bg-background">
-			<div className="h-20 w-14 rounded shrink-0 overflow-hidden bg-muted">
-				{showCover ? (
-					<img
-						src={result.coverUrl ?? undefined}
-						alt={result.title}
-						className="h-full w-full object-cover"
-						onError={() => setCoverFailed(true)}
-					/>
-				) : (
-					<div className="flex h-full w-full items-center justify-center text-muted-foreground">
-						<ImageOff className="h-5 w-5" />
-					</div>
-				)}
-			</div>
-
-			<div className="min-w-0 flex-1">
-				<Text size="sm" className="font-medium truncate">
-					{result.title}
-				</Text>
-				{subtitle && (
-					<Text size="xs" variant="muted" className="truncate">
-						{subtitle}
-					</Text>
-				)}
-				<div className="gap-1.5 mt-1 flex items-center">
-					<Badge size="xs">{upperFirst(result.provider)}</Badge>
-					<ConfidenceBadge confidence={result.confidence} />
-				</div>
-			</div>
-
-			<Button
-				variant="secondary"
-				size="sm"
-				onClick={onSelect}
-				isLoading={isApplying}
-				disabled={disabled}
-				className="shrink-0"
-			>
-				Select
-			</Button>
-		</div>
 	)
 }
