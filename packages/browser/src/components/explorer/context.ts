@@ -10,6 +10,8 @@ export type UploadParams = {
 	uploadAs: 'books' | 'series'
 }
 
+export type OrganizeTarget = { path: string; name: string }
+
 export type IExplorerContext = {
 	layout: ExplorerLayout
 	setLayout: (layout: ExplorerLayout) => void
@@ -19,6 +21,10 @@ export type IExplorerContext = {
 	canLoadMore: boolean
 	loadMore: () => void
 	onSelect: (item: UseDirectoryListingFile) => void
+	/** Right-click "Organize into series" action for a single file/folder. */
+	onOrganize: (item: OrganizeTarget) => void
+	/** Whether the current user is permitted to trigger `onOrganize`. */
+	canOrganize: boolean
 	canGoBack: boolean
 	canGoForward: boolean
 	goForward: () => void

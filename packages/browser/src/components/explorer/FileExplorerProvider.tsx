@@ -1,11 +1,14 @@
 import { useDirectoryListing, UseDirectoryListingFile, useSDK } from '@longbox/client'
+import { UserPermission } from '@longbox/graphql'
 import { useCallback, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
 
+import { useAppContext } from '@/context'
 import paths from '@/paths'
+import ScopedOrganizeDialog from '@/scenes/library/tabs/settings/options/organizer/ScopedOrganizeDialog'
 
-import { ExplorerContext, ExplorerLayout, IExplorerContext } from './context'
+import { ExplorerContext, ExplorerLayout, IExplorerContext, OrganizeTarget } from './context'
 import FileExplorer from './FileExplorer'
 import FileExplorerFooter, { FOOTER_HEIGHT } from './FileExplorerFooter'
 import FileExplorerHeader from './FileExplorerHeader'
@@ -18,8 +21,12 @@ type Props = Pick<IExplorerContext, 'libraryID' | 'rootPath' | 'uploadConfig'>
 export default function FileExplorerProvider({ rootPath, ...ctx }: Props) {
 	const navigate = useNavigate()
 	const { sdk } = useSDK()
+	const { checkPermission } = useAppContext()
 
 	const [layout, setLayout] = useState<ExplorerLayout>(() => getDefaultLayout())
+	const [organizeTarget, setOrganizeTarget] = useState<OrganizeTarget | null>(null)
+
+	const canOrganize = checkPermission(UserPermission.ScanLibrary)
 
 	// TODO: I need to store location.state somewhere so that when the user uses native navigation,
 	// their history, or at the very least where they left off, is persisted.
@@ -84,6 +91,8 @@ export default function FileExplorerProvider({ rootPath, ...ctx }: Props) {
 				layout,
 				navigateToPath: setPath,
 				onSelect: handleSelect,
+				onOrganize: setOrganizeTarget,
+				canOrganize,
 				refetch,
 				rootPath,
 				setLayout: changeLayout,
@@ -104,6 +113,17 @@ export default function FileExplorerProvider({ rootPath, ...ctx }: Props) {
 				</div>
 				<FileExplorerFooter />
 			</div>
+			{organizeTarget && (
+				<ScopedOrganizeDialog
+					libraryId={ctx.libraryID}
+					targetPath={organizeTarget.path}
+					targetName={organizeTarget.name}
+					open={!!organizeTarget}
+					onOpenChange={(nextOpen) => {
+						if (!nextOpen) setOrganizeTarget(null)
+					}}
+				/>
+			)}
 		</ExplorerContext.Provider>
 	)
 }

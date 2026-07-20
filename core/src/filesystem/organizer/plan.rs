@@ -9,7 +9,7 @@ use sea_orm::{prelude::*, DatabaseConnection};
 use crate::filesystem::metadata::ProviderClientCache;
 use crate::CoreResult;
 
-use super::candidates::find_candidate_files;
+use super::candidates::{find_candidate_files, scoped_candidate_files};
 use super::confirm::{
 	confirm_from_candidates, group_candidates, normalize_series_key,
 	search_series_candidates, ConfirmedSeries, OrganizeBucket,
@@ -74,9 +74,8 @@ pub async fn build_plan(
 	cached_only: bool,
 ) -> CoreResult<OrganizePlan> {
 	let ignore = config.ignore_rules().build()?;
-	let root = Path::new(library_path);
 	let candidate_paths: Vec<PathBuf> = find_candidate_files(
-		root,
+		Path::new(library_path),
 		config.organize_catchall_subfolders,
 		config.is_collection_based(),
 		&ignore,
@@ -84,6 +83,61 @@ pub async fn build_plan(
 	.into_iter()
 	.map(|c| c.path)
 	.collect();
+	assemble_plan(
+		conn,
+		library_id,
+		library_path,
+		config,
+		provider_cache,
+		candidate_paths,
+		cached_only,
+	)
+	.await
+}
+
+/// Build a preview scoped to a single target file or folder under the library
+/// (e.g. a right-clicked file-explorer entry). The scan is restricted to the target,
+/// but move destinations still land at the library root. Always does live provider
+/// lookups (a targeted action is never cache-only).
+pub async fn build_plan_scoped(
+	conn: &DatabaseConnection,
+	library_id: &str,
+	library_path: &str,
+	target_path: &str,
+	config: &library_config::Model,
+	provider_cache: &ProviderClientCache,
+) -> CoreResult<OrganizePlan> {
+	let ignore = config.ignore_rules().build()?;
+	let candidate_paths: Vec<PathBuf> =
+		scoped_candidate_files(Path::new(target_path), &ignore)
+			.into_iter()
+			.map(|c| c.path)
+			.collect();
+	assemble_plan(
+		conn,
+		library_id,
+		library_path,
+		config,
+		provider_cache,
+		candidate_paths,
+		false,
+	)
+	.await
+}
+
+/// Shared core: given a fixed set of candidate paths, confirm each group against the
+/// provider (or the library's existing-series cache) and assemble the plan. Move
+/// destinations are always computed relative to the library root (`library_path`).
+async fn assemble_plan(
+	conn: &DatabaseConnection,
+	library_id: &str,
+	library_path: &str,
+	config: &library_config::Model,
+	provider_cache: &ProviderClientCache,
+	candidate_paths: Vec<PathBuf>,
+	cached_only: bool,
+) -> CoreResult<OrganizePlan> {
+	let root = Path::new(library_path);
 
 	// path -> existing media id (to preserve identity on move)
 	let media_by_path: HashMap<String, String> = media::Entity::find()

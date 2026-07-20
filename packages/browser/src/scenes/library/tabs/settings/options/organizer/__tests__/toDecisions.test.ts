@@ -1,4 +1,4 @@
-import { toDecisions } from '../OrganizeLooseFilesDialog'
+import { toDecisions } from '../organizeMoves'
 
 const move = (over: Partial<Parameters<typeof toDecisions>[0][number]>) =>
 	({

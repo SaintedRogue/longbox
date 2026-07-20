@@ -33,6 +33,7 @@ export const cacheKeys = {
 	media: 'media',
 	mediaById: 'mediaById',
 	organizePreview: 'organizePreview',
+	organizePreviewForPath: 'organizePreviewForPath',
 	apiKeys: 'apiKeys',
 	logs: 'logs',
 	jobs: 'jobs',

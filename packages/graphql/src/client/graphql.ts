@@ -3673,6 +3673,13 @@ export type Query = {
   /** The latest computed organize preview for a library, if any. */
   organizePreview?: Maybe<OrganizePreview>;
   /**
+   * Compute an organize preview scoped to a single file or folder under the library.
+   * Runs synchronously (live provider lookups) and is NOT persisted, so it never
+   * disturbs the library-wide plan. `path` must resolve to a real location inside the
+   * library root.
+   */
+  organizePreviewForPath: OrganizePreview;
+  /**
    * Parse a raw comic filename into a best-effort `{series, number, year}` to
    * pre-fill the on-demand metadata-search fields. Pure and heuristic — it
    * reads no database rows or secrets, so a lightweight read guard suffices.
@@ -3921,6 +3928,12 @@ export type QueryOnDeckArgs = {
 
 export type QueryOrganizePreviewArgs = {
   libraryId: Scalars['ID']['input'];
+};
+
+
+export type QueryOrganizePreviewForPathArgs = {
+  libraryId: Scalars['ID']['input'];
+  path: Scalars['String']['input'];
 };
 
 
@@ -5857,6 +5870,22 @@ export type OrganizePreviewQueryVariables = Exact<{
 
 
 export type OrganizePreviewQuery = { __typename?: 'Query', organizePreview?: { __typename?: 'OrganizePreview', proposedMoves: Array<{ __typename?: 'OrganizeProposedMove', src: string, dst: string, canonicalName: string, year?: number | null, externalId: string, provider: string, confidence: number, bucket: OrganizeBucket, existingSeriesId?: string | null }>, unmatched: Array<{ __typename?: 'OrganizeUnmatchedFile', src: string, parsedSeries?: string | null, reason: string }> } | null };
+
+export type OrganizePreviewForPathQueryVariables = Exact<{
+  libraryId: Scalars['ID']['input'];
+  path: Scalars['String']['input'];
+}>;
+
+
+export type OrganizePreviewForPathQuery = { __typename?: 'Query', organizePreviewForPath: { __typename?: 'OrganizePreview', proposedMoves: Array<{ __typename?: 'OrganizeProposedMove', src: string, dst: string, canonicalName: string, year?: number | null, externalId: string, provider: string, confidence: number, bucket: OrganizeBucket, existingSeriesId?: string | null }>, unmatched: Array<{ __typename?: 'OrganizeUnmatchedFile', src: string, parsedSeries?: string | null, reason: string }> } };
+
+export type ScopedOrganizeApplyMutationVariables = Exact<{
+  libraryId: Scalars['ID']['input'];
+  decisions: Array<OrganizeDecisionInput> | OrganizeDecisionInput;
+}>;
+
+
+export type ScopedOrganizeApplyMutation = { __typename?: 'Mutation', applyOrganizeLooseFiles: boolean };
 
 export type ScanHistorySectionClearHistoryMutationVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -9367,6 +9396,33 @@ export const OrganizePreviewDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<OrganizePreviewQuery, OrganizePreviewQueryVariables>;
+export const OrganizePreviewForPathDocument = new TypedDocumentString(`
+    query OrganizePreviewForPath($libraryId: ID!, $path: String!) {
+  organizePreviewForPath(libraryId: $libraryId, path: $path) {
+    proposedMoves {
+      src
+      dst
+      canonicalName
+      year
+      externalId
+      provider
+      confidence
+      bucket
+      existingSeriesId
+    }
+    unmatched {
+      src
+      parsedSeries
+      reason
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<OrganizePreviewForPathQuery, OrganizePreviewForPathQueryVariables>;
+export const ScopedOrganizeApplyDocument = new TypedDocumentString(`
+    mutation ScopedOrganizeApply($libraryId: ID!, $decisions: [OrganizeDecisionInput!]!) {
+  applyOrganizeLooseFiles(libraryId: $libraryId, decisions: $decisions)
+}
+    `) as unknown as TypedDocumentString<ScopedOrganizeApplyMutation, ScopedOrganizeApplyMutationVariables>;
 export const ScanHistorySectionClearHistoryDocument = new TypedDocumentString(`
     mutation ScanHistorySectionClearHistory($id: ID!) {
   clearScanHistory(id: $id)

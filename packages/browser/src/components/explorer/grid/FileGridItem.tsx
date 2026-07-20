@@ -1,4 +1,6 @@
 import { UseDirectoryListingFile, useSDK } from '@longbox/client'
+import { ContextMenu } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { usePrefetchBook } from '@/components/book'
@@ -14,8 +16,9 @@ type Props = {
 export default function FileGridItem({ file }: Props) {
 	const { name, path, isDirectory } = file
 	const { sdk } = useSDK()
+	const { t } = useLocaleContext()
 
-	const { onSelect } = useFileExplorerContext()
+	const { onSelect, onOrganize, canOrganize } = useFileExplorerContext()
 
 	const [book, setBook] = useState<MediaAtPath>()
 
@@ -44,7 +47,7 @@ export default function FileGridItem({ file }: Props) {
 		[prefetchBook, prefetchBooksAfterCursor, book],
 	)
 
-	return (
+	const button = (
 		<button
 			title={tooltipName}
 			className="group w-30 gap-2 p-1 flex cursor-default flex-col items-center rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -59,5 +62,26 @@ export default function FileGridItem({ file }: Props) {
 				{name}
 			</span>
 		</button>
+	)
+
+	if (!canOrganize) {
+		return button
+	}
+
+	return (
+		<ContextMenu
+			groups={[
+				{
+					items: [
+						{
+							label: t('fileExplorer.contextMenu.organize'),
+							onClick: () => onOrganize({ path, name }),
+						},
+					],
+				},
+			]}
+		>
+			{button}
+		</ContextMenu>
 	)
 }

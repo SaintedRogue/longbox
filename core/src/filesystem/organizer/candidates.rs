@@ -108,6 +108,30 @@ pub fn find_candidate_files(
 	candidates
 }
 
+/// Candidate files under an explicit target — a single file or a folder — that the
+/// user has pointed at directly (e.g. right-clicked in the file explorer).
+///
+/// Because the target was chosen deliberately, no "is this folder a dump?" gate
+/// applies: a folder's direct media are all candidates, and a file is its own
+/// candidate. Ignored/hidden files are still excluded.
+pub fn scoped_candidate_files(target: &Path, ignore: &GlobSet) -> Vec<CandidateFile> {
+	if target.is_file() {
+		if target.is_default_ignored() || ignore.is_match(target) {
+			return vec![];
+		}
+		return vec![CandidateFile {
+			path: target.to_path_buf(),
+		}];
+	}
+	if target.is_dir() {
+		return direct_media(target, ignore)
+			.into_iter()
+			.map(|path| CandidateFile { path })
+			.collect();
+	}
+	vec![]
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -196,5 +220,33 @@ mod tests {
 			names(&found),
 			HashSet::from(["Loose At Root 001.cbz".to_string()])
 		);
+	}
+
+	#[test]
+	fn scoped_target_file_is_its_own_candidate() {
+		let root = tempdir().unwrap();
+		let file = root.path().join("Batman 001.cbz");
+		fs::write(&file, b"x").unwrap();
+		let found = scoped_candidate_files(&file, &GlobSet::empty());
+		assert_eq!(names(&found), HashSet::from(["Batman 001.cbz".to_string()]));
+	}
+
+	#[test]
+	fn scoped_target_folder_takes_all_direct_media_no_dump_gate() {
+		let root = tempdir().unwrap();
+		let sub = root.path().join("a tidy looking folder");
+		fs::create_dir(&sub).unwrap();
+		touch(&sub, "Batman 001.cbz");
+		touch(&sub, "Superman 001.cbz");
+		// An explicitly targeted folder is scanned wholesale — no "is it a dump?" gate.
+		let found = scoped_candidate_files(&sub, &GlobSet::empty());
+		assert_eq!(found.len(), 2);
+	}
+
+	#[test]
+	fn scoped_target_missing_path_yields_nothing() {
+		let root = tempdir().unwrap();
+		let missing = root.path().join("nope.cbz");
+		assert!(scoped_candidate_files(&missing, &GlobSet::empty()).is_empty());
 	}
 }

@@ -520,6 +520,9 @@
 		}
 	},
 	"fileExplorer": {
+		"contextMenu": {
+			"organize": "Organize into series"
+		},
 		"uploadModal": {
 			"title": {
 				"books": "Upload books",
@@ -695,6 +698,14 @@
 				"applyStarted": "Applying…",
 				"applyFailed": "Couldn't apply the moves",
 				"reviewBadge": "Review"
+			},
+			"scopedDialog": {
+				"title": "Organize \"{{name}}\"",
+				"description": "Review the proposed moves for this file or folder and apply the ones you want.",
+				"working": "Working… this can take a while with provider lookups.",
+				"empty": "Nothing here can be organized.",
+				"error": "Couldn't load the organize preview.",
+				"retry": "Retry"
 			}
 		},
 		"integrations/analysis": {
