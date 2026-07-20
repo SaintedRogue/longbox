@@ -127,6 +127,9 @@ type Documents = {
     "\n\tmutation AnalyzeLibraryMedia($id: ID!) {\n\t\tanalyzeLibrary(id: $id)\n\t}\n": typeof types.AnalyzeLibraryMediaDocument,
     "\n\tquery InitFetchJobCheckProviders {\n\t\tmetadataProviderConfigs {\n\t\t\tid\n\t\t}\n\t}\n": typeof types.InitFetchJobCheckProvidersDocument,
     "\n\tmutation InitFetchJob($id: ID!) {\n\t\tfetchLibraryMetadata(id: $id)\n\t}\n": typeof types.InitFetchJobDocument,
+    "\n\tmutation OrganizeLooseFilesPlan($libraryId: ID!) {\n\t\tplanOrganizeLooseFiles(libraryId: $libraryId)\n\t}\n": typeof types.OrganizeLooseFilesPlanDocument,
+    "\n\tmutation OrganizeLooseFilesApply($libraryId: ID!, $decisions: [OrganizeDecisionInput!]!) {\n\t\tapplyOrganizeLooseFiles(libraryId: $libraryId, decisions: $decisions)\n\t}\n": typeof types.OrganizeLooseFilesApplyDocument,
+    "\n\tquery OrganizePreview($libraryId: ID!) {\n\t\torganizePreview(libraryId: $libraryId) {\n\t\t\tproposedMoves {\n\t\t\t\tsrc\n\t\t\t\tdst\n\t\t\t\tcanonicalName\n\t\t\t\tyear\n\t\t\t\texternalId\n\t\t\t\tprovider\n\t\t\t\tconfidence\n\t\t\t\tbucket\n\t\t\t\texistingSeriesId\n\t\t\t}\n\t\t\tunmatched {\n\t\t\t\tsrc\n\t\t\t\tparsedSeries\n\t\t\t\treason\n\t\t\t}\n\t\t}\n\t}\n": typeof types.OrganizePreviewDocument,
     "\n\tmutation ScanHistorySectionClearHistory($id: ID!) {\n\t\tclearScanHistory(id: $id)\n\t}\n": typeof types.ScanHistorySectionClearHistoryDocument,
     "\n\tquery ScanHistoryTable($id: ID!) {\n\t\tlibraryById(id: $id) {\n\t\t\tid\n\t\t\tscanHistory {\n\t\t\t\tid\n\t\t\t\tjobId\n\t\t\t\ttimestamp\n\t\t\t\toptions\n\t\t\t}\n\t\t}\n\t}\n": typeof types.ScanHistoryTableDocument,
     "\n\tquery ScanRecordInspectorJobs($id: ID!, $loadLogs: Boolean!) {\n\t\tjobById(id: $id) {\n\t\t\tid\n\t\t\toutputData {\n\t\t\t\t__typename\n\t\t\t\t... on LibraryScanOutput {\n\t\t\t\t\ttotalFiles\n\t\t\t\t\ttotalDirectories\n\t\t\t\t\tignoredFiles\n\t\t\t\t\tskippedFiles\n\t\t\t\t\tignoredDirectories\n\t\t\t\t\tcreatedMedia\n\t\t\t\t\tupdatedMedia\n\t\t\t\t\tcreatedSeries\n\t\t\t\t\tupdatedSeries\n\t\t\t\t}\n\t\t\t}\n\t\t\tlogs @include(if: $loadLogs) {\n\t\t\t\tid\n\t\t\t}\n\t\t}\n\t}\n": typeof types.ScanRecordInspectorJobsDocument,
@@ -342,6 +345,9 @@ const documents: Documents = {
     "\n\tmutation AnalyzeLibraryMedia($id: ID!) {\n\t\tanalyzeLibrary(id: $id)\n\t}\n": types.AnalyzeLibraryMediaDocument,
     "\n\tquery InitFetchJobCheckProviders {\n\t\tmetadataProviderConfigs {\n\t\t\tid\n\t\t}\n\t}\n": types.InitFetchJobCheckProvidersDocument,
     "\n\tmutation InitFetchJob($id: ID!) {\n\t\tfetchLibraryMetadata(id: $id)\n\t}\n": types.InitFetchJobDocument,
+    "\n\tmutation OrganizeLooseFilesPlan($libraryId: ID!) {\n\t\tplanOrganizeLooseFiles(libraryId: $libraryId)\n\t}\n": types.OrganizeLooseFilesPlanDocument,
+    "\n\tmutation OrganizeLooseFilesApply($libraryId: ID!, $decisions: [OrganizeDecisionInput!]!) {\n\t\tapplyOrganizeLooseFiles(libraryId: $libraryId, decisions: $decisions)\n\t}\n": types.OrganizeLooseFilesApplyDocument,
+    "\n\tquery OrganizePreview($libraryId: ID!) {\n\t\torganizePreview(libraryId: $libraryId) {\n\t\t\tproposedMoves {\n\t\t\t\tsrc\n\t\t\t\tdst\n\t\t\t\tcanonicalName\n\t\t\t\tyear\n\t\t\t\texternalId\n\t\t\t\tprovider\n\t\t\t\tconfidence\n\t\t\t\tbucket\n\t\t\t\texistingSeriesId\n\t\t\t}\n\t\t\tunmatched {\n\t\t\t\tsrc\n\t\t\t\tparsedSeries\n\t\t\t\treason\n\t\t\t}\n\t\t}\n\t}\n": types.OrganizePreviewDocument,
     "\n\tmutation ScanHistorySectionClearHistory($id: ID!) {\n\t\tclearScanHistory(id: $id)\n\t}\n": types.ScanHistorySectionClearHistoryDocument,
     "\n\tquery ScanHistoryTable($id: ID!) {\n\t\tlibraryById(id: $id) {\n\t\t\tid\n\t\t\tscanHistory {\n\t\t\t\tid\n\t\t\t\tjobId\n\t\t\t\ttimestamp\n\t\t\t\toptions\n\t\t\t}\n\t\t}\n\t}\n": types.ScanHistoryTableDocument,
     "\n\tquery ScanRecordInspectorJobs($id: ID!, $loadLogs: Boolean!) {\n\t\tjobById(id: $id) {\n\t\t\tid\n\t\t\toutputData {\n\t\t\t\t__typename\n\t\t\t\t... on LibraryScanOutput {\n\t\t\t\t\ttotalFiles\n\t\t\t\t\ttotalDirectories\n\t\t\t\t\tignoredFiles\n\t\t\t\t\tskippedFiles\n\t\t\t\t\tignoredDirectories\n\t\t\t\t\tcreatedMedia\n\t\t\t\t\tupdatedMedia\n\t\t\t\t\tcreatedSeries\n\t\t\t\t\tupdatedSeries\n\t\t\t\t}\n\t\t\t}\n\t\t\tlogs @include(if: $loadLogs) {\n\t\t\t\tid\n\t\t\t}\n\t\t}\n\t}\n": types.ScanRecordInspectorJobsDocument,
@@ -893,6 +899,18 @@ export function graphql(source: "\n\tquery InitFetchJobCheckProviders {\n\t\tmet
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n\tmutation InitFetchJob($id: ID!) {\n\t\tfetchLibraryMetadata(id: $id)\n\t}\n"): typeof import('./graphql').InitFetchJobDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\tmutation OrganizeLooseFilesPlan($libraryId: ID!) {\n\t\tplanOrganizeLooseFiles(libraryId: $libraryId)\n\t}\n"): typeof import('./graphql').OrganizeLooseFilesPlanDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\tmutation OrganizeLooseFilesApply($libraryId: ID!, $decisions: [OrganizeDecisionInput!]!) {\n\t\tapplyOrganizeLooseFiles(libraryId: $libraryId, decisions: $decisions)\n\t}\n"): typeof import('./graphql').OrganizeLooseFilesApplyDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\tquery OrganizePreview($libraryId: ID!) {\n\t\torganizePreview(libraryId: $libraryId) {\n\t\t\tproposedMoves {\n\t\t\t\tsrc\n\t\t\t\tdst\n\t\t\t\tcanonicalName\n\t\t\t\tyear\n\t\t\t\texternalId\n\t\t\t\tprovider\n\t\t\t\tconfidence\n\t\t\t\tbucket\n\t\t\t\texistingSeriesId\n\t\t\t}\n\t\t\tunmatched {\n\t\t\t\tsrc\n\t\t\t\tparsedSeries\n\t\t\t\treason\n\t\t\t}\n\t\t}\n\t}\n"): typeof import('./graphql').OrganizePreviewDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

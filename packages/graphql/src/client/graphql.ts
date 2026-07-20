@@ -5834,6 +5834,28 @@ export type InitFetchJobMutationVariables = Exact<{
 
 export type InitFetchJobMutation = { __typename?: 'Mutation', fetchLibraryMetadata: boolean };
 
+export type OrganizeLooseFilesPlanMutationVariables = Exact<{
+  libraryId: Scalars['ID']['input'];
+}>;
+
+
+export type OrganizeLooseFilesPlanMutation = { __typename?: 'Mutation', planOrganizeLooseFiles: boolean };
+
+export type OrganizeLooseFilesApplyMutationVariables = Exact<{
+  libraryId: Scalars['ID']['input'];
+  decisions: Array<OrganizeDecisionInput> | OrganizeDecisionInput;
+}>;
+
+
+export type OrganizeLooseFilesApplyMutation = { __typename?: 'Mutation', applyOrganizeLooseFiles: boolean };
+
+export type OrganizePreviewQueryVariables = Exact<{
+  libraryId: Scalars['ID']['input'];
+}>;
+
+
+export type OrganizePreviewQuery = { __typename?: 'Query', organizePreview?: { __typename?: 'OrganizePreview', proposedMoves: Array<{ __typename?: 'OrganizeProposedMove', src: string, dst: string, canonicalName: string, year?: number | null, externalId: string, provider: string, confidence: number, bucket: OrganizeBucket, existingSeriesId?: string | null }>, unmatched: Array<{ __typename?: 'OrganizeUnmatchedFile', src: string, parsedSeries?: string | null, reason: string }> } | null };
+
 export type ScanHistorySectionClearHistoryMutationVariables = Exact<{
   id: Scalars['ID']['input'];
 }>;
@@ -9324,6 +9346,38 @@ export const InitFetchJobDocument = new TypedDocumentString(`
   fetchLibraryMetadata(id: $id)
 }
     `) as unknown as TypedDocumentString<InitFetchJobMutation, InitFetchJobMutationVariables>;
+export const OrganizeLooseFilesPlanDocument = new TypedDocumentString(`
+    mutation OrganizeLooseFilesPlan($libraryId: ID!) {
+  planOrganizeLooseFiles(libraryId: $libraryId)
+}
+    `) as unknown as TypedDocumentString<OrganizeLooseFilesPlanMutation, OrganizeLooseFilesPlanMutationVariables>;
+export const OrganizeLooseFilesApplyDocument = new TypedDocumentString(`
+    mutation OrganizeLooseFilesApply($libraryId: ID!, $decisions: [OrganizeDecisionInput!]!) {
+  applyOrganizeLooseFiles(libraryId: $libraryId, decisions: $decisions)
+}
+    `) as unknown as TypedDocumentString<OrganizeLooseFilesApplyMutation, OrganizeLooseFilesApplyMutationVariables>;
+export const OrganizePreviewDocument = new TypedDocumentString(`
+    query OrganizePreview($libraryId: ID!) {
+  organizePreview(libraryId: $libraryId) {
+    proposedMoves {
+      src
+      dst
+      canonicalName
+      year
+      externalId
+      provider
+      confidence
+      bucket
+      existingSeriesId
+    }
+    unmatched {
+      src
+      parsedSeries
+      reason
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<OrganizePreviewQuery, OrganizePreviewQueryVariables>;
 export const ScanHistorySectionClearHistoryDocument = new TypedDocumentString(`
     mutation ScanHistorySectionClearHistory($id: ID!) {
   clearScanHistory(id: $id)

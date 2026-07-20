@@ -668,7 +668,28 @@
 						"label": "Auto-organize loose files on scan",
 						"description": "After each scan, automatically move loose files that confidently match a known series into their own folder. Uncertain files are left in place."
 					}
+				},
+				"organize": {
+					"heading": "Organize loose files",
+					"description": "Scan for comic files that aren't in a series folder, review the matches, and move them into place."
 				}
+			},
+			"dialog": {
+				"title": "Organize loose files",
+				"description": "Review the proposed moves and apply the ones you want.",
+				"scan": "Scan for loose files",
+				"rescan": "Re-scan",
+				"scanning": "Scanning… this can take a while with provider lookups.",
+				"scanStarted": "Scan started",
+				"scanFailed": "Couldn't start the scan",
+				"idle": "Scan to find loose files that can be organized.",
+				"empty": "No loose files found.",
+				"proposedHeading": "Proposed moves",
+				"unmatchedHeading": "Couldn't match (left in place)",
+				"cancel": "Cancel",
+				"apply": "Apply",
+				"applyStarted": "Applying…",
+				"applyFailed": "Couldn't apply the moves"
 			}
 		},
 		"integrations/analysis": {
