@@ -254,6 +254,7 @@ function PreviewBody({
 							move={m}
 							checked={checked.has(m.src)}
 							onToggle={() => onToggle(m.src)}
+							t={t}
 						/>
 					))}
 				</div>
@@ -283,10 +284,12 @@ function MoveRow({
 	move,
 	checked,
 	onToggle,
+	t,
 }: {
 	move: ProposedMove
 	checked: boolean
 	onToggle: () => void
+	t: (key: string) => string
 }) {
 	const isAmbiguous = move.bucket === OrganizeBucket.Ambiguous
 	const target = move.year ? `${move.canonicalName} (${move.year})` : move.canonicalName
@@ -302,7 +305,7 @@ function MoveRow({
 					<ConfidenceBadge confidence={move.confidence} />
 					{isAmbiguous && (
 						<Badge variant="warning" size="xs">
-							Review
+							{t(getKey('reviewBadge'))}
 						</Badge>
 					)}
 				</div>

@@ -694,9 +694,10 @@
 				"proposedHeading": "Proposed moves",
 				"unmatchedHeading": "Couldn't match (left in place)",
 				"cancel": "Cancel",
-				"apply": "Apply",
+				"apply": "Apply ({{count}})",
 				"applyStarted": "Applying…",
-				"applyFailed": "Couldn't apply the moves"
+				"applyFailed": "Couldn't apply the moves",
+				"reviewBadge": "Review"
 			}
 		},
 		"integrations/analysis": {
