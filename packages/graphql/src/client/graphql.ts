@@ -6365,21 +6365,6 @@ export type DeleteProviderDialogMutation = { __typename?: 'Mutation', deleteMeta
 
 export type ExistingProviderCardFragment = { __typename?: 'MetadataProviderConfigModel', id: number, providerType: MetadataProvider, enabled: boolean, apiTokenExpiresAt?: any | null, autoApplyConfig?: any | null, createdAt: any, updatedAt?: any | null } & { ' $fragmentName'?: 'ExistingProviderCardFragment' };
 
-export type ExistingProviderCardTestProviderMutationVariables = Exact<{
-  id: Scalars['Int']['input'];
-}>;
-
-
-export type ExistingProviderCardTestProviderMutation = { __typename?: 'Mutation', testMetadataProvider: { __typename?: 'ProviderValidationResult', status: ProviderValidationStatus, message: string } };
-
-export type ProviderApiKeyInputValidateCredentialsMutationVariables = Exact<{
-  providerType: MetadataProvider;
-  apiToken: Scalars['String']['input'];
-}>;
-
-
-export type ProviderApiKeyInputValidateCredentialsMutation = { __typename?: 'Mutation', validateMetadataProviderCredentials: { __typename?: 'ProviderValidationResult', status: ProviderValidationStatus, message: string } };
-
 export type ProvidersSectionGetProvidersQueryVariables = Exact<{ [key: string]: never; }>;
 
 
@@ -10218,25 +10203,6 @@ export const DeleteProviderDialogDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<DeleteProviderDialogMutation, DeleteProviderDialogMutationVariables>;
-export const ExistingProviderCardTestProviderDocument = new TypedDocumentString(`
-    mutation ExistingProviderCardTestProvider($id: Int!) {
-  testMetadataProvider(id: $id) {
-    status
-    message
-  }
-}
-    `) as unknown as TypedDocumentString<ExistingProviderCardTestProviderMutation, ExistingProviderCardTestProviderMutationVariables>;
-export const ProviderApiKeyInputValidateCredentialsDocument = new TypedDocumentString(`
-    mutation ProviderApiKeyInputValidateCredentials($providerType: MetadataProvider!, $apiToken: String!) {
-  validateMetadataProviderCredentials(
-    providerType: $providerType
-    apiToken: $apiToken
-  ) {
-    status
-    message
-  }
-}
-    `) as unknown as TypedDocumentString<ProviderApiKeyInputValidateCredentialsMutation, ProviderApiKeyInputValidateCredentialsMutationVariables>;
 export const ProvidersSectionGetProvidersDocument = new TypedDocumentString(`
     query ProvidersSectionGetProviders {
   metadataProviderConfigs {

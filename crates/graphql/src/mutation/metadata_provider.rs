@@ -239,6 +239,17 @@ async fn run_validation(
 	provider_type: &str,
 	token: String,
 ) -> Result<ProviderValidationResult> {
+	// Metron's gateway hands out 24h bans to clients that probe it, so Longbox never
+	// contacts Metron for credential validation — no matter who calls this. Verify
+	// Metron credentials out-of-band instead.
+	if provider_type.eq_ignore_ascii_case("METRON") {
+		return Ok(ProviderValidationResult::new(
+			ProviderValidationStatus::Unsupported,
+			"Metron credential validation is disabled in-app to avoid rate-limit bans. \
+			 Verify your Metron credentials manually.",
+		));
+	}
+
 	let provider = create_provider(provider_type, token)
 		.map_err(|e| async_graphql::Error::new(e.to_string()))?;
 

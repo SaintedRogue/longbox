@@ -1,12 +1,5 @@
-import { useGraphQLMutation } from '@longbox/client'
-import { Badge, Button, Card, Text, ToolTip } from '@longbox/components'
-import {
-	FragmentType,
-	graphql,
-	MetadataProvider,
-	useFragment,
-	UserPermission,
-} from '@longbox/graphql'
+import { Badge, Card, Text, ToolTip } from '@longbox/components'
+import { FragmentType, graphql, useFragment, UserPermission } from '@longbox/graphql'
 import { useLocaleContext } from '@longbox/i18n'
 import { intlFormat } from 'date-fns'
 import { BadgeAlert, BadgeCheck, BadgeX } from 'lucide-react'
@@ -16,8 +9,6 @@ import { useAppContext } from '@/context'
 import { PROVIDER_LABELS } from './constants'
 import { EditProviderDialog } from './EditProviderDialog'
 import { ProviderLogo } from './ProviderLogo'
-import { ProviderValidationFeedback } from './ProviderValidationFeedback'
-import { metronStatusToFeedback } from './providerValidationFeedback'
 
 const fragment = graphql(`
 	fragment ExistingProviderCard on MetadataProviderConfigModel {
@@ -28,15 +19,6 @@ const fragment = graphql(`
 		autoApplyConfig
 		createdAt
 		updatedAt
-	}
-`)
-
-const testProviderMutation = graphql(`
-	mutation ExistingProviderCardTestProvider($id: Int!) {
-		testMetadataProvider(id: $id) {
-			status
-			message
-		}
 	}
 `)
 
@@ -51,16 +33,6 @@ export function ExistingProviderCard({ data }: Props) {
 	const { checkPermission } = useAppContext()
 
 	const canEdit = checkPermission(UserPermission.MetadataProviderManage)
-	// Only Metron supports server-side validation today (Hardcover validates in the
-	// create/edit dialog client-side, and other providers report Unsupported).
-	const canTest = canEdit && provider.providerType === MetadataProvider.Metron
-
-	const {
-		mutate: testProvider,
-		isPending: isTesting,
-		data: testData,
-	} = useGraphQLMutation(testProviderMutation)
-	const testResult = testData?.testMetadataProvider
 
 	const expiresSoon = provider.apiTokenExpiresAt
 		? getDoesExpireSoon(new Date(provider.apiTokenExpiresAt))
@@ -77,17 +49,6 @@ export function ExistingProviderCard({ data }: Props) {
 				</div>
 
 				<div className="gap-2 flex items-center">
-					{canTest && (
-						<Button
-							size="xs"
-							variant="outline"
-							onClick={() => testProvider({ id: provider.id })}
-							disabled={isTesting}
-						>
-							{isTesting ? 'Testing…' : 'Test'}
-						</Button>
-					)}
-
 					{canEdit && <EditProviderDialog provider={provider} />}
 
 					{expiresSoon && (
@@ -125,12 +86,6 @@ export function ExistingProviderCard({ data }: Props) {
 					{t(provider.autoApplyConfig?.enabled ? getKey('autoApplyOn') : getKey('autoApplyOff'))}
 				</Badge>
 			</div>
-
-			{testResult && (
-				<ProviderValidationFeedback
-					feedback={metronStatusToFeedback(testResult.status, testResult.message)}
-				/>
-			)}
 		</Card>
 	)
 }
