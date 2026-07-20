@@ -1,10 +1,12 @@
 use async_graphql::{Context, Object, Result, ID};
+use metadata_integrations::MatchCandidate;
 use sea_orm::{prelude::*, QueryOrder};
 
 use longbox_core::filesystem::metadata::ProviderClientCache;
+use longbox_core::filesystem::organizer::confirm::search_series_candidates;
 use longbox_core::filesystem::organizer::plan::{build_plan_scoped, OrganizePlan};
 use models::entity::{library, library_config, organize_plan_record};
-use models::shared::enums::UserPermission;
+use models::shared::enums::{MetadataProvider, UserPermission};
 
 use crate::data::{AuthContext, CoreContext};
 use crate::guard::PermissionGuard;
@@ -105,5 +107,48 @@ impl OrganizeQuery {
 		.map_err(|e| async_graphql::Error::new(e.to_string()))?;
 
 		Ok(plan.into())
+	}
+
+	/// Free-text SERIES search for the organize flow: returns provider candidates for a
+	/// user-edited query so an unruly filename can be matched by hand. Live and NOT
+	/// persisted (writes no metadata_fetch_record). ScanLibrary-gated, library-scoped.
+	#[graphql(guard = "PermissionGuard::one(UserPermission::ScanLibrary)")]
+	async fn organize_search_series(
+		&self,
+		ctx: &Context<'_>,
+		library_id: ID,
+		title: String,
+		year: Option<i32>,
+		provider: Option<MetadataProvider>,
+	) -> Result<Vec<MatchCandidate>> {
+		let AuthContext { user, .. } = ctx.data::<AuthContext>()?;
+		let core = ctx.data::<CoreContext>()?;
+		let conn = core.conn.as_ref();
+
+		let library = library::Entity::find_for_user(user)
+			.filter(library::Column::Id.eq(library_id.to_string()))
+			.one(conn)
+			.await?
+			.ok_or("Library not found")?;
+
+		let config = library_config::Entity::find()
+			.filter(library_config::Column::LibraryId.eq(library.id.clone()))
+			.one(conn)
+			.await?
+			.ok_or("Library config not found")?;
+
+		let encryption_key = core.get_encryption_key().await?;
+		let provider_cache = ProviderClientCache::new(encryption_key);
+
+		search_series_candidates(
+			conn,
+			&config.library_type,
+			&title,
+			year,
+			provider,
+			&provider_cache,
+		)
+		.await
+		.map_err(|e| async_graphql::Error::new(e.to_string()))
 	}
 }

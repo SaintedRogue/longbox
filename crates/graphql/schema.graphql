@@ -2763,6 +2763,12 @@ type Query {
 	library root.
 	"""
 	organizePreviewForPath(libraryId: ID!, path: String!): OrganizePreview!
+	"""
+	Free-text SERIES search for the organize flow: returns provider candidates for a
+	user-edited query so an unruly filename can be matched by hand. Live and NOT
+	persisted (writes no metadata_fetch_record). ScanLibrary-gated, library-scoped.
+	"""
+	organizeSearchSeries(libraryId: ID!, title: String!, year: Int, provider: MetadataProvider): [MatchCandidate!]!
 	me: User!
 	userCount: Int!
 	topReaders(take: Int): [User!]!
