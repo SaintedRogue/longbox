@@ -667,6 +667,10 @@
 					"autoOrganizeLooseFiles": {
 						"label": "Auto-organize loose files on scan",
 						"description": "After each scan, automatically move loose files that confidently match a known series into their own folder. Uncertain files are left in place."
+					},
+					"organizeCatchallSubfolders": {
+						"label": "Also organize catch-all subfolders",
+						"description": "Beyond the library root, also scan subfolders whose name doesn't match their contents (a messy 'downloads' dump). Tidy series, volume, and edition folders are left alone. Off by default."
 					}
 				},
 				"organize": {

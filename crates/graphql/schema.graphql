@@ -1110,6 +1110,7 @@ type LibraryConfig {
 	skipBookOverview: Boolean!
 	processThumbnailColorsEvenWithoutConfig: Boolean!
 	autoOrganizeLooseFiles: Boolean!
+	organizeCatchallSubfolders: Boolean!
 	libraryId: String
 	thumbnailConfig: ImageProcessorOptions
 	ignoreRules: [String!]
@@ -1131,6 +1132,7 @@ input LibraryConfigInput {
 	thumbnailConfig: ImageProcessorOptionsInput
 	processThumbnailColorsEvenWithoutConfig: Boolean!
 	autoOrganizeLooseFiles: Boolean! = false
+	organizeCatchallSubfolders: Boolean! = false
 	defaultReadingDir: ReadingDirection!
 	defaultReadingMode: ReadingMode!
 	defaultReadingImageScaleFit: ReadingImageScaleFit!

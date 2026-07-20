@@ -1203,6 +1203,7 @@ export type LibraryConfig = {
   libraryId?: Maybe<Scalars['String']['output']>;
   libraryPattern: LibraryPattern;
   libraryType: LibraryType;
+  organizeCatchallSubfolders: Scalars['Boolean']['output'];
   processMetadata: Scalars['Boolean']['output'];
   processThumbnailColorsEvenWithoutConfig: Scalars['Boolean']['output'];
   skipBookOverview: Scalars['Boolean']['output'];
@@ -1225,6 +1226,7 @@ export type LibraryConfigInput = {
   ignoreRules?: InputMaybe<Array<Scalars['String']['input']>>;
   libraryPattern: LibraryPattern;
   libraryType: LibraryType;
+  organizeCatchallSubfolders?: Scalars['Boolean']['input'];
   processMetadata: Scalars['Boolean']['input'];
   processThumbnailColorsEvenWithoutConfig: Scalars['Boolean']['input'];
   skipBookOverview: Scalars['Boolean']['input'];
@@ -5757,7 +5759,7 @@ export type LibrarySeriesGridQueryVariables = Exact<{
 
 export type LibrarySeriesGridQuery = { __typename?: 'Query', series: { __typename?: 'PaginatedSeriesResponse', nodes: Array<{ __typename?: 'Series', id: string, thumbnail: { __typename?: 'ImageRef', url: string } }>, pageInfo: { __typename: 'CursorPaginationInfo', currentCursor?: string | null, nextCursor?: string | null, limit: number } | { __typename: 'OffsetPaginationInfo' } } };
 
-export type LibrarySettingsConfigFragment = { __typename?: 'Library', config: { __typename?: 'LibraryConfig', id: number, convertRarToZip: boolean, hardDeleteConversions: boolean, defaultReadingDir: ReadingDirection, defaultReadingMode: ReadingMode, defaultReadingImageScaleFit: ReadingImageScaleFit, defaultLibraryViewMode: LibraryViewMode, hideSeriesView: boolean, skipBookOverview: boolean, generateFileHashes: boolean, generateKoreaderHashes: boolean, processMetadata: boolean, writeComicinfo: boolean, watch: boolean, autoOrganizeLooseFiles: boolean, libraryPattern: LibraryPattern, libraryType: LibraryType, processThumbnailColorsEvenWithoutConfig: boolean, ignoreRules?: Array<string> | null, thumbnailConfig?: { __typename: 'ImageProcessorOptions', format: SupportedImageFormat, quality?: number | null, page?: number | null, resizeMethod?: { __typename: 'ExactDimensionResize', width: number, height: number } | { __typename: 'FitWithinResize' } | { __typename: 'ScaleEvenlyByFactor', factor: any } | { __typename: 'ScaledDimensionResize', dimension: Dimension, size: number } | null } | null } } & { ' $fragmentName'?: 'LibrarySettingsConfigFragment' };
+export type LibrarySettingsConfigFragment = { __typename?: 'Library', config: { __typename?: 'LibraryConfig', id: number, convertRarToZip: boolean, hardDeleteConversions: boolean, defaultReadingDir: ReadingDirection, defaultReadingMode: ReadingMode, defaultReadingImageScaleFit: ReadingImageScaleFit, defaultLibraryViewMode: LibraryViewMode, hideSeriesView: boolean, skipBookOverview: boolean, generateFileHashes: boolean, generateKoreaderHashes: boolean, processMetadata: boolean, writeComicinfo: boolean, watch: boolean, autoOrganizeLooseFiles: boolean, organizeCatchallSubfolders: boolean, libraryPattern: LibraryPattern, libraryType: LibraryType, processThumbnailColorsEvenWithoutConfig: boolean, ignoreRules?: Array<string> | null, thumbnailConfig?: { __typename: 'ImageProcessorOptions', format: SupportedImageFormat, quality?: number | null, page?: number | null, resizeMethod?: { __typename: 'ExactDimensionResize', width: number, height: number } | { __typename: 'FitWithinResize' } | { __typename: 'ScaleEvenlyByFactor', factor: any } | { __typename: 'ScaledDimensionResize', dimension: Dimension, size: number } | null } | null } } & { ' $fragmentName'?: 'LibrarySettingsConfigFragment' };
 
 export type LibrarySettingsRouterEditLibraryMutationMutationVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -6966,6 +6968,7 @@ export const LibrarySettingsConfigFragmentDoc = new TypedDocumentString(`
     writeComicinfo
     watch
     autoOrganizeLooseFiles
+    organizeCatchallSubfolders
     libraryPattern
     libraryType
     thumbnailConfig {
@@ -9050,6 +9053,7 @@ export const LibraryLayoutDocument = new TypedDocumentString(`
     writeComicinfo
     watch
     autoOrganizeLooseFiles
+    organizeCatchallSubfolders
     libraryPattern
     libraryType
     thumbnailConfig {

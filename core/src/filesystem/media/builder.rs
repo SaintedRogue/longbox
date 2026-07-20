@@ -272,6 +272,7 @@ mod tests {
 			thumbnail_config: None,
 			process_thumbnail_colors_even_without_config: false,
 			auto_organize_loose_files: false,
+			organize_catchall_subfolders: false,
 			watch: false,
 			default_library_view_mode: LibraryViewMode::Series,
 			hide_series_view: false,

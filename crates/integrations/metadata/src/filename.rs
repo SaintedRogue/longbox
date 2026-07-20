@@ -30,12 +30,57 @@ pub struct ParsedComicName {
 /// series.
 pub fn parse_comic_filename(name: &str) -> ParsedComicName {
 	let (stripped, year) = strip_bracketed_groups(name);
-	let (series, number) = split_series_and_number(stripped.trim());
+	let devolumed = strip_volume_tokens(stripped.trim());
+	let (series, number) = split_series_and_number(devolumed.trim());
 	ParsedComicName {
 		series: series.filter(|s| !s.is_empty()),
 		number,
 		year,
 	}
+}
+
+/// Remove volume markers (`v01`, `v1`, `vol 1`, `vol. 1`, `volume 1`, `vol01`) from a
+/// bracket-stripped name. Volume is a separate axis from the series title, so folding
+/// it out keeps multi-volume folders (`King Spawn v01/v02/v03`) from looking like
+/// distinct series and gives providers a cleaner search term.
+fn strip_volume_tokens(s: &str) -> String {
+	let toks: Vec<&str> = s.split_whitespace().collect();
+	let mut out: Vec<&str> = Vec::with_capacity(toks.len());
+	let mut i = 0;
+	while i < toks.len() {
+		let tl = toks[i].to_ascii_lowercase();
+		// "vol" / "vol." / "volume" as a standalone marker, optionally followed by a
+		// bare number token (e.g. `Vol. 3`).
+		if matches!(tl.as_str(), "vol" | "vol." | "volume") {
+			if i + 1 < toks.len() && toks[i + 1].bytes().all(|b| b.is_ascii_digit()) {
+				i += 2;
+			} else {
+				i += 1;
+			}
+			continue;
+		}
+		// Inline forms: v01, v1, vol01, vol.01, volume01.
+		if is_volume_token(&tl) {
+			i += 1;
+			continue;
+		}
+		out.push(toks[i]);
+		i += 1;
+	}
+	out.join(" ")
+}
+
+/// Whether a single lowercased token is an inline volume marker (`v01`, `vol.03`, …).
+/// A bare `v` (as in `V for Vendetta`) is not a volume marker.
+fn is_volume_token(t: &str) -> bool {
+	for prefix in ["volume", "vol.", "vol", "v"] {
+		if let Some(rest) = t.strip_prefix(prefix) {
+			if !rest.is_empty() && rest.bytes().all(|b| b.is_ascii_digit()) {
+				return true;
+			}
+		}
+	}
+	false
 }
 
 /// Remove all top-level `(...)` and `[...]` groups from `name`, returning the
@@ -214,6 +259,44 @@ mod tests {
 				number: None,
 				year: Some(2024),
 			}
+		);
+	}
+
+	#[test]
+	fn strips_volume_markers_from_series() {
+		let cases = [
+			("King Spawn v01 (2022)", "King Spawn"),
+			("King Spawn v02 (2023)", "King Spawn"),
+			("Saga Vol. 3 (2014)", "Saga"),
+			("Y The Last Man Volume 1 (2003)", "Y The Last Man"),
+			(
+				"Batman by Grant Morrison Omnibus v01 (2018)",
+				"Batman by Grant Morrison Omnibus",
+			),
+		];
+		for (input, expected) in cases {
+			assert_eq!(
+				parse_comic_filename(input).series.as_deref(),
+				Some(expected),
+				"input: {input}"
+			);
+		}
+	}
+
+	#[test]
+	fn keeps_volume_and_issue_number_together() {
+		let p = parse_comic_filename("King Spawn v01 005 (2022)");
+		assert_eq!(p.series.as_deref(), Some("King Spawn"));
+		assert_eq!(p.number.as_deref(), Some("5"));
+	}
+
+	#[test]
+	fn a_bare_v_is_not_a_volume_marker() {
+		assert_eq!(
+			parse_comic_filename("V for Vendetta 001 (2005)")
+				.series
+				.as_deref(),
+			Some("V for Vendetta")
 		);
 	}
 }

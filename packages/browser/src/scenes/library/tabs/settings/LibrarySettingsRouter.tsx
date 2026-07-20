@@ -50,6 +50,7 @@ export const LibrarySettingsConfig = graphql(`
 			writeComicinfo
 			watch
 			autoOrganizeLooseFiles
+			organizeCatchallSubfolders
 			libraryPattern
 			libraryType
 			thumbnailConfig {
