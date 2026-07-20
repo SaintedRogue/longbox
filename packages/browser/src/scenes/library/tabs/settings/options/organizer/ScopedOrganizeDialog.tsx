@@ -5,7 +5,8 @@ import { useLocaleContext } from '@longbox/i18n'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
-import { PreviewRows, toDecisions } from './organizeMoves'
+import { FindMatchSeed, OrganizeOverride, PreviewRows, toDecisions } from './organizeMoves'
+import OrganizeSeriesMatchDialog from './OrganizeSeriesMatchDialog'
 
 const previewForPathQuery = graphql(`
 	query OrganizePreviewForPath($libraryId: ID!, $path: String!) {
@@ -58,6 +59,8 @@ export default function ScopedOrganizeDialog({
 	const { sdk } = useSDK()
 
 	const [checked, setChecked] = useState<Set<string>>(new Set())
+	const [overrides, setOverrides] = useState<Map<string, OrganizeOverride>>(new Map())
+	const [matchTarget, setMatchTarget] = useState<{ src: string; seed: FindMatchSeed } | null>(null)
 
 	const { data, isFetching, isError, refetch } = useGraphQL(
 		previewForPathQuery,
@@ -94,8 +97,17 @@ export default function ScopedOrganizeDialog({
 		})
 	}, [])
 
+	const handleFindMatch = useCallback((src: string, seed: FindMatchSeed) => {
+		setMatchTarget({ src, seed })
+	}, [])
+
+	const handlePicked = useCallback((src: string, override: OrganizeOverride) => {
+		setOverrides((prev) => new Map(prev).set(src, override))
+		setChecked((prev) => new Set(prev).add(src))
+	}, [])
+
 	const handleApply = useCallback(async () => {
-		const decisions = toDecisions(proposed, checked)
+		const decisions = toDecisions(proposed, checked, overrides)
 		if (decisions.length === 0) return
 		try {
 			await apply({ libraryId, decisions })
@@ -106,7 +118,7 @@ export default function ScopedOrganizeDialog({
 				description: error instanceof Error ? error.message : undefined,
 			})
 		}
-	}, [apply, libraryId, proposed, checked, onOpenChange, t])
+	}, [apply, libraryId, proposed, checked, overrides, onOpenChange, t])
 
 	const checkedCount = checked.size
 
@@ -149,7 +161,9 @@ export default function ScopedOrganizeDialog({
 							proposed={proposed}
 							unmatched={unmatched}
 							checked={checked}
+							overrides={overrides}
 							onToggle={toggle}
+							onFindMatch={handleFindMatch}
 							t={t}
 						/>
 					)}
@@ -169,6 +183,16 @@ export default function ScopedOrganizeDialog({
 					</Button>
 				</Dialog.Footer>
 			</Dialog.Content>
+			{matchTarget && (
+				<OrganizeSeriesMatchDialog
+					libraryId={libraryId}
+					src={matchTarget.src}
+					seed={matchTarget.seed}
+					open
+					onOpenChange={(o) => !o && setMatchTarget(null)}
+					onPicked={handlePicked}
+				/>
+			)}
 		</Dialog>
 	)
 }
