@@ -44,6 +44,56 @@ pub fn normalize_series_key(series: &str) -> String {
 		.to_lowercase()
 }
 
+/// A coarse "series family" key used ONLY by catch-all subfolder detection to decide
+/// whether a folder is a genuine jumble of unrelated series. It folds edition/format/
+/// annual descriptors into the base title, so a folder of `Absolute Batman` +
+/// `…Noir Edition` + `…2025 Annual` all resolve to family `absolute batman`.
+///
+/// It is deliberately NOT used for real grouping/search/foldering, where a Noir Edition
+/// must keep its own identity — only for the "should I even touch this folder?" check.
+pub fn series_family_key(series: &str) -> String {
+	const SUFFIXES: &[&str] = &[
+		"noir edition",
+		"noir",
+		"director's cut",
+		"directors cut",
+		"deluxe edition",
+		"deluxe",
+		"facsimile edition",
+		"facsimile",
+		"special edition",
+		"absolute edition",
+		"one-shot",
+		"one shot",
+	];
+	let mut key = normalize_series_key(series);
+	loop {
+		let before = key.clone();
+		for suffix in SUFFIXES {
+			if let Some(stripped) = key.strip_suffix(suffix) {
+				key = stripped.trim_end_matches([' ', '-']).trim().to_string();
+			}
+		}
+		// "annual", optionally preceded by a 4-digit year ("… 2025 annual").
+		if let Some(rest) = key.strip_suffix("annual") {
+			let rest = rest.trim_end_matches([' ', '-']).trim();
+			let toks: Vec<&str> = rest.split_whitespace().collect();
+			key = if toks.len() > 1
+				&& toks.last().is_some_and(|l| {
+					l.len() == 4 && l.bytes().all(|b| b.is_ascii_digit())
+				}) {
+				toks[..toks.len() - 1].join(" ")
+			} else {
+				rest.to_string()
+			};
+		}
+		if key == before {
+			break;
+		}
+	}
+	key
+}
+
 /// A provisional grouping of files that appear to belong to the same series,
 /// keyed by normalized `{series, year}` parsed from filenames. This bounds the
 /// number of provider calls; it is NOT the authoritative grouping.
@@ -182,6 +232,23 @@ mod tests {
 			normalize_series_key("  Jays  Of Future  Past "),
 			"jays of future past"
 		);
+	}
+
+	#[test]
+	fn series_family_folds_editions_and_annuals() {
+		assert_eq!(series_family_key("Absolute Batman"), "absolute batman");
+		assert_eq!(
+			series_family_key("Absolute Batman Noir Edition"),
+			"absolute batman"
+		);
+		assert_eq!(
+			series_family_key("Absolute Batman 2025 Annual"),
+			"absolute batman"
+		);
+		assert_eq!(series_family_key("Saga Deluxe Edition"), "saga");
+		assert_eq!(series_family_key("Watchmen Facsimile"), "watchmen");
+		// A genuinely different series is NOT folded into another.
+		assert_eq!(series_family_key("Superman"), "superman");
 	}
 
 	#[test]

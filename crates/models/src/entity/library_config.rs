@@ -49,6 +49,8 @@ pub struct Model {
 	pub process_thumbnail_colors_even_without_config: bool,
 	#[sea_orm(default_value = "false")]
 	pub auto_organize_loose_files: bool,
+	#[sea_orm(default_value = "false")]
+	pub organize_catchall_subfolders: bool,
 	#[sea_orm(column_type = "Json", nullable)]
 	#[graphql(skip)]
 	pub ignore_rules: Option<IgnoreRules>,
@@ -162,6 +164,10 @@ impl ActiveModelBehavior for ActiveModel {
 
 		if self.auto_organize_loose_files.is_not_set() {
 			self.auto_organize_loose_files = Set(false);
+		}
+
+		if self.organize_catchall_subfolders.is_not_set() {
+			self.organize_catchall_subfolders = Set(false);
 		}
 
 		Ok(self)

@@ -31,6 +31,17 @@ export default function OrganizerFeaturesPatchForm() {
 		patch({ config: { autoOrganizeLooseFiles: next }, scanAfterPersist: false })
 	}, [autoOrganizeLooseFiles, form, patch])
 
+	const organizeCatchallSubfolders = useWatch({
+		control: form.control,
+		name: 'organizeCatchallSubfolders',
+	})
+
+	const handleCatchallToggle = useCallback(() => {
+		const next = !organizeCatchallSubfolders
+		form.setValue('organizeCatchallSubfolders', next)
+		patch({ config: { organizeCatchallSubfolders: next }, scanAfterPersist: false })
+	}, [organizeCatchallSubfolders, form, patch])
+
 	return (
 		<Form form={form} onSubmit={() => {}} fieldsetClassName="space-y-12">
 			<CheckBox
@@ -40,6 +51,14 @@ export default function OrganizerFeaturesPatchForm() {
 				checked={autoOrganizeLooseFiles}
 				onClick={handleToggle}
 				{...form.register('autoOrganizeLooseFiles')}
+			/>
+			<CheckBox
+				id="organizeCatchallSubfolders"
+				label={t(getKey('organizeCatchallSubfolders.label'))}
+				description={t(getKey('organizeCatchallSubfolders.description'))}
+				checked={organizeCatchallSubfolders}
+				onClick={handleCatchallToggle}
+				{...form.register('organizeCatchallSubfolders')}
 			/>
 		</Form>
 	)

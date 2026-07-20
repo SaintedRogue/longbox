@@ -33,6 +33,7 @@ mod m20260715_000000_comicinfo_enrichment;
 mod m20260718_000000_add_provider_position;
 mod m20260719_000000_add_auto_organize_loose_files;
 mod m20260719_000100_add_organize_plan_record;
+mod m20260720_000000_add_organize_catchall_subfolders;
 
 pub struct Migrator;
 
@@ -72,6 +73,7 @@ impl MigratorTrait for Migrator {
 			Box::new(m20260718_000000_add_provider_position::Migration),
 			Box::new(m20260719_000000_add_auto_organize_loose_files::Migration),
 			Box::new(m20260719_000100_add_organize_plan_record::Migration),
+			Box::new(m20260720_000000_add_organize_catchall_subfolders::Migration),
 		]
 	}
 }
