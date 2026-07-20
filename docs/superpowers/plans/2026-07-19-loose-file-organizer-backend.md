@@ -1019,6 +1019,18 @@ git commit -m "feat(organizer): pattern-aware loose-file candidate detection"
 
 ### Task 6: `organizer/plan.rs` — `OrganizePlan` types + `build_plan`
 
+> **CORRECTION (2026-07-19, during execution):** the original test approach
+> below assumed `core/integration-tests` was a live harness. It is **not** — that
+> crate is orphaned (not a workspace member; its Prisma-era tests don't compile).
+> DB-backed tests for `build_plan`/`apply_plan` instead go **inside `core` as
+> `#[cfg(test)] mod tests`** in `plan.rs`/`apply.rs`, using the real fixture crate
+> `tests` (already a `core` dev-dependency): `tests::db::test_database()` builds an
+> in-memory SQLite with all entity tables, and `tests::fake_data::{Library, Series}`
+> insert rows. Do NOT touch `core/integration-tests` or the workspace manifest.
+> Test command becomes `cargo test -p longbox_core organizer::plan` (Task 6) /
+> `organizer::apply` (Task 7). The `plan.rs`/`apply.rs` implementations below are
+> unchanged and correct.
+
 Assembles a full preview: for each candidate group, confirm a canonical series (cache first, then provider unless `cached_only`), compute destination + merge target, and sort files into proposed moves vs unmatched.
 
 **Files:**
@@ -1418,6 +1430,12 @@ git commit -m "feat(organizer): build_plan preview assembly with provider + cach
 ---
 
 ### Task 7: `organizer/apply.rs` — move + DB reconcile (safety-critical)
+
+> **CORRECTION (2026-07-19):** same as Task 6 — the apply integration tests go
+> **inside `core` as `#[cfg(test)] mod tests` in `apply.rs`**, using
+> `tests::db::test_database()` + `tests::fake_data` (+ `models::entity::media`
+> `ActiveModel` inserts for catalogued media). NOT in `core/integration-tests`.
+> Test command: `cargo test -p longbox_core organizer::apply`.
 
 **Files:**
 
