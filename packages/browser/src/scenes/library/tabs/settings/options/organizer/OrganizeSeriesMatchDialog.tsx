@@ -3,6 +3,7 @@ import { Dialog } from '@longbox/components'
 import { graphql, MetadataProvider } from '@longbox/graphql'
 import { useLocaleContext } from '@longbox/i18n'
 import { useCallback, useMemo } from 'react'
+import { toast } from 'sonner'
 
 import { MetadataSearchPanel, SearchPanelCandidate } from '@/components/metadata/providerMatch'
 
@@ -104,19 +105,41 @@ export default function OrganizeSeriesMatchDialog({
 
 	const runSearch = useCallback(
 		async (query: { title: string; year?: number | null }, provider: string | null) => {
-			const res = await sdk.execute(organizeSearchSeriesQuery, {
-				libraryId,
-				title: query.title,
-				year: query.year ?? null,
-				provider: (provider as MetadataProvider | null) ?? null,
-			})
-			return (res.organizeSearchSeries ?? []) as SearchPanelCandidate[]
+			try {
+				const res = await sdk.execute(organizeSearchSeriesQuery, {
+					libraryId,
+					title: query.title,
+					year: query.year ?? null,
+					provider: (provider as MetadataProvider | null) ?? null,
+				})
+				// `metadata` is a `MatchCandidate.metadata` union (series vs. media) —
+				// only series-shaped candidates carry a usable `title`/`year`, so a
+				// non-series candidate is dropped here rather than risking an empty
+				// `canonicalName` reaching the compare-grid (and `handleSelect`).
+				return (res.organizeSearchSeries ?? [])
+					.filter((candidate) => candidate.metadata.__typename === 'ExternalSeriesMetadata')
+					.map((candidate) => ({
+						provider: candidate.provider,
+						externalId: candidate.externalId,
+						confidence: candidate.confidence,
+						metadata: candidate.metadata as unknown as Record<string, unknown>,
+					})) as SearchPanelCandidate[]
+			} catch (error) {
+				toast.error('Failed to search for a series match.', {
+					description: error instanceof Error ? error.message : undefined,
+				})
+				return []
+			}
 		},
 		[sdk, libraryId],
 	)
 
 	const handleSelect = useCallback(
 		(candidate: SearchPanelCandidate) => {
+			// Belt-and-suspenders: `runSearch` already filters to series-shaped
+			// candidates, but never hand a non-series candidate's (empty)
+			// `canonicalName` to `onPicked` if one somehow slips through.
+			if (candidate.metadata.__typename !== 'ExternalSeriesMetadata') return
 			const meta = candidate.metadata as { title?: string; year?: number | null }
 			onPicked(src, {
 				canonicalName: meta.title ?? '',
