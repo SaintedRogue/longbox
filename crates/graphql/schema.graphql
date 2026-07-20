@@ -411,7 +411,7 @@ type ConfidenceFactor {
 "An event that is emitted by the core and consumed by a client"
 union CoreEvent = JobStarted | JobUpdate | JobOutput | DiscoveredMissingLibrary | CreatedMedia | CreatedManySeries | CreatedOrUpdatedManyMedia
 
-union CoreJobOutput = LibraryScanOutput | SeriesScanOutput | ThumbnailGenerationOutput | PlaceholderGenerationOutput | MetadataFetchJobOutput | AnalyzeMediaOutput
+union CoreJobOutput = LibraryScanOutput | SeriesScanOutput | ThumbnailGenerationOutput | PlaceholderGenerationOutput | MetadataFetchJobOutput | AnalyzeMediaOutput | OrganizeLooseFilesOutput
 
 input CreateAnnotationInput {
 	mediaId: String!
@@ -2421,6 +2421,14 @@ type OffsetPaginationInfo {
 enum OrderDirection {
 	ASC
 	DESC
+}
+
+type OrganizeLooseFilesOutput {
+	proposedMoves: Int!
+	unmatched: Int!
+	moved: Int!
+	skipped: Int!
+	failed: Int!
 }
 
 input PageBasedThumbnailInput {

@@ -10,6 +10,7 @@ use crate::{
 		image::{PlaceholderGenerationJob, ThumbnailGenerationJob},
 		media::analysis::AnalyzeMediaJob,
 		metadata::MetadataFetchJob,
+		organizer::OrganizeLooseFilesJob,
 		scanner::{LibraryScanJob, SeriesScanJob},
 	},
 	job::{
@@ -137,6 +138,9 @@ pub async fn dispatch_job(
 		},
 		LongboxJob::AnalyzeMedia { config } => {
 			run_job(&job_ctx, &mut AnalyzeMediaJob { config }).await
+		},
+		LongboxJob::OrganizeLooseFiles { library_id, mode } => {
+			run_job(&job_ctx, &mut OrganizeLooseFilesJob::new(library_id, mode)).await
 		},
 	};
 

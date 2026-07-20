@@ -7,6 +7,7 @@ use crate::filesystem::{
 	image::{PlaceholderGenerationOutput, ThumbnailGenerationOutput},
 	media::analysis::AnalyzeMediaOutput,
 	metadata::MetadataFetchJobOutput,
+	organizer::OrganizeLooseFilesOutput,
 	scanner::{LibraryScanOutput, SeriesScanOutput},
 };
 
@@ -19,6 +20,7 @@ pub enum CoreJobOutput {
 	PlaceholderGeneration(PlaceholderGenerationOutput),
 	MetadataFetch(MetadataFetchJobOutput),
 	AnalyzeMedia(AnalyzeMediaOutput),
+	OrganizeLooseFiles(OrganizeLooseFilesOutput),
 }
 
 /// A trait to extend the output type for a job with a common interface. Job output starts
