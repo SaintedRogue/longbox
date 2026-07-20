@@ -194,6 +194,7 @@ export const buildSchema = (
 			}),
 		processMetadata: z.boolean().default(true),
 		writeComicinfo: z.boolean().default(false),
+		autoOrganizeLooseFiles: z.boolean().default(false),
 		scanAfterPersist: z.boolean().default(true),
 		tags: z
 			.array(
@@ -234,6 +235,7 @@ export const formDefaults = (
 	path: library?.path || '',
 	processMetadata: library?.config.processMetadata ?? true,
 	writeComicinfo: library?.config.writeComicinfo ?? false,
+	autoOrganizeLooseFiles: library?.config.autoOrganizeLooseFiles ?? false,
 	scanAfterPersist: true,
 	tags: library?.tags?.map((t) => ({ label: t.name, value: t.name.toLowerCase() })),
 	thumbnailConfig: intoFormThumbnailConfig(library?.config.thumbnailConfig),
