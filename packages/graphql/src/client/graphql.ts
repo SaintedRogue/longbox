@@ -1212,6 +1212,7 @@ export type LibraryConfig = {
 };
 
 export type LibraryConfigInput = {
+  autoOrganizeLooseFiles?: Scalars['Boolean']['input'];
   convertRarToZip: Scalars['Boolean']['input'];
   defaultLibraryViewMode: LibraryViewMode;
   defaultReadingDir: ReadingDirection;

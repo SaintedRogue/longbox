@@ -1130,6 +1130,7 @@ input LibraryConfigInput {
 	skipBookOverview: Boolean!
 	thumbnailConfig: ImageProcessorOptionsInput
 	processThumbnailColorsEvenWithoutConfig: Boolean!
+	autoOrganizeLooseFiles: Boolean! = false
 	defaultReadingDir: ReadingDirection!
 	defaultReadingMode: ReadingMode!
 	defaultReadingImageScaleFit: ReadingImageScaleFit!
