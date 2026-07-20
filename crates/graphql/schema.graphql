@@ -2756,6 +2756,13 @@ type Query {
 	mediaMetadataOverview(seriesId: ID): MediaMetadataOverview!
 	"The latest computed organize preview for a library, if any."
 	organizePreview(libraryId: ID!): OrganizePreview
+	"""
+	Compute an organize preview scoped to a single file or folder under the library.
+	Runs synchronously (live provider lookups) and is NOT persisted, so it never
+	disturbs the library-wide plan. `path` must resolve to a real location inside the
+	library root.
+	"""
+	organizePreviewForPath(libraryId: ID!, path: String!): OrganizePreview!
 	me: User!
 	userCount: Int!
 	topReaders(take: Int): [User!]!
