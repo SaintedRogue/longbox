@@ -69,6 +69,11 @@ impl OrganizeQuery {
 
 		// Security: the client-supplied path must resolve to a real location inside the
 		// library root — reject `..`, symlinks that escape, and anything out of tree.
+		// We canonicalize only for this containment check; the scan itself uses the
+		// original `path` (below), which shares the library's stored, non-canonical
+		// base — the same base `media.path` rows are keyed by. Scanning the canonical
+		// form instead would, under a symlinked library root, produce `src` paths that
+		// no media row matches, so Apply couldn't re-point the moved records.
 		let root_canon = std::fs::canonicalize(&library.path)
 			.map_err(|_| async_graphql::Error::new("Library path is not accessible"))?;
 		let target_canon = std::fs::canonicalize(&path)
@@ -92,7 +97,7 @@ impl OrganizeQuery {
 			conn,
 			&library.id,
 			&library.path,
-			&target_canon.to_string_lossy(),
+			&path,
 			&config,
 			&provider_cache,
 		)

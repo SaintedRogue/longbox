@@ -63,7 +63,10 @@ export default function ScopedOrganizeDialog({
 		previewForPathQuery,
 		sdk.cacheKey('organizePreviewForPath', [libraryId, targetPath]),
 		{ libraryId, path: targetPath },
-		{ enabled: open },
+		// This preview is a live, synchronous provider lookup (slow, and rate-limit /
+		// IP-ban sensitive on some providers). Don't let a window-focus change silently
+		// re-fire it — the user triggers it explicitly, and Retry covers refresh.
+		{ enabled: open, refetchOnWindowFocus: false, staleTime: Infinity },
 	)
 	const preview = data?.organizePreviewForPath ?? null
 	// Memoized so identity only changes when `preview` itself changes — otherwise
