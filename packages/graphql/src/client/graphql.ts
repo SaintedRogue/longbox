@@ -1188,6 +1188,7 @@ export type LibraryStatsArgs = {
 
 export type LibraryConfig = {
   __typename?: 'LibraryConfig';
+  autoOrganizeLooseFiles: Scalars['Boolean']['output'];
   convertRarToZip: Scalars['Boolean']['output'];
   defaultLibraryViewMode: LibraryViewMode;
   defaultReadingDir: ReadingDirection;

@@ -1109,6 +1109,7 @@ type LibraryConfig {
 	libraryType: LibraryType!
 	skipBookOverview: Boolean!
 	processThumbnailColorsEvenWithoutConfig: Boolean!
+	autoOrganizeLooseFiles: Boolean!
 	libraryId: String
 	thumbnailConfig: ImageProcessorOptions
 	ignoreRules: [String!]
