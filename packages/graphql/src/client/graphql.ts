@@ -2084,6 +2084,8 @@ export type Mutation = {
   analyzeLibrary: Scalars['Boolean']['output'];
   analyzeMedia: Scalars['Boolean']['output'];
   analyzeSeries: Scalars['Boolean']['output'];
+  /** Enqueue a job that applies the given organize decisions (moves files). */
+  applyOrganizeLooseFiles: Scalars['Boolean']['output'];
   /** Archive or unarchive a discussion (Moderator+) */
   archiveDiscussion: Scalars['Boolean']['output'];
   cancelJob: Scalars['Boolean']['output'];
@@ -2249,6 +2251,8 @@ export type Mutation = {
   patchEmailDevice: RegisteredEmailDevice;
   /** Pin or unpin a message (Moderator+) */
   pinMessage: Scalars['Boolean']['output'];
+  /** Enqueue a job that scans for loose files and builds an organize preview. */
+  planOrganizeLooseFiles: Scalars['Boolean']['output'];
   processLibraryThumbnails: Scalars['Boolean']['output'];
   /** Reject all pending metadata matches, setting their status to NoMatch */
   rejectAllPendingMatches: Scalars['Int']['output'];
@@ -2466,6 +2470,12 @@ export type MutationAnalyzeMediaArgs = {
 export type MutationAnalyzeSeriesArgs = {
   forceReanalysis?: Scalars['Boolean']['input'];
   id: Scalars['ID']['input'];
+};
+
+
+export type MutationApplyOrganizeLooseFilesArgs = {
+  decisions: Array<OrganizeDecisionInput>;
+  libraryId: Scalars['ID']['input'];
 };
 
 
@@ -2818,6 +2828,11 @@ export type MutationPatchEmailDeviceArgs = {
 export type MutationPinMessageArgs = {
   messageId: Scalars['ID']['input'];
   pinned: Scalars['Boolean']['input'];
+};
+
+
+export type MutationPlanOrganizeLooseFilesArgs = {
+  libraryId: Scalars['ID']['input'];
 };
 
 
@@ -3304,6 +3319,25 @@ export enum OrderDirection {
   Desc = 'DESC'
 }
 
+export enum OrganizeBucket {
+  Ambiguous = 'AMBIGUOUS',
+  Confident = 'CONFIDENT',
+  Unmatched = 'UNMATCHED'
+}
+
+export type OrganizeDecisionInput = {
+  canonicalName?: InputMaybe<Scalars['String']['input']>;
+  externalId?: InputMaybe<Scalars['String']['input']>;
+  provider?: InputMaybe<Scalars['String']['input']>;
+  /** Existing series to merge into (optional). */
+  seriesId?: InputMaybe<Scalars['String']['input']>;
+  /** When true, skip this file (leave it in place). */
+  skip?: Scalars['Boolean']['input'];
+  /** Absolute source path of the file to organize. */
+  src: Scalars['String']['input'];
+  year?: InputMaybe<Scalars['Int']['input']>;
+};
+
 export type OrganizeLooseFilesOutput = {
   __typename?: 'OrganizeLooseFilesOutput';
   failed: Scalars['Int']['output'];
@@ -3311,6 +3345,34 @@ export type OrganizeLooseFilesOutput = {
   proposedMoves: Scalars['Int']['output'];
   skipped: Scalars['Int']['output'];
   unmatched: Scalars['Int']['output'];
+};
+
+export type OrganizePreview = {
+  __typename?: 'OrganizePreview';
+  proposedMoves: Array<OrganizeProposedMove>;
+  unmatched: Array<OrganizeUnmatchedFile>;
+};
+
+export type OrganizeProposedMove = {
+  __typename?: 'OrganizeProposedMove';
+  bucket: OrganizeBucket;
+  canonicalName: Scalars['String']['output'];
+  confidence: Scalars['Float']['output'];
+  dst: Scalars['String']['output'];
+  existingSeriesId?: Maybe<Scalars['String']['output']>;
+  externalId: Scalars['String']['output'];
+  mediaId?: Maybe<Scalars['String']['output']>;
+  provider: Scalars['String']['output'];
+  src: Scalars['String']['output'];
+  year?: Maybe<Scalars['Int']['output']>;
+};
+
+export type OrganizeUnmatchedFile = {
+  __typename?: 'OrganizeUnmatchedFile';
+  mediaId?: Maybe<Scalars['String']['output']>;
+  parsedSeries?: Maybe<Scalars['String']['output']>;
+  reason: Scalars['String']['output'];
+  src: Scalars['String']['output'];
 };
 
 export type PageBasedThumbnailInput = {
@@ -3605,6 +3667,8 @@ export type Query = {
   numberOfLibraries: Scalars['Int']['output'];
   numberOfSeries: Scalars['Int']['output'];
   onDeck: PaginatedMediaResponse;
+  /** The latest computed organize preview for a library, if any. */
+  organizePreview?: Maybe<OrganizePreview>;
   /**
    * Parse a raw comic filename into a best-effort `{series, number, year}` to
    * pre-fill the on-demand metadata-search fields. Pure and heuristic — it
@@ -3849,6 +3913,11 @@ export type QueryMetadataProviderConfigByIdArgs = {
 
 export type QueryOnDeckArgs = {
   pagination?: Pagination;
+};
+
+
+export type QueryOrganizePreviewArgs = {
+  libraryId: Scalars['ID']['input'];
 };
 
 

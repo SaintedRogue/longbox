@@ -18,6 +18,7 @@ pub(crate) mod media;
 mod media_metadata_overview;
 mod metadata_provider;
 mod notifier;
+mod organize;
 pub(crate) mod reading_list;
 mod series;
 mod server_config;
@@ -46,6 +47,7 @@ use media::MediaQuery;
 use media_metadata_overview::MediaMetadataOverviewQuery;
 use metadata_provider::MetadataProviderQuery;
 use notifier::NotifierQuery;
+use organize::OrganizeQuery;
 use reading_list::ReadingListQuery;
 use series::SeriesQuery;
 use server_config::ServerConfigQuery;
@@ -78,6 +80,7 @@ struct ContentQueries(
 	EpubQuery,
 	TagQuery,
 	MediaMetadataOverviewQuery,
+	OrganizeQuery,
 );
 
 #[derive(async_graphql::MergedObject, Default)]

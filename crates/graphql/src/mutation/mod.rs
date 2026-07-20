@@ -16,6 +16,7 @@ mod media;
 mod media_metadata;
 mod metadata_provider;
 mod notifier;
+mod organize;
 mod reading_list;
 pub mod reading_progress;
 mod scheduled_job_config;
@@ -46,6 +47,7 @@ use media::MediaMutation;
 use media_metadata::MediaMetadataMutation;
 use metadata_provider::MetadataProviderMutation;
 use notifier::NotifierMutation;
+use organize::OrganizeMutation;
 use reading_list::ReadingListMutation;
 use reading_progress::ReadProgressMutation;
 use scheduled_job_config::ScheduledJobConfigMutation;
@@ -78,6 +80,7 @@ struct ContentMutations(
 	EpubMutation,
 	TagMutation,
 	UploadMutation,
+	OrganizeMutation,
 );
 
 #[derive(async_graphql::MergedObject, Default)]
