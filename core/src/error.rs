@@ -66,3 +66,9 @@ impl From<chrono::ParseError> for CoreError {
 		Self::InternalError(error.to_string())
 	}
 }
+
+impl From<models::error::EntityError> for CoreError {
+	fn from(error: models::error::EntityError) -> Self {
+		Self::InternalError(error.to_string())
+	}
+}
