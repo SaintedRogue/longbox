@@ -1,4 +1,4 @@
-import { useGraphQL, useGraphQLMutation, useSDK } from '@longbox/client'
+import { useGraphQL, useGraphQLMutation, useJobStore, useSDK } from '@longbox/client'
 import { Badge, Button, CheckBox, Dialog, Text } from '@longbox/components'
 import {
 	graphql,
@@ -79,6 +79,7 @@ export default function OrganizeLooseFilesDialog({ libraryId, open, onOpenChange
 	const [checked, setChecked] = useState<Set<string>>(new Set())
 	const [awaitingPlan, setAwaitingPlan] = useState(false)
 	const prevFetching = useRef(false)
+	const sawRunningJob = useRef(false)
 
 	const { data, isFetching } = useGraphQL(
 		previewQuery,
@@ -94,6 +95,12 @@ export default function OrganizeLooseFilesDialog({ libraryId, open, onOpenChange
 
 	const { mutateAsync: plan } = useGraphQLMutation(planMutation)
 	const { mutateAsync: apply, isPending: isApplying } = useGraphQLMutation(applyMutation)
+
+	// Number of jobs currently running (from the global job-event store). Used to
+	// detect when the plan job has finished — success OR failure — so the
+	// "scanning" indicator never sticks on a failed plan (a failed plan emits no
+	// JobOutput, so it never invalidates the preview or triggers the refetch below).
+	const runningJobCount = useJobStore((state) => Object.keys(state.jobs).length)
 
 	// Default-check Confident moves whenever a fresh preview arrives.
 	useEffect(() => {
@@ -112,7 +119,20 @@ export default function OrganizeLooseFilesDialog({ libraryId, open, onOpenChange
 		prevFetching.current = isFetching
 	}, [isFetching])
 
+	// Fallback for the failure case: once a job we saw start has left the store,
+	// stop waiting even if no preview refetch was triggered (a failed plan).
+	useEffect(() => {
+		if (!awaitingPlan) return
+		if (runningJobCount > 0) {
+			sawRunningJob.current = true
+		} else if (sawRunningJob.current) {
+			setAwaitingPlan(false)
+			sawRunningJob.current = false
+		}
+	}, [awaitingPlan, runningJobCount])
+
 	const handleScan = useCallback(async () => {
+		sawRunningJob.current = false
 		setAwaitingPlan(true)
 		try {
 			await plan({ libraryId })
@@ -295,7 +315,11 @@ function MoveRow({
 	const target = move.year ? `${move.canonicalName} (${move.year})` : move.canonicalName
 	return (
 		<div className="gap-3 p-2 flex items-center rounded-lg border border-border bg-background">
-			<CheckBox id={move.src} checked={checked} onClick={onToggle} />
+			<CheckBox
+				id={`organize-${move.src.replace(/\W+/g, '-')}`}
+				checked={checked}
+				onClick={onToggle}
+			/>
 			<div className="min-w-0 flex-1">
 				<Text size="sm" className="truncate">
 					{basename(move.src)} → {target}
