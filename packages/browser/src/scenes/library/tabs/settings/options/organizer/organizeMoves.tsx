@@ -14,6 +14,14 @@ export type UnmatchedFile = NonNullable<
 	OrganizePreviewQuery['organizePreview']
 >['unmatched'][number]
 
+/** A user-picked series match from `OrganizeSeriesMatchDialog`, keyed by `src` in the caller's state. */
+export type OrganizeOverride = {
+	canonicalName: string
+	year: number | null
+	externalId: string
+	provider: string
+}
+
 /** Basename of a path, for display only — moves are always keyed by full `src`. */
 const basename = (p: string) => p.split('/').pop() ?? p
 

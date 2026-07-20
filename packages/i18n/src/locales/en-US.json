@@ -713,6 +713,11 @@
 				"empty": "Nothing here can be organized.",
 				"error": "Couldn't load the organize preview.",
 				"retry": "Retry"
+			},
+			"seriesMatch": {
+				"title": "Find a series match",
+				"findMatch": "Find match",
+				"manualBadge": "Manual"
 			}
 		},
 		"integrations/analysis": {

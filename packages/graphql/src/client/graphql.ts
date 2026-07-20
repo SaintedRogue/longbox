@@ -3680,6 +3680,12 @@ export type Query = {
    */
   organizePreviewForPath: OrganizePreview;
   /**
+   * Free-text SERIES search for the organize flow: returns provider candidates for a
+   * user-edited query so an unruly filename can be matched by hand. Live and NOT
+   * persisted (writes no metadata_fetch_record). ScanLibrary-gated, library-scoped.
+   */
+  organizeSearchSeries: Array<MatchCandidate>;
+  /**
    * Parse a raw comic filename into a best-effort `{series, number, year}` to
    * pre-fill the on-demand metadata-search fields. Pure and heuristic — it
    * reads no database rows or secrets, so a lightweight read guard suffices.
@@ -3934,6 +3940,14 @@ export type QueryOrganizePreviewArgs = {
 export type QueryOrganizePreviewForPathArgs = {
   libraryId: Scalars['ID']['input'];
   path: Scalars['String']['input'];
+};
+
+
+export type QueryOrganizeSearchSeriesArgs = {
+  libraryId: Scalars['ID']['input'];
+  provider?: InputMaybe<MetadataProvider>;
+  title: Scalars['String']['input'];
+  year?: InputMaybe<Scalars['Int']['input']>;
 };
 
 
@@ -5870,6 +5884,21 @@ export type OrganizePreviewQueryVariables = Exact<{
 
 
 export type OrganizePreviewQuery = { __typename?: 'Query', organizePreview?: { __typename?: 'OrganizePreview', proposedMoves: Array<{ __typename?: 'OrganizeProposedMove', src: string, dst: string, canonicalName: string, year?: number | null, externalId: string, provider: string, confidence: number, bucket: OrganizeBucket, existingSeriesId?: string | null }>, unmatched: Array<{ __typename?: 'OrganizeUnmatchedFile', src: string, parsedSeries?: string | null, reason: string }> } | null };
+
+export type OrganizeSearchSeriesQueryVariables = Exact<{
+  libraryId: Scalars['ID']['input'];
+  title: Scalars['String']['input'];
+  year?: InputMaybe<Scalars['Int']['input']>;
+  provider?: InputMaybe<MetadataProvider>;
+}>;
+
+
+export type OrganizeSearchSeriesQuery = { __typename?: 'Query', organizeSearchSeries: Array<{ __typename?: 'MatchCandidate', provider: string, externalId: string, confidence: number, metadata: { __typename: 'ExternalMediaMetadata' } | { __typename: 'ExternalSeriesMetadata', title: string, year?: number | null, publisher?: string | null, authors?: Array<string> | null, coverUrl?: string | null } }> };
+
+export type OrganizeSeriesMatchProvidersQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type OrganizeSeriesMatchProvidersQuery = { __typename?: 'Query', metadataProviderConfigs: Array<{ __typename?: 'MetadataProviderConfigModel', providerType: MetadataProvider, enabled: boolean, position: number }> };
 
 export type OrganizePreviewForPathQueryVariables = Exact<{
   libraryId: Scalars['ID']['input'];
@@ -9396,6 +9425,39 @@ export const OrganizePreviewDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<OrganizePreviewQuery, OrganizePreviewQueryVariables>;
+export const OrganizeSearchSeriesDocument = new TypedDocumentString(`
+    query OrganizeSearchSeries($libraryId: ID!, $title: String!, $year: Int, $provider: MetadataProvider) {
+  organizeSearchSeries(
+    libraryId: $libraryId
+    title: $title
+    year: $year
+    provider: $provider
+  ) {
+    provider
+    externalId
+    confidence
+    metadata {
+      __typename
+      ... on ExternalSeriesMetadata {
+        title
+        year
+        publisher
+        authors
+        coverUrl
+      }
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<OrganizeSearchSeriesQuery, OrganizeSearchSeriesQueryVariables>;
+export const OrganizeSeriesMatchProvidersDocument = new TypedDocumentString(`
+    query OrganizeSeriesMatchProviders {
+  metadataProviderConfigs {
+    providerType
+    enabled
+    position
+  }
+}
+    `) as unknown as TypedDocumentString<OrganizeSeriesMatchProvidersQuery, OrganizeSeriesMatchProvidersQueryVariables>;
 export const OrganizePreviewForPathDocument = new TypedDocumentString(`
     query OrganizePreviewForPath($libraryId: ID!, $path: String!) {
   organizePreviewForPath(libraryId: $libraryId, path: $path) {
