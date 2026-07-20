@@ -553,6 +553,7 @@
 				"reading": "Reading",
 				"scanning": "Scanning",
 				"thumbnails": "Thumbnails",
+				"organize": "Organize",
 				"ignore-rules": "Ignore Rules",
 				"label": "Configuration"
 			},
@@ -655,6 +656,18 @@
 					"description": "Manage the existing thumbnails for this library",
 					"thumbnailSelector": {},
 					"deleteThumbnails": {}
+				}
+			}
+		},
+		"options/organize": {
+			"title": "Organize",
+			"description": "Settings for automatically organizing loose files that are added to this library",
+			"sections": {
+				"features": {
+					"autoOrganizeLooseFiles": {
+						"label": "Auto-organize loose files on scan",
+						"description": "After each scan, automatically move loose files that confidently match a known series into their own folder. Uncertain files are left in place."
+					}
 				}
 			}
 		},

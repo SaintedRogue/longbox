@@ -24,6 +24,7 @@ import { transformConfigForMutation } from './utils'
 const BasicSettingsScene = lazy(() => import('./basics/BasicSettingsScene'))
 const ThumbnailSettingsScene = lazy(() => import('./options/thumbnails/ThumbnailSettingsScene'))
 const ScannerBehaviorScene = lazy(() => import('./options/scanner'))
+const LibraryOrganizeScene = lazy(() => import('./options/organizer'))
 const LibraryAnalysisScene = lazy(() => import('./integrations/analysis'))
 const LibraryMetadataScene = lazy(() => import('./integrations/metadata'))
 const LibraryReadingDefaultsScene = lazy(() => import('./options/readingDefaults'))
@@ -184,6 +185,7 @@ export default function LibrarySettingsRouter() {
 					<Route path="reading" element={<LibraryReadingDefaultsScene />} />
 					<Route path="scanning" element={<ScannerBehaviorScene />} />
 					<Route path="thumbnails" element={<ThumbnailSettingsScene />} />
+					<Route path="organize" element={<LibraryOrganizeScene />} />
 					<Route path="analysis" element={<LibraryAnalysisScene />} />
 					{canAccessMetadata && <Route path="metadata" element={<LibraryMetadataScene />} />}
 
