@@ -21,13 +21,8 @@ pub fn sanitize_folder_name(name: &str) -> String {
 		})
 		.collect();
 	let collapsed = replaced.split_whitespace().collect::<Vec<_>>().join(" ");
-	let capped: String = collapsed
-		.trim_end_matches('.')
-		.trim()
-		.chars()
-		.take(120)
-		.collect();
-	let capped = capped.trim().to_string();
+	let capped: String = collapsed.chars().take(120).collect();
+	let capped = capped.trim_end_matches('.').trim().to_string();
 	if capped.is_empty() {
 		"Unknown Series".to_string()
 	} else {
@@ -87,5 +82,19 @@ mod tests {
 			OsStr::new("Batman 001.cbz"),
 		);
 		assert_eq!(dst, PathBuf::from("/lib/data/Batman (2016)/Batman 001.cbz"));
+	}
+
+	#[test]
+	fn caps_length_and_never_ends_in_period() {
+		let long = sanitize_folder_name(&"A".repeat(200));
+		assert!(long.chars().count() <= 120);
+
+		// A name whose 120-char boundary lands on a period must not end in '.'.
+		let mut boundary = "A".repeat(119);
+		boundary.push('.');
+		boundary.push_str(&"B".repeat(50));
+		let capped = sanitize_folder_name(&boundary);
+		assert!(capped.chars().count() <= 120);
+		assert!(!capped.ends_with('.'));
 	}
 }
