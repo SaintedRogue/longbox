@@ -54,7 +54,10 @@ fn move_file(src: &Path, dst: &Path) -> std::io::Result<()> {
 		Err(error) => {
 			// EXDEV (raw os error 18 on Linux) => copy then remove.
 			if error.raw_os_error() == Some(18) {
-				std::fs::copy(src, dst)?;
+				if let Err(copy_err) = std::fs::copy(src, dst) {
+					let _ = std::fs::remove_file(dst); // clean up any partial copy
+					return Err(copy_err);
+				}
 				if let Err(remove_err) = std::fs::remove_file(src) {
 					let _ = std::fs::remove_file(dst); // don't leave an orphan copy
 					return Err(remove_err);
@@ -405,7 +408,7 @@ mod tests {
 			name: Some("Batman".to_string()),
 			path: Some(
 				root.path()
-					.join("Batman (2016)")
+					.join("Existing Batman Series")
 					.to_string_lossy()
 					.to_string(),
 			),
