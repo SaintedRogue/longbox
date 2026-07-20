@@ -71,7 +71,7 @@ fn filter_providers_for_library_type(
 /// all enabled providers, the default). If the chosen provider isn't among the
 /// enabled configs the result is empty — callers treat that the same as
 /// "no providers configured".
-fn filter_to_provider(
+pub(crate) fn filter_to_provider(
 	configs: Vec<metadata_provider_config::Model>,
 	provider: Option<MetadataProvider>,
 ) -> Vec<metadata_provider_config::Model> {
@@ -463,5 +463,38 @@ mod tests {
 		fill_query_from_filename(&mut search);
 		assert_eq!(search.series_name.as_deref(), Some("Real Series"));
 		assert_eq!(search.number.as_deref(), Some("5"));
+	}
+}
+
+#[cfg(test)]
+mod filter_tests {
+	use super::filter_to_provider;
+	use models::entity::metadata_provider_config;
+	use models::shared::enums::MetadataProvider;
+
+	fn cfg(provider: MetadataProvider) -> metadata_provider_config::Model {
+		metadata_provider_config::Model {
+			id: 0,
+			provider_type: provider,
+			enabled: true,
+			position: 0,
+			encrypted_api_token: None,
+			api_token_expires_at: None,
+			auto_apply_config: None,
+			created_at: chrono::Utc::now().into(),
+			updated_at: None,
+		}
+	}
+
+	#[test]
+	fn keeps_only_the_requested_provider() {
+		let configs = vec![
+			cfg(MetadataProvider::ComicVine),
+			cfg(MetadataProvider::Metron),
+		];
+		let only = filter_to_provider(configs.clone(), Some(MetadataProvider::Metron));
+		assert_eq!(only.len(), 1);
+		assert_eq!(only[0].provider_type, MetadataProvider::Metron);
+		assert_eq!(filter_to_provider(configs, None).len(), 2);
 	}
 }

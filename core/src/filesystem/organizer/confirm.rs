@@ -6,10 +6,10 @@ use std::path::PathBuf;
 
 use metadata_integrations::{parse_comic_filename, MatchCandidate, SearchQuery};
 use models::entity::metadata_provider_config;
-use models::shared::enums::LibraryType;
+use models::shared::enums::{LibraryType, MetadataProvider};
 use sea_orm::{prelude::*, DatabaseConnection};
 
-use crate::filesystem::metadata::ProviderClientCache;
+use crate::filesystem::metadata::{filter_to_provider, ProviderClientCache};
 use crate::CoreError;
 
 /// Confidence at/above which a provider match is auto-actionable.
@@ -163,6 +163,10 @@ pub fn confirm_from_candidates(candidates: &[MatchCandidate]) -> Option<Confirme
 /// Search every enabled provider that supports this library type for `series_query`
 /// and return the combined candidates sorted descending by confidence.
 ///
+/// `provider_filter` scopes the search to a single provider (the interactive
+/// "search this specific provider" flow, e.g. `organizeSearchSeries`); `None`
+/// searches all enabled providers, as the auto-organize path does.
+///
 /// This deliberately calls `provider.search_series` directly rather than
 /// `fetch_series_metadata`, because the latter upserts a `metadata_fetch_record`
 /// keyed by an existing `series_id` — which does not exist for a not-yet-created
@@ -172,6 +176,7 @@ pub async fn search_series_candidates(
 	library_type: &LibraryType,
 	series_query: &str,
 	year: Option<i32>,
+	provider_filter: Option<MetadataProvider>,
 	provider_cache: &ProviderClientCache,
 ) -> Result<Vec<MatchCandidate>, CoreError> {
 	let configs = metadata_provider_config::Entity::find()
@@ -181,6 +186,7 @@ pub async fn search_series_candidates(
 		.into_iter()
 		.filter(|c| library_type.has_provider_overlap(&c.provider_type))
 		.collect::<Vec<_>>();
+	let configs = filter_to_provider(configs, provider_filter);
 
 	let query = SearchQuery {
 		title: series_query.to_string(),

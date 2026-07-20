@@ -222,6 +222,7 @@ async fn assemble_plan(
 				&config.library_type,
 				&group.series_query,
 				group.year,
+				None,
 				provider_cache,
 			)
 			.await
