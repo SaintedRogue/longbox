@@ -55,7 +55,10 @@ fn move_file(src: &Path, dst: &Path) -> std::io::Result<()> {
 			// EXDEV (raw os error 18 on Linux) => copy then remove.
 			if error.raw_os_error() == Some(18) {
 				std::fs::copy(src, dst)?;
-				std::fs::remove_file(src)?;
+				if let Err(remove_err) = std::fs::remove_file(src) {
+					let _ = std::fs::remove_file(dst); // don't leave an orphan copy
+					return Err(remove_err);
+				}
 				Ok(())
 			} else {
 				Err(error)
@@ -125,6 +128,33 @@ async fn resolve_series(
 	Ok(created.id)
 }
 
+/// Re-point the existing media row (by src path) to `dst` + `series_id` and commit.
+/// Consumes the transaction so any error returns without committing.
+async fn repoint_media(
+	txn: sea_orm::DatabaseTransaction,
+	src: &str,
+	dst: &str,
+	series_id: &str,
+) -> Result<Option<String>, sea_orm::DbErr> {
+	let media_id = match media::Entity::find()
+		.filter(media::Column::Path.eq(src.to_owned()))
+		.one(&txn)
+		.await?
+	{
+		Some(model) => {
+			let id = model.id.clone();
+			let mut active = model.into_active_model();
+			active.path = Set(dst.to_owned());
+			active.series_id = Set(Some(series_id.to_owned()));
+			active.update(&txn).await?;
+			Some(id)
+		},
+		None => None,
+	};
+	txn.commit().await?;
+	Ok(media_id)
+}
+
 /// Execute the decided moves. Each move is a single transaction that (1) resolves or
 /// creates the target series, (2) moves the file on disk, and (3) re-points the
 /// existing media record — so a failure at any step leaves the file and DB unchanged.
@@ -172,7 +202,8 @@ pub async fn apply_plan(
 		}
 
 		let txn = conn.begin().await?;
-		let series_id = resolve_series(
+
+		let series_id = match resolve_series(
 			&txn,
 			library_id,
 			&folder_path.to_string_lossy(),
@@ -183,38 +214,59 @@ pub async fn apply_plan(
 			provider.as_deref(),
 			series_id.as_deref(),
 		)
-		.await?;
+		.await
+		{
+			Ok(id) => id,
+			Err(error) => {
+				tracing::error!(
+					?error,
+					?src,
+					"Failed to resolve series during organize; skipping"
+				);
+				result.failed += 1;
+				continue; // nothing moved yet; txn dropped -> rolled back
+			},
+		};
 
-		// Move on disk before committing; on failure the txn is dropped (rolled back).
+		// Re-check right before the move to narrow the collision TOCTOU window.
+		if dst.exists() {
+			tracing::warn!(?dst, "Organize destination appeared before move; skipping");
+			result.skipped += 1;
+			continue;
+		}
+
 		if let Err(error) = move_file(&src, &dst) {
 			tracing::error!(?error, ?src, ?dst, "Failed to move file during organize");
 			result.failed += 1;
-			continue; // txn dropped -> rolled back, nothing persisted
+			continue; // txn dropped -> rolled back; file not moved
 		}
 
-		// Re-point the existing media record (preserving its id => read progress).
-		let media_id = if let Some(model) = media::Entity::find()
-			.filter(media::Column::Path.eq(decision.src.clone()))
-			.one(&txn)
-			.await?
+		// The file is now at `dst`. Any failure past this point must move it back
+		// so the rolled-back DB and the filesystem stay consistent.
+		match repoint_media(txn, &decision.src, &dst.to_string_lossy(), &series_id).await
 		{
-			let id = model.id.clone();
-			let mut active = model.into_active_model();
-			active.path = Set(dst.to_string_lossy().to_string());
-			active.series_id = Set(Some(series_id.clone()));
-			active.update(&txn).await?;
-			Some(id)
-		} else {
-			None // file wasn't catalogued yet; a later scan will pick it up
-		};
-
-		txn.commit().await?;
-		result.moved += 1;
-		result.applied.push(AppliedMove {
-			media_id,
-			src: decision.src,
-			dst: dst.to_string_lossy().to_string(),
-		});
+			Ok(media_id) => {
+				result.moved += 1;
+				result.applied.push(AppliedMove {
+					media_id,
+					src: decision.src,
+					dst: dst.to_string_lossy().to_string(),
+				});
+			},
+			Err(error) => {
+				tracing::error!(
+					?error,
+					?src,
+					?dst,
+					"DB re-point failed after move; reverting file"
+				);
+				if let Err(revert) = move_file(&dst, &src) {
+					tracing::error!(?revert, ?src, ?dst, "CRITICAL: failed to revert moved file after DB error; file at dst is orphaned");
+				}
+				result.failed += 1;
+				continue;
+			},
+		}
 	}
 
 	Ok(result)
@@ -224,8 +276,9 @@ pub async fn apply_plan(
 mod tests {
 	use super::*;
 	use models::entity::media;
+	use models::entity::series;
 	use models::shared::enums::FileStatus;
-	use sea_orm::{ActiveModelTrait, EntityTrait, Set};
+	use sea_orm::{ActiveModelTrait, EntityTrait, PaginatorTrait, Set};
 
 	#[tokio::test]
 	async fn apply_moves_file_and_repoints_media_preserving_identity() {
@@ -331,5 +384,79 @@ mod tests {
 		assert_eq!(result.skipped, 1);
 		assert_eq!(result.moved, 0);
 		assert!(src.exists());
+	}
+
+	#[tokio::test]
+	async fn apply_merges_into_explicit_existing_series() {
+		let db = ::tests::db::test_database().await;
+		let root = tempfile::tempdir().unwrap();
+		let src = root.path().join("Batman 004 (2016).cbz");
+		std::fs::write(&src, b"x").unwrap();
+
+		let lib = ::tests::fake_data::Library {
+			id: None,
+			name: Some("Comics".to_string()),
+			path: Some(root.path().to_string_lossy().to_string()),
+		}
+		.insert(&db)
+		.await;
+		let target = ::tests::fake_data::Series {
+			id: None,
+			name: Some("Batman".to_string()),
+			path: Some(
+				root.path()
+					.join("Batman (2016)")
+					.to_string_lossy()
+					.to_string(),
+			),
+			library_id: Some(lib.id.clone()),
+		}
+		.insert(&db)
+		.await;
+		let book = media::ActiveModel {
+			name: Set("Batman 004 (2016)".to_string()),
+			path: Set(src.to_string_lossy().to_string()),
+			extension: Set("cbz".to_string()),
+			size: Set(1),
+			pages: Set(1),
+			series_id: Set(None),
+			status: Set(FileStatus::Ready),
+			..Default::default()
+		}
+		.insert(&db)
+		.await
+		.unwrap();
+
+		let before = series::Entity::find().count(&db).await.unwrap();
+		let result = apply_plan(
+			&db,
+			&lib.id,
+			root.path().to_str().unwrap(),
+			vec![OrganizeDecision {
+				src: src.to_string_lossy().to_string(),
+				action: DecisionAction::Move {
+					series_id: Some(target.id.clone()),
+					canonical_name: "Batman".to_string(),
+					year: Some(2016),
+					external_id: None,
+					provider: None,
+				},
+			}],
+		)
+		.await
+		.unwrap();
+
+		assert_eq!(result.moved, 1);
+		let after = series::Entity::find().count(&db).await.unwrap();
+		assert_eq!(
+			before, after,
+			"no new series should be created when merging into an explicit series"
+		);
+		let reloaded = media::Entity::find_by_id(book.id.clone())
+			.one(&db)
+			.await
+			.unwrap()
+			.unwrap();
+		assert_eq!(reloaded.series_id.as_deref(), Some(target.id.as_str()));
 	}
 }
