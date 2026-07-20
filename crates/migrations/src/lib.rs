@@ -32,6 +32,7 @@ mod m20260617_200820_rm_thumbnails_in_headers_pref;
 mod m20260715_000000_comicinfo_enrichment;
 mod m20260718_000000_add_provider_position;
 mod m20260719_000000_add_auto_organize_loose_files;
+mod m20260719_000100_add_organize_plan_record;
 
 pub struct Migrator;
 
@@ -70,6 +71,7 @@ impl MigratorTrait for Migrator {
 			Box::new(m20260715_000000_comicinfo_enrichment::Migration),
 			Box::new(m20260718_000000_add_provider_position::Migration),
 			Box::new(m20260719_000000_add_auto_organize_loose_files::Migration),
+			Box::new(m20260719_000100_add_organize_plan_record::Migration),
 		]
 	}
 }
