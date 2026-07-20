@@ -1,4 +1,3 @@
-import { useGraphQLMutation } from '@longbox/client'
 import {
 	Alert,
 	AlertDescription,
@@ -7,7 +6,7 @@ import {
 	PasswordInput,
 	Text,
 } from '@longbox/components'
-import { graphql, MetadataProvider } from '@longbox/graphql'
+import { MetadataProvider } from '@longbox/graphql'
 import { useLocaleContext } from '@longbox/i18n'
 import { useMutation } from '@tanstack/react-query'
 import getProperty from 'lodash/get'
@@ -17,24 +16,8 @@ import { useFormContext, useFormState, useWatch } from 'react-hook-form'
 import { useDebouncedValue } from 'rooks'
 
 import { ProviderValidationFeedback } from './ProviderValidationFeedback'
-import {
-	composeMetronToken,
-	type Feedback,
-	metronStatusToFeedback,
-} from './providerValidationFeedback'
+import { composeMetronToken, type Feedback } from './providerValidationFeedback'
 import { CreateProviderConfigSchema } from './schema'
-
-const validateCredentialsMutation = graphql(`
-	mutation ProviderApiKeyInputValidateCredentials(
-		$providerType: MetadataProvider!
-		$apiToken: String!
-	) {
-		validateMetadataProviderCredentials(providerType: $providerType, apiToken: $apiToken) {
-			status
-			message
-		}
-	}
-`)
 
 export function ProviderApiKeyInput() {
 	const form = useFormContext<CreateProviderConfigSchema>()
@@ -56,11 +39,6 @@ export function ProviderApiKeyInput() {
 
 	const [debouncedValue] = useDebouncedValue(value, 500)
 
-	// Metron has no CORS, so it can't be validated from the browser. Instead we ask our
-	// server to make the authenticated request (with a proper non-browser User-Agent) and
-	// report a granular status back.
-	const { mutateAsync: validateOnServer } = useGraphQLMutation(validateCredentialsMutation)
-
 	const {
 		mutate,
 		isPending,
@@ -68,24 +46,6 @@ export function ProviderApiKeyInput() {
 	} = useMutation({
 		mutationKey: ['validateApiKey', provider, debouncedValue],
 		mutationFn: async ({ apiKey }: { apiKey: string }) => {
-			if (provider === MetadataProvider.Metron) {
-				const { validateMetadataProviderCredentials: result } = await validateOnServer({
-					providerType: provider,
-					apiToken: apiKey,
-				})
-				const fb = metronStatusToFeedback(result.status, result.message)
-				if (fb.asFieldError) {
-					// Only a real 401 reddens the field.
-					setFeedback(null)
-					form.setError('apiToken', { type: 'validate', message: fb.description })
-				} else {
-					// Success / connectivity / rate-limit / service → callout, field stays clean.
-					form.clearErrors('apiToken')
-					setFeedback(fb)
-				}
-				return
-			}
-
 			const validator = PROVIDER_VALIDATORS[provider]
 			if (!validator) return
 
@@ -111,16 +71,8 @@ export function ProviderApiKeyInput() {
 	const validateKey = useCallback(
 		async (apiKey: string) => {
 			if (isPending || !apiKey) return
-			if (provider === MetadataProvider.Metron) {
-				// Only validate once BOTH username and password are present, so idle typing
-				// doesn't burn Metron's tight request budget (20/min).
-				const colon = apiKey.indexOf(':')
-				const u = colon === -1 ? apiKey : apiKey.slice(0, colon)
-				const p = colon === -1 ? '' : apiKey.slice(colon + 1)
-				if (!u.trim() || !p.trim()) return
-				mutate({ apiKey })
-				return
-			}
+			// Metron is intentionally never validated in-app (its gateway bans probes);
+			// its validator is null, so this is a no-op for Metron.
 			const validator = PROVIDER_VALIDATORS[provider]
 			if (!validator) return
 			mutate({ apiKey })
@@ -185,6 +137,9 @@ export function ProviderApiKeyInput() {
 					<Text size="xs" variant="muted">
 						Enter your metron.cloud username and password. Metadata provided by metron.cloud, CC
 						BY-SA 4.0
+					</Text>
+					<Text size="xs" variant="muted">
+						Credentials aren&apos;t validated in-app — save them, then verify manually.
 					</Text>
 				</>
 			) : (
@@ -261,9 +216,9 @@ const validateHardcoverApiKey: Validator = async (apiKey, t) => {
 
 const PROVIDER_VALIDATORS: Record<MetadataProvider, Validator | null> = {
 	HARDCOVER: validateHardcoverApiKey,
-	// Metron has no client-side validator: metron.cloud provides no CORS, so a browser
-	// request can't work. It's validated server-side instead (see `validateOnServer`
-	// above, backed by the `validateMetadataProviderCredentials` mutation).
+	// Metron is intentionally NOT validated in-app: its gateway hands out 24h bans to
+	// clients that probe it, so we never contact it for credential checks. Verify Metron
+	// credentials manually. (The server also refuses to validate Metron — belt and braces.)
 	METRON: null,
 	// ComicVine also validates server-side (no browser-friendly CORS endpoint for the
 	// api_key check); see the provider's `validate_credentials`.

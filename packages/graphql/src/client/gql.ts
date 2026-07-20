@@ -198,8 +198,6 @@ type Documents = {
     "\n\tmutation EditProviderDialog($id: Int!, $input: PatchMetadataProviderConfigInput!) {\n\t\tupdateMetadataProvider(id: $id, input: $input) {\n\t\t\tid\n\t\t\t...ExistingProviderCard\n\t\t}\n\t}\n": typeof types.EditProviderDialogDocument,
     "\n\tmutation DeleteProviderDialog($id: Int!) {\n\t\tdeleteMetadataProvider(id: $id) {\n\t\t\tid\n\t\t}\n\t}\n": typeof types.DeleteProviderDialogDocument,
     "\n\tfragment ExistingProviderCard on MetadataProviderConfigModel {\n\t\tid\n\t\tproviderType\n\t\tenabled\n\t\tapiTokenExpiresAt\n\t\tautoApplyConfig\n\t\tcreatedAt\n\t\tupdatedAt\n\t}\n": typeof types.ExistingProviderCardFragmentDoc,
-    "\n\tmutation ExistingProviderCardTestProvider($id: Int!) {\n\t\ttestMetadataProvider(id: $id) {\n\t\t\tstatus\n\t\t\tmessage\n\t\t}\n\t}\n": typeof types.ExistingProviderCardTestProviderDocument,
-    "\n\tmutation ProviderApiKeyInputValidateCredentials(\n\t\t$providerType: MetadataProvider!\n\t\t$apiToken: String!\n\t) {\n\t\tvalidateMetadataProviderCredentials(providerType: $providerType, apiToken: $apiToken) {\n\t\t\tstatus\n\t\t\tmessage\n\t\t}\n\t}\n": typeof types.ProviderApiKeyInputValidateCredentialsDocument,
     "\n\tquery ProvidersSectionGetProviders {\n\t\tmetadataProviderConfigs {\n\t\t\tid\n\t\t\tproviderType\n\t\t\tposition\n\t\t\t...ExistingProviderCard\n\t\t}\n\t}\n": typeof types.ProvidersSectionGetProvidersDocument,
     "\n\tmutation ProvidersSectionSetPreferred($id: Int!, $input: PatchMetadataProviderConfigInput!) {\n\t\tupdateMetadataProvider(id: $id, input: $input) {\n\t\t\tid\n\t\t\tposition\n\t\t}\n\t}\n": typeof types.ProvidersSectionSetPreferredDocument,
     "\n\tmutation CreateTagModal($tags: [String!]!) {\n\t\tcreateTags(tags: $tags) {\n\t\t\tid\n\t\t\tname\n\t\t}\n\t}\n": typeof types.CreateTagModalDocument,
@@ -416,8 +414,6 @@ const documents: Documents = {
     "\n\tmutation EditProviderDialog($id: Int!, $input: PatchMetadataProviderConfigInput!) {\n\t\tupdateMetadataProvider(id: $id, input: $input) {\n\t\t\tid\n\t\t\t...ExistingProviderCard\n\t\t}\n\t}\n": types.EditProviderDialogDocument,
     "\n\tmutation DeleteProviderDialog($id: Int!) {\n\t\tdeleteMetadataProvider(id: $id) {\n\t\t\tid\n\t\t}\n\t}\n": types.DeleteProviderDialogDocument,
     "\n\tfragment ExistingProviderCard on MetadataProviderConfigModel {\n\t\tid\n\t\tproviderType\n\t\tenabled\n\t\tapiTokenExpiresAt\n\t\tautoApplyConfig\n\t\tcreatedAt\n\t\tupdatedAt\n\t}\n": types.ExistingProviderCardFragmentDoc,
-    "\n\tmutation ExistingProviderCardTestProvider($id: Int!) {\n\t\ttestMetadataProvider(id: $id) {\n\t\t\tstatus\n\t\t\tmessage\n\t\t}\n\t}\n": types.ExistingProviderCardTestProviderDocument,
-    "\n\tmutation ProviderApiKeyInputValidateCredentials(\n\t\t$providerType: MetadataProvider!\n\t\t$apiToken: String!\n\t) {\n\t\tvalidateMetadataProviderCredentials(providerType: $providerType, apiToken: $apiToken) {\n\t\t\tstatus\n\t\t\tmessage\n\t\t}\n\t}\n": types.ProviderApiKeyInputValidateCredentialsDocument,
     "\n\tquery ProvidersSectionGetProviders {\n\t\tmetadataProviderConfigs {\n\t\t\tid\n\t\t\tproviderType\n\t\t\tposition\n\t\t\t...ExistingProviderCard\n\t\t}\n\t}\n": types.ProvidersSectionGetProvidersDocument,
     "\n\tmutation ProvidersSectionSetPreferred($id: Int!, $input: PatchMetadataProviderConfigInput!) {\n\t\tupdateMetadataProvider(id: $id, input: $input) {\n\t\t\tid\n\t\t\tposition\n\t\t}\n\t}\n": types.ProvidersSectionSetPreferredDocument,
     "\n\tmutation CreateTagModal($tags: [String!]!) {\n\t\tcreateTags(tags: $tags) {\n\t\t\tid\n\t\t\tname\n\t\t}\n\t}\n": types.CreateTagModalDocument,
@@ -1183,14 +1179,6 @@ export function graphql(source: "\n\tmutation DeleteProviderDialog($id: Int!) {\
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n\tfragment ExistingProviderCard on MetadataProviderConfigModel {\n\t\tid\n\t\tproviderType\n\t\tenabled\n\t\tapiTokenExpiresAt\n\t\tautoApplyConfig\n\t\tcreatedAt\n\t\tupdatedAt\n\t}\n"): typeof import('./graphql').ExistingProviderCardFragmentDoc;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n\tmutation ExistingProviderCardTestProvider($id: Int!) {\n\t\ttestMetadataProvider(id: $id) {\n\t\t\tstatus\n\t\t\tmessage\n\t\t}\n\t}\n"): typeof import('./graphql').ExistingProviderCardTestProviderDocument;
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n\tmutation ProviderApiKeyInputValidateCredentials(\n\t\t$providerType: MetadataProvider!\n\t\t$apiToken: String!\n\t) {\n\t\tvalidateMetadataProviderCredentials(providerType: $providerType, apiToken: $apiToken) {\n\t\t\tstatus\n\t\t\tmessage\n\t\t}\n\t}\n"): typeof import('./graphql').ProviderApiKeyInputValidateCredentialsDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
