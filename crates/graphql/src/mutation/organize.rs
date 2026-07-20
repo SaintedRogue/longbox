@@ -1,4 +1,5 @@
 use async_graphql::{Context, Object, Result, ID};
+use sea_orm::prelude::*;
 
 use longbox_core::filesystem::organizer::OrganizeMode;
 use longbox_core::job::longbox_job::LongboxJob;
@@ -6,6 +7,7 @@ use longbox_core::job::longbox_job::LongboxJob;
 use crate::data::{AuthContext, CoreContext};
 use crate::guard::PermissionGuard;
 use crate::input::organize::OrganizeDecisionInput;
+use models::entity::library;
 use models::shared::enums::UserPermission;
 
 #[derive(Default)]
@@ -20,10 +22,15 @@ impl OrganizeMutation {
 		ctx: &Context<'_>,
 		library_id: ID,
 	) -> Result<bool> {
-		let _auth = ctx.data::<AuthContext>()?;
+		let AuthContext { user, .. } = ctx.data::<AuthContext>()?;
 		let core = ctx.data::<CoreContext>()?;
+		let library = library::Entity::find_for_user(user)
+			.filter(library::Column::Id.eq(library_id.to_string()))
+			.one(core.conn.as_ref())
+			.await?
+			.ok_or("Library not found")?;
 		core.enqueue(LongboxJob::organize_loose_files(
-			library_id.to_string(),
+			library.id,
 			OrganizeMode::Plan,
 		))
 		.await?;
@@ -38,11 +45,16 @@ impl OrganizeMutation {
 		library_id: ID,
 		decisions: Vec<OrganizeDecisionInput>,
 	) -> Result<bool> {
-		let _auth = ctx.data::<AuthContext>()?;
+		let AuthContext { user, .. } = ctx.data::<AuthContext>()?;
 		let core = ctx.data::<CoreContext>()?;
+		let library = library::Entity::find_for_user(user)
+			.filter(library::Column::Id.eq(library_id.to_string()))
+			.one(core.conn.as_ref())
+			.await?
+			.ok_or("Library not found")?;
 		let decisions = decisions.into_iter().map(Into::into).collect();
 		core.enqueue(LongboxJob::organize_loose_files(
-			library_id.to_string(),
+			library.id,
 			OrganizeMode::Apply { decisions },
 		))
 		.await?;

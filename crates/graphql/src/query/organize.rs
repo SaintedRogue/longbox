@@ -2,7 +2,7 @@ use async_graphql::{Context, Object, Result, ID};
 use sea_orm::{prelude::*, QueryOrder};
 
 use longbox_core::filesystem::organizer::plan::OrganizePlan;
-use models::entity::organize_plan_record;
+use models::entity::{library, organize_plan_record};
 
 use crate::data::{AuthContext, CoreContext};
 use crate::object::organize::OrganizePreview;
@@ -18,11 +18,17 @@ impl OrganizeQuery {
 		ctx: &Context<'_>,
 		library_id: ID,
 	) -> Result<Option<OrganizePreview>> {
-		let _auth = ctx.data::<AuthContext>()?;
+		let AuthContext { user, .. } = ctx.data::<AuthContext>()?;
 		let conn = ctx.data::<CoreContext>()?.conn.as_ref();
 
+		let library = library::Entity::find_for_user(user)
+			.filter(library::Column::Id.eq(library_id.to_string()))
+			.one(conn)
+			.await?
+			.ok_or("Library not found")?;
+
 		let record = organize_plan_record::Entity::find()
-			.filter(organize_plan_record::Column::LibraryId.eq(library_id.to_string()))
+			.filter(organize_plan_record::Column::LibraryId.eq(library.id))
 			.order_by_desc(organize_plan_record::Column::UpdatedAt)
 			.one(conn)
 			.await?;
