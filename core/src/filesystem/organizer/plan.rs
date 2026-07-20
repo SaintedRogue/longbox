@@ -75,11 +75,10 @@ pub async fn build_plan(
 ) -> CoreResult<OrganizePlan> {
 	let ignore = config.ignore_rules().build()?;
 	let root = Path::new(library_path);
-	let candidate_paths: Vec<PathBuf> =
-		find_candidate_files(root, config.is_collection_based(), &ignore)
-			.into_iter()
-			.map(|c| c.path)
-			.collect();
+	let candidate_paths: Vec<PathBuf> = find_candidate_files(root, &ignore)
+		.into_iter()
+		.map(|c| c.path)
+		.collect();
 
 	// path -> existing media id (to preserve identity on move)
 	let media_by_path: HashMap<String, String> = media::Entity::find()

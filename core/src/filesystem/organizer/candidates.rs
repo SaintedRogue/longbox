@@ -1,14 +1,9 @@
-//! Pattern-aware detection of misfiled loose files that should be organized.
+//! Detection of misfiled loose files that should be organized.
 
-use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use globset::GlobSet;
-use walkdir::WalkDir;
 
-use metadata_integrations::parse_comic_filename;
-
-use super::confirm::normalize_series_key;
 use crate::filesystem::PathUtils;
 
 /// A loose file selected for organizing.
@@ -38,65 +33,28 @@ fn direct_media(dir: &Path, ignore: &GlobSet) -> Vec<PathBuf> {
 		.collect()
 }
 
-/// Count the distinct normalized series parsed from a set of files.
-fn distinct_series_count(files: &[PathBuf]) -> usize {
-	files
-		.iter()
-		.filter_map(|path| path.file_stem().and_then(|s| s.to_str()))
-		.filter_map(|stem| parse_comic_filename(stem).series)
-		.map(|series| normalize_series_key(&series))
-		.collect::<HashSet<_>>()
-		.len()
-}
-
-/// Find files to organize:
-/// - **library root**: all direct media are candidates (the root must never be a series);
-/// - **SeriesBased non-root folder**: candidates only if its direct media resolve to
-///   >= 2 distinct series (a catch-all dump); a clean single-series folder is left alone;
-/// - **CollectionBased non-root folder**: never candidates (respected as an intended
-///   collection).
-pub fn find_candidate_files(
-	library_root: &Path,
-	is_collection_based: bool,
-	ignore: &GlobSet,
-) -> Vec<CandidateFile> {
-	let root_str = library_root.to_string_lossy().to_string();
-	let mut candidates = Vec::new();
-
-	for entry in WalkDir::new(library_root)
-		.min_depth(0)
+/// Find files to organize.
+///
+/// **Root-only.** Files loose directly in the library root are candidates (the root
+/// must never become a series). Subfolders are deliberately left untouched.
+///
+/// Catch-all subfolder detection — treating a non-root folder that mixes 2+ distinct
+/// series as a messy dump — is intentionally deferred. The filename parser can't yet
+/// tell volume markers (`v01`/`v02`) or edition variants (`Annual`, `Noir Edition`)
+/// apart from genuinely distinct series, so it over-flags tidy multi-volume/edition
+/// folders (e.g. `King Spawn (v01-v03)`, `Absolute Batman (2025)`). Until the parser
+/// is hardened, only the library root is scanned — the common, safe case.
+pub fn find_candidate_files(library_root: &Path, ignore: &GlobSet) -> Vec<CandidateFile> {
+	direct_media(library_root, ignore)
 		.into_iter()
-		.filter_map(Result::ok)
-	{
-		let dir = entry.path();
-		if !dir.is_dir() {
-			continue;
-		}
-		let media = direct_media(dir, ignore);
-		if media.is_empty() {
-			continue;
-		}
-
-		let is_root = dir.to_string_lossy() == root_str;
-		let take = if is_root {
-			true
-		} else if is_collection_based {
-			false
-		} else {
-			distinct_series_count(&media) >= 2
-		};
-
-		if take {
-			candidates.extend(media.into_iter().map(|path| CandidateFile { path }));
-		}
-	}
-
-	candidates
+		.map(|path| CandidateFile { path })
+		.collect()
 }
 
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use std::collections::HashSet;
 	use std::fs;
 	use tempfile::tempdir;
 
@@ -104,7 +62,7 @@ mod tests {
 		fs::write(dir.join(name), b"x").unwrap();
 	}
 
-	fn paths(candidates: &[CandidateFile]) -> HashSet<String> {
+	fn names(candidates: &[CandidateFile]) -> HashSet<String> {
 		candidates
 			.iter()
 			.map(|c| c.path.file_name().unwrap().to_string_lossy().to_string())
@@ -116,44 +74,56 @@ mod tests {
 		let root = tempdir().unwrap();
 		touch(root.path(), "Jays of Future Past 001.cbz");
 		touch(root.path(), "Some Other Comic 001.cbz");
-		let found = find_candidate_files(root.path(), false, &GlobSet::empty());
-		assert_eq!(paths(&found).len(), 2);
+		let found = find_candidate_files(root.path(), &GlobSet::empty());
+		assert_eq!(found.len(), 2);
 	}
 
 	#[test]
-	fn series_based_catchall_folder_is_candidate() {
+	fn subfolders_are_never_candidates() {
 		let root = tempdir().unwrap();
-		let sub = root.path().join("downloads");
-		fs::create_dir(&sub).unwrap();
-		touch(&sub, "Batman 001.cbz");
-		touch(&sub, "Superman 001.cbz"); // 2 distinct series -> catch-all
-		let found = find_candidate_files(root.path(), false, &GlobSet::empty());
-		assert_eq!(paths(&found).len(), 2);
-	}
-
-	#[test]
-	fn series_based_clean_folder_is_left_alone() {
-		let root = tempdir().unwrap();
-		let sub = root.path().join("Batman");
-		fs::create_dir(&sub).unwrap();
-		touch(&sub, "Batman 001.cbz");
-		touch(&sub, "Batman 002.cbz"); // 1 distinct series -> already correct
-		let found = find_candidate_files(root.path(), false, &GlobSet::empty());
+		// A tidy multi-volume folder AND a genuinely-mixed folder are BOTH left alone,
+		// because root-only scanning never descends into subfolders.
+		let clean = root.path().join("King Spawn (v01-v03)");
+		fs::create_dir(&clean).unwrap();
+		touch(&clean, "King Spawn v01.cbz");
+		touch(&clean, "King Spawn v02.cbz");
+		let mixed = root.path().join("downloads");
+		fs::create_dir(&mixed).unwrap();
+		touch(&mixed, "Batman 001.cbz");
+		touch(&mixed, "Superman 001.cbz");
+		let found = find_candidate_files(root.path(), &GlobSet::empty());
 		assert!(found.is_empty());
 	}
 
 	#[test]
-	fn collection_based_subfolders_are_never_split_but_root_is() {
+	fn only_root_files_are_taken_from_a_mixed_tree() {
 		let root = tempdir().unwrap();
-		touch(root.path(), "Loose At Root 001.cbz"); // root is always eligible
-		let collection = root.path().join("Marvel");
-		fs::create_dir(&collection).unwrap();
-		touch(&collection, "Batman 001.cbz");
-		touch(&collection, "Superman 001.cbz"); // intended collection, do NOT split
-		let found = find_candidate_files(root.path(), true, &GlobSet::empty());
+		touch(root.path(), "Loose At Root 001.cbz");
+		let sub = root.path().join("Absolute Batman (2025)");
+		fs::create_dir(&sub).unwrap();
+		touch(&sub, "Absolute Batman 001.cbz");
+		touch(&sub, "Absolute Batman Noir Edition 001.cbz");
+		let found = find_candidate_files(root.path(), &GlobSet::empty());
 		assert_eq!(
-			paths(&found),
+			names(&found),
 			HashSet::from(["Loose At Root 001.cbz".to_string()])
+		);
+	}
+
+	#[test]
+	fn ignored_files_are_excluded_from_the_root() {
+		use globset::{Glob, GlobSetBuilder};
+		let root = tempdir().unwrap();
+		touch(root.path(), "Keep Me 001.cbz");
+		touch(root.path(), "skip-me.cbz");
+		let ignore = GlobSetBuilder::new()
+			.add(Glob::new("**/skip-*").unwrap())
+			.build()
+			.unwrap();
+		let found = find_candidate_files(root.path(), &ignore);
+		assert_eq!(
+			names(&found),
+			HashSet::from(["Keep Me 001.cbz".to_string()])
 		);
 	}
 }
