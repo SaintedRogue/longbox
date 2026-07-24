@@ -7,6 +7,7 @@ import { AppLayout } from './AppLayout.tsx'
 import { RouterProvider } from './context/RouterContext.tsx'
 import { BookRouter } from './scenes/book'
 import { BookClubRouter } from './scenes/bookClub'
+import { CharacterRouter } from './scenes/character'
 import { LibraryRouter } from './scenes/library'
 import { SeriesRouter } from './scenes/series'
 import { SettingsRouter } from './scenes/settings'
@@ -95,6 +96,7 @@ export function AppRouter({ basePath }: AppRouterProps = {}) {
 						<Route path="" element={<HomeScene />} />
 						<Route path="libraries/*" element={<LibraryRouter />} />
 						<Route path="series/*" element={<SeriesRouter />} />
+						<Route path="characters/*" element={<CharacterRouter />} />
 						<Route path="books/*" element={<BookRouter />} />
 						<Route path="clubs/*" element={<BookClubRouter />} />
 						<Route path="/smart-lists/*" element={<SmartListRouter />} />

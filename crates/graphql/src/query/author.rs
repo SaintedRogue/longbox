@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use async_graphql::{Context, Object, Result};
-use models::entity::{media, media_metadata, series};
-use sea_orm::{prelude::*, sea_query::Query, QuerySelect};
+use models::entity::{media, media_metadata};
+use sea_orm::{prelude::*, QuerySelect};
 
 use crate::{
 	data::CoreContext,
@@ -10,25 +10,8 @@ use crate::{
 	pagination::{
 		OffsetPaginationInfo, PaginatedResponse, Pagination, PaginationValidator,
 	},
+	utils::{parse_comma_separated_list, series_in_library_subquery},
 };
-
-/// Parses a comma-separated writers string into individual author names
-fn parse_writers(writers: &str) -> Vec<String> {
-	writers
-		.split(',')
-		.map(|s| s.trim().to_string())
-		.filter(|s| !s.is_empty())
-		.collect()
-}
-
-/// Helper to build a subquery for series IDs in a specific library
-fn series_in_library_subquery(library_id: String) -> sea_orm::sea_query::SelectStatement {
-	Query::select()
-		.column(series::Column::Id)
-		.from(series::Entity)
-		.and_where(series::Column::LibraryId.eq(library_id))
-		.to_owned()
-}
 
 /// Fetches all unique author names from the database, optionally scoped to a library.
 /// Returns a HashMap with lowercase name as key and original casing as value.
@@ -60,7 +43,7 @@ async fn fetch_all_authors(
 	// Deduplicate with case-insensitive key, preserving first-seen casing
 	let mut unique_authors: HashMap<String, String> = HashMap::new();
 	for writer_str in writers {
-		for name in parse_writers(&writer_str) {
+		for name in parse_comma_separated_list(&writer_str) {
 			let key = name.to_lowercase();
 			unique_authors.entry(key).or_insert(name);
 		}

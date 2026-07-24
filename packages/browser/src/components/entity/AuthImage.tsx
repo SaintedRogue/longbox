@@ -1,6 +1,8 @@
 import { queryClient, useSDK } from '@longbox/client'
 import { forwardRef, useCallback, useEffect, useState } from 'react'
 
+import { cacheAlreadyFetched } from '@/offline/passiveCache'
+
 type Props = {
 	token?: string
 } & React.ImgHTMLAttributes<HTMLImageElement>
@@ -27,6 +29,8 @@ export const AuthImage = forwardRef<HTMLImageElement, Props>(({ token, src, ...p
 				staleTime: 1000 * 60 * 60 * 24 * 5, // 5 days
 				queryFn: async () => doFetch(url),
 			})
+			// Bytes are already in hand -- zero extra network cost to also feed the passive cache.
+			void cacheAlreadyFetched(url, data)
 
 			const imageURL = URL.createObjectURL(data)
 			setImageURL(imageURL)

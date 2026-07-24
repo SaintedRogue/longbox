@@ -5,6 +5,17 @@ import { GraphQLError, GraphQLResponse } from './types/graphql'
 
 export const DEFAULT_SOCKET_TIMEOUT = 10000
 
+/**
+ * How often we send a client-initiated keepalive ping once the graphql-ws handshake
+ * (`connection_init`/`connection_ack`) has completed.
+ */
+export const PING_INTERVAL_MS = 30_000
+/**
+ * How long we wait for a `pong` response to a ping before treating the connection as
+ * dead and force-closing the socket, which triggers the caller's reconnect logic.
+ */
+export const PONG_TIMEOUT_MS = 10_000
+
 export type GraphQLWebsocketConnectEventHandlers<TResult> = {
 	onOpen: (ev: Event) => void
 	onMessage: (data: TResult) => void
@@ -38,6 +49,38 @@ export const attemptWebsocketConnect = async <TResult, TVariables>({
 	const socket = new WebSocket(wsUrl, 'graphql-ws')
 	const socketID = Math.random().toString(36).substring(2, 15)
 
+	// Client-initiated ping/pong keepalive, armed once `connection_ack` is received (see the
+	// message handler below). If a `pong` doesn't arrive within PONG_TIMEOUT_MS, we force-close
+	// the socket so the caller's reconnect logic (e.g. `useGraphQLSubscription`) kicks in --
+	// async-graphql's websocket handler replies to `ping` frames automatically, so a missing
+	// `pong` means the connection is dead even though it may not have emitted a close event yet.
+	let pingIntervalId: ReturnType<typeof setInterval> | undefined
+	let pongTimeoutId: ReturnType<typeof setTimeout> | undefined
+
+	const clearKeepaliveTimers = () => {
+		if (pingIntervalId !== undefined) {
+			clearInterval(pingIntervalId)
+			pingIntervalId = undefined
+		}
+		if (pongTimeoutId !== undefined) {
+			clearTimeout(pongTimeoutId)
+			pongTimeoutId = undefined
+		}
+	}
+
+	const startKeepalive = () => {
+		clearKeepaliveTimers()
+		pingIntervalId = setInterval(() => {
+			if (socket.readyState !== WebSocket.OPEN) return
+
+			socket.send(JSON.stringify({ type: 'ping', payload: null }))
+
+			pongTimeoutId = setTimeout(() => {
+				socket.close(4000, 'ping timeout')
+			}, PONG_TIMEOUT_MS)
+		}, PING_INTERVAL_MS)
+	}
+
 	await new Promise<void>((resolve, reject) => {
 		const timeout = setTimeout(() => {
 			reject(new Error('WebSocket connection timeout'))
@@ -59,6 +102,7 @@ export const attemptWebsocketConnect = async <TResult, TVariables>({
 		const closeHandler = (ev: CloseEvent) => {
 			clearTimeout(timeout)
 			socket.removeEventListener('error', errorHandler)
+			clearKeepaliveTimers()
 			events.onClose?.(ev)
 		}
 
@@ -84,6 +128,15 @@ export const attemptWebsocketConnect = async <TResult, TVariables>({
 							},
 						}),
 					)
+					startKeepalive()
+					break
+				}
+
+				case 'pong': {
+					if (pongTimeoutId !== undefined) {
+						clearTimeout(pongTimeoutId)
+						pongTimeoutId = undefined
+					}
 					break
 				}
 

@@ -7,8 +7,11 @@ use crate::pagination::{
 use crate::{data::CoreContext, object::job::Job};
 use async_graphql::{Context, Object, Result, ID};
 use models::entity::scheduled_job;
-use models::{entity::job, shared::enums::UserPermission};
-use sea_orm::{prelude::*, QueryOrder, QuerySelect};
+use models::{
+	entity::job,
+	shared::enums::{JobStatus, UserPermission},
+};
+use sea_orm::{prelude::*, QueryFilter, QueryOrder, QuerySelect};
 
 #[derive(Default)]
 pub struct JobQuery;
@@ -21,10 +24,14 @@ impl JobQuery {
 		ctx: &Context<'_>,
 		#[graphql(default, validator(custom = "PaginationValidator"))]
 		pagination: Pagination,
+		statuses: Option<Vec<JobStatus>>,
 	) -> Result<PaginatedResponse<Job>> {
 		let conn = ctx.data::<CoreContext>()?.conn.as_ref();
 
-		let query = job::Entity::find().order_by_desc(job::Column::CreatedAt);
+		let mut query = job::Entity::find().order_by_desc(job::Column::CreatedAt);
+		if let Some(statuses) = statuses {
+			query = query.filter(job::Column::Status.is_in(statuses));
+		}
 
 		match pagination.resolve() {
 			Pagination::Cursor(info) => {
@@ -102,5 +109,44 @@ impl JobQuery {
 		let models = scheduled_job::Entity::find().all(conn).await?;
 
 		Ok(models.into_iter().map(ScheduledJob::from).collect())
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use pretty_assertions::assert_eq;
+	use sea_orm::{sea_query::SqliteQueryBuilder, QuerySelect, QueryTrait};
+
+	#[test]
+	fn test_jobs_query_without_statuses_has_no_status_filter() {
+		let query = job::Entity::find().order_by_desc(job::Column::CreatedAt);
+		let sql = query
+			.select_only()
+			.into_query()
+			.to_string(SqliteQueryBuilder);
+
+		assert_eq!(
+			sql,
+			r#"SELECT  FROM "jobs" ORDER BY "jobs"."created_at" DESC"#
+		);
+	}
+
+	#[test]
+	fn test_jobs_query_filters_by_statuses_when_provided() {
+		let statuses = vec![JobStatus::Running, JobStatus::Queued];
+
+		let mut query = job::Entity::find().order_by_desc(job::Column::CreatedAt);
+		query = query.filter(job::Column::Status.is_in(statuses));
+
+		let sql = query
+			.select_only()
+			.into_query()
+			.to_string(SqliteQueryBuilder);
+
+		assert_eq!(
+			sql,
+			r#"SELECT  FROM "jobs" WHERE "jobs"."status" IN ('RUNNING', 'QUEUED') ORDER BY "jobs"."created_at" DESC"#
+		);
 	}
 }

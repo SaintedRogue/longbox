@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 
 import * as blobStore from '../blobStore'
+import * as passiveCache from '../passiveCache'
 import { offlineBlobUrl, offlineFileBlob, useOfflineImageSrc } from '../resolveOfflineUrl'
 
 /** Fake "response": just enough shape for resolveOfflineUrl's `.blob()` usage. */
@@ -42,6 +43,24 @@ describe('offlineBlobUrl', () => {
 		expect(result).toBeNull()
 		expect(createObjectURL).not.toHaveBeenCalled()
 	})
+
+	it('fires touchAccess on a cache hit, to keep LRU recency accurate', async () => {
+		jest.spyOn(blobStore, 'matchUrl').mockResolvedValue(fakeResponse())
+		const touchAccessSpy = jest.spyOn(passiveCache, 'touchAccess').mockResolvedValue(undefined)
+
+		await offlineBlobUrl('/api/v2/media/1/page/1')
+
+		expect(touchAccessSpy).toHaveBeenCalledWith('/api/v2/media/1/page/1')
+	})
+
+	it('does not fire touchAccess on a miss', async () => {
+		jest.spyOn(blobStore, 'matchUrl').mockResolvedValue(undefined)
+		const touchAccessSpy = jest.spyOn(passiveCache, 'touchAccess').mockResolvedValue(undefined)
+
+		await offlineBlobUrl('/api/v2/media/1/page/1')
+
+		expect(touchAccessSpy).not.toHaveBeenCalled()
+	})
 })
 
 describe('offlineFileBlob', () => {
@@ -64,6 +83,25 @@ describe('offlineFileBlob', () => {
 		const result = await offlineFileBlob('/api/v2/media/1/file')
 
 		expect(result).toBeNull()
+	})
+
+	it('fires touchAccess on a cache hit, to keep LRU recency accurate', async () => {
+		const fakeBlob = { size: 42 } as Blob
+		jest.spyOn(blobStore, 'matchUrl').mockResolvedValue(fakeResponse(fakeBlob))
+		const touchAccessSpy = jest.spyOn(passiveCache, 'touchAccess').mockResolvedValue(undefined)
+
+		await offlineFileBlob('/api/v2/media/1/file')
+
+		expect(touchAccessSpy).toHaveBeenCalledWith('/api/v2/media/1/file')
+	})
+
+	it('does not fire touchAccess on a miss', async () => {
+		jest.spyOn(blobStore, 'matchUrl').mockResolvedValue(undefined)
+		const touchAccessSpy = jest.spyOn(passiveCache, 'touchAccess').mockResolvedValue(undefined)
+
+		await offlineFileBlob('/api/v2/media/1/file')
+
+		expect(touchAccessSpy).not.toHaveBeenCalled()
 	})
 })
 
@@ -91,6 +129,17 @@ describe('useOfflineImageSrc', () => {
 
 		await waitFor(() => {
 			expect(result.current).toBe('blob:mock-0')
+		})
+	})
+
+	it('fires touchAccess on a cache hit', async () => {
+		jest.spyOn(blobStore, 'matchUrl').mockResolvedValue(fakeResponse())
+		const touchAccessSpy = jest.spyOn(passiveCache, 'touchAccess').mockResolvedValue(undefined)
+
+		renderHook(() => useOfflineImageSrc('/api/v2/media/1/page/1'))
+
+		await waitFor(() => {
+			expect(touchAccessSpy).toHaveBeenCalledWith('/api/v2/media/1/page/1')
 		})
 	})
 

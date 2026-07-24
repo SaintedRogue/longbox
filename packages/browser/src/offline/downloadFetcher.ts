@@ -2,6 +2,7 @@ import type { Api } from '@longbox/sdk'
 
 import * as blobStore from './blobStore'
 import type { DownloadFetcher, DownloadFetchResult } from './downloadManager'
+import { clearDownloadPending, markDownloadPending } from './passiveCache'
 
 /** Storage sink -- injectable so tests never construct a real Response / touch a real Cache. */
 export type FetcherDeps = {
@@ -36,11 +37,19 @@ export function createDownloadFetcher(
 			// Thumbnail (both formats), best-effort: a missing thumbnail must not fail the download.
 			try {
 				const url = sdk.media.thumbnailURL(job.bookId)
-				const resp = await sdk.axios.get(url, { responseType: 'blob', signal })
-				await deps.putBlob(url, resp.data)
-				storedUrls.push(url)
-				sizeBytes += resp.data.size
-				thumbnailUrl = url
+				// Claimed the moment the fetch starts, released once this URL's write settles
+				// (success or failure) -- see passiveCache.ts's `sweep()`, which must not evict this
+				// blob out from under us just because no `DownloadRecord` exists for it yet.
+				markDownloadPending(url)
+				try {
+					const resp = await sdk.axios.get(url, { responseType: 'blob', signal })
+					await deps.putBlob(url, resp.data)
+					storedUrls.push(url)
+					sizeBytes += resp.data.size
+					thumbnailUrl = url
+				} finally {
+					clearDownloadPending(url)
+				}
 			} catch (err) {
 				// Only swallow a genuine thumbnail failure; an abort must still propagate so the
 				// manager classifies the whole job as cancelled.
@@ -49,16 +58,21 @@ export function createDownloadFetcher(
 
 			if (job.format === 'epub' || job.format === 'pdf') {
 				const fileUrl = sdk.media.downloadURL(job.bookId)
-				const resp = await sdk.axios.get(fileUrl, {
-					responseType: 'blob',
-					signal,
-					onDownloadProgress: (event: { loaded: number; total?: number }) =>
-						onProgress(event.loaded, event.total),
-				})
-				await deps.putBlob(fileUrl, resp.data)
-				storedUrls.push(fileUrl)
-				sizeBytes += resp.data.size
-				onProgress(resp.data.size, resp.data.size)
+				markDownloadPending(fileUrl)
+				try {
+					const resp = await sdk.axios.get(fileUrl, {
+						responseType: 'blob',
+						signal,
+						onDownloadProgress: (event: { loaded: number; total?: number }) =>
+							onProgress(event.loaded, event.total),
+					})
+					await deps.putBlob(fileUrl, resp.data)
+					storedUrls.push(fileUrl)
+					sizeBytes += resp.data.size
+					onProgress(resp.data.size, resp.data.size)
+				} finally {
+					clearDownloadPending(fileUrl)
+				}
 
 				const result: DownloadFetchResult = { fileUrl, thumbnailUrl, sizeBytes }
 				return result
@@ -72,13 +86,18 @@ export function createDownloadFetcher(
 			for (let page = 1; page <= pageCount; page++) {
 				if (signal.aborted) throw new DOMException('Aborted', 'AbortError')
 				const url = sdk.media.bookPageURL(job.bookId, page)
-				const resp = await sdk.axios.get(url, { responseType: 'blob', signal })
-				await deps.putBlob(url, resp.data)
-				storedUrls.push(url)
-				pageUrls.push(url)
-				received += resp.data.size
-				sizeBytes += resp.data.size
-				onProgress(received)
+				markDownloadPending(url)
+				try {
+					const resp = await sdk.axios.get(url, { responseType: 'blob', signal })
+					await deps.putBlob(url, resp.data)
+					storedUrls.push(url)
+					pageUrls.push(url)
+					received += resp.data.size
+					sizeBytes += resp.data.size
+					onProgress(received)
+				} finally {
+					clearDownloadPending(url)
+				}
 			}
 
 			const result: DownloadFetchResult = { pageUrls, thumbnailUrl, sizeBytes }

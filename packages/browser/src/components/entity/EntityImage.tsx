@@ -1,6 +1,7 @@
 import { useSDK } from '@longbox/client'
 import { forwardRef, Suspense, useCallback } from 'react'
 
+import { cacheOnView } from '@/offline/passiveCache'
 import { useOfflineImageSrc } from '@/offline/resolveOfflineUrl'
 
 import { AuthImage } from './AuthImage'
@@ -30,6 +31,20 @@ const EntityImage = forwardRef<HTMLImageElement, Props>(({ src, onLoad, ...props
 		[onLoad],
 	)
 
+	// Session-mode, network (cache-miss) branch only: the browser fetched `src` directly (no JS
+	// interception), so this is a "shadow fetch" side channel -- re-GET the same bytes to feed the
+	// passive cache, without changing how the visible <img> itself loads. Offline-hit and
+	// AuthImage (token-mode) branches are handled elsewhere (resolveOfflineUrl / AuthImage.tsx).
+	const handleNetworkImageLoad = useCallback(
+		(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+			handleImageLoad(e)
+			if (typeof src === 'string') {
+				void cacheOnView(src, sdk)
+			}
+		},
+		[handleImageLoad, src, sdk],
+	)
+
 	const renderImage = () => {
 		if (offlineSrc) {
 			return <img {...props} src={offlineSrc} ref={ref} onLoad={handleImageLoad} />
@@ -44,7 +59,7 @@ const EntityImage = forwardRef<HTMLImageElement, Props>(({ src, onLoad, ...props
 				/>
 			)
 		} else {
-			return <img src={src} {...props} ref={ref} onLoad={handleImageLoad} />
+			return <img src={src} {...props} ref={ref} onLoad={handleNetworkImageLoad} />
 		}
 	}
 

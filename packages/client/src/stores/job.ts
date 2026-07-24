@@ -3,12 +3,74 @@ import deepEqual from 'deep-equal'
 import { produce } from 'immer'
 import { createWithEqualityFn } from 'zustand/traditional'
 
-type JobID = string
+export type JobID = string
+
+/**
+ * How long a removed job's id is remembered in `recentlyRemovedJobIds` before it's pruned.
+ * Must comfortably exceed the reconciliation poll interval (60s, see
+ * `RECONCILE_INTERVAL_MS` in `useCoreEvent.ts`) so that a reconciliation request which was
+ * already in flight when the job was removed can't outlive the guard and resurrect it.
+ */
+const RECENTLY_REMOVED_TTL_MS = 2 * 60 * 1000
+
+/**
+ * Mutates `recentlyRemovedJobIds` in place, dropping any entry older than
+ * `RECENTLY_REMOVED_TTL_MS`. Called lazily from `removeJob` and `reconcileActiveJobs` instead
+ * of on a timer, so there's nothing to schedule or tear down.
+ */
+const pruneExpiredRemovals = (recentlyRemovedJobIds: Record<JobID, number>, now: number) => {
+	for (const [jobId, removedAt] of Object.entries(recentlyRemovedJobIds)) {
+		if (now - removedAt > RECENTLY_REMOVED_TTL_MS) {
+			delete recentlyRemovedJobIds[jobId]
+		}
+	}
+}
+
 type JobStore = {
 	jobs: Record<JobID, JobUpdate>
+	/**
+	 * Ids of jobs removed via `removeJob`, mapped to the timestamp (`Date.now()`) they were
+	 * removed at. Populated by `removeJob` itself (so every removal path is covered, not just
+	 * the terminal-`JobUpdate` handler in `useCoreEvent.ts`) and consulted by
+	 * `reconcileActiveJobs` to stop a stale reconciliation response from resurrecting a job
+	 * that has since completed. Entries are pruned lazily -- see `pruneExpiredRemovals`.
+	 */
+	recentlyRemovedJobIds: Record<JobID, number>
 	addJob: (id: JobID) => void
 	upsertJob: (job: JobUpdate) => void
 	removeJob: (jobId: JobID) => void
+	/**
+	 * Reconciles the locally-tracked active jobs against a fresh snapshot fetched from the
+	 * server (e.g., on reconnect, or periodically to cover events dropped by a `Lagged`
+	 * subscriber that never actually disconnected).
+	 *
+	 * A locally-tracked job is only removed if BOTH:
+	 *  - its id was present in `knownJobIds`, a snapshot of the store's job ids taken
+	 *    BEFORE the reconciliation request was sent, and
+	 *  - it is absent from `activeJobs`, the fresh server-side list of active jobs.
+	 *
+	 * This guards against a race where a job starts (via a live event) while the
+	 * reconciliation request is in flight: such a job's id would not be in `knownJobIds`,
+	 * so it is never removed just because it's missing from the (now-stale) `activeJobs`
+	 * response.
+	 *
+	 * Every job in `activeJobs` is upserted into the store: a minimal entry is created if
+	 * not already known, otherwise only its `status` field is corrected -- other
+	 * progress fields (e.g., `message`, `subtitle`) that are already known locally are
+	 * left untouched, since the reconciliation response doesn't carry that detail.
+	 *
+	 * A job id present in `recentlyRemovedJobIds` is never (re-)upserted, even if it's in
+	 * `activeJobs`. This guards against the mirror-image race: a job is `RUNNING` (and thus
+	 * in `knownJobIds`) and still `RUNNING` per the server when the reconciliation request is
+	 * built, then completes and is removed (via a live terminal `JobUpdate`) BEFORE the
+	 * (now-stale) reconciliation response is applied. Without this guard, the response's
+	 * upsert loop would see no existing job for that id and re-insert it as if still running,
+	 * leaving it stuck in the store until the next reconciliation tick corrects it.
+	 */
+	reconcileActiveJobs: (
+		activeJobs: Pick<JobUpdate, 'id' | 'status'>[],
+		knownJobIds: JobID[],
+	) => void
 }
 
 /**
@@ -23,10 +85,42 @@ export const useJobStore = createWithEqualityFn<JobStore>(
 				}),
 			),
 		jobs: {} as Record<JobID, JobUpdate>,
+		recentlyRemovedJobIds: {} as Record<JobID, number>,
+		reconcileActiveJobs: (activeJobs, knownJobIds) =>
+			set((state) =>
+				produce(state, (draft) => {
+					pruneExpiredRemovals(draft.recentlyRemovedJobIds, Date.now())
+
+					const activeJobIds = new Set(activeJobs.map((job) => job.id))
+					const knownJobIdSet = new Set(knownJobIds)
+
+					for (const jobId of Object.keys(draft.jobs)) {
+						if (knownJobIdSet.has(jobId) && !activeJobIds.has(jobId)) {
+							delete draft.jobs[jobId]
+						}
+					}
+
+					for (const activeJob of activeJobs) {
+						if (activeJob.id in draft.recentlyRemovedJobIds) {
+							continue
+						}
+
+						const existingJob = draft.jobs[activeJob.id]
+						if (existingJob) {
+							existingJob.status = activeJob.status
+						} else {
+							draft.jobs[activeJob.id] = { ...activeJob }
+						}
+					}
+				}),
+			),
 		removeJob: (id) =>
 			set((state) =>
 				produce(state, (draft) => {
 					delete draft.jobs[id]
+
+					pruneExpiredRemovals(draft.recentlyRemovedJobIds, Date.now())
+					draft.recentlyRemovedJobIds[id] = Date.now()
 				}),
 			),
 		upsertJob: (job) => {

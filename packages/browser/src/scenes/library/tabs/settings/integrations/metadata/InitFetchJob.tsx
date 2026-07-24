@@ -1,8 +1,17 @@
 import { useGraphQLMutation, useSuspenseGraphQL } from '@longbox/client'
-import { Alert, AlertDescription, AlertTitle, Button, Heading, Text } from '@longbox/components'
+import {
+	Alert,
+	AlertDescription,
+	AlertTitle,
+	Button,
+	CheckBox,
+	Heading,
+	Text,
+} from '@longbox/components'
 import { extractErrorMessage, graphql } from '@longbox/graphql'
 import { useLocaleContext } from '@longbox/i18n'
 import { Info } from 'lucide-react'
+import { useState } from 'react'
 import { toast } from 'sonner'
 
 import { useLibraryContext } from '@/scenes/library/context'
@@ -16,14 +25,16 @@ const query = graphql(`
 `)
 
 const mutation = graphql(`
-	mutation InitFetchJob($id: ID!) {
-		fetchLibraryMetadata(id: $id)
+	mutation InitFetchJob($id: ID!, $forceRefetch: Boolean!) {
+		fetchLibraryMetadata(id: $id, forceRefetch: $forceRefetch)
 	}
 `)
 
 export default function InitFetchJob() {
 	const { library } = useLibraryContext()
 	const { t } = useLocaleContext()
+
+	const [forceRefetch, setForceRefetch] = useState(false)
 
 	const {
 		data: { metadataProviderConfigs },
@@ -38,7 +49,7 @@ export default function InitFetchJob() {
 		},
 	})
 
-	const handleFetch = () => mutate({ id: library.id })
+	const handleFetch = () => mutate({ id: library.id, forceRefetch })
 
 	return (
 		<div className="gap-6 flex flex-col">
@@ -56,6 +67,14 @@ export default function InitFetchJob() {
 					<AlertDescription>{t(getKey('noProviders.description'))}</AlertDescription>
 				</Alert>
 			)}
+
+			<CheckBox
+				id="forceRefetch"
+				label={t(getKey('forceRefetch.label'))}
+				description={t(getKey('forceRefetch.description'))}
+				checked={forceRefetch}
+				onClick={() => setForceRefetch((prev) => !prev)}
+			/>
 
 			<div>
 				<Button onClick={handleFetch} disabled={metadataProviderConfigs.length === 0}>

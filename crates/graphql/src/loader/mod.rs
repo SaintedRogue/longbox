@@ -1,4 +1,5 @@
 pub mod author;
+pub mod character;
 pub mod favorite;
 pub mod library;
 pub mod library_config;

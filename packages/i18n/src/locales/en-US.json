@@ -754,6 +754,10 @@
 						"title": "There are no metadata providers available",
 						"description": "You can configure metadata providers in the metadata integration settings"
 					},
+					"forceRefetch": {
+						"label": "Re-fetch already-matched items",
+						"description": "By default, items that already have a match are skipped. Enable this to search again for all items, even ones already matched."
+					},
 					"fetchButton": "Start background fetch",
 					"fetchError": "Failed to start metadata fetch"
 				}
@@ -2601,7 +2605,8 @@
 			"noSmartlists": "No smart lists",
 			"createSmartlist": "Create smart list",
 			"seeAll": "See all",
-			"downloads": "Downloads"
+			"downloads": "Downloads",
+			"characters": "Characters"
 		},
 		"libraryOptions": {
 			"scanLibrary": "Scan",

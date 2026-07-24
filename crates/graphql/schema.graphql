@@ -348,6 +348,17 @@ input BookmarkInput {
 	previewContent: String
 }
 
+type Character {
+	name: String!
+	"""
+	The number of books this character appears in, within the scope the character
+	was queried in (e.g., a library). This is derived at query time from the
+	`media_metadata.characters` CSV column, not a stored/denormalized value.
+	"""
+	bookCount: Int
+	books: [Media!]!
+}
+
 type CleanLibraryResponse {
 	deletedMediaCount: Int!
 	deletedSeriesCount: Int!
@@ -2509,6 +2520,11 @@ type PaginatedAuthorResponse {
 	pageInfo: PaginationInfo!
 }
 
+type PaginatedCharacterResponse {
+	nodes: [Character!]!
+	pageInfo: PaginationInfo!
+}
+
 type PaginatedDirectoryListingResponse {
 	nodes: [DirectoryListing!]!
 	pageInfo: PaginationInfo!
@@ -2718,6 +2734,18 @@ type Query {
 		"Optional library ID to scope the series search"
 		libraryId: String
 	): AuthorSeries
+	"Get a single character by name (case-insensitive exact match)"
+	characterByName(		name: String!,
+		"Optional library ID to scope the character search"
+		libraryId: ID
+	): Character
+	"Get a paginated list of characters with optional search filter"
+	characters(
+		"Case-insensitive substring search filter"
+		search: String,
+		"Optional library ID to scope the character search"
+		libraryId: ID,		pagination: Pagination! = {offset: {page: 1, pageSize: 20, zeroBased: false}}
+	): PaginatedCharacterResponse!
 	mediaCount: Int!
 	finishedReadingSessionCount: Int!
 	activeReadingSessionCount: Int!
@@ -2784,7 +2812,7 @@ type Query {
 	getNotifierById(id: Int!): Notifier!
 	apiKeys: [Apikey!]!
 	apiKeyById(id: Int!): Apikey!
-	jobs(pagination: Pagination! = {offset: {page: 1, pageSize: 20, zeroBased: false}}): PaginatedJobResponse!
+	jobs(pagination: Pagination! = {offset: {page: 1, pageSize: 20, zeroBased: false}}, statuses: [JobStatus!]): PaginatedJobResponse!
 	jobById(id: ID!): Job
 	scheduledJobs: [ScheduledJob!]!
 	logs(filter: LogFilterInput! = {level: null, jobId: null, _and: null, _not: null, _or: null}, orderBy: [LogModelOrderBy!]! = [], pagination: Pagination! = {offset: {page: 1, pageSize: 20, zeroBased: false}}): PaginatedLogResponse!

@@ -1,28 +1,12 @@
 use async_graphql::dataloader::Loader;
-use models::entity::{media, media_metadata, series, user};
-use sea_orm::{prelude::*, sea_query::Query};
+use models::entity::{media, media_metadata, user};
+use sea_orm::prelude::*;
 use std::{collections::HashMap, sync::Arc};
 
-use crate::object::media::Media;
-
-// This is basically the same as it has been for ages but it should go with another note
-// that this kind of parsing is super fragile. I wish metadata was WAY more standarized, because
-// "Last, First" will just break hard
-fn parse_writers(writers: &str) -> Vec<String> {
-	writers
-		.split(',')
-		.map(|s| s.trim().to_string())
-		.filter(|s| !s.is_empty())
-		.collect()
-}
-
-fn series_in_library_subquery(library_id: String) -> sea_orm::sea_query::SelectStatement {
-	Query::select()
-		.column(series::Column::Id)
-		.from(series::Entity)
-		.and_where(series::Column::LibraryId.eq(library_id))
-		.to_owned()
-}
+use crate::{
+	object::media::Media,
+	utils::{parse_comma_separated_list, series_in_library_subquery},
+};
 
 pub struct AuthorMediaLoader {
 	conn: Arc<DatabaseConnection>,
@@ -114,7 +98,7 @@ impl Loader<AuthorMediaLoaderKey> for AuthorMediaLoader {
 			for model in models {
 				if let Some(ref metadata) = model.metadata {
 					if let Some(ref writers) = metadata.writers {
-						let media_authors = parse_writers(writers);
+						let media_authors = parse_comma_separated_list(writers);
 						for author in &media_authors {
 							let author_lower = author.to_lowercase();
 							if let Some(original_name) =

@@ -7,6 +7,19 @@ import { toast } from 'sonner'
 import { match, P } from 'ts-pattern'
 import { useShallow } from 'zustand/react/shallow'
 
+const RECONCILE_INTERVAL_MS = 60_000
+
+const reconcileActiveJobsQuery = graphql(`
+	query ReconcileActiveJobs {
+		jobs(pagination: { none: { unpaginated: true } }, statuses: [RUNNING, QUEUED, PAUSED]) {
+			nodes {
+				id
+				status
+			}
+		}
+	}
+`)
+
 const subscription = graphql(`
 	subscription UseCoreEvent {
 		readEvents {
@@ -74,6 +87,7 @@ export function useCoreEvent({ liveRefetch, onConnectionWithServerChanged }: Par
 	const store = useJobStore(
 		useShallow((state) => ({
 			addJob: state.addJob,
+			reconcileActiveJobs: state.reconcileActiveJobs,
 			removeJob: state.removeJob,
 			upsertJob: state.upsertJob,
 		})),
@@ -88,21 +102,33 @@ export function useCoreEvent({ liveRefetch, onConnectionWithServerChanged }: Par
 		[store, client, sdk, liveRefetch],
 	)
 
+	/**
+	 * Re-syncs the locally-tracked active jobs against the server's current view of active
+	 * jobs. This covers two gaps that the live event stream alone cannot:
+	 *  - a `Lagged` broadcast subscriber that drops events WITHOUT the socket ever closing
+	 *    (so `onConnected` never fires again to trigger a resync), and
+	 *  - any events missed during the (now bounded, backed-off) window between a disconnect
+	 *    and the subscription's reconnect.
+	 */
+	const reconcileJobs = useCallback(async () => {
+		const knownJobIds = Object.keys(useJobStore.getState().jobs)
+		try {
+			const result = await sdk.execute(reconcileActiveJobsQuery)
+			store.reconcileActiveJobs(result.jobs.nodes, knownJobIds)
+		} catch (error) {
+			console.error('Failed to reconcile active jobs', error)
+		}
+	}, [sdk, store])
+
 	const [, dispose] = useGraphQLSubscription(subscription, {
 		onMessage: (payload) => onPayloadReceived(payload),
 		onConnected: () => {
-			// console.info('Connected to GraphQL subscription')
 			onConnectionWithServerChanged?.(true)
+			reconcileJobs()
 		},
-		// TODO(grpahql): Figure this out
 		onDisconnected: () => {
 			console.warn('Disconnected from GraphQL subscription')
-			// dispose()
-			// setTimeout(() => {
-			// 	if (socket?.readyState !== WebSocket.OPEN) {
-			// 		onConnectionWithServerChanged?.(false)
-			// 	}
-			// }, 5_000)
+			onConnectionWithServerChanged?.(false)
 		},
 	})
 
@@ -111,6 +137,13 @@ export function useCoreEvent({ liveRefetch, onConnectionWithServerChanged }: Par
 			dispose()
 		}
 	}, [dispose])
+
+	useEffect(() => {
+		const intervalId = setInterval(reconcileJobs, RECONCILE_INTERVAL_MS)
+		return () => {
+			clearInterval(intervalId)
+		}
+	}, [reconcileJobs])
 }
 
 type EventHandlerParams = {

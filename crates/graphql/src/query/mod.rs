@@ -5,6 +5,7 @@ mod book_club_book;
 mod book_club_discussion;
 mod book_club_invitation;
 mod book_club_suggestion;
+mod character;
 mod config;
 mod custom_emoji;
 mod email_device;
@@ -35,6 +36,7 @@ use book_club_book::BookClubBookQuery;
 use book_club_discussion::BookClubDiscussionQuery;
 use book_club_invitation::BookClubInvitationQuery;
 use book_club_suggestion::BookClubSuggestionQuery;
+use character::CharacterQuery;
 use config::ConfigQuery;
 use custom_emoji::CustomEmojiQuery;
 use email_device::EmailDeviceQuery;
@@ -74,6 +76,7 @@ struct BookClubQueries(
 #[derive(async_graphql::MergedObject, Default)]
 struct ContentQueries(
 	AuthorQuery,
+	CharacterQuery,
 	MediaQuery,
 	LibraryQuery,
 	SeriesQuery,

@@ -35,6 +35,12 @@ export type DownloadRecord = {
 	downloadedAt: number
 }
 
+/** One passive-cache log row per cached URL (comic page or thumbnail), tracking LRU recency. */
+export type PassiveCacheEntry = { url: string; sizeBytes: number; lastAccessedAt: number }
+
+/** Singleton row (id is always 'singleton') tracking the running total of passiveCacheEntries' sizeBytes. */
+export type PassiveCacheMetaRecord = { id: 'singleton'; totalBytes: number }
+
 export type QueueStatus = 'pending' | 'downloading' | 'completed' | 'failed'
 
 /** A queued/in-flight download job. Parity with Expo `download_queue`. */
@@ -65,10 +71,19 @@ export interface LongboxOfflineDB extends DBSchema {
 		value: DownloadQueueItem
 		indexes: { 'by-status': QueueStatus }
 	}
+	passiveCacheEntries: {
+		key: string // url
+		value: PassiveCacheEntry
+		indexes: { 'by-last-accessed': number }
+	}
+	passiveCacheMeta: {
+		key: string // always 'singleton'
+		value: PassiveCacheMetaRecord
+	}
 }
 
 const DB_NAME = 'longbox-offline'
-const DB_VERSION = 2
+const DB_VERSION = 3
 
 // Cached so repeated calls share one connection instead of opening a new one every time:
 // an uncached `openDB` per call leaks connections (nothing ever closes them), and a
@@ -90,6 +105,13 @@ export function getDB(): Promise<IDBPDatabase<LongboxOfflineDB>> {
 				if (!db.objectStoreNames.contains('downloadQueue')) {
 					const q = db.createObjectStore('downloadQueue', { keyPath: 'id', autoIncrement: true })
 					q.createIndex('by-status', 'status')
+				}
+				if (!db.objectStoreNames.contains('passiveCacheEntries')) {
+					const store = db.createObjectStore('passiveCacheEntries', { keyPath: 'url' })
+					store.createIndex('by-last-accessed', 'lastAccessedAt')
+				}
+				if (!db.objectStoreNames.contains('passiveCacheMeta')) {
+					db.createObjectStore('passiveCacheMeta', { keyPath: 'id' })
 				}
 			},
 		})

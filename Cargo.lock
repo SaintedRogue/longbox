@@ -2740,6 +2740,7 @@ dependencies = [
  "slugify",
  "strum 0.27.2",
  "tempfile",
+ "tests",
  "tokio",
  "tower-sessions",
  "tracing",

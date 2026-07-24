@@ -5,7 +5,10 @@ import type {
 	TypedDocumentString,
 } from '@longbox/graphql'
 import { Api } from '@longbox/sdk'
-import { GraphQLWebsocketConnectEventHandlers } from '@longbox/sdk/socket'
+import {
+	GraphQLWebsocketConnectEventHandlers,
+	GraphQLWebsocketConnectReturn,
+} from '@longbox/sdk/socket'
 import {
 	InfiniteData,
 	noop,
@@ -686,7 +689,6 @@ export function useGraphQLSubscriptionCache<TResult, TVariables>(
 	return [data, socket, dispose] as const
 }
 
-// TODO: Consolidate the socket logic
 // TODO: Add socket lifecycle callback options (e.g., onconnect, onclose, etc)
 
 export type UseGraphQLSubscriptionParams<TResult, TVariables> = {
@@ -699,6 +701,18 @@ export type UseGraphQLSubscriptionParams<TResult, TVariables> = {
 
 export type UseGraphQLSubscriptionReturn = [WebSocket | null, () => void]
 
+/**
+ * Computes a reconnect delay (in ms) for the given attempt number using a "full jitter"
+ * exponential backoff: the delay is a random value in `[0, cap]`, where `cap` doubles per
+ * attempt and saturates at 30 seconds. Full jitter (rather than, say, always waiting the
+ * cap) avoids a thundering herd of clients all reconnecting at the same instant after a
+ * shared server restart/blip.
+ */
+export const computeReconnectDelay = (attempt: number): number => {
+	const cap = Math.min(30_000, 1_000 * 2 ** attempt)
+	return Math.round(Math.random() * cap)
+}
+
 export function useGraphQLSubscription<TResult, TVariables>(
 	document: TypedDocumentString<TResult, TVariables>,
 	{ variables, onMessage, ...params }: UseGraphQLSubscriptionParams<TResult, TVariables> = {},
@@ -707,7 +721,32 @@ export function useGraphQLSubscription<TResult, TVariables>(
 	const { onUnauthenticatedResponse, onConnectionWithServerChanged } = useClientContext()
 
 	const [socket, setSocket] = useState<WebSocket | null>(null)
-	const [dispose, setDispose] = useState<() => void>(() => () => {})
+
+	/** The current reconnect attempt number, reset to 0 on every successful open */
+	const attemptRef = useRef(0)
+	/** The pending reconnect timeout, if any, so it can be cancelled on dispose */
+	const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+	/** Set on dispose (e.g. unmount) so an in-flight connect or scheduled reconnect is a no-op */
+	const stoppedRef = useRef(false)
+	/** Always holds the latest `connect` closure, so `scheduleReconnect` can call it without
+	 *  itself needing `connect` in its dependency array (which would otherwise create a
+	 *  connect <-> scheduleReconnect circular dependency) */
+	const connectRef = useRef<() => void>(() => {})
+	/** The currently-active socket/unsubscribe pair, if connected, so `dispose` can tear it down */
+	const activeConnectionRef = useRef<GraphQLWebsocketConnectReturn | null>(null)
+
+	const scheduleReconnect = useCallback(() => {
+		if (stoppedRef.current) return
+
+		if (retryTimeoutRef.current) {
+			clearTimeout(retryTimeoutRef.current)
+		}
+
+		const delay = computeReconnectDelay(attemptRef.current++)
+		retryTimeoutRef.current = setTimeout(() => {
+			connectRef.current()
+		}, delay)
+	}, [])
 
 	const events = useMemo<Partial<GraphQLWebsocketConnectEventHandlers<TResult>>>(
 		() => ({
@@ -722,44 +761,101 @@ export function useGraphQLSubscription<TResult, TVariables>(
 					onConnectionWithServerChanged,
 				})
 			},
-			onOpen: (ev) => params?.onConnected?.(ev),
-			onClose: (ev) => params?.onDisconnected?.(ev),
+			onOpen: (ev) => {
+				attemptRef.current = 0
+				params?.onConnected?.(ev)
+			},
+			onClose: (ev) => {
+				activeConnectionRef.current = null
+				setSocket(null)
+				params?.onDisconnected?.(ev)
+				scheduleReconnect()
+			},
 		}),
-		[sdk, onUnauthenticatedResponse, onConnectionWithServerChanged, onMessage, params],
+		[
+			sdk,
+			onUnauthenticatedResponse,
+			onConnectionWithServerChanged,
+			onMessage,
+			params,
+			scheduleReconnect,
+		],
 	)
 
-	const didConfigure = useRef(false)
-	/**
-	 * An effect responsible for kicking off the socket connection and managing the
-	 * lifecycle of the socket. It will only run once, and will clean up the socket when
-	 * the component unmounts or when the socket is closed.
-	 */
-	useEffect(() => {
-		if (socket || didConfigure.current) return
+	const connect = useCallback(async () => {
+		if (stoppedRef.current) return
 
-		didConfigure.current = true
-		const configureSocket = async () => {
-			const { socket, unsubscribe } = await sdk.connect<TResult, TVariables>(
-				document,
-				variables,
-				events,
-			)
+		try {
+			const connection = await sdk.connect<TResult, TVariables>(document, variables, events)
 
-			setSocket(socket)
-			setDispose(() => () => {
-				unsubscribe()
-				socket.close()
-				setSocket(null)
-				didConfigure.current = false
+			if (stoppedRef.current) {
+				// A dispose() call raced with this in-flight connect -- tear it down immediately
+				// rather than leaving a dangling, unreferenced socket open.
+				connection.unsubscribe()
+				connection.socket.close()
+				return
+			}
+
+			activeConnectionRef.current = connection
+			setSocket(connection.socket)
+		} catch (error) {
+			handleError({
+				sdk,
+				error,
+				onUnauthenticatedResponse,
+				onConnectionWithServerChanged,
 			})
+			scheduleReconnect()
+		}
+	}, [
+		sdk,
+		document,
+		variables,
+		events,
+		onUnauthenticatedResponse,
+		onConnectionWithServerChanged,
+		scheduleReconnect,
+	])
+
+	useEffect(() => {
+		connectRef.current = connect
+	}, [connect])
+
+	const dispose = useCallback(() => {
+		stoppedRef.current = true
+
+		if (retryTimeoutRef.current) {
+			clearTimeout(retryTimeoutRef.current)
+			retryTimeoutRef.current = undefined
 		}
 
-		configureSocket()
+		const current = activeConnectionRef.current
+		if (current) {
+			current.unsubscribe()
+			current.socket.close()
+			activeConnectionRef.current = null
+		}
+
+		setSocket(null)
+	}, [])
+
+	/**
+	 * An effect responsible for kicking off the socket connection and managing its lifecycle,
+	 * including reconnecting with jittered exponential backoff on disconnect (handled by
+	 * `events.onClose` -> `scheduleReconnect` above). This intentionally depends only on the
+	 * stable (sdk, document, variables) inputs -- NOT on `events`/`dispose`/`socket` -- so a
+	 * reconnect (which updates `socket` and, transitively, could change callback identities)
+	 * doesn't tear down and recreate the whole subscription on every render.
+	 */
+	useEffect(() => {
+		stoppedRef.current = false
+		connectRef.current()
 
 		return () => {
 			dispose()
 		}
-	}, [socket, sdk, document, variables, events, dispose])
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [sdk, document, variables])
 
 	return [socket, dispose] as const
 }

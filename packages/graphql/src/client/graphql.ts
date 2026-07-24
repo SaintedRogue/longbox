@@ -403,6 +403,18 @@ export type BookmarkInput = {
   previewContent?: InputMaybe<Scalars['String']['input']>;
 };
 
+export type Character = {
+  __typename?: 'Character';
+  /**
+   * The number of books this character appears in, within the scope the character
+   * was queried in (e.g., a library). This is derived at query time from the
+   * `media_metadata.characters` CSV column, not a stored/denormalized value.
+   */
+  bookCount?: Maybe<Scalars['Int']['output']>;
+  books: Array<Media>;
+  name: Scalars['String']['output'];
+};
+
 export type CleanLibraryResponse = {
   __typename?: 'CleanLibraryResponse';
   deletedMediaCount: Scalars['Int']['output'];
@@ -3407,6 +3419,12 @@ export type PaginatedAuthorResponse = {
   pageInfo: PaginationInfo;
 };
 
+export type PaginatedCharacterResponse = {
+  __typename?: 'PaginatedCharacterResponse';
+  nodes: Array<Character>;
+  pageInfo: PaginationInfo;
+};
+
 export type PaginatedDirectoryListingResponse = {
   __typename?: 'PaginatedDirectoryListingResponse';
   nodes: Array<DirectoryListing>;
@@ -3621,6 +3639,10 @@ export type Query = {
   bookClubs: Array<BookClub>;
   /** Get all bookmarks for a single epub by its media ID */
   bookmarksByMediaId: Array<Bookmark>;
+  /** Get a single character by name (case-insensitive exact match) */
+  characterByName?: Maybe<Character>;
+  /** Get a paginated list of characters with optional search filter */
+  characters: PaginatedCharacterResponse;
   /** List the custom emojis available on this server */
   customEmojis: Array<CustomEmoji>;
   duplicateMedia: Array<Media>;
@@ -3824,6 +3846,19 @@ export type QueryBookmarksByMediaIdArgs = {
 };
 
 
+export type QueryCharacterByNameArgs = {
+  libraryId?: InputMaybe<Scalars['ID']['input']>;
+  name: Scalars['String']['input'];
+};
+
+
+export type QueryCharactersArgs = {
+  libraryId?: InputMaybe<Scalars['ID']['input']>;
+  pagination?: Pagination;
+  search?: InputMaybe<Scalars['String']['input']>;
+};
+
+
 export type QueryEmailDeviceByIdArgs = {
   id: Scalars['Int']['input'];
 };
@@ -3851,6 +3886,7 @@ export type QueryJobByIdArgs = {
 
 export type QueryJobsArgs = {
   pagination?: Pagination;
+  statuses?: InputMaybe<Array<JobStatus>>;
 };
 
 
@@ -5470,6 +5506,11 @@ export type SeriesEditorSetLockedFieldsMutationVariables = Exact<{
 
 export type SeriesEditorSetLockedFieldsMutation = { __typename?: 'Mutation', setSeriesLockedFields: { __typename?: 'Series', id: string } };
 
+export type ReconcileActiveJobsQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type ReconcileActiveJobsQuery = { __typename?: 'Query', jobs: { __typename?: 'PaginatedJobResponse', nodes: Array<{ __typename?: 'Job', id: string, status: JobStatus }> } };
+
 export type UseCoreEventSubscriptionVariables = Exact<{ [key: string]: never; }>;
 
 
@@ -5668,6 +5709,29 @@ export type BookSearchSceneQuery = { __typename?: 'Query', media: { __typename?:
       & { ' $fragmentRefs'?: { 'BookCardFragment': BookCardFragment;'BookMetadataFragment': BookMetadataFragment } }
     )>, pageInfo: { __typename: 'CursorPaginationInfo' } | { __typename: 'OffsetPaginationInfo', currentPage: number, totalPages: number, pageSize: number, pageOffset: number, zeroBased: boolean } } };
 
+export type CharacterCardFragment = { __typename?: 'Character', name: string, bookCount?: number | null } & { ' $fragmentName'?: 'CharacterCardFragment' };
+
+export type CharacterDetailSceneQueryVariables = Exact<{
+  name: Scalars['String']['input'];
+}>;
+
+
+export type CharacterDetailSceneQuery = { __typename?: 'Query', characterByName?: { __typename?: 'Character', name: string, bookCount?: number | null, books: Array<(
+      { __typename?: 'Media', id: string }
+      & { ' $fragmentRefs'?: { 'BookCardFragment': BookCardFragment;'BookMetadataFragment': BookMetadataFragment } }
+    )> } | null };
+
+export type CharactersSceneQueryVariables = Exact<{
+  search?: InputMaybe<Scalars['String']['input']>;
+  pagination: Pagination;
+}>;
+
+
+export type CharactersSceneQuery = { __typename?: 'Query', characters: { __typename?: 'PaginatedCharacterResponse', nodes: Array<(
+      { __typename?: 'Character', name: string }
+      & { ' $fragmentRefs'?: { 'CharacterCardFragment': CharacterCardFragment } }
+    )>, pageInfo: { __typename: 'CursorPaginationInfo' } | { __typename: 'OffsetPaginationInfo', currentPage: number, totalPages: number, pageSize: number, pageOffset: number, zeroBased: boolean } } };
+
 export type CreateLibrarySceneExistingLibrariesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
@@ -5858,6 +5922,7 @@ export type InitFetchJobCheckProvidersQuery = { __typename?: 'Query', metadataPr
 
 export type InitFetchJobMutationVariables = Exact<{
   id: Scalars['ID']['input'];
+  forceRefetch: Scalars['Boolean']['input'];
 }>;
 
 
@@ -6939,6 +7004,12 @@ export const BookThumbnailSelectorFragmentDoc = new TypedDocumentString(`
   pages
 }
     `, {"fragmentName":"BookThumbnailSelector"}) as unknown as TypedDocumentString<BookThumbnailSelectorFragment, unknown>;
+export const CharacterCardFragmentDoc = new TypedDocumentString(`
+    fragment CharacterCard on Character {
+  name
+  bookCount
+}
+    `, {"fragmentName":"CharacterCard"}) as unknown as TypedDocumentString<CharacterCardFragment, unknown>;
 export const ContinueReadingBookFragmentDoc = new TypedDocumentString(`
     fragment ContinueReadingBook on Media {
   id
@@ -8371,6 +8442,19 @@ export const SeriesEditorSetLockedFieldsDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<SeriesEditorSetLockedFieldsMutation, SeriesEditorSetLockedFieldsMutationVariables>;
+export const ReconcileActiveJobsDocument = new TypedDocumentString(`
+    query ReconcileActiveJobs {
+  jobs(
+    pagination: {none: {unpaginated: true}}
+    statuses: [RUNNING, QUEUED, PAUSED]
+  ) {
+    nodes {
+      id
+      status
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<ReconcileActiveJobsQuery, ReconcileActiveJobsQueryVariables>;
 export const UseCoreEventDocument = new TypedDocumentString(`
     subscription UseCoreEvent {
   readEvents {
@@ -8848,6 +8932,98 @@ fragment BookMetadata on Media {
     number
   }
 }`) as unknown as TypedDocumentString<BookSearchSceneQuery, BookSearchSceneQueryVariables>;
+export const CharacterDetailSceneDocument = new TypedDocumentString(`
+    query CharacterDetailScene($name: String!) {
+  characterByName(name: $name) {
+    name
+    bookCount
+    books {
+      id
+      ...BookCard
+      ...BookMetadata
+    }
+  }
+}
+    fragment BookCard on Media {
+  id
+  resolvedName
+  extension
+  pages
+  size
+  status
+  thumbnail {
+    url
+    metadata {
+      averageColor
+      colors {
+        color
+        percentage
+      }
+      thumbhash
+    }
+    height
+    width
+  }
+  readProgress {
+    percentageCompleted
+    epubcfi
+    page
+    updatedAt
+  }
+  readHistory {
+    __typename
+    completedAt
+  }
+  createdAt
+  libraryConfig {
+    skipBookOverview
+  }
+}
+fragment BookMetadata on Media {
+  metadata {
+    ageRating
+    characters
+    colorists
+    coverArtists
+    editors
+    genres
+    inkers
+    letterers
+    links
+    pencillers
+    publisher
+    teams
+    writers
+    year
+    month
+    day
+    volume
+    number
+  }
+}`) as unknown as TypedDocumentString<CharacterDetailSceneQuery, CharacterDetailSceneQueryVariables>;
+export const CharactersSceneDocument = new TypedDocumentString(`
+    query CharactersScene($search: String, $pagination: Pagination!) {
+  characters(search: $search, pagination: $pagination) {
+    nodes {
+      name
+      ...CharacterCard
+    }
+    pageInfo {
+      __typename
+      ... on OffsetPaginationInfo {
+        currentPage
+        totalPages
+        pageSize
+        pageOffset
+        zeroBased
+      }
+    }
+  }
+}
+    fragment CharacterCard on Character {
+  name
+  bookCount
+}`) as unknown as TypedDocumentString<CharactersSceneQuery, CharactersSceneQueryVariables>;
 export const CreateLibrarySceneExistingLibrariesDocument = new TypedDocumentString(`
     query CreateLibrarySceneExistingLibraries {
   libraries(pagination: {none: {unpaginated: true}}) {
@@ -9389,8 +9565,8 @@ export const InitFetchJobCheckProvidersDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<InitFetchJobCheckProvidersQuery, InitFetchJobCheckProvidersQueryVariables>;
 export const InitFetchJobDocument = new TypedDocumentString(`
-    mutation InitFetchJob($id: ID!) {
-  fetchLibraryMetadata(id: $id)
+    mutation InitFetchJob($id: ID!, $forceRefetch: Boolean!) {
+  fetchLibraryMetadata(id: $id, forceRefetch: $forceRefetch)
 }
     `) as unknown as TypedDocumentString<InitFetchJobMutation, InitFetchJobMutationVariables>;
 export const OrganizeLooseFilesPlanDocument = new TypedDocumentString(`

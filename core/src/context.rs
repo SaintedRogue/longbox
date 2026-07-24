@@ -16,6 +16,16 @@ use crate::{
 
 type EventChannel = (Sender<CoreEvent>, Receiver<CoreEvent>);
 
+/// Capacity of the broadcast channel used to fan out [`CoreEvent`]s to GraphQL
+/// subscribers. A larger buffer reduces (but does not eliminate) how often a
+/// slow-to-poll subscriber falls behind and misses events (`Lagged`). The
+/// actual fix for lagged subscribers is a combination of: the subscription
+/// stream tolerating `Lagged` without ending (see
+/// `crates/graphql/src/subscription/event.rs`) and client-side reconciliation
+/// that re-syncs state after (re)connecting instead of relying solely on the
+/// event stream.
+const EVENT_CHANNEL_CAPACITY: usize = 4096;
+
 /// Struct that holds the main context for a Longbox application. This is passed around
 /// to all the different parts of the application, and is used to access the database
 /// and manage the event channels.
@@ -52,7 +62,7 @@ impl Ctx {
 				.await
 				.expect("Failed to connect to database"),
 		);
-		let event_channel = Arc::new(channel::<CoreEvent>(1024));
+		let event_channel = Arc::new(channel::<CoreEvent>(EVENT_CHANNEL_CAPACITY));
 
 		let job_storage = MemoryStorage::<LongboxJob>::new();
 		let apalis_state = Arc::new(ApalisWorkerState::new(
@@ -80,7 +90,7 @@ impl Ctx {
 	pub fn for_testing(conn: DatabaseConnection) -> Ctx {
 		let config = Arc::new(LongboxConfig::debug());
 		let conn = Arc::new(conn);
-		let event_channel = Arc::new(channel::<CoreEvent>(1024));
+		let event_channel = Arc::new(channel::<CoreEvent>(EVENT_CHANNEL_CAPACITY));
 		let job_storage = MemoryStorage::<LongboxJob>::new();
 		let apalis_state = Arc::new(ApalisWorkerState::new(
 			conn.clone(),
@@ -105,7 +115,7 @@ impl Ctx {
 	pub fn mock_sea(mock_db: MockDatabase) -> Ctx {
 		let config = Arc::new(LongboxConfig::debug());
 
-		let event_channel = Arc::new(channel::<CoreEvent>(1024));
+		let event_channel = Arc::new(channel::<CoreEvent>(EVENT_CHANNEL_CAPACITY));
 		let conn = Arc::new(mock_db.into_connection());
 
 		let job_storage = MemoryStorage::<LongboxJob>::new();
@@ -175,15 +185,6 @@ impl Ctx {
 			.await
 			.map_err(|_| CoreError::InternalError("Failed to enqueue job".to_string()))?;
 		Ok(())
-	}
-
-	/// Send a [`CoreEvent`] through the event channel to any clients listening
-	pub fn send_core_event(&self, event: CoreEvent) {
-		if let Err(error) = self.event_channel.0.send(event) {
-			tracing::error!(error = ?error, "Failed to send core event");
-		} else {
-			tracing::trace!("Sent core event");
-		}
 	}
 
 	/// Retrieves the encryption key from the server configuration

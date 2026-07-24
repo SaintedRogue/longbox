@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 
 import { matchUrl } from './blobStore'
+import { touchAccess } from './passiveCache'
 
 /**
  * If `url`'s bytes are cached in the offline blob store, create and return an object URL for them;
@@ -10,6 +11,9 @@ import { matchUrl } from './blobStore'
 export async function offlineBlobUrl(url: string): Promise<string | null> {
 	const resp = await matchUrl(url)
 	if (!resp) return null
+	// Fire-and-forget: a cache hit means this URL is being read again, so keep its LRU recency
+	// accurate for the passive-cache sweep. Must never block or throw into this resolution path.
+	void touchAccess(url)
 	const blob = await resp.blob()
 	return URL.createObjectURL(blob)
 }
@@ -21,7 +25,9 @@ export async function offlineBlobUrl(url: string): Promise<string | null> {
  */
 export async function offlineFileBlob(url: string): Promise<Blob | null> {
 	const resp = await matchUrl(url)
-	return resp ? resp.blob() : null
+	if (!resp) return null
+	void touchAccess(url)
+	return resp.blob()
 }
 
 /**

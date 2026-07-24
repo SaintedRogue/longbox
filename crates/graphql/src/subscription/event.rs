@@ -1,6 +1,7 @@
 use crate::data::CoreContext;
 use async_graphql::{Context, Result, Subscription};
 use longbox_core::CoreEvent;
+use tokio::sync::broadcast::error::RecvError;
 
 #[derive(Default)]
 pub struct EventSubscription;
@@ -22,8 +23,21 @@ impl EventSubscription {
 				return;
 			};
 
-			while let Ok(event) = rx.recv().await {
-				yield Ok(event);
+			loop {
+				match rx.recv().await {
+					Ok(event) => yield Ok(event),
+					Err(RecvError::Lagged(missed)) => {
+						tracing::warn!(
+							missed_events = missed,
+							"GraphQL event subscriber lagged; dropping missed events, stream continues"
+						);
+						continue;
+					},
+					Err(RecvError::Closed) => {
+						tracing::info!("GraphQL event channel closed; ending subscription stream");
+						break;
+					},
+				}
 			}
 		}
 	}

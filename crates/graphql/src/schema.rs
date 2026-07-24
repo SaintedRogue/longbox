@@ -2,6 +2,7 @@ use crate::{
 	data::CoreContext,
 	loader::{
 		author::{AuthorMediaLoader, MetadataSeriesMediaLoader},
+		character::CharacterMediaLoader,
 		favorite::FavoritesLoader,
 		library::LibraryLoader,
 		library_config::LibraryConfigLoader,
@@ -50,6 +51,10 @@ pub fn add_data_loaders<
 	schema
 		.data(DataLoader::new(
 			AuthorMediaLoader::new(conn.clone()),
+			tokio::spawn,
+		))
+		.data(DataLoader::new(
+			CharacterMediaLoader::new(conn.clone()),
 			tokio::spawn,
 		))
 		.data(DataLoader::new(

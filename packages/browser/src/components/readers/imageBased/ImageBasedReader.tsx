@@ -149,6 +149,7 @@ export default function ImageBasedReader({ media, isIncognito, initialPage, onPr
 			setPageSize(page - 1, dimensions)
 		},
 		pages: pagesToPreload,
+		sdk,
 		urlBuilder: getPageUrl,
 	})
 

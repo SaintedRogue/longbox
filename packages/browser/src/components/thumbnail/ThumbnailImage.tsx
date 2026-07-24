@@ -3,6 +3,9 @@ import { cn } from '@longbox/components'
 import { AnimatePresence, motion } from 'framer-motion'
 import { forwardRef, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
+import { cacheOnView } from '@/offline/passiveCache'
+import { useOfflineImageSrc } from '@/offline/resolveOfflineUrl'
+
 import { AuthImage } from '../entity/AuthImage'
 import { ThumbnailPlaceholder, ThumbnailPlaceholderData } from './ThumbnailPlaceholder'
 
@@ -66,6 +69,10 @@ export const ThumbnailImage = forwardRef<HTMLDivElement, ThumbnailImageProps>(
 		ref,
 	) => {
 		const { sdk } = useSDK()
+
+		// Mirrors EntityImage's pattern: offline hits win over both AuthImage and a plain network
+		// <img>, so cached bytes are served (and reused) instead of re-fetching over the network.
+		const offlineSrc = useOfflineImageSrc(src)
 
 		const [isLoaded, setIsLoaded] = useState(false)
 		const [hasError, setHasError] = useState(false)
@@ -142,6 +149,13 @@ export const ThumbnailImage = forwardRef<HTMLDivElement, ThumbnailImageProps>(
 			onLoad?.()
 		}
 
+		// Session-mode, network (cache-miss) branch only -- same "shadow fetch" side channel as
+		// EntityImage.tsx. The offline-hit branch and AuthImage (token-mode) are handled elsewhere.
+		const handleNetworkLoad = () => {
+			handleLoad()
+			void cacheOnView(src, sdk)
+		}
+
 		const handleError = () => {
 			setHasError(true)
 			onError?.()
@@ -157,6 +171,21 @@ export const ThumbnailImage = forwardRef<HTMLDivElement, ThumbnailImageProps>(
 			: { decoding: 'async' as const }
 
 		const renderImage = () => {
+			if (offlineSrc) {
+				return (
+					<img
+						ref={imageRef}
+						src={offlineSrc}
+						alt={alt}
+						className={imageClasses}
+						style={imageStyle}
+						onLoad={handleLoad}
+						onError={handleError}
+						{...lazyProps}
+					/>
+				)
+			}
+
 			if (sdk.isTokenAuth) {
 				return (
 					<AuthImage
@@ -180,7 +209,7 @@ export const ThumbnailImage = forwardRef<HTMLDivElement, ThumbnailImageProps>(
 					alt={alt}
 					className={imageClasses}
 					style={imageStyle}
-					onLoad={handleLoad}
+					onLoad={handleNetworkLoad}
 					onError={handleError}
 					{...lazyProps}
 				/>

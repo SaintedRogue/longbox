@@ -81,6 +81,8 @@ const pathsInternal = {
 		const params = toUrlParams({ filters: JSON.stringify(filters) })
 		return `/books?${params.toString()}`
 	},
+	character: (name: string) => `/characters/${encodeURIComponent(name)}`,
+	characters: () => '/characters',
 	createEmailer: () => pathsInternal.settings('email/new'),
 	docs: (topic?: DocTopic, section?: string) =>
 		`https://github.com/SaintedRogue/longbox/tree/main/docs/content/docs/guides/${topic || ''}${section ? `#${section}` : ''}`,
@@ -150,6 +152,8 @@ export function usePaths() {
 		bookSearch: () => `${basePath}${pathsInternal.bookSearch()}`,
 		bookSearchWithFilter: (filters: MediaFilterInput) =>
 			`${basePath}${pathsInternal.bookSearchWithFilter(filters)}`,
+		character: (name: string) => `${basePath}${pathsInternal.character(name)}`,
+		characters: () => `${basePath}${pathsInternal.characters()}`,
 		createEmailer: () => `${basePath}${pathsInternal.createEmailer()}`,
 		docs: pathsInternal.docs, // Don't prefix external URLs
 		downloads: () => `${basePath}${pathsInternal.downloads()}`,

@@ -1,5 +1,5 @@
 import { formatBytes } from '@longbox/client'
-import { Badge, Link, Text } from '@longbox/components'
+import { Badge, cn, Link, Text } from '@longbox/components'
 import { FragmentType, Media, MediaModelOrdering } from '@longbox/graphql'
 import { ColumnSort } from '@longbox/sdk'
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table'
@@ -14,7 +14,14 @@ import CoverImageCell from './CoverImageCell'
 const columnHelper = createColumnHelper<Media>()
 const MAX_LIST_BADGES = 8
 
-function MetadataBadgeListCell({ values }: { values?: string[] | null }) {
+function MetadataBadgeListCell({
+	values,
+	linkTo,
+}: {
+	values?: string[] | null
+	/** When provided, each badge links to the path this returns for its value. */
+	linkTo?: (value: string) => string
+}) {
 	if (!values?.length) {
 		return null
 	}
@@ -24,11 +31,23 @@ function MetadataBadgeListCell({ values }: { values?: string[] | null }) {
 
 	return (
 		<div className="max-h-12.5 gap-1 flex flex-wrap overflow-hidden">
-			{visible.map((value) => (
-				<Badge key={value} size="sm" className="line-clamp-1 max-w-full">
-					{value}
-				</Badge>
-			))}
+			{visible.map((value) => {
+				const badgeClassName = cn('line-clamp-1 max-w-full', {
+					'cursor-pointer': !!linkTo,
+				})
+
+				return linkTo ? (
+					<Link key={value} to={linkTo(value)} underline={false}>
+						<Badge size="sm" className={badgeClassName}>
+							{value}
+						</Badge>
+					</Link>
+				) : (
+					<Badge key={value} size="sm" className={badgeClassName}>
+						{value}
+					</Badge>
+				)
+			})}
 			{remaining > 0 && (
 				<Badge size="sm" variant="secondary">
 					+{remaining}
@@ -333,7 +352,7 @@ const artistsColumn = columnHelper.accessor(({ metadata }) => metadata?.coverArt
 })
 
 const charactersColumn = columnHelper.accessor(({ metadata }) => metadata?.characters, {
-	cell: ({ getValue }) => <MetadataBadgeListCell values={getValue()} />,
+	cell: ({ getValue }) => <MetadataBadgeListCell values={getValue()} linkTo={paths.character} />,
 
 	enableGlobalFilter: true,
 	// TODO(relation-ordering): Support order by relation

@@ -4,7 +4,7 @@ import { fireEvent, render } from '@testing-library/react'
 import * as passiveCache from '@/offline/passiveCache'
 import { useOfflineImageSrc } from '@/offline/resolveOfflineUrl'
 
-import { EntityImage } from '../EntityImage'
+import { ThumbnailImage } from '../ThumbnailImage'
 
 jest.mock('@longbox/client', () => ({
 	...jest.requireActual('@longbox/client'),
@@ -15,15 +15,20 @@ jest.mock('@/offline/resolveOfflineUrl', () => ({
 	useOfflineImageSrc: jest.fn(),
 }))
 
+// ThumbnailPlaceholder pulls in usePreferences (GraphQL mutation + zustand store), which is out of
+// scope here -- render it as a no-op so tests don't need that whole provider chain.
+jest.mock('../ThumbnailPlaceholder', () => ({
+	ThumbnailPlaceholder: () => null,
+}))
+
 // AuthImage does its own async fetch/queryClient plumbing that's out of scope here -- mock it to a
-// marker element so token-mode tests can assert EntityImage *rendered* it without exercising that
-// machinery. Must be a forwardRef component: EntityImage forwards its `ref` through to whichever
-// branch it renders.
-jest.mock('../AuthImage', () => {
+// marker element so token-mode tests can assert ThumbnailImage *rendered* it without exercising
+// that machinery (mirrors EntityImage.test.tsx's AuthImage mock).
+jest.mock('../../entity/AuthImage', () => {
 	const { forwardRef: fr } = jest.requireActual<typeof import('react')>('react')
 	return {
-		AuthImage: fr((props: { src?: string; token?: string }, ref: React.Ref<HTMLDivElement>) => (
-			<div data-testid="auth-image-mock" data-src={props.src} data-token={props.token} ref={ref} />
+		AuthImage: fr((props: { src?: string; token?: string }, ref: React.Ref<HTMLImageElement>) => (
+			<img data-testid="auth-image-mock" data-src={props.src} data-token={props.token} ref={ref} />
 		)),
 	}
 })
@@ -37,7 +42,7 @@ function setSDK(isTokenAuth: boolean) {
 	} as unknown as ReturnType<typeof useSDK>)
 }
 
-describe('EntityImage', () => {
+describe('ThumbnailImage', () => {
 	afterEach(() => {
 		jest.clearAllMocks()
 	})
@@ -46,7 +51,7 @@ describe('EntityImage', () => {
 		setSDK(false)
 		mockedUseOfflineImageSrc.mockReturnValue('blob:mock')
 
-		const { container } = render(<EntityImage src="/api/v2/media/1/page/1" />)
+		const { container } = render(<ThumbnailImage src="/api/v2/media/1/thumbnail" />)
 
 		const img = container.querySelector('img')
 		expect(img).not.toBeNull()
@@ -58,7 +63,7 @@ describe('EntityImage', () => {
 		setSDK(true)
 		mockedUseOfflineImageSrc.mockReturnValue('blob:mock')
 
-		const { container } = render(<EntityImage src="/api/v2/media/1/page/1" />)
+		const { container } = render(<ThumbnailImage src="/api/v2/media/1/thumbnail" />)
 
 		const img = container.querySelector('img')
 		expect(img).not.toBeNull()
@@ -70,11 +75,11 @@ describe('EntityImage', () => {
 		setSDK(false)
 		mockedUseOfflineImageSrc.mockReturnValue(undefined)
 
-		const { container } = render(<EntityImage src="/api/v2/media/1/page/1" />)
+		const { container } = render(<ThumbnailImage src="/api/v2/media/1/thumbnail" />)
 
 		const img = container.querySelector('img')
 		expect(img).not.toBeNull()
-		expect(img?.getAttribute('src')).toBe('/api/v2/media/1/page/1')
+		expect(img?.getAttribute('src')).toBe('/api/v2/media/1/thumbnail')
 		expect(container.querySelector('[data-testid="auth-image-mock"]')).toBeNull()
 	})
 
@@ -82,34 +87,13 @@ describe('EntityImage', () => {
 		setSDK(true)
 		mockedUseOfflineImageSrc.mockReturnValue(undefined)
 
-		const { container } = render(<EntityImage src="/api/v2/media/1/page/1" />)
+		const { container } = render(<ThumbnailImage src="/api/v2/media/1/thumbnail" />)
 
 		const authImageMock = container.querySelector('[data-testid="auth-image-mock"]')
 		expect(authImageMock).not.toBeNull()
-		expect(authImageMock?.getAttribute('data-src')).toBe('/api/v2/media/1/page/1')
+		expect(authImageMock?.getAttribute('data-src')).toBe('/api/v2/media/1/thumbnail')
 		expect(authImageMock?.getAttribute('data-token')).toBe('test-token')
-		// No plain <img> carrying the raw network src -- AuthImage owns rendering in this branch.
-		expect(container.querySelector('img')).toBeNull()
-	})
-
-	it('carries onLoad and spread props (className/alt) on the offline img', () => {
-		setSDK(false)
-		mockedUseOfflineImageSrc.mockReturnValue('blob:mock')
-		const onLoad = jest.fn()
-
-		const { container } = render(
-			<EntityImage
-				src="/api/v2/media/1/page/1"
-				onLoad={onLoad}
-				className="page-image"
-				alt="Page 1"
-			/>,
-		)
-
-		const img = container.querySelector('img')
-		expect(img).not.toBeNull()
-		expect(img?.className).toBe('page-image')
-		expect(img?.getAttribute('alt')).toBe('Page 1')
+		expect(container.querySelector('img:not([data-testid="auth-image-mock"])')).toBeNull()
 	})
 
 	describe('passive cache (cacheOnView)', () => {
@@ -118,14 +102,14 @@ describe('EntityImage', () => {
 			mockedUseOfflineImageSrc.mockReturnValue(undefined)
 			const cacheOnViewSpy = jest.spyOn(passiveCache, 'cacheOnView').mockResolvedValue(undefined)
 
-			const { container } = render(<EntityImage src="/api/v2/media/1/page/1" />)
+			const { container } = render(<ThumbnailImage src="/api/v2/media/1/thumbnail" />)
 			const img = container.querySelector('img')
 			expect(img).not.toBeNull()
 
 			fireEvent.load(img as HTMLImageElement)
 
 			expect(cacheOnViewSpy).toHaveBeenCalledWith(
-				'/api/v2/media/1/page/1',
+				'/api/v2/media/1/thumbnail',
 				expect.objectContaining({ isTokenAuth: false }),
 			)
 		})
@@ -135,7 +119,7 @@ describe('EntityImage', () => {
 			mockedUseOfflineImageSrc.mockReturnValue('blob:mock')
 			const cacheOnViewSpy = jest.spyOn(passiveCache, 'cacheOnView').mockResolvedValue(undefined)
 
-			const { container } = render(<EntityImage src="/api/v2/media/1/page/1" />)
+			const { container } = render(<ThumbnailImage src="/api/v2/media/1/thumbnail" />)
 			const img = container.querySelector('img')
 			expect(img).not.toBeNull()
 
@@ -144,14 +128,13 @@ describe('EntityImage', () => {
 			expect(cacheOnViewSpy).not.toHaveBeenCalled()
 		})
 
-		it('does NOT fire cacheOnView from EntityImage on the AuthImage (token-mode) branch -- AuthImage.tsx owns that side channel', () => {
+		it('does NOT fire cacheOnView from ThumbnailImage on the AuthImage (token-mode) branch', () => {
 			setSDK(true)
 			mockedUseOfflineImageSrc.mockReturnValue(undefined)
 			const cacheOnViewSpy = jest.spyOn(passiveCache, 'cacheOnView').mockResolvedValue(undefined)
 
-			const { container } = render(<EntityImage src="/api/v2/media/1/page/1" />)
-			const authImageMock = container.querySelector('[data-testid="auth-image-mock"]')
-			expect(authImageMock).not.toBeNull()
+			const { container } = render(<ThumbnailImage src="/api/v2/media/1/thumbnail" />)
+			expect(container.querySelector('[data-testid="auth-image-mock"]')).not.toBeNull()
 
 			expect(cacheOnViewSpy).not.toHaveBeenCalled()
 		})

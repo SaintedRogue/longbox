@@ -48,3 +48,4 @@ maplit.workspace = true
 tempfile.workspace = true
 pretty_assertions.workspace = true
 async-graphql-axum.workspace = true
+tests = { path = "../tests" }
