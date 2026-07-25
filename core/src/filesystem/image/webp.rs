@@ -14,6 +14,9 @@ use crate::filesystem::{
 
 use super::{scale_height_dimension, scale_width_dimension, ScaledDimensionResize};
 
+/// The highest encode quality libwebp accepts, and the value used when no quality is configured.
+const MAX_ENCODE_QUALITY: u16 = 100;
+
 pub struct WebpProcessor;
 
 impl ImageProcessor for WebpProcessor {
@@ -30,10 +33,17 @@ impl ImageProcessor for WebpProcessor {
 			image = resized_image;
 		}
 
-		// Generate WebP with quality setting
+		// Honor the configured encode quality. This was previously hardcoded to 100, which
+		// silently discarded `options.quality` and made every generated webp far larger than
+		// asked for (512px covers came out ~141KB instead of ~45KB). `quality` is documented as
+		// 1-100, defaulting to 100 when unset, so leaving it unset preserves the old output.
+		let quality = options.quality.map_or(MAX_ENCODE_QUALITY, |quality| {
+			quality.clamp(1, MAX_ENCODE_QUALITY)
+		});
+
 		let encoder = Encoder::from_image(&image)
 			.map_err(|err| FileError::WebpEncodeError(err.to_string()))?;
-		let encoded_webp = encoder.encode(100f32);
+		let encoded_webp = encoder.encode(f32::from(quality));
 
 		// Convert to Vec<u8> and shrink to fit to free excess capacity
 		let mut result = encoded_webp.as_bytes().to_vec();
@@ -155,6 +165,40 @@ mod tests {
 			image::ImageFormat::WebP
 		)
 		.is_ok());
+	}
+
+	/// The encoder used to ignore `options.quality` entirely (hardcoded 100), which made every
+	/// generated thumbnail several times larger than configured. Assert quality is actually
+	/// plumbed through, and that leaving it unset still means "highest quality".
+	#[test]
+	fn test_generate_webp_honors_quality() {
+		let jpg_path = get_test_jpg_path();
+		let with_quality = |quality: Option<u16>| {
+			WebpProcessor::generate_from_path(
+				&jpg_path,
+				ImageProcessorOptions {
+					resize_method: None,
+					format: SupportedImageFormat::Webp,
+					quality,
+					page: None,
+				},
+			)
+			.expect("encode should succeed")
+			.len()
+		};
+
+		let low = with_quality(Some(40));
+		let high = with_quality(Some(100));
+		let unset = with_quality(None);
+
+		assert!(
+			low < high,
+			"lower quality must produce a smaller file (got {low} vs {high})"
+		);
+		assert_eq!(
+			unset, high,
+			"an unset quality must keep defaulting to the maximum"
+		);
 	}
 
 	#[test]
