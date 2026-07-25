@@ -13,4 +13,9 @@ export { AppRouter as LongboxRouter, LongboxWebClient }
 
 export { Link, useNavigate } from './context'
 export { usePaths } from './paths'
-export { canApplyPendingUpdate, isReaderPath } from './utils/pwaUpdate'
+export {
+	canApplyPendingUpdate,
+	checkBuildRev,
+	fetchServerBuildRev,
+	isReaderPath,
+} from './utils/pwaUpdate'

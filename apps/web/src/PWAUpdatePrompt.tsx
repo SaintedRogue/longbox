@@ -1,8 +1,10 @@
-import { canApplyPendingUpdate } from '@longbox/browser'
+import { canApplyPendingUpdate, checkBuildRev, fetchServerBuildRev } from '@longbox/browser'
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useRegisterSW } from 'virtual:pwa-register/react'
+
+import { baseUrl } from './baseUrl'
 
 /**
  * How often to ask the browser to re-fetch the service worker script. Without this the
@@ -18,6 +20,13 @@ const OPEN_DIALOG_SELECTOR =
 const TOAST_ID = 'pwa-update'
 
 const hasOpenDialog = () => !!document.querySelector(OPEN_DIALOG_SELECTOR)
+
+/**
+ * Ask the browser to re-fetch the service worker script. A rejection means the server is
+ * unreachable or the SW script 404s -- there is nothing to do but try again later.
+ */
+const requestUpdateCheck = (registration: ServiceWorkerRegistration) =>
+	registration.update().catch(() => {})
 
 export default function PWAUpdatePrompt() {
 	const { pathname } = useLocation()
@@ -42,9 +51,7 @@ export default function PWAUpdatePrompt() {
 		const checkForUpdate = () => {
 			if (document.visibilityState !== 'visible') return
 			if (!navigator.onLine) return
-			registration.update().catch(() => {
-				// The server is unreachable / the SW script 404s -- nothing to do but retry later
-			})
+			requestUpdateCheck(registration)
 		}
 
 		const interval = setInterval(checkForUpdate, UPDATE_CHECK_INTERVAL_MS)
@@ -53,6 +60,48 @@ export default function PWAUpdatePrompt() {
 		return () => {
 			clearInterval(interval)
 			document.removeEventListener('visibilitychange', checkForUpdate)
+		}
+	}, [registration])
+
+	// Ask the server directly whether it is still serving the build this bundle was compiled
+	// from, rather than inferring it from the service worker. `registration.update()` above can
+	// come back clean for reasons that have nothing to do with the app being current -- the SW
+	// script erroring mid-deploy, a lost registration, a throttled check -- and when it does, the
+	// tab keeps happily running code the server no longer serves. That is the exact failure this
+	// is here to catch, and a rev comparison answers it definitively.
+	//
+	// A mismatch does NOT get its own UI: it just kicks the service worker, so the update lands
+	// through the same needRefresh -> toast -> apply-on-navigate path as every other update.
+	//
+	// This is a check against *this* server, not an upstream release check. Nothing here contacts
+	// github.com or any other external host.
+	useEffect(() => {
+		if (!registration) return
+
+		const controller = new AbortController()
+
+		const compareBuilds = () => {
+			if (document.visibilityState !== 'visible') return
+			if (!navigator.onLine) return
+
+			// `checkBuildRev` stays silent unless it is certain: an unstamped bundle (every local
+			// dev build, which has no GIT_REV) and a failed request both mean "no opinion".
+			void checkBuildRev({
+				buildRev: __LONGBOX_BUILD_REV__,
+				fetchServerRev: () => fetchServerBuildRev(baseUrl, controller.signal),
+				onMismatch: () => requestUpdateCheck(registration),
+			})
+		}
+
+		// On boot, when the tab comes back to the foreground, and when the connection returns
+		compareBuilds()
+		document.addEventListener('visibilitychange', compareBuilds)
+		window.addEventListener('online', compareBuilds)
+
+		return () => {
+			controller.abort()
+			document.removeEventListener('visibilitychange', compareBuilds)
+			window.removeEventListener('online', compareBuilds)
 		}
 	}, [registration])
 

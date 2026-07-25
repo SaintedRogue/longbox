@@ -41,6 +41,15 @@ RUN set -ex; \
 FROM node:22.14.0-alpine3.21 AS frontend
 ARG TARGETARCH
 
+# `ARG`s are per-stage, so this has to be redeclared here even though the cargo stage below also
+# takes it: `yarn web build` bakes GIT_REV into the bundle (see apps/web/vite.config.ts) so the
+# client can tell whether it is running the same build as the server it is talking to. Both stages
+# get their value from the single `--build-arg GIT_REV=...` in .github/workflows/publish-image.yml.
+# Unset (a plain local `docker build`) is fine: it becomes an empty rev, and the client skips the
+# comparison rather than reporting a bogus mismatch.
+ARG GIT_REV
+ENV GIT_REV=${GIT_REV}
+
 WORKDIR /app
 
 COPY . .
