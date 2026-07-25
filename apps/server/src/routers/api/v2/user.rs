@@ -52,5 +52,7 @@ async fn get_user_avatar_handler(
 	let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("jpg");
 	let content_type = ContentType::from_extension(ext);
 
-	Ok(ImageResponse::new(content_type, data))
+	Ok(ImageResponse::new(content_type, data)
+		.with_source_file(path)
+		.await)
 }

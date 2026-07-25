@@ -11,10 +11,14 @@ import GenericEmptyState from '@/components/GenericEmptyState'
 import Pagination from '@/components/Pagination'
 
 import CharacterCard from './CharacterCard'
+import CharacterOrderSelect, {
+	CharacterOrderOption,
+	useURLCharacterOrdering,
+} from './CharacterOrderSelect'
 
 const query = graphql(`
-	query CharactersScene($search: String, $pagination: Pagination!) {
-		characters(search: $search, pagination: $pagination) {
+	query CharactersScene($search: String, $orderBy: [CharacterOrderBy!]!, $pagination: Pagination!) {
+		characters(search: $search, orderBy: $orderBy, pagination: $pagination) {
 			nodes {
 				name
 				...CharacterCard
@@ -33,13 +37,19 @@ const query = graphql(`
 	}
 `)
 
-function getQueryKey(page: number, pageSize: number, search: string | undefined) {
-	return ['charactersScene', { page, pageSize, search }]
+function getQueryKey(
+	page: number,
+	pageSize: number,
+	search: string | undefined,
+	order: CharacterOrderOption,
+) {
+	return ['charactersScene', { order, page, pageSize, search }]
 }
 
 export default function CharactersScene() {
 	const { page, pageSize, setPage } = useURLPageParams()
 	const { search, setSearch } = useURLKeywordSearch()
+	const { order, orderBy, setOrder } = useURLCharacterOrdering()
 
 	const previousSearch = usePrevious(search)
 	const differentSearch = previousSearch != null && previousSearch !== search
@@ -49,8 +59,9 @@ export default function CharactersScene() {
 		}
 	}, [differentSearch, setPage])
 
-	const { data, isLoading } = useGraphQL(query, getQueryKey(page, pageSize, search), {
+	const { data, isLoading } = useGraphQL(query, getQueryKey(page, pageSize, search, order), {
 		search: search || undefined,
+		orderBy,
 		pagination: {
 			offset: {
 				page,
@@ -78,6 +89,8 @@ export default function CharactersScene() {
 					onChange={setSearch}
 					isLoading={isLoading}
 				/>
+
+				<CharacterOrderSelect value={order} onChange={setOrder} />
 			</div>
 
 			<div className="px-4 flex flex-1">

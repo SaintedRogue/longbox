@@ -6,7 +6,7 @@ use std::{
 use async_graphql::SimpleObject;
 use models::{
 	entity::{library, library_config, media, series},
-	shared::enums::FileStatus,
+	shared::{enums::FileStatus, image_processor_options::ImageProcessorOptions},
 };
 use sea_orm::{prelude::*, sea_query::Query, Condition, UpdateResult};
 use serde::{Deserialize, Serialize};
@@ -229,24 +229,22 @@ impl JobLifecycle for SeriesScanJob {
 			.as_ref()
 			.and_then(|o| o.thumbnail_config.clone());
 
-		match image_options {
-			Some(options) if did_create || did_update => {
-				tracing::trace!("Thumbnail generation job should be enqueued");
-				let params =
-					ThumbnailGenerationJobParams::books_in_series(self.id.clone(), false);
-				if let Err(e) = ctx
-					.enqueue(LongboxJob::thumbnail_generation(options, params))
-					.await
-				{
-					tracing::error!(
-						?e,
-						"Failed to enqueue thumbnail generation follow-up"
-					);
-				}
-			},
-			_ => {
-				tracing::trace!("No cleanup required for series scan job");
-			},
+		if did_create || did_update {
+			tracing::trace!("Thumbnail generation job should be enqueued");
+			// See the equivalent note in `library_scan_job`: without a fallback, a series in a
+			// library with no explicit thumbnail config never got thumbnails generated.
+			let options =
+				image_options.unwrap_or_else(ImageProcessorOptions::thumbnail_default);
+			let params =
+				ThumbnailGenerationJobParams::books_in_series(self.id.clone(), false);
+			if let Err(e) = ctx
+				.enqueue(LongboxJob::thumbnail_generation(options, params))
+				.await
+			{
+				tracing::error!(?e, "Failed to enqueue thumbnail generation follow-up");
+			}
+		} else {
+			tracing::trace!("No cleanup required for series scan job");
 		}
 
 		let process_even_without_config = self

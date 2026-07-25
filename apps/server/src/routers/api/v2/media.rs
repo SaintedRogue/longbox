@@ -130,7 +130,9 @@ pub(crate) async fn get_media_thumbnail_by_id(
 	// to just pull something else instead of erroring out entirely.
 	if let Some(path) = &book.thumbnail_path {
 		match get_saved_thumbnail(std::path::Path::new(path)).await {
-			Ok(result) => return Ok(result.into()),
+			Ok(result) => {
+				return Ok(ImageResponse::from(result).with_source_file(path).await)
+			},
 			Err(_) => {
 				tracing::warn!(path = ?path, "Failed to get saved thumbnail");
 			},
@@ -184,7 +186,7 @@ async fn get_media_page(
 		.await?
 		.ok_or(APIError::NotFound("Book not found".to_string()))?;
 
-	let content =
+	let (content_type, bytes) =
 		match get_page_async(&book.path, page.try_into()?, ctx.config.as_ref()).await {
 			Ok(result) => result,
 			Err(e) => {
@@ -195,5 +197,8 @@ async fn get_media_page(
 			},
 		};
 
-	Ok(ImageResponse::from(content))
+	// The book file is the true source of a page, so its mtime is a valid `Last-Modified`
+	Ok(ImageResponse::source_page(content_type, bytes)
+		.with_source_file(&book.path)
+		.await)
 }

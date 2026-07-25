@@ -10,7 +10,7 @@ use models::{
 		library, library_config, library_scan_record, media, metadata_provider_config,
 		scanned_directory, series,
 	},
-	shared::enums::FileStatus,
+	shared::{enums::FileStatus, image_processor_options::ImageProcessorOptions},
 };
 use sea_orm::{
 	prelude::*,
@@ -327,26 +327,24 @@ impl JobLifecycle for LibraryScanJob {
 			}
 		}
 
-		match image_options {
-			Some(options) if did_create || did_update => {
-				tracing::trace!("Thumbnail generation job should be enqueued");
-				let params = ThumbnailGenerationJobParams::books_in_library(
-					self.id.clone(),
-					false,
-				);
-				if let Err(e) = ctx
-					.enqueue(LongboxJob::thumbnail_generation(options, params))
-					.await
-				{
-					tracing::error!(
-						?e,
-						"Failed to enqueue thumbnail generation follow-up"
-					);
-				}
-			},
-			_ => {
-				tracing::debug!("No thumbnail generation job will be enqueued");
-			},
+		if did_create || did_update {
+			tracing::trace!("Thumbnail generation job should be enqueued");
+			// A library with no explicit thumbnail config used to skip generation entirely,
+			// which left every newly scanned book without a thumbnail until someone viewed it
+			// and paid for generation inline. Falling back to the shared defaults means a scan
+			// leaves the library ready to browse.
+			let options =
+				image_options.unwrap_or_else(ImageProcessorOptions::thumbnail_default);
+			let params =
+				ThumbnailGenerationJobParams::books_in_library(self.id.clone(), false);
+			if let Err(e) = ctx
+				.enqueue(LongboxJob::thumbnail_generation(options, params))
+				.await
+			{
+				tracing::error!(?e, "Failed to enqueue thumbnail generation follow-up");
+			}
+		} else {
+			tracing::debug!("No thumbnail generation job will be enqueued");
 		}
 
 		let process_even_without_config = self

@@ -45,5 +45,7 @@ async fn get_emoji_handler(
 
 	let content_type = ContentType::from_extension(&emoji.file_extension);
 
-	Ok(ImageResponse::new(content_type, data))
+	Ok(ImageResponse::new(content_type, data)
+		.with_source_file(&file_path)
+		.await)
 }

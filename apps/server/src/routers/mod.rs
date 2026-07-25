@@ -1,6 +1,6 @@
 use axum::Router;
 
-use crate::config::state::AppState;
+use crate::{config::state::AppState, middleware::cache::conditional_get};
 
 mod api;
 mod kobo;
@@ -26,4 +26,6 @@ pub async fn mount(app_state: AppState) -> Router<AppState> {
 		.merge(spa::mount(app_state.clone()))
 		.merge(api::mount(app_state.clone()).await)
 		.merge(opds::mount(app_state))
+		// Applied to everything, but a no-op for any response that doesn't carry an `ETag`
+		.layer(axum::middleware::from_fn(conditional_get))
 }

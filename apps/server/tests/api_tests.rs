@@ -1,4 +1,5 @@
 mod common;
+mod image_caching;
 mod opds;
 mod reading_progress;
 

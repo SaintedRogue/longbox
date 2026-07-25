@@ -309,6 +309,12 @@ impl FileProcessor for RarProcessor {
 
 		let mut content_types = HashMap::new();
 
+		// `page` is the entry's position among real pages; `pages_found` counts matches. Sharing
+		// one counter for both (the previous behaviour) meant the page cursor stalled on any
+		// entry that wasn't requested, so a request not starting at page 1 -- e.g. the
+		// `vec![1, current_page]` the OPDS v1.2 feed builds for a partially-read book -- returned
+		// nothing and scanned every entry without ever breaking early.
+		let mut page = 0;
 		let mut pages_found = 0;
 		for entry in sorted_entries {
 			let path = entry.filename;
@@ -319,16 +325,22 @@ impl FileProcessor for RarProcessor {
 			}
 
 			let content_type = path.naive_content_type();
-			let is_page_in_target = pages.contains(&(pages_found + 1));
+			if !content_type.is_image() {
+				continue;
+			}
 
-			if is_page_in_target && content_type.is_image() {
-				trace!(?path, ?content_type, "found a targeted rar entry");
-				content_types.insert(pages_found + 1, content_type);
+			// Only real pages advance the cursor, so hidden and non-image entries can't shift
+			// the numbering that `get_page` resolves against.
+			page += 1;
+
+			if pages.contains(&page) {
+				trace!(?path, ?content_type, page, "found a targeted rar entry");
+				content_types.insert(page, content_type);
 				pages_found += 1;
 			}
 
 			// If we've found all the pages we need, we can stop
-			if pages_found == pages.len() as i32 {
+			if pages_found == pages.len() {
 				break;
 			}
 		}

@@ -173,8 +173,9 @@ export async function cacheAlreadyFetched(url: string, blob: Blob): Promise<void
 /**
  * Session-mode passive cache: re-GETs `url` via `sdk.axios` purely to obtain bytes for caching. This
  * relies on the browser's own HTTP cache to satisfy the request without a real network round-trip,
- * since the server sends `Cache-Control: private, max-age=31536000` for these URLs and `url` here is
- * byte-identical to what the `<img>` that triggered this just loaded. Never throws.
+ * since the server sends `Cache-Control: private, max-age=600, stale-while-revalidate=604800` for
+ * these URLs and `url` here is byte-identical to what the `<img>` that triggered this just loaded —
+ * which just happened, so it is well inside the fresh window. Never throws.
  */
 export async function cacheOnView(url: string, sdk: Api): Promise<void> {
 	try {

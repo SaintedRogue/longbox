@@ -125,6 +125,25 @@ impl TestApp {
 		response
 	}
 
+	/// issue a GET request with auth headers plus the given extra request headers, returning the
+	/// response directly. Useful for conditional requests, e.g. `If-None-Match`
+	pub async fn get_with_headers(
+		&self,
+		path: &str,
+		headers: &[(&str, &str)],
+	) -> TestResponse {
+		let mut request = self
+			.server
+			.get(path)
+			.add_header("Authorization", self.auth_header().await);
+
+		for (name, value) in headers {
+			request = request.add_header(*name, *value);
+		}
+
+		request.await
+	}
+
 	/// issue a PUT request to the specified path with auth headers and a JSON body, returning the response directly
 	pub async fn put(&self, path: &str, body: &Value) -> TestResponse {
 		let response = self

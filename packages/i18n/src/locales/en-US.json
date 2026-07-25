@@ -855,6 +855,17 @@
 			}
 		}
 	},
+	"charactersScene": {
+		"ordering": {
+			"label": "Sort characters",
+			"options": {
+				"mostBooks": "Most books",
+				"fewestBooks": "Fewest books",
+				"nameAsc": "Name (A-Z)",
+				"nameDesc": "Name (Z-A)"
+			}
+		}
+	},
 	"metadataEditor": {
 		"labels": {
 			"ageRating": "Age rating",

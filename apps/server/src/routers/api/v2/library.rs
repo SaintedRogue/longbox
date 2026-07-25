@@ -87,7 +87,9 @@ async fn get_library_thumbnail_handler(
 	// to just pull something else instead of erroring out entirely.
 	if let Some(path) = &library.thumbnail_path {
 		match get_saved_thumbnail(std::path::Path::new(path)).await {
-			Ok(result) => return Ok(result.into()),
+			Ok(result) => {
+				return Ok(ImageResponse::from(result).with_source_file(path).await)
+			},
 			Err(_) => {
 				tracing::warn!(path = ?path, "Failed to get saved thumbnail");
 			},

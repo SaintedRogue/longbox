@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use async_graphql::{InputObject, OneofObject};
+use async_graphql::{Enum, InputObject, OneofObject};
 use heck::ToSnakeCase;
 use models::{
 	entity::{media, media_metadata, series, series_metadata},
@@ -19,9 +19,49 @@ use sea_orm::QueryOrder;
 	name = "SeriesMetadataOrderByField",
 	params(series_metadata::SeriesMetadataModelOrdering)
 ))]
+#[graphql(concrete(name = "CharacterOrderBy", params(CharacterOrdering)))]
 pub struct OrderByField<OrderBy: Send + Sync + async_graphql::InputType> {
 	pub field: OrderBy,
 	pub direction: OrderDirection,
+}
+
+/// The fields a character listing may be ordered by. Characters aren't a stored entity -
+/// they're derived at query time from the `media_metadata.characters` CSV column - so
+/// this is a hand-rolled ordering enum rather than one derived from a model.
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Enum)]
+pub enum CharacterOrdering {
+	/// The character's name, compared case-insensitively
+	Name,
+	/// The number of books the character appears in
+	BookCount,
+}
+
+/// Ordering for the `characters` query. Shaped like `LibraryModelOrderBy` (a flat
+/// `{ field, direction }`) since characters have no related model to order by.
+pub type CharacterOrderBy = OrderByField<CharacterOrdering>;
+
+impl Default for CharacterOrderBy {
+	fn default() -> Self {
+		// Most-appearances-first: the top characters should be the easiest to spot
+		Self {
+			field: CharacterOrdering::BookCount,
+			direction: OrderDirection::Desc,
+		}
+	}
+}
+
+impl CharacterOrderBy {
+	pub fn default_vec() -> Vec<Self> {
+		vec![Self::default()]
+	}
+
+	/// Applies this ordering's direction to an already-computed field comparison.
+	pub fn apply_direction(&self, ordering: std::cmp::Ordering) -> std::cmp::Ordering {
+		match self.direction {
+			OrderDirection::Asc => ordering,
+			OrderDirection::Desc => ordering.reverse(),
+		}
+	}
 }
 
 #[derive(OneofObject, Clone)]

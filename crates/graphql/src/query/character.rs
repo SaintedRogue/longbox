@@ -1,4 +1,7 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+	cmp::Ordering,
+	collections::{HashMap, HashSet},
+};
 
 use async_graphql::{Context, Object, Result, ID};
 use models::entity::{media, media_metadata, user::AuthUser};
@@ -7,11 +10,79 @@ use sea_orm::prelude::*;
 use crate::{
 	data::{AuthContext, CoreContext},
 	object::character::Character,
+	order::{CharacterOrderBy, CharacterOrdering},
 	pagination::{
 		OffsetPaginationInfo, PaginatedResponse, Pagination, PaginationValidator,
 	},
 	utils::{parse_comma_separated_list, series_in_library_subquery},
 };
+
+/// An intermediate, in-memory representation of a character while it is being filtered,
+/// ordered and paginated. `key` is the lowercased `name`, retained so that
+/// case-insensitive name comparisons don't re-allocate on every comparator call.
+struct CharacterTally {
+	key: String,
+	name: String,
+	book_count: i64,
+}
+
+/// Sorts characters according to `order_by`, always falling back to name ascending as the
+/// final tiebreaker.
+///
+/// The tiebreaker matters: most characters share a `book_count` of 1, and this list is
+/// paginated in-memory *after* sorting. Without a total order, two requests for different
+/// pages could interleave equal-count characters differently and produce duplicates and
+/// omissions across page boundaries.
+fn sort_characters(characters: &mut [CharacterTally], order_by: &[CharacterOrderBy]) {
+	characters.sort_by(|left, right| {
+		for order in order_by {
+			let ordering = match order.field {
+				CharacterOrdering::Name => left.key.cmp(&right.key),
+				CharacterOrdering::BookCount => left.book_count.cmp(&right.book_count),
+			};
+
+			let ordering = order.apply_direction(ordering);
+			if ordering != Ordering::Equal {
+				return ordering;
+			}
+		}
+
+		// Names are unique (the tally is keyed by lowercased name), so this is a total order
+		left.key.cmp(&right.key)
+	});
+}
+
+/// Applies the (optional, case-insensitive substring) search filter to a character tally
+/// and returns the result ordered per `order_by`.
+///
+/// Callers must paginate the *return value* of this - filtering and ordering both have to
+/// happen before any page slicing, otherwise a page is a slice of an arbitrary
+/// (HashMap-iteration-order) permutation.
+fn filter_and_sort_characters(
+	all_characters: HashMap<String, (String, i64)>,
+	search: Option<&str>,
+	order_by: &[CharacterOrderBy],
+) -> Vec<CharacterTally> {
+	let search_lower = search.map(str::to_lowercase);
+
+	let mut characters = all_characters
+		.into_iter()
+		.filter(|(key, _)| {
+			search_lower
+				.as_ref()
+				.is_none_or(|search| key.contains(search))
+		})
+		.map(|(key, (name, book_count))| CharacterTally {
+			key,
+			name,
+			book_count,
+		})
+		.collect::<Vec<_>>();
+
+	sort_characters(&mut characters, order_by);
+
+	characters
+}
 
 /// Fetches all unique character names from the database, optionally scoped to a library,
 /// and scoped to whatever the given user is allowed to see (hidden libraries, age
@@ -107,6 +178,11 @@ impl CharacterQuery {
 		>,
 		#[graphql(desc = "Optional library ID to scope the character search")]
 		library_id: Option<ID>,
+		#[graphql(
+			desc = "Ordering for the returned characters, applied before pagination. Defaults to most books first",
+			default_with = "CharacterOrderBy::default_vec()"
+		)]
+		order_by: Vec<CharacterOrderBy>,
 		#[graphql(default, validator(custom = "PaginationValidator"))]
 		pagination: Pagination,
 	) -> Result<PaginatedResponse<Character>> {
@@ -116,19 +192,9 @@ impl CharacterQuery {
 
 		let all_characters = fetch_all_characters(conn, library_id.clone(), user).await?;
 
-		let filtered: Vec<(String, i64)> = if let Some(ref search_term) = search {
-			let search_lower = search_term.to_lowercase();
-			all_characters
-				.into_iter()
-				.filter(|(key, _)| key.contains(&search_lower))
-				.map(|(_, value)| value)
-				.collect()
-		} else {
-			all_characters.into_values().collect()
-		};
-
-		let mut sorted: Vec<(String, i64)> = filtered;
-		sorted.sort_by_key(|(name, _)| name.to_lowercase());
+		// NOTE: filtering and ordering both happen before the pagination slicing below
+		let sorted =
+			filter_and_sort_characters(all_characters, search.as_deref(), &order_by);
 
 		let total_count = sorted.len() as u64;
 
@@ -146,9 +212,9 @@ impl CharacterQuery {
 					.into_iter()
 					.skip(offset)
 					.take(limit)
-					.map(|(name, count)| Character {
-						name,
-						book_count: Some(count),
+					.map(|tally| Character {
+						name: tally.name,
+						book_count: Some(tally.book_count),
 						library_id: library_id.clone(),
 					})
 					.collect();
@@ -161,9 +227,9 @@ impl CharacterQuery {
 			Pagination::None(_) => {
 				let characters: Vec<Character> = sorted
 					.into_iter()
-					.map(|(name, count)| Character {
-						name,
-						book_count: Some(count),
+					.map(|tally| Character {
+						name: tally.name,
+						book_count: Some(tally.book_count),
 						library_id: library_id.clone(),
 					})
 					.collect();
@@ -181,7 +247,151 @@ impl CharacterQuery {
 mod tests {
 	use super::*;
 	use ::tests::{db::test_database, fake_data};
-	use models::entity::library_exclusion;
+	use models::{entity::library_exclusion, shared::ordering::OrderDirection};
+
+	/// Builds the same shape `fetch_all_characters` returns from `(name, book_count)` pairs
+	fn tally(entries: &[(&str, i64)]) -> HashMap<String, (String, i64)> {
+		entries
+			.iter()
+			.map(|(name, count)| (name.to_lowercase(), (String::from(*name), *count)))
+			.collect()
+	}
+
+	fn order_by(field: CharacterOrdering, direction: OrderDirection) -> CharacterOrderBy {
+		CharacterOrderBy { field, direction }
+	}
+
+	fn names(characters: &[CharacterTally]) -> Vec<&str> {
+		characters.iter().map(|c| c.name.as_str()).collect()
+	}
+
+	#[test]
+	fn test_default_ordering_is_book_count_descending() {
+		let characters = filter_and_sort_characters(
+			tally(&[("Robin", 3), ("Batman", 12), ("Alfred", 7)]),
+			None,
+			&CharacterOrderBy::default_vec(),
+		);
+
+		assert_eq!(names(&characters), vec!["Batman", "Alfred", "Robin"]);
+	}
+
+	#[test]
+	fn test_equal_book_counts_tiebreak_on_name_ascending() {
+		// Every character shares a count of 1, so ordering is decided entirely by the
+		// tiebreaker. Casing must not matter ("alfred" sorts before "Batman").
+		let characters = filter_and_sort_characters(
+			tally(&[("Robin", 1), ("Batman", 1), ("alfred", 1), ("Zatanna", 1)]),
+			None,
+			&CharacterOrderBy::default_vec(),
+		);
+
+		assert_eq!(
+			names(&characters),
+			vec!["alfred", "Batman", "Robin", "Zatanna"]
+		);
+	}
+
+	#[test]
+	fn test_tiebreaker_applies_to_partial_ties_within_book_count() {
+		let characters = filter_and_sort_characters(
+			tally(&[("Robin", 2), ("Batman", 5), ("Alfred", 2), ("Nightwing", 5)]),
+			None,
+			&CharacterOrderBy::default_vec(),
+		);
+
+		assert_eq!(
+			names(&characters),
+			vec!["Batman", "Nightwing", "Alfred", "Robin"]
+		);
+	}
+
+	#[test]
+	fn test_order_by_name_in_either_direction() {
+		let entries = [("Robin", 3), ("Batman", 12), ("alfred", 7)];
+
+		let ascending = filter_and_sort_characters(
+			tally(&entries),
+			None,
+			&[order_by(CharacterOrdering::Name, OrderDirection::Asc)],
+		);
+		assert_eq!(names(&ascending), vec!["alfred", "Batman", "Robin"]);
+
+		let descending = filter_and_sort_characters(
+			tally(&entries),
+			None,
+			&[order_by(CharacterOrdering::Name, OrderDirection::Desc)],
+		);
+		assert_eq!(names(&descending), vec!["Robin", "Batman", "alfred"]);
+	}
+
+	#[test]
+	fn test_order_by_book_count_ascending() {
+		let characters = filter_and_sort_characters(
+			tally(&[("Robin", 3), ("Batman", 12), ("Alfred", 7)]),
+			None,
+			&[order_by(CharacterOrdering::BookCount, OrderDirection::Asc)],
+		);
+
+		assert_eq!(names(&characters), vec!["Robin", "Alfred", "Batman"]);
+	}
+
+	#[test]
+	fn test_search_filter_is_applied_before_ordering() {
+		let characters = filter_and_sort_characters(
+			tally(&[("Batman", 1), ("Batgirl", 9), ("Superman", 20)]),
+			Some("BAT"),
+			&CharacterOrderBy::default_vec(),
+		);
+
+		assert_eq!(names(&characters), vec!["Batgirl", "Batman"]);
+	}
+
+	#[test]
+	fn test_ordering_is_applied_before_pagination() {
+		// Deliberately mostly-tied counts: without the name tiebreaker, the HashMap's
+		// (randomized, per-instance) iteration order would leak into the page slices and
+		// the same character could appear on both pages - or on neither.
+		let entries = [
+			("Robin", 1),
+			("Batman", 4),
+			("Alfred", 1),
+			("Nightwing", 1),
+			("Zatanna", 1),
+			("Catwoman", 1),
+		];
+		let page_size = 3;
+
+		// Built from two independently-constructed HashMaps, mirroring two separate
+		// requests for page 1 and page 2
+		let first_page = filter_and_sort_characters(
+			tally(&entries),
+			None,
+			&CharacterOrderBy::default_vec(),
+		)
+		.into_iter()
+		.take(page_size)
+		.collect::<Vec<_>>();
+		let second_page = filter_and_sort_characters(
+			tally(&entries),
+			None,
+			&CharacterOrderBy::default_vec(),
+		)
+		.into_iter()
+		.skip(page_size)
+		.take(page_size)
+		.collect::<Vec<_>>();
+
+		assert_eq!(names(&first_page), vec!["Batman", "Alfred", "Catwoman"]);
+		assert_eq!(names(&second_page), vec!["Nightwing", "Robin", "Zatanna"]);
+
+		// No overlap, and between them the two pages cover every character exactly once
+		let mut all = names(&first_page);
+		all.extend(names(&second_page));
+		let unique = all.iter().copied().collect::<HashSet<_>>();
+		assert_eq!(all.len(), entries.len());
+		assert_eq!(unique.len(), entries.len());
+	}
 
 	fn auth_user(id: &str) -> AuthUser {
 		AuthUser {

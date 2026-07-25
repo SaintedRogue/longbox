@@ -337,15 +337,20 @@ impl FileProcessor for ZipProcessor {
 		let mut content_types = HashMap::new();
 		let mut pages_found = 0;
 
-		for (name, content_type) in images {
-			if pages.contains(&(pages_found + 1)) {
-				trace!(?name, ?content_type, "found a targeted zip entry");
-				content_types.insert(pages_found + 1, content_type);
+		// `pages_found` counts matches only -- the page number comes from the entry's position.
+		// Conflating the two (the previous behaviour) meant the page cursor never advanced past
+		// an entry that wasn't requested, so any request not starting at page 1 (e.g. the
+		// `vec![1, current_page]` the OPDS v1.2 feed builds for a partially-read book) silently
+		// returned nothing and scanned the whole archive without ever breaking early.
+		for (page, (name, content_type)) in (1i32..).zip(images) {
+			if pages.contains(&page) {
+				trace!(?name, ?content_type, page, "found a targeted zip entry");
+				content_types.insert(page, content_type);
 				pages_found += 1;
 			}
 
 			// If we've found all the pages we need, we can stop
-			if pages_found == pages.len() as i32 {
+			if pages_found == pages.len() {
 				break;
 			}
 		}
@@ -769,6 +774,32 @@ mod tests {
 		assert_eq!(content_types[&1].mime_type(), "image/jpeg");
 		assert_eq!(content_types[&2].mime_type(), "image/png");
 		assert_eq!(content_types[&3].mime_type(), "image/jpeg");
+	}
+
+	/// Regression: the page cursor used to double as the match counter, so it never advanced past
+	/// an entry that wasn't requested. Anything not starting at page 1 came back empty -- which is
+	/// exactly what the OPDS v1.2 feed asks for (`vec![1, current_page]`) on a partially-read book.
+	#[test]
+	fn test_get_page_content_types_for_pages_not_starting_at_one() {
+		let (_tempdir, path) = mixed_archive();
+
+		let only_last = ZipProcessor::get_page_content_types(&path, vec![3])
+			.expect("Failed to get page content types");
+		assert_eq!(only_last.len(), 1, "a lone late page must still be found");
+		assert_eq!(only_last[&3].mime_type(), "image/jpeg");
+
+		// The shape the OPDS feed actually builds for a book in progress.
+		let first_and_current = ZipProcessor::get_page_content_types(&path, vec![1, 3])
+			.expect("Failed to get page content types");
+		assert_eq!(first_and_current.len(), 2);
+		assert_eq!(first_and_current[&1].mime_type(), "image/jpeg");
+		assert_eq!(first_and_current[&3].mime_type(), "image/jpeg");
+
+		// A gap in the middle must not shift the numbering of what follows it.
+		let skipping = ZipProcessor::get_page_content_types(&path, vec![2])
+			.expect("Failed to get page content types");
+		assert_eq!(skipping.len(), 1);
+		assert_eq!(skipping[&2].mime_type(), "image/png");
 	}
 
 	/// The whole point of the rewrite: page N must still be the same bytes the old, entry-by-entry

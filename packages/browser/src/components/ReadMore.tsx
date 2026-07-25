@@ -1,7 +1,31 @@
 import { cn, useBoolean } from '@longbox/components'
+import { lazy, Suspense } from 'react'
 
 import { DEBUG_ENV } from '../index.ts'
-import Markdown from './markdown/MarkdownPreview.tsx'
+
+/**
+ * The markdown stack (react-markdown -> rehype-raw -> parse5, plus remark -> micromark) is
+ * roughly 450KB of source, and this component is its only live entry point. It renders on
+ * detail views only -- never on first paint -- so it is split out of the initial chunk.
+ */
+const Markdown = lazy(() => import('./markdown/MarkdownPreview.tsx'))
+
+/**
+ * Renders `children` as markdown, falling back to the same text unformatted while the markdown
+ * chunk loads. Descriptions are overwhelmingly plain prose, so the fallback is visually near
+ * identical and the upgrade doesn't read as a flash.
+ */
+function LazyMarkdown({ className, children }: { className?: string; children: string }) {
+	return (
+		<Suspense
+			fallback={
+				<div className={cn('whitespace-pre-wrap text-foreground', className)}>{children}</div>
+			}
+		>
+			<Markdown className={className}>{children}</Markdown>
+		</Suspense>
+	)
+}
 
 type Props = {
 	text?: string | null
@@ -22,7 +46,7 @@ export default function ReadMore({ text, muted }: Props) {
 	}
 
 	if (!canReadMore) {
-		return <Markdown className={cn({ 'opacity-80': muted })}>{resolvedText}</Markdown>
+		return <LazyMarkdown className={cn({ 'opacity-80': muted })}>{resolvedText}</LazyMarkdown>
 	}
 
 	return (
@@ -34,7 +58,7 @@ export default function ReadMore({ text, muted }: Props) {
 					transition: 'max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
 				}}
 			>
-				<Markdown className={cn({ 'opacity-80': muted })}>{resolvedText}</Markdown>
+				<LazyMarkdown className={cn({ 'opacity-80': muted })}>{resolvedText}</LazyMarkdown>
 			</div>
 
 			<div

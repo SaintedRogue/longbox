@@ -359,6 +359,23 @@ type Character {
 	books: [Media!]!
 }
 
+input CharacterOrderBy {
+	field: CharacterOrdering!
+	direction: OrderDirection!
+}
+
+"""
+The fields a character listing may be ordered by. Characters aren't a stored entity -
+they're derived at query time from the `media_metadata.characters` CSV column - so
+this is a hand-rolled ordering enum rather than one derived from a model.
+"""
+enum CharacterOrdering {
+	"The character's name, compared case-insensitively"
+	NAME
+	"The number of books the character appears in"
+	BOOK_COUNT
+}
+
 type CleanLibraryResponse {
 	deletedMediaCount: Int!
 	deletedSeriesCount: Int!
@@ -2744,7 +2761,9 @@ type Query {
 		"Case-insensitive substring search filter"
 		search: String,
 		"Optional library ID to scope the character search"
-		libraryId: ID,		pagination: Pagination! = {offset: {page: 1, pageSize: 20, zeroBased: false}}
+		libraryId: ID,
+		"Ordering for the returned characters, applied before pagination. Defaults to most books first"
+		orderBy: [CharacterOrderBy!]! = [{field: BOOK_COUNT, direction: DESC}],		pagination: Pagination! = {offset: {page: 1, pageSize: 20, zeroBased: false}}
 	): PaginatedCharacterResponse!
 	mediaCount: Int!
 	finishedReadingSessionCount: Int!

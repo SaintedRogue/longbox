@@ -415,6 +415,23 @@ export type Character = {
   name: Scalars['String']['output'];
 };
 
+export type CharacterOrderBy = {
+  direction: OrderDirection;
+  field: CharacterOrdering;
+};
+
+/**
+ * The fields a character listing may be ordered by. Characters aren't a stored entity -
+ * they're derived at query time from the `media_metadata.characters` CSV column - so
+ * this is a hand-rolled ordering enum rather than one derived from a model.
+ */
+export enum CharacterOrdering {
+  /** The number of books the character appears in */
+  BookCount = 'BOOK_COUNT',
+  /** The character's name, compared case-insensitively */
+  Name = 'NAME'
+}
+
 export type CleanLibraryResponse = {
   __typename?: 'CleanLibraryResponse';
   deletedMediaCount: Scalars['Int']['output'];
@@ -3854,6 +3871,7 @@ export type QueryCharacterByNameArgs = {
 
 export type QueryCharactersArgs = {
   libraryId?: InputMaybe<Scalars['ID']['input']>;
+  orderBy?: Array<CharacterOrderBy>;
   pagination?: Pagination;
   search?: InputMaybe<Scalars['String']['input']>;
 };
@@ -5723,6 +5741,7 @@ export type CharacterDetailSceneQuery = { __typename?: 'Query', characterByName?
 
 export type CharactersSceneQueryVariables = Exact<{
   search?: InputMaybe<Scalars['String']['input']>;
+  orderBy: Array<CharacterOrderBy> | CharacterOrderBy;
   pagination: Pagination;
 }>;
 
@@ -9002,8 +9021,8 @@ fragment BookMetadata on Media {
   }
 }`) as unknown as TypedDocumentString<CharacterDetailSceneQuery, CharacterDetailSceneQueryVariables>;
 export const CharactersSceneDocument = new TypedDocumentString(`
-    query CharactersScene($search: String, $pagination: Pagination!) {
-  characters(search: $search, pagination: $pagination) {
+    query CharactersScene($search: String, $orderBy: [CharacterOrderBy!]!, $pagination: Pagination!) {
+  characters(search: $search, orderBy: $orderBy, pagination: $pagination) {
     nodes {
       name
       ...CharacterCard
