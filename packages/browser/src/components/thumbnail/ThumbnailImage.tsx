@@ -82,7 +82,9 @@ export const ThumbnailImage = forwardRef<HTMLDivElement, ThumbnailImageProps>(
 
 		// Mirrors EntityImage's pattern: offline hits win over both AuthImage and a plain network
 		// <img>, so cached bytes are served (and reused) instead of re-fetching over the network.
-		const offlineSrc = useOfflineImageSrc(src)
+		// `sdk` opts the hit into background revalidation, so a regenerated thumbnail (the same URL,
+		// different bytes) eventually replaces the cached copy instead of being masked by it forever.
+		const offlineSrc = useOfflineImageSrc(src, sdk)
 
 		const [isLoaded, setIsLoaded] = useState(false)
 		const [hasError, setHasError] = useState(false)

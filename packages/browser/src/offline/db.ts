@@ -35,8 +35,25 @@ export type DownloadRecord = {
 	downloadedAt: number
 }
 
-/** One passive-cache log row per cached URL (comic page or thumbnail), tracking LRU recency. */
-export type PassiveCacheEntry = { url: string; sizeBytes: number; lastAccessedAt: number }
+/**
+ * One passive-cache log row per cached URL (comic page or thumbnail), tracking LRU recency plus the
+ * cache validators needed to notice that the server's bytes for that (stable) URL have changed.
+ *
+ * `etag` / `lastValidatedAt` are optional on purpose: rows written before revalidation existed have
+ * neither, and both are absent from any index (the only index is `by-last-accessed`, on
+ * `lastAccessedAt`, which every row still has). IndexedDB stores records, not a fixed column set, so
+ * adding these needs no `DB_VERSION` bump and no migration -- old rows stay valid and simply take
+ * the "no stored validator" branch on their first revalidation.
+ */
+export type PassiveCacheEntry = {
+	url: string
+	sizeBytes: number
+	lastAccessedAt: number
+	/** Strong validator (`ETag`) of the response these bytes came from, when the writer had headers in hand. */
+	etag?: string
+	/** When the server last confirmed these bytes are current (a 304, or a 200 that replaced them). */
+	lastValidatedAt?: number
+}
 
 /** Singleton row (id is always 'singleton') tracking the running total of passiveCacheEntries' sizeBytes. */
 export type PassiveCacheMetaRecord = { id: 'singleton'; totalBytes: number }

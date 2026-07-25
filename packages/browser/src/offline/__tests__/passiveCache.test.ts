@@ -12,15 +12,19 @@ import * as downloadRecordsModule from '../downloadRecords'
 import { putDownloadRecord } from '../downloadRecords'
 import {
 	_resetPendingDownloadsForTests,
+	_resetRevalidationsForTests,
 	cacheAlreadyFetched,
 	cacheOnView,
 	clearDownloadPending,
 	markDownloadPending,
 	PASSIVE_CACHE_CAP_BYTES,
+	REVALIDATE_AFTER_MS,
+	revalidateIfStale,
 	runStartupMaintenance,
 	touchAccess,
 } from '../passiveCache'
 import {
+	getPassiveCacheEntry,
 	getPassiveCacheTotal,
 	listPassiveCacheEntriesByAccess,
 	putPassiveCacheEntry,
@@ -93,6 +97,7 @@ describe('passiveCache', () => {
 		await deleteDB('longbox-offline')
 		blobStore._setCacheStorageForTests(new FakeCacheStorage())
 		_resetPendingDownloadsForTests()
+		_resetRevalidationsForTests()
 	})
 
 	afterEach(() => {
@@ -100,6 +105,7 @@ describe('passiveCache', () => {
 		jest.useRealTimers()
 		jest.restoreAllMocks()
 		_resetPendingDownloadsForTests()
+		_resetRevalidationsForTests()
 	})
 
 	describe('cacheAlreadyFetched', () => {
@@ -193,6 +199,241 @@ describe('passiveCache', () => {
 			await expect(cacheOnView('/page/1', sdk)).resolves.toBeUndefined()
 
 			expect(consoleErrorSpy).toHaveBeenCalled()
+		})
+
+		it("stores the response's ETag so the entry can later be revalidated conditionally", async () => {
+			const get = jest.fn().mockResolvedValue({
+				data: fakeBlob(50),
+				headers: { etag: 'W/"seeded"' },
+			})
+
+			await cacheOnView('/page/1', makeSdk(get))
+
+			expect(await getPassiveCacheEntry('/page/1')).toMatchObject({ etag: 'W/"seeded"' })
+		})
+	})
+
+	describe('revalidateIfStale', () => {
+		const SEED_TIME = 1_000_000
+
+		/**
+		 * A body with real bytes (unlike the `{ size }` stand-in above) so a round-trip through
+		 * `new Response(...)` -> the blob store -> `.blob()` actually preserves the payload, making
+		 * "the cached bytes were replaced" observable rather than merely asserted about a spy.
+		 *
+		 * A typed array rather than a `Blob`: the `Response` this environment polyfills in doesn't
+		 * recognise jsdom's `Blob` (it stringifies it to a 13-byte "[object Blob]"), but it does
+		 * buffer an `ArrayBufferView`. The `size` property is what the cache accounting reads.
+		 */
+		function blobOf(size: number): Blob {
+			return Object.assign(new Uint8Array(size), { size }) as unknown as Blob
+		}
+
+		/**
+		 * Seeds a passive-cache hit for `url` -- blob + log row -- then advances the clock past the
+		 * throttle window so the entry is due for revalidation. Leaves fake timers installed (the
+		 * suite's `afterEach` restores them).
+		 */
+		async function seedCachedEntry(url: string, size: number, etag?: string): Promise<void> {
+			jest.useFakeTimers().setSystemTime(SEED_TIME)
+			await blobStore.putUrl(url, new Response(blobOf(size)))
+			await putPassiveCacheEntry(url, size, etag)
+			jest.setSystemTime(SEED_TIME + REVALIDATE_AFTER_MS + 1)
+		}
+
+		async function cachedSize(url: string): Promise<number | undefined> {
+			const response = await blobStore.matchUrl(url)
+			return response ? (await response.blob()).size : undefined
+		}
+
+		function okResponse(size: number, etag?: string) {
+			return {
+				status: 200,
+				data: blobOf(size),
+				headers: etag ? { etag } : {},
+			}
+		}
+
+		it('replaces the cached blob on a 200 and moves the running total by the size delta', async () => {
+			await seedCachedEntry('/thumb', 535_012, 'W/"old"')
+			await putPassiveCacheEntry('/unrelated', 1000)
+			const get = jest.fn().mockResolvedValue(okResponse(42_332, 'W/"new"'))
+
+			await revalidateIfStale('/thumb', makeSdk(get))
+
+			expect(await cachedSize('/thumb')).toBe(42_332)
+			// 535_012 + 1000 - 535_012 + 42_332 -- the delta, not the new size added on top.
+			expect(await getPassiveCacheTotal()).toBe(42_332 + 1000)
+			expect(await getPassiveCacheEntry('/thumb')).toMatchObject({
+				sizeBytes: 42_332,
+				etag: 'W/"new"',
+			})
+		})
+
+		it('sends a conditional GET that bypasses the browser HTTP cache', async () => {
+			await seedCachedEntry('/thumb', 100, 'W/"old"')
+			const get = jest.fn().mockResolvedValue({ status: 304, data: blobOf(0), headers: {} })
+
+			await revalidateIfStale('/thumb', makeSdk(get))
+
+			expect(get).toHaveBeenCalledWith(
+				'/thumb',
+				expect.objectContaining({
+					responseType: 'blob',
+					headers: {
+						'Cache-Control': 'no-cache',
+						Pragma: 'no-cache',
+						'If-None-Match': 'W/"old"',
+					},
+				}),
+			)
+			// A 304 must not be treated as an error, or every revalidation would "fail".
+			const { validateStatus } = get.mock.calls[0][1]
+			expect(validateStatus(304)).toBe(true)
+			expect(validateStatus(200)).toBe(true)
+			expect(validateStatus(500)).toBe(false)
+		})
+
+		it('leaves the blob and the total untouched on a 304, updating only lastValidatedAt', async () => {
+			await seedCachedEntry('/thumb', 100, 'W/"old"')
+			const get = jest.fn().mockResolvedValue({ status: 304, data: blobOf(0), headers: {} })
+			const putUrlSpy = jest.spyOn(blobStore, 'putUrl')
+
+			await revalidateIfStale('/thumb', makeSdk(get))
+
+			expect(putUrlSpy).not.toHaveBeenCalled()
+			expect(await cachedSize('/thumb')).toBe(100)
+			expect(await getPassiveCacheTotal()).toBe(100)
+			expect(await getPassiveCacheEntry('/thumb')).toMatchObject({
+				sizeBytes: 100,
+				etag: 'W/"old"',
+				lastValidatedAt: SEED_TIME + REVALIDATE_AFTER_MS + 1,
+			})
+		})
+
+		it('revalidates unconditionally when no etag is stored -- the path that un-sticks already-stale caches', async () => {
+			await seedCachedEntry('/thumb', 535_012)
+			const get = jest.fn().mockResolvedValue(okResponse(42_332, 'W/"new"'))
+
+			await revalidateIfStale('/thumb', makeSdk(get))
+
+			const [, config] = get.mock.calls[0]
+			expect(config.headers['If-None-Match']).toBeUndefined()
+			expect(config.headers['Cache-Control']).toBe('no-cache')
+			expect(await cachedSize('/thumb')).toBe(42_332)
+			// ...and it now has a validator, so the next round trip is a cheap conditional one.
+			expect(await getPassiveCacheEntry('/thumb')).toMatchObject({ etag: 'W/"new"' })
+		})
+
+		it('throttles: a second revalidation inside the window makes no request', async () => {
+			await seedCachedEntry('/thumb', 100, 'W/"old"')
+			const get = jest.fn().mockResolvedValue({ status: 304, data: blobOf(0), headers: {} })
+			const sdk = makeSdk(get)
+
+			await revalidateIfStale('/thumb', sdk)
+			expect(get).toHaveBeenCalledTimes(1)
+
+			jest.setSystemTime(SEED_TIME + REVALIDATE_AFTER_MS + 1 + REVALIDATE_AFTER_MS - 1)
+			await revalidateIfStale('/thumb', sdk)
+			expect(get).toHaveBeenCalledTimes(1)
+
+			// ...and it resumes once the window has actually elapsed.
+			jest.setSystemTime(SEED_TIME + 3 * REVALIDATE_AFTER_MS)
+			await revalidateIfStale('/thumb', sdk)
+			expect(get).toHaveBeenCalledTimes(2)
+		})
+
+		it('is throttled by a fresh passive write too: caching bytes counts as validating them', async () => {
+			jest.useFakeTimers().setSystemTime(SEED_TIME)
+			await blobStore.putUrl('/thumb', new Response(blobOf(100)))
+			await putPassiveCacheEntry('/thumb', 100, 'W/"old"')
+			const get = jest.fn()
+
+			await revalidateIfStale('/thumb', makeSdk(get))
+
+			expect(get).not.toHaveBeenCalled()
+		})
+
+		it('never revalidates a url owned by an explicit download -- those blobs belong to the download manager', async () => {
+			await putDownloadRecord(makeRecord({ bookId: 'b1', thumbnailUrl: '/thumb' }))
+			await seedCachedEntry('/thumb', 100, 'W/"old"')
+			const get = jest.fn()
+
+			await revalidateIfStale('/thumb', makeSdk(get))
+
+			expect(get).not.toHaveBeenCalled()
+			expect(await cachedSize('/thumb')).toBe(100)
+		})
+
+		it('never revalidates a url claimed by an in-progress download fetch', async () => {
+			await seedCachedEntry('/pending', 100, 'W/"old"')
+			markDownloadPending('/pending')
+			const get = jest.fn()
+
+			await revalidateIfStale('/pending', makeSdk(get))
+
+			expect(get).not.toHaveBeenCalled()
+		})
+
+		it('is a no-op (no request) for a url the passive cache does not track', async () => {
+			const get = jest.fn()
+
+			await expect(revalidateIfStale('/untracked', makeSdk(get))).resolves.toBeUndefined()
+
+			expect(get).not.toHaveBeenCalled()
+		})
+
+		it('leaves the cached blob intact and never throws when the request fails', async () => {
+			await seedCachedEntry('/thumb', 535_012, 'W/"old"')
+			const get = jest.fn().mockRejectedValue(new Error('401 unauthorized'))
+			const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+
+			await expect(revalidateIfStale('/thumb', makeSdk(get))).resolves.toBeUndefined()
+
+			expect(consoleErrorSpy).toHaveBeenCalled()
+			expect(await cachedSize('/thumb')).toBe(535_012)
+			expect(await getPassiveCacheTotal()).toBe(535_012)
+			// Still un-validated, so the next attempt retries rather than backing off for the window.
+			expect(await getPassiveCacheEntry('/thumb')).toMatchObject({
+				sizeBytes: 535_012,
+				etag: 'W/"old"',
+				lastValidatedAt: SEED_TIME,
+			})
+		})
+
+		it('a failure does not consume the throttle window: the next attempt retries', async () => {
+			await seedCachedEntry('/thumb', 100, 'W/"old"')
+			const get = jest
+				.fn()
+				.mockRejectedValueOnce(new Error('offline'))
+				.mockResolvedValue({ status: 304, data: blobOf(0), headers: {} })
+			jest.spyOn(console, 'error').mockImplementation(() => {})
+			const sdk = makeSdk(get)
+
+			await revalidateIfStale('/thumb', sdk)
+			await revalidateIfStale('/thumb', sdk)
+
+			expect(get).toHaveBeenCalledTimes(2)
+		})
+
+		it('refuses to replace good bytes with an empty 200 body', async () => {
+			await seedCachedEntry('/thumb', 535_012, 'W/"old"')
+			const get = jest.fn().mockResolvedValue(okResponse(0, 'W/"empty"'))
+
+			await revalidateIfStale('/thumb', makeSdk(get))
+
+			expect(await cachedSize('/thumb')).toBe(535_012)
+			expect(await getPassiveCacheTotal()).toBe(535_012)
+		})
+
+		it('collapses concurrent revalidations of the same url into one request', async () => {
+			await seedCachedEntry('/thumb', 100, 'W/"old"')
+			const get = jest.fn().mockResolvedValue({ status: 304, data: blobOf(0), headers: {} })
+			const sdk = makeSdk(get)
+
+			await Promise.all([revalidateIfStale('/thumb', sdk), revalidateIfStale('/thumb', sdk)])
+
+			expect(get).toHaveBeenCalledTimes(1)
 		})
 	})
 

@@ -5,9 +5,12 @@ import { listDownloadRecords } from './downloadRecords'
 import {
 	decrementPassiveCacheTotal,
 	deletePassiveCacheEntries,
+	getPassiveCacheEntry,
 	getPassiveCacheTotal,
 	listPassiveCacheEntriesByAccess,
+	markPassiveCacheEntryValidated,
 	putPassiveCacheEntry,
+	replacePassiveCacheEntry,
 	setPassiveCacheTotal,
 	touchPassiveCacheEntry,
 } from './passiveCacheRecords'
@@ -18,8 +21,23 @@ export const PASSIVE_CACHE_CAP_BYTES = 750 * 1024 * 1024 // ~750MB
 /** A sweep evicts down to ~90% of the cap, not to the exact boundary, so it doesn't re-trigger on the very next write. */
 const LOW_WATER_RATIO = 0.9
 
+/**
+ * How long a cached entry is trusted without asking the server about it again. Mirrors the
+ * `max-age=600` the server sends for derived images (see `DERIVED_IMAGE_CACHE_CONTROL` in
+ * `apps/server/src/utils/http.rs`), so the client's revalidation cadence matches the freshness
+ * contract the server advertises rather than inventing a second, conflicting one.
+ *
+ * Without this the cost is quadratic in how much you browse: a 36-cover library page would fire 36
+ * conditional GETs on *every* render, since every cover is a cache hit.
+ */
+export const REVALIDATE_AFTER_MS = 10 * 60 * 1000
+
 /** In-flight de-dup map so concurrent callers writing the same URL don't double-fetch/double-write. */
 const inFlightWrites = new Map<string, Promise<void>>()
+
+/** In-flight revalidations, so the same URL rendered twice at once (a cover in a grid and in a
+ *  carousel) issues one conditional GET rather than two. Cleared when the revalidation settles. */
+const inFlightRevalidations = new Set<string>()
 
 /** Every `fileUrl`/`thumbnailUrl`/`pageUrls[]` across all current DownloadRecords -- these URLs' blobs
  *  are owned by the download manager, not the passive cache, and must never be evicted by `sweep()`. */
@@ -134,7 +152,7 @@ async function pruneAbsorbedEntries(): Promise<void> {
 	await setPassiveCacheTotal(Math.max(0, total - staleBytes))
 }
 
-async function doCacheAlreadyFetched(url: string, blob: Blob): Promise<void> {
+async function doCacheAlreadyFetched(url: string, blob: Blob, etag?: string): Promise<void> {
 	try {
 		const alreadyCached = await blobStore.matchUrl(url)
 		if (alreadyCached) {
@@ -143,7 +161,7 @@ async function doCacheAlreadyFetched(url: string, blob: Blob): Promise<void> {
 		}
 
 		await blobStore.putUrl(url, new Response(blob))
-		const total = await putPassiveCacheEntry(url, blob.size)
+		const total = await putPassiveCacheEntry(url, blob.size, etag)
 		if (total > PASSIVE_CACHE_CAP_BYTES) {
 			await sweep()
 		}
@@ -158,12 +176,17 @@ async function doCacheAlreadyFetched(url: string, blob: Blob): Promise<void> {
  * e.g. an explicit download, isn't duplicated). Triggers a `sweep()` if the running total is over
  * the cap after this write. Concurrent callers for the same URL share one in-flight write. Never
  * throws -- this is a best-effort side channel that must not break the visible image.
+ *
+ * `etag` is the response's strong validator, when the caller had headers in hand; it lets a later
+ * `revalidateIfStale` ask a cheap conditional question instead of re-downloading. Callers that only
+ * ever hold bytes (AuthImage's object-URL fetch, the reader's page preloader) leave it undefined,
+ * which is fine -- those entries just revalidate unconditionally the first time.
  */
-export async function cacheAlreadyFetched(url: string, blob: Blob): Promise<void> {
+export async function cacheAlreadyFetched(url: string, blob: Blob, etag?: string): Promise<void> {
 	const existing = inFlightWrites.get(url)
 	if (existing) return existing
 
-	const promise = doCacheAlreadyFetched(url, blob).finally(() => {
+	const promise = doCacheAlreadyFetched(url, blob, etag).finally(() => {
 		inFlightWrites.delete(url)
 	})
 	inFlightWrites.set(url, promise)
@@ -180,10 +203,122 @@ export async function cacheAlreadyFetched(url: string, blob: Blob): Promise<void
 export async function cacheOnView(url: string, sdk: Api): Promise<void> {
 	try {
 		const response = await sdk.axios.get(url, { responseType: 'blob' })
-		await cacheAlreadyFetched(url, response.data)
+		await cacheAlreadyFetched(url, response.data, readEtag(response))
 	} catch (err) {
 		console.error('[passiveCache] cacheOnView failed', err)
 	}
+}
+
+/**
+ * The `ETag` off an axios response, if the header is both present and readable. Axios lowercases
+ * header names (`AxiosHeaders` normalizes on set), so `etag` is the correct key.
+ *
+ * It can legitimately be missing: cross-origin (a dev web server on :3000 talking to the API on
+ * :10801) the browser hides every header not named in `Access-Control-Expose-Headers`, and the CORS
+ * layer doesn't list `ETag`. That degrades to unconditional revalidation -- correct, just chattier
+ * -- rather than to staleness, which is why nothing here treats a missing etag as an error.
+ */
+function readEtag(response: { headers?: unknown }): string | undefined {
+	const headers = response.headers as Record<string, unknown> | undefined
+	const etag = headers?.etag
+	return typeof etag === 'string' && etag.length > 0 ? etag : undefined
+}
+
+/**
+ * Stale-while-revalidate for the passive cache: asks the server whether the bytes cached for `url`
+ * are still the bytes it would serve, and swaps in the new ones if not.
+ *
+ * The passive cache is keyed by URL and, until this existed, wrote each entry exactly once -- so a
+ * server-side regeneration under a stable URL (thumbnails re-rendered from full-res JPEG to 512px
+ * WebP, say) left every client pinned to the old bytes forever, since a cache hit never touched the
+ * network at all. That also meant the server's `ETag`/304 revalidation was never reached: a
+ * conditional GET can only happen if somebody issues one.
+ *
+ * Deliberately a *background* side channel, called fire-and-forget from the cache-hit path:
+ * - It never blocks or fails the visible image. The cached blob is served immediately, exactly as
+ *   before; a failure here (offline, expired auth, a 5xx) leaves it untouched to retry later.
+ * - It skips URLs owned by an explicit offline download. Those blobs are a snapshot the user asked
+ *   for and the download manager owns; silently rewriting them from under it is not this code's
+ *   call. `protectedUrlSet()` is the same ownership test `sweep()` uses.
+ * - It is throttled per URL (`REVALIDATE_AFTER_MS`), so browsing doesn't turn every cache hit into
+ *   a request.
+ *
+ * Note the first revalidation of any row written before validators were stored has no `etag` to
+ * send, so it is an unconditional GET that replaces the bytes outright -- which is precisely what
+ * un-sticks a cache that is already serving stale images. From then on it's a conditional GET and
+ * normally a ~200-byte 304.
+ */
+export async function revalidateIfStale(url: string, sdk: Api): Promise<void> {
+	if (inFlightRevalidations.has(url)) return
+	inFlightRevalidations.add(url)
+
+	try {
+		const entry = await getPassiveCacheEntry(url)
+		// Not passively cached: either untracked, or a download's blob that was never logged here.
+		if (!entry) return
+
+		if (entry.lastValidatedAt && Date.now() - entry.lastValidatedAt < REVALIDATE_AFTER_MS) return
+
+		if (pendingDownloadUrls.has(url)) return
+		const protectedUrls = await protectedUrlSet()
+		if (protectedUrls.has(url)) return
+
+		const response = await sdk.axios.get(url, {
+			responseType: 'blob',
+			headers: {
+				// Defeat the *browser's* HTTP cache. It holds a second, older copy of these bytes and
+				// is the reason a naive re-GET does nothing: entries fetched before the server's cache
+				// policy changed were stored under `max-age=31536000`, so an ordinary request is
+				// answered off disk, never reaches the origin, and would have us "revalidate" stale
+				// bytes against themselves. Measured in Chromium against a server replaying exactly
+				// that policy: a plain XHR re-GET after the origin had regenerated the resource
+				// returned the old bytes without a single request reaching the origin.
+				//
+				// `Cache-Control: no-cache` (with `Pragma` for HTTP/1.0-era intermediaries) means
+				// "use your stored copy only after revalidating it with the origin", which forces the
+				// round trip. `no-store` would also reach the origin, but it tells the browser not to
+				// use or update its cache at all -- and on the no-etag path below, `no-cache` was
+				// measured to additionally *correct* the browser's poisoned entry, which `no-store`
+				// would leave in place for the next plain <img> load.
+				'Cache-Control': 'no-cache',
+				Pragma: 'no-cache',
+				// An explicit conditional header is independently sufficient to reach the origin
+				// (Chromium treats caller-supplied validators as "external validation" and passes the
+				// request through), at the cost of the browser not updating its own entry from the
+				// result -- also measured. Harmless: once the bytes below land in the passive cache,
+				// this URL is served from a blob and the browser's copy is never consulted again.
+				...(entry.etag ? { 'If-None-Match': entry.etag } : {}),
+			},
+			// A 304 is the *expected*, cheap answer -- not an error. Without this axios rejects it.
+			validateStatus: (status) => status === 200 || status === 304,
+		})
+
+		if (response.status === 304) {
+			await markPassiveCacheEntryValidated(url)
+			return
+		}
+
+		const blob = response.data as Blob
+		// A 200 with no body is never a legitimate image, and this path overwrites bytes that are
+		// currently rendering fine. Keeping what we have and retrying next window is strictly better
+		// than replacing every cover with a blank because a proxy dropped a body.
+		if (!blob?.size) return
+
+		await blobStore.putUrl(url, new Response(blob))
+		const total = await replacePassiveCacheEntry(url, blob.size, readEtag(response))
+		if (total > PASSIVE_CACHE_CAP_BYTES) {
+			await sweep()
+		}
+	} catch (err) {
+		console.error('[passiveCache] revalidateIfStale failed', err)
+	} finally {
+		inFlightRevalidations.delete(url)
+	}
+}
+
+/** Test-only: drops all in-flight revalidation claims so cases don't leak across each other. */
+export function _resetRevalidationsForTests(): void {
+	inFlightRevalidations.clear()
 }
 
 /** Called on every offline-cache HIT to keep LRU recency accurate. No-op for untracked URLs. Never throws. */

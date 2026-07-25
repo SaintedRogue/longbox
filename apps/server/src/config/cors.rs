@@ -1,7 +1,10 @@
 use std::str::FromStr;
 
 use axum::http::{
-	header::{ACCEPT, AUTHORIZATION, CACHE_CONTROL, CONTENT_TYPE, EXPIRES, PRAGMA},
+	header::{
+		ACCEPT, AUTHORIZATION, CACHE_CONTROL, CONTENT_TYPE, ETAG, EXPIRES,
+		IF_MODIFIED_SINCE, IF_NONE_MATCH, LAST_MODIFIED, PRAGMA,
+	},
 	HeaderName, HeaderValue, Method,
 };
 use local_ip_address::local_ip;
@@ -45,10 +48,20 @@ pub fn get_cors_layer(config: LongboxConfig) -> CorsLayer {
 			CACHE_CONTROL,
 			CONTENT_TYPE,
 			EXPIRES,
+			// Neither conditional-request header is CORS-safelisted, so without these a
+			// cross-origin revalidation (the dev web server on :3000 against the API on
+			// :10801) fails preflight instead of returning 304.
+			IF_MODIFIED_SINCE,
+			IF_NONE_MATCH,
 			PRAGMA,
 			HeaderName::from_str(LONGBOX_SAVE_BASIC_SESSION_HEADER)
 				.expect("Failed to parse header name"),
 		])
+		// Response headers are hidden from cross-origin JS unless explicitly exposed. The
+		// passive image cache reads the validator off the response to store alongside the
+		// cached blob; without this it can never issue a conditional request and every
+		// revalidation degrades to a full download.
+		.expose_headers([ETAG, LAST_MODIFIED])
 		.allow_credentials(true);
 
 	// If allowed origins include the general wildcard ("*") then we can return a permissive CORS layer and exit early.

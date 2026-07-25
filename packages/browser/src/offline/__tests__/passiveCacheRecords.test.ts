@@ -6,9 +6,12 @@ import { _resetDBForTests } from '../db'
 import {
 	decrementPassiveCacheTotal,
 	deletePassiveCacheEntries,
+	getPassiveCacheEntry,
 	getPassiveCacheTotal,
 	listPassiveCacheEntriesByAccess,
+	markPassiveCacheEntryValidated,
 	putPassiveCacheEntry,
+	replacePassiveCacheEntry,
 	setPassiveCacheTotal,
 	touchPassiveCacheEntry,
 } from '../passiveCacheRecords'
@@ -66,6 +69,124 @@ describe('passiveCacheRecords', () => {
 			expect(row?.lastAccessedAt).toBe(2000)
 
 			jest.useRealTimers()
+		})
+	})
+
+	describe('validators (etag / lastValidatedAt)', () => {
+		it('stores the etag alongside the bytes, and stamps lastValidatedAt', async () => {
+			jest.useFakeTimers().setSystemTime(1000)
+
+			await putPassiveCacheEntry('/page/1', 100, 'W/"abc"')
+
+			const entry = await getPassiveCacheEntry('/page/1')
+			expect(entry).toMatchObject({ etag: 'W/"abc"', lastValidatedAt: 1000 })
+
+			jest.useRealTimers()
+		})
+
+		it('omits etag entirely (rather than storing undefined) when the writer had no headers', async () => {
+			await putPassiveCacheEntry('/page/1', 100)
+
+			const entry = await getPassiveCacheEntry('/page/1')
+			expect(entry).toBeDefined()
+			expect('etag' in (entry as object)).toBe(false)
+		})
+
+		it('getPassiveCacheEntry returns undefined for an untracked url', async () => {
+			expect(await getPassiveCacheEntry('/unknown')).toBeUndefined()
+		})
+
+		it('markPassiveCacheEntryValidated advances only lastValidatedAt, leaving size/etag/LRU alone', async () => {
+			jest.useFakeTimers().setSystemTime(1000)
+			await putPassiveCacheEntry('/page/1', 100, 'W/"abc"')
+
+			jest.setSystemTime(50_000)
+			await markPassiveCacheEntryValidated('/page/1')
+
+			expect(await getPassiveCacheEntry('/page/1')).toMatchObject({
+				sizeBytes: 100,
+				etag: 'W/"abc"',
+				lastAccessedAt: 1000,
+				lastValidatedAt: 50_000,
+			})
+			expect(await getPassiveCacheTotal()).toBe(100)
+
+			jest.useRealTimers()
+		})
+
+		it('markPassiveCacheEntryValidated is a no-op for an untracked url', async () => {
+			await markPassiveCacheEntryValidated('/unknown')
+
+			expect(await listPassiveCacheEntriesByAccess()).toHaveLength(0)
+		})
+	})
+
+	describe('replacePassiveCacheEntry', () => {
+		it('adjusts the running total by the size DELTA, not by the new size', async () => {
+			await putPassiveCacheEntry('/thumb', 535_012)
+			await putPassiveCacheEntry('/other', 1000)
+
+			// The real case: a 535KB full-res JPEG thumbnail regenerated as a 42KB WebP.
+			const total = await replacePassiveCacheEntry('/thumb', 42_332, 'W/"new"')
+
+			expect(total).toBe(42_332 + 1000)
+			expect(await getPassiveCacheTotal()).toBe(43_332)
+			expect(await getPassiveCacheEntry('/thumb')).toMatchObject({
+				sizeBytes: 42_332,
+				etag: 'W/"new"',
+			})
+		})
+
+		it('handles a replacement that grows the entry', async () => {
+			await putPassiveCacheEntry('/thumb', 100)
+
+			const total = await replacePassiveCacheEntry('/thumb', 250)
+
+			expect(total).toBe(250)
+		})
+
+		it('preserves LRU recency: a replacement is not an access', async () => {
+			jest.useFakeTimers().setSystemTime(1000)
+			await putPassiveCacheEntry('/thumb', 100)
+
+			jest.setSystemTime(9999)
+			await replacePassiveCacheEntry('/thumb', 50)
+
+			expect(await getPassiveCacheEntry('/thumb')).toMatchObject({
+				lastAccessedAt: 1000,
+				lastValidatedAt: 9999,
+			})
+
+			jest.useRealTimers()
+		})
+
+		it('reads the total freshly committed at call time, not a value the caller captured earlier', async () => {
+			await putPassiveCacheEntry('/thumb', 500)
+
+			// Simulates a concurrent passive write committing while a revalidation was in flight.
+			await putPassiveCacheEntry('/concurrent', 50)
+
+			const total = await replacePassiveCacheEntry('/thumb', 100)
+
+			// 550 - 400 (the delta), so the concurrent +50 survives; computing 100 + <stale snapshot>
+			// outside the transaction would have dropped it.
+			expect(total).toBe(150)
+		})
+
+		it('inserts a tracked row (counting the full size) if the row was evicted mid-revalidation', async () => {
+			const total = await replacePassiveCacheEntry('/thumb', 100, 'W/"new"')
+
+			expect(total).toBe(100)
+			expect(await getPassiveCacheEntry('/thumb')).toMatchObject({ sizeBytes: 100 })
+		})
+
+		it('floors the total at 0 rather than going negative', async () => {
+			await putPassiveCacheEntry('/thumb', 100)
+			await setPassiveCacheTotal(10)
+
+			const total = await replacePassiveCacheEntry('/thumb', 1)
+
+			expect(total).toBe(0)
 		})
 	})
 

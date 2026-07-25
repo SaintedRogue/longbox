@@ -34,8 +34,10 @@ const EntityImage = forwardRef<HTMLImageElement, Props>(
 		// `src` for an object URL before render -- which also means offline must win in token mode too,
 		// since AuthImage would otherwise re-fetch over the network. useOfflineImageSrc resolves to
 		// `undefined` until checked and for non-downloaded images, so the common (non-downloaded) path
-		// still renders the network image immediately with no blank flash.
-		const offlineSrc = useOfflineImageSrc(typeof src === 'string' ? src : undefined)
+		// still renders the network image immediately with no blank flash. `sdk` is passed so a hit
+		// also revalidates in the background -- otherwise a cached URL is pinned to its first bytes
+		// even after the server regenerates them.
+		const offlineSrc = useOfflineImageSrc(typeof src === 'string' ? src : undefined, sdk)
 
 		// An explicit `loading`/`decoding`/`fetchPriority` from the caller always wins over the
 		// defaults derived from `lazy`/`priority`. `decoding="async"` is the default on every path --

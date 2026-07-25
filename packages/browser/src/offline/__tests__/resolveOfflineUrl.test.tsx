@@ -1,3 +1,4 @@
+import type { Api } from '@longbox/sdk'
 import { act, renderHook, waitFor } from '@testing-library/react'
 
 import * as blobStore from '../blobStore'
@@ -8,6 +9,8 @@ import { offlineBlobUrl, offlineFileBlob, useOfflineImageSrc } from '../resolveO
 function fakeResponse(blob: Blob = {} as Blob): Response {
 	return { blob: () => Promise.resolve(blob) } as unknown as Response
 }
+
+const fakeSdk = { axios: { get: jest.fn() } } as unknown as Api
 
 describe('offlineBlobUrl', () => {
 	let n = 0
@@ -60,6 +63,37 @@ describe('offlineBlobUrl', () => {
 		await offlineBlobUrl('/api/v2/media/1/page/1')
 
 		expect(touchAccessSpy).not.toHaveBeenCalled()
+	})
+
+	it('fires revalidateIfStale on a cache hit when an sdk is available', async () => {
+		jest.spyOn(blobStore, 'matchUrl').mockResolvedValue(fakeResponse())
+		const revalidateSpy = jest.spyOn(passiveCache, 'revalidateIfStale').mockResolvedValue(undefined)
+
+		await offlineBlobUrl('/api/v2/media/1/thumbnail', fakeSdk)
+
+		expect(revalidateSpy).toHaveBeenCalledWith('/api/v2/media/1/thumbnail', fakeSdk)
+	})
+
+	it('does not revalidate without an sdk, or on a miss', async () => {
+		const revalidateSpy = jest.spyOn(passiveCache, 'revalidateIfStale').mockResolvedValue(undefined)
+
+		jest.spyOn(blobStore, 'matchUrl').mockResolvedValue(fakeResponse())
+		await offlineBlobUrl('/api/v2/media/1/thumbnail')
+
+		jest.spyOn(blobStore, 'matchUrl').mockResolvedValue(undefined)
+		await offlineBlobUrl('/api/v2/media/1/thumbnail', fakeSdk)
+
+		expect(revalidateSpy).not.toHaveBeenCalled()
+	})
+
+	it('serves the cached blob without waiting for the revalidation to settle', async () => {
+		jest.spyOn(blobStore, 'matchUrl').mockResolvedValue(fakeResponse())
+		// A revalidation that never settles -- if the hit path awaited it, this would hang.
+		jest.spyOn(passiveCache, 'revalidateIfStale').mockReturnValue(new Promise<void>(() => {}))
+
+		const result = await offlineBlobUrl('/api/v2/media/1/thumbnail', fakeSdk)
+
+		expect(result).toBe('blob:mock-0')
 	})
 })
 
@@ -141,6 +175,43 @@ describe('useOfflineImageSrc', () => {
 		await waitFor(() => {
 			expect(touchAccessSpy).toHaveBeenCalledWith('/api/v2/media/1/page/1')
 		})
+	})
+
+	it('forwards the sdk so a hit revalidates in the background, without delaying the src', async () => {
+		jest.spyOn(blobStore, 'matchUrl').mockResolvedValue(fakeResponse())
+		// Never settles: the src below must still resolve, proving the revalidation isn't awaited.
+		const revalidateSpy = jest
+			.spyOn(passiveCache, 'revalidateIfStale')
+			.mockReturnValue(new Promise<void>(() => {}))
+
+		const { result } = renderHook(() => useOfflineImageSrc('/api/v2/media/1/thumbnail', fakeSdk))
+
+		await waitFor(() => {
+			expect(result.current).toBe('blob:mock-0')
+		})
+		expect(revalidateSpy).toHaveBeenCalledWith('/api/v2/media/1/thumbnail', fakeSdk)
+	})
+
+	it('does not re-resolve (or re-render) when only unrelated props change', async () => {
+		jest.spyOn(blobStore, 'matchUrl').mockResolvedValue(fakeResponse())
+		jest.spyOn(passiveCache, 'revalidateIfStale').mockResolvedValue(undefined)
+
+		const { result, rerender } = renderHook(() =>
+			useOfflineImageSrc('/api/v2/media/1/thumbnail', fakeSdk),
+		)
+
+		await waitFor(() => {
+			expect(result.current).toBe('blob:mock-0')
+		})
+
+		rerender()
+		rerender()
+
+		// A stable url + sdk means the effect never re-runs, so no new object URL and no revoke of
+		// the live one -- the revalidation side channel must not churn the rendered src.
+		expect(createObjectURL).toHaveBeenCalledTimes(1)
+		expect(revokeObjectURL).not.toHaveBeenCalled()
+		expect(result.current).toBe('blob:mock-0')
 	})
 
 	it('returns undefined when the url is not cached', async () => {
