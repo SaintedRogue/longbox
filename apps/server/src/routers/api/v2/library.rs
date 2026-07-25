@@ -17,7 +17,7 @@ use longbox_core::{
 };
 use models::{
 	entity::{library, library_config, media, series},
-	shared::image_processor_options::SupportedImageFormat,
+	shared::image_processor_options::ImageProcessorOptions,
 };
 use sea_orm::{prelude::*, QueryOrder};
 
@@ -36,8 +36,9 @@ pub(crate) async fn get_library_thumbnail(
 	library: &library::LibraryThumbSelect,
 	first_series: Option<series::SeriesThumbSelect>,
 	first_book: Option<media::MediaThumbSelect>,
-	image_format: Option<SupportedImageFormat>,
+	image_options: Option<ImageProcessorOptions>,
 	config: &LongboxConfig,
+	conn: &DatabaseConnection,
 ) -> APIResult<(ContentType, Vec<u8>)> {
 	// Note: This doesn't hard-fail because if the saved thumbnail is missing or corrupt, we want
 	// to just pull something else instead of erroring out entirely.
@@ -50,13 +51,17 @@ pub(crate) async fn get_library_thumbnail(
 		}
 	}
 
-	let generated_thumb =
-		get_thumbnail(config.get_thumbnails_dir(), &library.id, image_format).await?;
+	let generated_thumb = get_thumbnail(
+		config.get_thumbnails_dir(),
+		&library.id,
+		image_options.as_ref().map(|o| o.format),
+	)
+	.await?;
 
 	match (generated_thumb, first_series) {
 		(Some(result), _) => Ok(result),
 		(None, Some(series)) => {
-			get_series_thumbnail(&series, first_book, image_format, config).await
+			get_series_thumbnail(&series, first_book, image_options, config, conn).await
 		},
 		(None, None) => Err(APIError::NotFound(
 			"Library does not have a thumbnail".to_string(),
@@ -107,14 +112,15 @@ async fn get_library_thumbnail_handler(
 		None
 	};
 
-	let image_format = library_config.and_then(|o| o.thumbnail_config.map(|c| c.format));
+	let image_options = library_config.and_then(|o| o.thumbnail_config);
 
 	let (content_type, bytes) = get_library_thumbnail(
 		&library,
 		first_series,
 		first_book,
-		image_format,
+		image_options,
 		ctx.config.as_ref(),
+		ctx.conn.as_ref(),
 	)
 	.await?;
 

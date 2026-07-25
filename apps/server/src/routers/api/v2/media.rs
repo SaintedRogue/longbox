@@ -10,13 +10,19 @@ use graphql::data::AuthContext;
 use longbox_core::{
 	config::LongboxConfig,
 	filesystem::{
-		get_saved_thumbnail, get_thumbnail, media::get_page_async, ContentType, FileError,
+		get_saved_thumbnail, get_thumbnail,
+		image::{generate_book_thumbnail, GenerateThumbnailOptions},
+		media::get_page_async,
+		ContentType, FileError,
 	},
 	Ctx,
 };
 use models::{
 	entity::{library, library_config, media, series, user::AuthUser},
-	shared::image_processor_options::SupportedImageFormat,
+	shared::image_processor_options::{
+		Dimension, ImageProcessorOptions, ImageResizeMethod, ScaledDimensionResize,
+		SupportedImageFormat,
+	},
 };
 use sea_orm::{prelude::*, sea_query::Query, QuerySelect};
 
@@ -49,10 +55,26 @@ pub(crate) async fn get_media_file(
 	serve_media::serve_media_file(req, headers, ctx.conn.as_ref(), id).await
 }
 
+/// Used when a book has no thumbnail on disk yet and its library never configured thumbnail
+/// generation. Without this, [`get_media_thumbnail`]'s fallback would serve (and re-decode, on
+/// every single request) the full-resolution source page as the "thumbnail".
+fn fallback_thumbnail_options() -> ImageProcessorOptions {
+	ImageProcessorOptions {
+		resize_method: Some(ImageResizeMethod::ScaleDimension(ScaledDimensionResize {
+			dimension: Dimension::Width,
+			size: 400,
+		})),
+		format: SupportedImageFormat::Webp,
+		quality: Some(80),
+		page: None,
+	}
+}
+
 pub(crate) async fn get_media_thumbnail(
 	book: &media::MediaThumbSelect,
-	image_format: Option<SupportedImageFormat>,
+	image_options: Option<ImageProcessorOptions>,
 	config: &LongboxConfig,
+	conn: &DatabaseConnection,
 ) -> APIResult<(ContentType, Vec<u8>)> {
 	// Note: This doesn't hard-fail because if the saved thumbnail is missing or corrupt, we want
 	// to just pull something else instead of erroring out entirely.
@@ -65,18 +87,43 @@ pub(crate) async fn get_media_thumbnail(
 		}
 	}
 
-	let generated_thumb =
-		get_thumbnail(config.get_thumbnails_dir(), &book.id, image_format).await?;
+	let image_options = image_options.unwrap_or_else(fallback_thumbnail_options);
+
+	let generated_thumb = get_thumbnail(
+		config.get_thumbnails_dir(),
+		&book.id,
+		Some(image_options.format),
+	)
+	.await?;
+
+	if let Some((content_type, bytes)) = generated_thumb {
+		return Ok((content_type, bytes));
+	}
 
 	let adjusted_config = LongboxConfig {
 		pdf_prerender_range: 0, // Disable PDF prerendering for thumbnails since we only need the first page
 		..config.clone()
 	};
 
-	if let Some((content_type, bytes)) = generated_thumb {
-		Ok((content_type, bytes))
-	} else {
-		Ok(get_page_async(&book.path, 1, &adjusted_config).await?)
+	// No cached thumbnail exists on disk yet -- generate and persist a real one now (same
+	// generation path the batch job uses) so every request after this one is served from disk
+	// instead of re-decoding the full source page on every single view.
+	let generate_options = GenerateThumbnailOptions {
+		image_options: image_options.clone(),
+		core_config: adjusted_config.clone(),
+		force_regen: false,
+		filename: None,
+	};
+	match generate_book_thumbnail(book, conn, generate_options).await {
+		Ok((bytes, ..)) => Ok((ContentType::from(image_options.format), bytes)),
+		Err(error) => {
+			tracing::warn!(
+				?error,
+				book_id = %book.id,
+				"Failed to self-heal missing thumbnail; falling back to raw page"
+			);
+			Ok(get_page_async(&book.path, 1, &adjusted_config).await?)
+		},
 	}
 }
 
@@ -124,9 +171,9 @@ pub(crate) async fn get_media_thumbnail_by_id(
 		)
 		.one(ctx.conn.as_ref())
 		.await?;
-	let image_format = library_config.and_then(|o| o.thumbnail_config.map(|c| c.format));
+	let image_options = library_config.and_then(|o| o.thumbnail_config);
 
-	get_media_thumbnail(&book, image_format, ctx.config.as_ref())
+	get_media_thumbnail(&book, image_options, ctx.config.as_ref(), ctx.conn.as_ref())
 		.await
 		.map(ImageResponse::from)
 }
