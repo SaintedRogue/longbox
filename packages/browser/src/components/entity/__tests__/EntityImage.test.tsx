@@ -1,6 +1,7 @@
 import { useSDK } from '@longbox/client'
 import { fireEvent, render } from '@testing-library/react'
 
+import { _resetCacheOnViewOnceForTests } from '@/offline/cacheOnViewOnce'
 import * as passiveCache from '@/offline/passiveCache'
 import { useOfflineImageSrc } from '@/offline/resolveOfflineUrl'
 
@@ -22,9 +23,21 @@ jest.mock('@/offline/resolveOfflineUrl', () => ({
 jest.mock('../AuthImage', () => {
 	const { forwardRef: fr } = jest.requireActual<typeof import('react')>('react')
 	return {
-		AuthImage: fr((props: { src?: string; token?: string }, ref: React.Ref<HTMLDivElement>) => (
-			<div data-testid="auth-image-mock" data-src={props.src} data-token={props.token} ref={ref} />
-		)),
+		AuthImage: fr(
+			(
+				props: { src?: string; token?: string; lazy?: boolean; loading?: string },
+				ref: React.Ref<HTMLDivElement>,
+			) => (
+				<div
+					data-testid="auth-image-mock"
+					data-src={props.src}
+					data-token={props.token}
+					data-lazy={String(props.lazy)}
+					data-loading={props.loading}
+					ref={ref}
+				/>
+			),
+		),
 	}
 })
 
@@ -38,6 +51,12 @@ function setSDK(isTokenAuth: boolean) {
 }
 
 describe('EntityImage', () => {
+	beforeEach(() => {
+		// `cacheOnViewOnce`'s claim set is module-level (session-scoped by design), so it has to be
+		// cleared between cases or a later case reusing a src would see no shadow fetch at all.
+		_resetCacheOnViewOnceForTests()
+	})
+
 	afterEach(() => {
 		jest.clearAllMocks()
 	})
@@ -112,6 +131,61 @@ describe('EntityImage', () => {
 		expect(img?.getAttribute('alt')).toBe('Page 1')
 	})
 
+	describe('lazy loading', () => {
+		it('lazy-loads by default, decoding off the main thread', () => {
+			setSDK(false)
+			mockedUseOfflineImageSrc.mockReturnValue(undefined)
+
+			const { container } = render(<EntityImage src="/api/v2/media/1/page/1" />)
+
+			const img = container.querySelector('img')
+			expect(img?.getAttribute('loading')).toBe('lazy')
+			expect(img?.getAttribute('decoding')).toBe('async')
+			expect(img?.getAttribute('fetchpriority')).toBeNull()
+		})
+
+		it('lazy-loads the offline (object URL) img too', () => {
+			setSDK(false)
+			mockedUseOfflineImageSrc.mockReturnValue('blob:mock')
+
+			const { container } = render(<EntityImage src="/api/v2/media/1/page/1" />)
+
+			expect(container.querySelector('img')?.getAttribute('loading')).toBe('lazy')
+		})
+
+		it('priority opts out of lazy and asks for a high fetch priority (readers, hero images)', () => {
+			setSDK(false)
+			mockedUseOfflineImageSrc.mockReturnValue(undefined)
+
+			const { container } = render(<EntityImage src="/api/v2/media/1/page/1" priority />)
+
+			const img = container.querySelector('img')
+			expect(img?.getAttribute('loading')).toBe('eager')
+			expect(img?.getAttribute('fetchpriority')).toBe('high')
+		})
+
+		it('an explicit loading prop from the caller wins over the lazy default', () => {
+			setSDK(false)
+			mockedUseOfflineImageSrc.mockReturnValue(undefined)
+
+			const { container } = render(<EntityImage src="/api/v2/media/1/page/1" loading="eager" />)
+
+			expect(container.querySelector('img')?.getAttribute('loading')).toBe('eager')
+		})
+
+		it('does NOT forward lazy to AuthImage -- its placeholder needs a sized box EntityImage cannot guarantee', () => {
+			setSDK(true)
+			mockedUseOfflineImageSrc.mockReturnValue(undefined)
+
+			const { container } = render(<EntityImage src="/api/v2/media/1/page/1" />)
+
+			const authImageMock = container.querySelector('[data-testid="auth-image-mock"]')
+			expect(authImageMock?.getAttribute('data-lazy')).toBe('undefined')
+			// The (inert on that path) attributes still pass through with the rest of the img props.
+			expect(authImageMock?.getAttribute('data-loading')).toBe('lazy')
+		})
+	})
+
 	describe('passive cache (cacheOnView)', () => {
 		it('fires cacheOnView on the network (cache-miss) img onLoad, in session mode', () => {
 			setSDK(false)
@@ -154,6 +228,23 @@ describe('EntityImage', () => {
 			expect(authImageMock).not.toBeNull()
 
 			expect(cacheOnViewSpy).not.toHaveBeenCalled()
+		})
+
+		it('shadow-fetches a given src at most once per session, across separate renders', () => {
+			setSDK(false)
+			mockedUseOfflineImageSrc.mockReturnValue(undefined)
+			const cacheOnViewSpy = jest.spyOn(passiveCache, 'cacheOnView').mockResolvedValue(undefined)
+
+			const first = render(<EntityImage src="/api/v2/media/1/page/1" />)
+			fireEvent.load(first.container.querySelector('img') as HTMLImageElement)
+			first.unmount()
+
+			// The readers remount the same page image on every scale / page-set change; only the
+			// first load should re-GET the bytes for the passive cache.
+			const second = render(<EntityImage src="/api/v2/media/1/page/1" />)
+			fireEvent.load(second.container.querySelector('img') as HTMLImageElement)
+
+			expect(cacheOnViewSpy).toHaveBeenCalledTimes(1)
 		})
 	})
 })

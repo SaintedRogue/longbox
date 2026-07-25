@@ -1,7 +1,7 @@
 import { Suspense, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { AllowedLocale, i18n } from './config'
+import { AllowedLocale, changeLocale } from './config'
 import { getDefaultLocale, LocaleContext } from './context'
 import { initDateFnsLocale } from './dateFnsLocale'
 
@@ -14,7 +14,11 @@ export default function LocaleProvider({ locale = getDefaultLocale(), children }
 	const { t } = useTranslation(locale, { useSuspense: false })
 
 	useEffect(() => {
-		i18n.changeLanguage(locale)
+		// Only en-US is bundled; every other locale is a lazily imported chunk. `changeLocale`
+		// waits for that chunk before flipping i18next's language, so children keep rendering the
+		// en-US fallback until the real translations land instead of flashing raw keys. No
+		// Suspense boundary is involved -- the app must never blank out over a locale swap.
+		changeLocale(locale)
 		initDateFnsLocale(locale)
 		// locale provider is used in web and expo, the latter
 		// not having a document

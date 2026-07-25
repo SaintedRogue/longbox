@@ -13,6 +13,9 @@ export default function ProminentThumbnailImage(props: Props) {
 		<div className="max-w-50 relative w-full shrink-0" style={{ aspectRatio: thumbnailRatio }}>
 			<ThumbnailImage
 				{...props}
+				// This is the hero cover of a detail view (book overview / peek sheet) -- always
+				// above the fold, and usually the LCP element, so it opts out of the lazy default.
+				priority
 				size={{ width: '100%', height: '100%' }}
 				borderAndShadowStyle={
 					props.borderAndShadowStyle || {

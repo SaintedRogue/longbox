@@ -203,7 +203,16 @@ impl From<reqwest::Error> for APIError {
 
 impl From<ThumbnailGenerateError> for APIError {
 	fn from(value: ThumbnailGenerateError) -> Self {
-		APIError::InternalServerError(value.to_string())
+		match &value {
+			// Failing to pull the source page because the book's file is gone is the same
+			// missing-resource case as `From<FileError>`. Everything else -- including
+			// `WriteFailed`, where a `NotFound` means *our* thumbnails dir is missing -- stays a
+			// genuine 500.
+			ThumbnailGenerateError::ImagePullFailed(error) if error.is_not_found() => {
+				APIError::NotFound(value.to_string())
+			},
+			_ => APIError::InternalServerError(value.to_string()),
+		}
 	}
 }
 
@@ -271,7 +280,14 @@ impl From<mpsc::error::SendError<CoreEvent>> for APIError {
 
 impl From<FileError> for APIError {
 	fn from(error: FileError) -> APIError {
-		APIError::InternalServerError(error.to_string())
+		// A source file which no longer exists on disk (moved/deleted since the last scan) is a
+		// missing resource, not a server fault. Answering 404 lets clients render a placeholder
+		// instead of logging a 500 and showing a broken image.
+		if error.is_not_found() {
+			APIError::NotFound(error.to_string())
+		} else {
+			APIError::InternalServerError(error.to_string())
+		}
 	}
 }
 
@@ -290,7 +306,11 @@ impl From<ProcessorError> for APIError {
 
 impl From<std::io::Error> for APIError {
 	fn from(error: std::io::Error) -> APIError {
-		APIError::InternalServerError(error.to_string())
+		match error.kind() {
+			// See the note on `From<FileError>`: a missing file is a 404, not a 500.
+			std::io::ErrorKind::NotFound => APIError::NotFound(error.to_string()),
+			_ => APIError::InternalServerError(error.to_string()),
+		}
 	}
 }
 
@@ -351,4 +371,76 @@ impl IntoResponse for APIError {
 pub mod api_error_message {
 	pub const LOCKED_ACCOUNT: &str =
 		"Your account is locked. Please contact an administrator to unlock your account.";
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	fn io_error(kind: std::io::ErrorKind) -> std::io::Error {
+		std::io::Error::new(kind, "No such file or directory (os error 2)")
+	}
+
+	/// Requesting the thumbnail of a book whose file was deleted since the last scan used to
+	/// return a 500, which made the web client log console errors and render broken images.
+	#[test]
+	fn missing_source_file_maps_to_404() {
+		let error = APIError::from(FileError::FileIoError(io_error(
+			std::io::ErrorKind::NotFound,
+		)));
+
+		assert_eq!(error.status_code(), StatusCode::NOT_FOUND);
+		assert!(matches!(error, APIError::NotFound(_)));
+	}
+
+	#[test]
+	fn missing_file_via_thumbnail_generation_maps_to_404() {
+		let error = APIError::from(ThumbnailGenerateError::ImagePullFailed(
+			FileError::FileIoError(io_error(std::io::ErrorKind::NotFound)),
+		));
+
+		assert_eq!(error.status_code(), StatusCode::NOT_FOUND);
+	}
+
+	#[test]
+	fn other_file_errors_remain_500() {
+		for error in [
+			FileError::FileIoError(io_error(std::io::ErrorKind::PermissionDenied)),
+			FileError::ArchiveEmptyError,
+			FileError::NoImageError,
+			FileError::UnknownError("boom".to_string()),
+		] {
+			assert_eq!(
+				APIError::from(error).status_code(),
+				StatusCode::INTERNAL_SERVER_ERROR
+			);
+		}
+	}
+
+	/// A `NotFound` while *writing* means the thumbnails directory is missing, which is squarely
+	/// our problem.
+	#[test]
+	fn thumbnail_write_failure_remains_500() {
+		let error = APIError::from(ThumbnailGenerateError::WriteFailed(io_error(
+			std::io::ErrorKind::NotFound,
+		)));
+
+		assert_eq!(error.status_code(), StatusCode::INTERNAL_SERVER_ERROR);
+	}
+
+	#[test]
+	fn raw_io_errors_map_by_kind() {
+		assert_eq!(
+			APIError::from(io_error(std::io::ErrorKind::NotFound)).status_code(),
+			StatusCode::NOT_FOUND
+		);
+		assert_eq!(
+			APIError::from(io_error(std::io::ErrorKind::PermissionDenied)).status_code(),
+			StatusCode::INTERNAL_SERVER_ERROR
+		);
+		assert_eq!(
+			APIError::from(io_error(std::io::ErrorKind::Other)).status_code(),
+			StatusCode::INTERNAL_SERVER_ERROR
+		);
+	}
 }

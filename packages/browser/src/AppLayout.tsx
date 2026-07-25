@@ -22,6 +22,7 @@ import { toast } from 'sonner'
 import BackgroundFetchIndicator from '@/components/BackgroundFetchIndicator'
 import JobOverlay from '@/components/jobs/JobOverlay'
 import { MobileTopBar, SideBar, TopBar } from '@/components/navigation'
+import { SIDEBAR_WIDTH } from '@/components/navigation/sidebar'
 import RouteLoadingIndicator from '@/components/RouteLoadingIndicator'
 
 import { AppContext, PermissionEnforcerOptions } from './context'
@@ -299,7 +300,25 @@ export function AppLayout({ overlayLocation, navigationType }: AppLayoutProps) {
 				{!hideAllNavigation && <MobileTopBar />}
 				{!hideTopBar && <TopBar />}
 				<div className={cx('flex h-full flex-1', { 'pb-12': preferTopBar && !hideTopBar })}>
-					<Suspense fallback={null}>
+					{/*
+					 * The fallback reserves the sidebar's eventual width. SideBar suspends on a
+					 * GraphQL round-trip (not on code loading), so on every cold load <main> would
+					 * otherwise paint full-width and then get shoved sideways when a 224px flex
+					 * sibling appeared in a later commit -- measured CLS 0.175, which is exactly
+					 * 224/1280. The placeholder mirrors SideBar's own responsive and hidden sizing
+					 * so it occupies precisely what the real sidebar will.
+					 */}
+					<Suspense
+						fallback={
+							hideSidebar ? null : (
+								<div
+									aria-hidden
+									className="md:inline-block hidden min-h-full shrink-0"
+									style={{ width: softHideSidebar ? 0 : SIDEBAR_WIDTH }}
+								/>
+							)
+						}
+					>
 						{!hideSidebar && <SideBar hidden={softHideSidebar} />}
 					</Suspense>
 					<main

@@ -1,5 +1,5 @@
 import { queryClient, useSDK } from '@longbox/client'
-import { render, waitFor } from '@testing-library/react'
+import { act, render, waitFor } from '@testing-library/react'
 
 import * as passiveCache from '@/offline/passiveCache'
 
@@ -113,5 +113,131 @@ describe('AuthImage', () => {
 		render(<AuthImage token="tok" />)
 
 		expect(get).not.toHaveBeenCalled()
+	})
+
+	describe('lazy (IntersectionObserver-gated) mode', () => {
+		// jsdom has no IntersectionObserver. This stub captures the callbacks so a case can decide
+		// exactly when the "image scrolled into view" notification lands.
+		type IOCallback = (entries: { isIntersecting: boolean }[]) => void
+		let callbacks: IOCallback[]
+		let disconnect: jest.Mock
+		let originalIO: typeof IntersectionObserver | undefined
+
+		beforeEach(() => {
+			callbacks = []
+			disconnect = jest.fn()
+			originalIO = (globalThis as { IntersectionObserver?: typeof IntersectionObserver })
+				.IntersectionObserver
+			;(globalThis as unknown as { IntersectionObserver: unknown }).IntersectionObserver = class {
+				constructor(cb: IOCallback) {
+					callbacks.push(cb)
+				}
+				observe = jest.fn()
+				unobserve = jest.fn()
+				takeRecords = jest.fn()
+				disconnect = disconnect
+			}
+		})
+
+		afterEach(() => {
+			if (originalIO) {
+				;(globalThis as unknown as { IntersectionObserver: unknown }).IntersectionObserver =
+					originalIO
+			} else {
+				delete (globalThis as { IntersectionObserver?: unknown }).IntersectionObserver
+			}
+		})
+
+		function scrollIntoView() {
+			act(() => {
+				callbacks.forEach((cb) => cb([{ isIntersecting: true }]))
+			})
+		}
+
+		it('renders an observable placeholder and does not fetch while off screen', () => {
+			const get = resolvedGet()
+			setupSdk(get)
+
+			const { container } = render(<AuthImage src="/api/v2/media/1/page/1" token="tok" lazy />)
+
+			expect(container.querySelector('[data-testid="auth-image-lazy-placeholder"]')).not.toBeNull()
+			expect(container.querySelector('img')).toBeNull()
+			expect(get).not.toHaveBeenCalled()
+		})
+
+		it('gives the placeholder the image box so the observer has something with size to watch', () => {
+			setupSdk(resolvedGet())
+
+			const { container } = render(
+				<AuthImage
+					src="/api/v2/media/1/page/1"
+					token="tok"
+					lazy
+					className="fills-its-container"
+					style={{ height: '100%' }}
+				/>,
+			)
+
+			const placeholder = container.querySelector<HTMLElement>(
+				'[data-testid="auth-image-lazy-placeholder"]',
+			)
+			expect(placeholder?.className).toBe('fills-its-container')
+			expect(placeholder?.style.height).toBe('100%')
+		})
+
+		it('fetches and renders once it intersects', async () => {
+			const get = resolvedGet()
+			setupSdk(get)
+
+			const { container } = render(<AuthImage src="/api/v2/media/1/page/1" token="tok" lazy />)
+			scrollIntoView()
+
+			await waitFor(() => {
+				expect(container.querySelector('img')).not.toBeNull()
+			})
+			expect(get).toHaveBeenCalledWith('/api/v2/media/1/page/1', { responseType: 'arraybuffer' })
+			expect(container.querySelector('[data-testid="auth-image-lazy-placeholder"]')).toBeNull()
+		})
+
+		it('is latched: a later non-intersecting notification does not re-trigger a fetch', async () => {
+			const get = resolvedGet()
+			setupSdk(get)
+
+			const { container } = render(<AuthImage src="/api/v2/media/1/page/1" token="tok" lazy />)
+			scrollIntoView()
+			await waitFor(() => {
+				expect(container.querySelector('img')).not.toBeNull()
+			})
+
+			act(() => {
+				callbacks.forEach((cb) => cb([{ isIntersecting: false }]))
+			})
+
+			expect(get).toHaveBeenCalledTimes(1)
+			expect(container.querySelector('img')).not.toBeNull()
+		})
+
+		it('falls back to fetching eagerly when IntersectionObserver is unavailable', async () => {
+			delete (globalThis as { IntersectionObserver?: unknown }).IntersectionObserver
+			const get = resolvedGet()
+			setupSdk(get)
+
+			const { container } = render(<AuthImage src="/api/v2/media/1/page/1" token="tok" lazy />)
+
+			await waitFor(() => {
+				expect(container.querySelector('img')).not.toBeNull()
+			})
+			expect(container.querySelector('[data-testid="auth-image-lazy-placeholder"]')).toBeNull()
+		})
+
+		it('is off by default -- an eager AuthImage still renders nothing until the bytes resolve', () => {
+			const get = resolvedGet()
+			setupSdk(get)
+
+			const { container } = render(<AuthImage src="/api/v2/media/1/page/1" token="tok" />)
+
+			expect(container.querySelector('[data-testid="auth-image-lazy-placeholder"]')).toBeNull()
+			expect(get).toHaveBeenCalled()
+		})
 	})
 })

@@ -1,5 +1,6 @@
 import { IconButton, Popover, ToolTip } from '@longbox/components'
 import { OrderDirection } from '@longbox/graphql'
+import { useLocaleContext } from '@longbox/i18n'
 import { ArrowUpDown } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import { useMediaMatch } from 'rooks'
@@ -14,6 +15,7 @@ type Props = {
 export default function URLOrdering({ entity }: Props) {
 	const [isOpen, setIsOpen] = useState(false)
 	const isMobile = useMediaMatch('(max-width: 768px)')
+	const { t } = useLocaleContext()
 	const {
 		ordering: { orderBy, direction },
 		setOrdering,
@@ -41,9 +43,14 @@ export default function URLOrdering({ entity }: Props) {
 
 	return (
 		<Popover onOpenChange={setIsOpen} open={isOpen}>
-			<ToolTip content="Configure ordering" size="sm" isDisabled={isOpen}>
+			<ToolTip content={t('filters.buttons.ordering')} size="sm" isDisabled={isOpen}>
 				<Popover.Trigger asChild>
-					<IconButton variant="ghost" size="sm" className="hover:bg-accent">
+					<IconButton
+						variant="ghost"
+						size="sm"
+						className="hover:bg-accent"
+						aria-label={t('filters.buttons.ordering')}
+					>
 						<ArrowUpDown className="h-4 w-4" />
 					</IconButton>
 				</Popover.Trigger>

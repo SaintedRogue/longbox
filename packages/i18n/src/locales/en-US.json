@@ -2566,10 +2566,27 @@
 		"cancel": "Cancel",
 		"downloaded": "Downloaded"
 	},
+	"filters": {
+		"buttons": {
+			"gridLayout": "Grid view",
+			"tableLayout": "Table view",
+			"ordering": "Configure ordering",
+			"filters": "Configure filters",
+			"columns": "Configure columns"
+		}
+	},
 	"pagination": {
 		"buttons": {
 			"next": "Next",
-			"previous": "Previous"
+			"previous": "Previous",
+			"nextPage": "Next page",
+			"previousPage": "Previous page"
+		},
+		"input": {
+			"label": "Go to page"
+		},
+		"pageSize": {
+			"label": "Items per page"
 		},
 		"popover": {
 			"heading": "Go to page",
@@ -2606,9 +2623,13 @@
 			"createSmartlist": "Create smart list",
 			"seeAll": "See all",
 			"downloads": "Downloads",
-			"characters": "Characters"
+			"characters": "Characters",
+			"goToSettings": "Go to settings",
+			"openNavigation": "Open navigation",
+			"changeLibraryEmoji": "Change library emoji"
 		},
 		"libraryOptions": {
+			"label": "Library options",
 			"scanLibrary": "Scan",
 			"fileExplorer": "Files",
 			"manageLibrary": "Settings",
@@ -2692,6 +2713,7 @@
 		"create": "Create",
 		"edit": "Edit",
 		"info": "Info",
+		"moreOptions": "More options",
 		"infoSheetStats": {
 			"series": "Series",
 			"inProgress": "In Progress",

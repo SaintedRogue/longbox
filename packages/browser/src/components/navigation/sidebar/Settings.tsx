@@ -1,4 +1,5 @@
 import { cn, IconButton, ToolTip } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 import { Settings } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router'
 
@@ -8,11 +9,12 @@ export default function SettingsButton() {
 	const navigate = useNavigate()
 	const location = useLocation()
 	const paths = usePaths()
+	const { t } = useLocaleContext()
 
 	const isActive = location.pathname.startsWith(paths.settings())
 
 	return (
-		<ToolTip content="Go to settings" align="end">
+		<ToolTip content={t('sidebar.buttons.goToSettings')} align="end">
 			<IconButton
 				variant="ghost"
 				className={cn(
@@ -22,6 +24,7 @@ export default function SettingsButton() {
 						: 'hover:border-sidebar-border hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground',
 				)}
 				onClick={() => navigate(paths.settings())}
+				aria-label={t('sidebar.buttons.goToSettings')}
 			>
 				<Settings className="h-4 w-4 -scale-x-[1] transform" />
 			</IconButton>

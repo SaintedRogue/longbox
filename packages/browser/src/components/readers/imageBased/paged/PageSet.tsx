@@ -110,6 +110,10 @@ const _Page = ({
 	return (
 		<EntityImage
 			key={`page-${page}-scaled-${scaleToFit}`}
+			// Reader pages opt out of EntityImage's lazy default: the current page is the LCP element,
+			// and the next set is rendered deliberately offscreen/invisible *to preload it* -- lazy
+			// loading would defeat that outright.
+			priority
 			className="z-30 object-contain"
 			style={style}
 			src={getPageUrl(page)}

@@ -135,7 +135,41 @@ pub struct ImageProcessorOptions {
 	pub page: Option<i32>,
 }
 
+/// The width (in pixels) a generated thumbnail is scaled to when nothing more specific has been
+/// configured. Comfortably covers a 2x/3x DPR render of the ~200x300 CSS px grid covers the web
+/// client displays.
+pub const DEFAULT_THUMBNAIL_WIDTH: u32 = 512;
+/// The encode quality used for generated thumbnails when nothing more specific has been configured.
+pub const DEFAULT_THUMBNAIL_QUALITY: u16 = 80;
+
 impl ImageProcessorOptions {
+	/// Sane defaults for *thumbnail generation*: scale to [`DEFAULT_THUMBNAIL_WIDTH`] on the
+	/// width axis (preserving aspect ratio), encoded as webp at
+	/// [`DEFAULT_THUMBNAIL_QUALITY`].
+	///
+	/// Note that this deliberately differs from [`Default::default`], which yields
+	/// `resize_method: None` (i.e. *no* resizing at all). `Default` is load-bearing as the serde
+	/// default for persisted library configs and must not change, but using it as the fallback
+	/// for thumbnail generation re-encodes the full-resolution source page as the "thumbnail" —
+	/// which is how a library of ~850 books ended up with ~1MB, 1988x3057 "thumbnails" on disk.
+	///
+	/// Any code path which needs image options for generating a thumbnail, and which does not
+	/// have an explicitly configured [`ImageProcessorOptions`] to use, should use this instead of
+	/// `unwrap_or_default()`.
+	pub fn thumbnail_default() -> Self {
+		Self {
+			resize_method: Some(ImageResizeMethod::ScaleDimension(
+				ScaledDimensionResize {
+					dimension: Dimension::Width,
+					size: DEFAULT_THUMBNAIL_WIDTH,
+				},
+			)),
+			format: SupportedImageFormat::Webp,
+			quality: Some(DEFAULT_THUMBNAIL_QUALITY),
+			page: None,
+		}
+	}
+
 	pub fn with_page(self, page: i32) -> Self {
 		Self {
 			page: Some(page),
@@ -221,6 +255,63 @@ mod tests {
 		assert_eq!(
 			serialized,
 			r#"{"resizeMethod":{"scaleDimension":{"dimension":"Width","size":800}},"format":"Webp","quality":90,"page":1}"#
+		);
+	}
+
+	#[test]
+	fn test_thumbnail_default_actually_resizes() {
+		let options = ImageProcessorOptions::thumbnail_default();
+
+		assert_eq!(
+			options.resize_method,
+			Some(ImageResizeMethod::ScaleDimension(ScaledDimensionResize {
+				dimension: Dimension::Width,
+				size: DEFAULT_THUMBNAIL_WIDTH,
+			})),
+			"thumbnail_default must resize -- a `None` resize method re-encodes the full-resolution source page"
+		);
+		assert_eq!(options.format, SupportedImageFormat::Webp);
+		assert_eq!(options.quality, Some(DEFAULT_THUMBNAIL_QUALITY));
+		assert_eq!(options.page, None);
+	}
+
+	#[test]
+	fn test_thumbnail_default_is_not_derived_default() {
+		assert_ne!(
+			ImageProcessorOptions::thumbnail_default(),
+			ImageProcessorOptions::default()
+		);
+	}
+
+	/// The derived [`Default`] is used as the serde default for persisted library configs, so it
+	/// must keep deserializing stored JSON the same way. Changing it (rather than adding
+	/// `thumbnail_default`) would silently rewrite existing library configurations.
+	#[test]
+	fn test_derived_default_is_unchanged() {
+		let options = ImageProcessorOptions::default();
+		assert_eq!(options.resize_method, None);
+		assert_eq!(options.format, SupportedImageFormat::Jpeg);
+		assert_eq!(options.quality, None);
+		assert_eq!(options.page, None);
+
+		let deserialized = serde_json::from_str::<ImageProcessorOptions>(
+			r#"{"quality":null,"page":null}"#,
+		)
+		.expect("Failed to deserialize a partial, persisted config");
+		assert_eq!(deserialized, options);
+	}
+
+	#[test]
+	fn test_thumbnail_default_round_trips() {
+		let options = ImageProcessorOptions::thumbnail_default();
+		let serialized = serde_json::to_string(&options).unwrap();
+		assert_eq!(
+			serialized,
+			r#"{"resizeMethod":{"scaleDimension":{"dimension":"Width","size":512}},"format":"Webp","quality":80,"page":null}"#
+		);
+		assert_eq!(
+			serde_json::from_str::<ImageProcessorOptions>(&serialized).unwrap(),
+			options
 		);
 	}
 

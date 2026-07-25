@@ -5,16 +5,24 @@ import { Location, Route, Routes, useLocation, useNavigationType } from 'react-r
 
 import { AppLayout } from './AppLayout.tsx'
 import { RouterProvider } from './context/RouterContext.tsx'
-import { BookRouter } from './scenes/book'
-import { BookClubRouter } from './scenes/bookClub'
-import { CharacterRouter } from './scenes/character'
-import { LibraryRouter } from './scenes/library'
-import { SeriesRouter } from './scenes/series'
-import { SettingsRouter } from './scenes/settings'
-import { SmartListRouter } from './scenes/smartList'
 import { useAppStore, useUserStore } from './stores'
 
+// Every route tree below is lazy so Vite emits one chunk per section instead of a single monolithic
+// App chunk that has to download and parse before anything renders. They resolve inside the
+// `<Suspense fallback={<RouteLoadingIndicator />}>` that AppLayout wraps its `<Outlet />` in, so a
+// route transition keeps the shell (top bar / sidebar) mounted and never flashes an empty screen.
+//
+// Note these import the router *modules* directly rather than their `./scenes/<x>` barrels: the
+// barrels also re-export prefetch hooks and context that the always-loaded shell imports, and going
+// through them would drag those (and their dependency graphs) back into the App chunk.
 const HomeScene = lazy(() => import('./scenes/home'))
+const BookRouter = lazy(() => import('./scenes/book/BookRouter'))
+const BookClubRouter = lazy(() => import('./scenes/bookClub/BookClubRouter'))
+const CharacterRouter = lazy(() => import('./scenes/character/CharacterRouter'))
+const LibraryRouter = lazy(() => import('./scenes/library/LibraryRouter'))
+const SeriesRouter = lazy(() => import('./scenes/series/SeriesRouter'))
+const SettingsRouter = lazy(() => import('./scenes/settings/SettingsRouter'))
+const SmartListRouter = lazy(() => import('./scenes/smartList/SmartListRouter'))
 const DownloadsRouter = lazy(() => import('./scenes/downloads/DownloadsRouter'))
 const FourOhFour = lazy(() => import('./scenes/error/FourOhFour.tsx'))
 const ServerConnectionErrorScene = lazy(

@@ -20,7 +20,10 @@ use models::{
 		library_config, library_exclusion, library_scan_record, library_tag, media,
 		media_metadata, metadata_provider_config, series, series_metadata, tag, user,
 	},
-	shared::enums::{FileStatus, MetadataResetImpact, UserPermission},
+	shared::{
+		enums::{FileStatus, MetadataResetImpact, UserPermission},
+		image_processor_options::ImageProcessorOptions,
+	},
 };
 use sea_orm::{
 	prelude::*,
@@ -541,10 +544,13 @@ impl LibraryMutation {
 			return Err("Cannot set thumbnail from EPUB chapter".into());
 		}
 
+		// Note: `unwrap_or_default` here would mean "don't resize at all", i.e. store the
+		// full-resolution page as the thumbnail. Libraries are created with a null
+		// `thumbnail_config`, so that is the common case rather than the edge case.
 		let image_options = config
 			.ok_or("Library config not found")?
 			.thumbnail_config
-			.unwrap_or_default()
+			.unwrap_or_else(ImageProcessorOptions::thumbnail_default)
 			.with_page(page);
 
 		let (_, path_buf, _) = generate_book_thumbnail(
@@ -727,7 +733,12 @@ impl LibraryMutation {
 
 		if let Err(error) = core
 			.enqueue(LongboxJob::thumbnail_generation(
-				config.thumbnail_config.unwrap_or_default(),
+				// Note: `unwrap_or_default` here would mean "don't resize at all", i.e. store
+				// the full-resolution page as the thumbnail. Libraries are created with a null
+				// `thumbnail_config`, so that is the common case rather than the edge case.
+				config
+					.thumbnail_config
+					.unwrap_or_else(ImageProcessorOptions::thumbnail_default),
 				ThumbnailGenerationJobParams::books_in_library(
 					library.id,
 					force_regenerate,

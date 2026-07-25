@@ -1,1 +1,5 @@
-export { default as LibraryRouter } from './LibraryRouter'
+// Intentionally empty. `LibraryRouter` used to be re-exported here, but AppRouter lazy-imports
+// `./LibraryRouter` directly now. A barrel re-export makes the router statically reachable, so any
+// eager import of this barrel drags the whole route tree back into the App chunk and undoes the
+// code splitting -- keep leaf utilities here if needed, never the router.
+export {}

@@ -1,4 +1,5 @@
 import { cn, ProgressSpinner, usePreviousIsDifferent } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 import { SearchIcon } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useDebouncedValue } from 'rooks'
@@ -42,6 +43,7 @@ export default function Search({
 	const [expanded, setExpanded] = useState(() => !!initialValue)
 	const [value, setValue] = useState(initialValue ?? '')
 	const [debouncedValue] = useDebouncedValue(value, 500)
+	const { t } = useLocaleContext()
 
 	const shouldCall = usePreviousIsDifferent(debouncedValue)
 
@@ -105,12 +107,15 @@ export default function Search({
 					value={value}
 					onChange={(e) => setValue(e.target.value)}
 					onBlur={handleBlur}
-					placeholder={placeholder || 'Search'}
+					placeholder={placeholder || t('search.placeholder')}
+					aria-label={placeholder || t('search.placeholder')}
 					disabled={isDisabled}
 					className="pr-8 text-sm h-full w-full bg-transparent text-foreground outline-none placeholder:text-muted-foreground"
 				/>
 			) : (
-				<span className="pr-2.5 text-sm whitespace-nowrap select-none">Search</span>
+				<span className="pr-2.5 text-sm whitespace-nowrap select-none">
+					{t('search.placeholder')}
+				</span>
 			)}
 
 			{showLoader && (

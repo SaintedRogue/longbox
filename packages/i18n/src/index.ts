@@ -1,5 +1,6 @@
 import { AllowedLocale } from './config'
 
+export { changeLocale, hasLocaleResources, i18n, loadLocaleResources } from './config'
 export { LocaleContext, type LocaleContextProps, useLocaleContext } from './context'
 export {
 	formatElapsedDuration,

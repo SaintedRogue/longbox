@@ -138,9 +138,6 @@ export function StackedSeriesCard({
 					}
 				: undefined
 
-			// Note: I add lazy for back thumbs to try and improve performance
-			const isBackThumbnail = index > 0
-
 			return (
 				<div
 					key={index}
@@ -171,7 +168,6 @@ export function StackedSeriesCard({
 						src={currentThumbnailData.url}
 						size={currentThumbnailSize}
 						placeholderData={placeholderData}
-						lazy={isBackThumbnail}
 						borderAndShadowStyle={{
 							shadowColor: 'rgba(0, 0, 0, 0.4)',
 							shadowRadius: 3,

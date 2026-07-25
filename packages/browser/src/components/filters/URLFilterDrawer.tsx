@@ -1,4 +1,5 @@
 import { Button, IconButton, Sheet, ToolTip } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 import { ListFilter } from 'lucide-react'
 import { Suspense, useCallback, useMemo, useState } from 'react'
 import { useMediaMatch } from 'rooks'
@@ -16,6 +17,7 @@ type Props = {
 
 export default function URLFilterDrawer({ entity }: Props) {
 	const { filters, setFilters } = useFilterContext()
+	const { t } = useLocaleContext()
 
 	const [isOpen, setIsOpen] = useState(false)
 
@@ -51,13 +53,14 @@ export default function URLFilterDrawer({ entity }: Props) {
 			title="Configure URL filters"
 			description="Adjust the filters applied to the current view"
 			trigger={
-				<ToolTip content="Configure filters" size="sm">
+				<ToolTip content={t('filters.buttons.filters')} size="sm">
 					<span className="relative inline-flex">
 						<IconButton
 							variant="ghost"
 							size="sm"
 							className="hover:bg-accent"
 							onClick={() => setIsOpen(true)}
+							aria-label={t('filters.buttons.filters')}
 						>
 							<ListFilter className="h-4 w-4" />
 						</IconButton>

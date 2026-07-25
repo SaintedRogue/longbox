@@ -159,6 +159,10 @@ type PageProps = {
 const Page = ({ page, src, imageScaling: { scaleToFit }, onPageClick }: PageProps) => (
 	<EntityImage
 		key={`page-${page}-scaled-${scaleToFit}`}
+		// Opts out of EntityImage's lazy default: Virtuoso already renders an overscan window of
+		// offscreen pages precisely so they are loaded ahead of the scroll, which lazy loading would
+		// cancel out.
+		priority
 		className={cn(
 			'z-30 select-none',
 			{

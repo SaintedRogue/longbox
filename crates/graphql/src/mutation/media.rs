@@ -9,7 +9,7 @@ use longbox_core::{
 };
 use models::{
 	entity::{favorite_media, library, library_config, media, series},
-	shared::enums::UserPermission,
+	shared::{enums::UserPermission, image_processor_options::ImageProcessorOptions},
 };
 use sea_orm::{
 	prelude::*,
@@ -201,10 +201,13 @@ impl MediaMutation {
 			return Err("Cannot set thumbnail from EPUB chapter".into());
 		}
 
+		// Note: `unwrap_or_default` here would mean "don't resize at all", i.e. store the
+		// full-resolution page as the thumbnail. Libraries are created with a null
+		// `thumbnail_config`, so that is the common case rather than the edge case.
 		let image_options = config
 			.ok_or("Library config not found")?
 			.thumbnail_config
-			.unwrap_or_default()
+			.unwrap_or_else(ImageProcessorOptions::thumbnail_default)
 			.with_page(page);
 
 		let (_, path_buf, _) = generate_book_thumbnail(

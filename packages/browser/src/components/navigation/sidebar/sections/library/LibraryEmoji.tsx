@@ -1,6 +1,7 @@
 import { useGraphQLMutation } from '@longbox/client'
 import { EmojiPicker } from '@longbox/components'
 import { graphql, LibrarySideBarSectionQuery } from '@longbox/graphql'
+import { useLocaleContext } from '@longbox/i18n'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback } from 'react'
 
@@ -21,6 +22,7 @@ type Props = {
 
 export default function LibraryEmoji({ emoji, placeholder, library, disabled }: Props) {
 	const client = useQueryClient()
+	const { t } = useLocaleContext()
 
 	const { mutate: updateEmoji } = useGraphQLMutation(mutation, {
 		onSuccess: () => client.invalidateQueries({ queryKey: ['libraries'] }),
@@ -48,7 +50,10 @@ export default function LibraryEmoji({ emoji, placeholder, library, disabled }: 
 			value={emoji}
 			placeholder={placeholder}
 			onEmojiSelect={handleEmojiSelect}
-			triggerProps={{ className: 'mr-2 flex h-4 w-4 shrink-0 items-center justify-center' }}
+			triggerProps={{
+				'aria-label': t('sidebar.buttons.changeLibraryEmoji'),
+				className: 'mr-2 flex h-4 w-4 shrink-0 items-center justify-center',
+			}}
 			align="start"
 		/>
 	)

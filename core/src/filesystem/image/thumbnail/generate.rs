@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use futures::{stream::FuturesUnordered, StreamExt};
 use models::{
@@ -95,6 +95,78 @@ fn do_generate_book_thumbnail(
 	Ok((thumbnail_buffer, thumbnail_path, true))
 }
 
+/// Delete a thumbnail file which has been superseded by a newly written one.
+///
+/// Thumbnails are written as `{id}.{ext}`, so changing the configured image format (e.g. the
+/// jpeg -> webp default switch) means a force-regenerate writes `{id}.webp` *alongside* the
+/// existing `{id}.jpeg` rather than replacing it, stranding the old file on disk forever.
+///
+/// This is deliberately defensive, because `thumbnail_path` is a free-form column which may point
+/// at a user-supplied file anywhere on disk:
+/// - Only a file sharing `replacement_path`'s *stem* is considered superseded, i.e. `{id}.jpeg`
+///   giving way to `{id}.webp`. A different stem means a different entity — generation can be
+///   told to write under another entity's id, as `update_library_thumbnail` does when it renders
+///   a book's page into `{library_id}.webp` — or a user-supplied file. Neither is ours to delete.
+/// - Only files which genuinely live inside the managed thumbnails dir are ever unlinked, and
+///   paths are canonicalized first so `..` segments and symlinks cannot be used to escape it.
+/// - Failures are logged and swallowed. An orphaned file is never worth failing generation over.
+async fn remove_superseded_thumbnail(
+	previous_path: Option<&str>,
+	replacement_path: &Path,
+	thumbnails_dir: &Path,
+) {
+	let Some(previous) = previous_path.map(str::trim).filter(|path| !path.is_empty())
+	else {
+		return;
+	};
+	let previous = Path::new(previous);
+
+	let Some(stem) = replacement_path.file_stem() else {
+		return;
+	};
+
+	if previous.file_stem() != Some(stem) || previous == replacement_path {
+		return;
+	}
+
+	// A failure to resolve means the file is already gone (or unreadable), so there is nothing
+	// to clean up.
+	let Ok(previous) = fs::canonicalize(previous).await else {
+		return;
+	};
+	let Ok(thumbnails_dir) = fs::canonicalize(thumbnails_dir).await else {
+		tracing::warn!(
+			?thumbnails_dir,
+			"Failed to resolve the thumbnails directory"
+		);
+		return;
+	};
+
+	// Re-check post-resolution: the stored path may be a differently spelled route (relative
+	// path, symlink, ...) to the file we just wrote.
+	if fs::canonicalize(replacement_path)
+		.await
+		.is_ok_and(|resolved| resolved == previous)
+	{
+		return;
+	}
+
+	if previous == thumbnails_dir || !previous.starts_with(&thumbnails_dir) {
+		tracing::debug!(
+			?previous,
+			"Previous thumbnail is not managed by Longbox, leaving it in place"
+		);
+		return;
+	}
+
+	match fs::remove_file(&previous).await {
+		Ok(_) => tracing::debug!(?previous, "Removed superseded thumbnail"),
+		Err(error) => {
+			tracing::warn!(?error, ?previous, "Failed to remove superseded thumbnail");
+		},
+	}
+}
+
 /// Generate a thumbnail for a book, returning the thumbnail data, the path to the thumbnail file,
 /// and a boolean indicating whether the thumbnail was generated or not. If the thumbnail already
 /// exists and `force_regen` is false, the function will return the existing thumbnail data.
@@ -111,6 +183,8 @@ pub async fn generate_book_thumbnail(
 ) -> Result<GenerateOutput, ThumbnailGenerateError> {
 	let book_path = book.path.clone();
 	let file_name = filename.unwrap_or_else(|| book.id.clone());
+	// Captured up front: `core_config` is moved into the blocking generation task below.
+	let thumbnails_dir = core_config.get_thumbnails_dir();
 
 	let file_path = if let Some(stored_path) = &book.thumbnail_path {
 		PathBuf::from(stored_path.clone())
@@ -179,6 +253,16 @@ pub async fn generate_book_thumbnail(
 	let (thumbnail, thumbnail_path, did_generate) = generate_result;
 	fs::write(&thumbnail_path, &thumbnail).await?;
 
+	// The path we just wrote to is derived from the *current* format, so a previously stored
+	// thumbnail with a different extension is not overwritten -- it is orphaned. Clean it up
+	// before the DB row stops pointing at it.
+	remove_superseded_thumbnail(
+		book.thumbnail_path.as_deref(),
+		&thumbnail_path,
+		&thumbnails_dir,
+	)
+	.await;
+
 	let thumbnail_metadata =
 		match generate_image_metadata_from_bytes(thumbnail.clone()).await {
 			Ok(metadata) => Some(metadata),
@@ -218,6 +302,7 @@ pub async fn generate_book_thumbnail(
 async fn copy_thumbnail_to_entity<E>(
 	entity_id: &str,
 	first_book: media::MediaThumbSelect,
+	previous_thumbnail_path: Option<&str>,
 	ctx: &JobContext,
 	options: GenerateThumbnailOptions,
 	update_fn: impl FnOnce(String, Option<ImageMetadata>) -> sea_orm::UpdateMany<E>,
@@ -257,10 +342,8 @@ where
 		.and_then(|e| e.to_str())
 		.ok_or(ThumbnailGenerateError::SourceMissingExtension)?;
 
-	let dest_path = ctx
-		.config()
-		.get_thumbnails_dir()
-		.join(format!("{}.{}", entity_id, ext));
+	let thumbnails_dir = ctx.config().get_thumbnails_dir();
+	let dest_path = thumbnails_dir.join(format!("{}.{}", entity_id, ext));
 
 	fs::copy(&source_path, &dest_path).await?;
 	tracing::debug!(
@@ -269,6 +352,13 @@ where
 		?dest_path,
 		"Copied book thumbnail to destination"
 	);
+
+	// The extension is inherited from the source book thumbnail, so a format change leaves the
+	// entity's previous thumbnail (e.g. `{id}.jpeg`) orphaned next to the new `{id}.webp`.
+	// `source_path` belongs to the book rather than this entity, and its differing stem keeps it
+	// out of scope.
+	remove_superseded_thumbnail(previous_thumbnail_path, &dest_path, &thumbnails_dir)
+		.await;
 
 	let thumbnail_metadata = match (
 		did_regenerate || options.force_regen,
@@ -336,6 +426,7 @@ async fn generate_series_thumbnail(
 	copy_thumbnail_to_entity(
 		&series.id,
 		first_book,
+		series.thumbnail_path.as_deref(),
 		ctx,
 		options,
 		|thumbnail_path, thumbnail_metadata| {
@@ -402,6 +493,7 @@ async fn generate_library_thumbnail(
 	copy_thumbnail_to_entity(
 		&library.id,
 		first_book,
+		library.thumbnail_path.as_deref(),
 		ctx,
 		options,
 		|thumbnail_path, thumbnail_metadata| {
@@ -825,5 +917,129 @@ pub async fn safely_generate_placeholder_batch(
 		output,
 		logs,
 		subtasks: vec![],
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	/// Build a thumbnails dir containing the named files, returning the tempdir (which the caller
+	/// must keep alive) and the dir path.
+	fn thumbnails_dir(files: &[&str]) -> (tempfile::TempDir, PathBuf) {
+		let tempdir = tempfile::tempdir().expect("Failed to create temporary directory");
+		let dir = tempdir.path().join("thumbnails");
+		std::fs::create_dir_all(&dir).expect("Failed to create thumbnails directory");
+
+		for file in files {
+			std::fs::write(dir.join(file), b"fake-image-bytes")
+				.expect("Failed to write fixture thumbnail");
+		}
+
+		(tempdir, dir)
+	}
+
+	#[tokio::test]
+	async fn removes_orphan_left_by_a_format_change() {
+		let (_tempdir, dir) = thumbnails_dir(&["book-id.jpeg", "book-id.webp"]);
+		let previous = dir.join("book-id.jpeg");
+		let written = dir.join("book-id.webp");
+
+		remove_superseded_thumbnail(previous.to_str(), &written, &dir).await;
+
+		assert!(!previous.exists(), "The superseded jpeg should be deleted");
+		assert!(written.exists(), "The newly written webp must survive");
+	}
+
+	#[tokio::test]
+	async fn keeps_the_file_that_was_just_written() {
+		let (_tempdir, dir) = thumbnails_dir(&["book-id.webp"]);
+		let path = dir.join("book-id.webp");
+
+		// Same format as before -- the write overwrote the previous thumbnail in place.
+		remove_superseded_thumbnail(path.to_str(), &path, &dir).await;
+
+		assert!(path.exists(), "Must not delete the thumbnail we just wrote");
+	}
+
+	/// `update_library_thumbnail` renders a *book's* page but writes it as `{library_id}.{ext}`
+	/// (via `GenerateThumbnailOptions::filename`). The book's own thumbnail is a different
+	/// entity's file and must survive.
+	#[tokio::test]
+	async fn keeps_thumbnails_belonging_to_another_entity() {
+		let (_tempdir, dir) = thumbnails_dir(&["book-id.jpeg", "library-id.webp"]);
+		let book_thumbnail = dir.join("book-id.jpeg");
+		let written = dir.join("library-id.webp");
+
+		remove_superseded_thumbnail(book_thumbnail.to_str(), &written, &dir).await;
+
+		assert!(
+			book_thumbnail.exists(),
+			"A different entity's thumbnail must never be deleted"
+		);
+		assert!(written.exists());
+	}
+
+	#[tokio::test]
+	async fn never_deletes_outside_the_thumbnails_dir() {
+		let (_tempdir, dir) = thumbnails_dir(&["book-id.webp"]);
+		// `thumbnail_path` is free-form and may point at a user-supplied file anywhere on disk.
+		let user_file = dir.parent().unwrap().join("book-id.jpg");
+		std::fs::write(&user_file, b"user supplied").unwrap();
+
+		remove_superseded_thumbnail(user_file.to_str(), &dir.join("book-id.webp"), &dir)
+			.await;
+
+		assert!(
+			user_file.exists(),
+			"A user-supplied thumbnail outside the managed dir must be left alone"
+		);
+	}
+
+	#[tokio::test]
+	async fn traversal_out_of_the_thumbnails_dir_is_rejected() {
+		let (_tempdir, dir) = thumbnails_dir(&["book-id.webp"]);
+		let user_file = dir.parent().unwrap().join("book-id.jpg");
+		std::fs::write(&user_file, b"user supplied").unwrap();
+
+		let traversal = dir.join("..").join("book-id.jpg");
+		assert!(
+			traversal.starts_with(&dir),
+			"Sanity check: the un-canonicalized path looks like it is inside the dir"
+		);
+
+		remove_superseded_thumbnail(traversal.to_str(), &dir.join("book-id.webp"), &dir)
+			.await;
+
+		assert!(
+			user_file.exists(),
+			"`..` segments must not be usable to escape the thumbnails dir"
+		);
+	}
+
+	#[tokio::test]
+	async fn tolerates_missing_empty_and_absent_previous_paths() {
+		let (_tempdir, dir) = thumbnails_dir(&["book-id.webp"]);
+		let written = dir.join("book-id.webp");
+
+		for previous in [None, Some(""), Some("   ")] {
+			remove_superseded_thumbnail(previous, &written, &dir).await;
+		}
+		// A stale DB row pointing at a file which no longer exists is a no-op, not an error.
+		remove_superseded_thumbnail(dir.join("book-id.jpeg").to_str(), &written, &dir)
+			.await;
+
+		assert!(written.exists());
+	}
+
+	#[tokio::test]
+	async fn never_deletes_the_thumbnails_dir_itself() {
+		let (_tempdir, dir) = thumbnails_dir(&["thumbnails.webp"]);
+		// Contrived, but the dir's own stem must not be able to select it for deletion.
+		let written = dir.join("thumbnails.webp");
+
+		remove_superseded_thumbnail(dir.to_str(), &written, &dir).await;
+
+		assert!(dir.exists());
 	}
 }

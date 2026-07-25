@@ -19,10 +19,7 @@ use longbox_core::{
 };
 use models::{
 	entity::{library, library_config, media, series, user::AuthUser},
-	shared::image_processor_options::{
-		Dimension, ImageProcessorOptions, ImageResizeMethod, ScaledDimensionResize,
-		SupportedImageFormat,
-	},
+	shared::image_processor_options::ImageProcessorOptions,
 };
 use sea_orm::{prelude::*, sea_query::Query, QuerySelect};
 
@@ -55,21 +52,6 @@ pub(crate) async fn get_media_file(
 	serve_media::serve_media_file(req, headers, ctx.conn.as_ref(), id).await
 }
 
-/// Used when a book has no thumbnail on disk yet and its library never configured thumbnail
-/// generation. Without this, [`get_media_thumbnail`]'s fallback would serve (and re-decode, on
-/// every single request) the full-resolution source page as the "thumbnail".
-fn fallback_thumbnail_options() -> ImageProcessorOptions {
-	ImageProcessorOptions {
-		resize_method: Some(ImageResizeMethod::ScaleDimension(ScaledDimensionResize {
-			dimension: Dimension::Width,
-			size: 400,
-		})),
-		format: SupportedImageFormat::Webp,
-		quality: Some(80),
-		page: None,
-	}
-}
-
 pub(crate) async fn get_media_thumbnail(
 	book: &media::MediaThumbSelect,
 	image_options: Option<ImageProcessorOptions>,
@@ -87,7 +69,11 @@ pub(crate) async fn get_media_thumbnail(
 		}
 	}
 
-	let image_options = image_options.unwrap_or_else(fallback_thumbnail_options);
+	// The book has no thumbnail on disk yet and its library never configured thumbnail
+	// generation. Without a real fallback we would serve (and re-decode, on every single
+	// request) the full-resolution source page as the "thumbnail".
+	let image_options =
+		image_options.unwrap_or_else(ImageProcessorOptions::thumbnail_default);
 
 	let generated_thumb = get_thumbnail(
 		config.get_thumbnails_dir(),

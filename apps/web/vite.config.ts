@@ -17,6 +17,11 @@ export default defineConfig({
 		assetsDir: './assets',
 		manifest: true,
 		outDir: '../dist',
+		rollupOptions: {
+			output: {
+				manualChunks: localeChunks,
+			},
+		},
 	},
 	clearScreen: false,
 	define: {
@@ -63,6 +68,29 @@ export default defineConfig({
 					'assets/longbox-splash.svg',
 					'assets/fonts/inter/**/*.woff2',
 				],
+				// The 31 non-en-US translation chunks are ~100kB each (~3.2MB total). Precaching
+				// them would hand every install the whole i18n catalogue again and undo the code
+				// splitting entirely -- en-US is compiled into the app chunk and is precached with
+				// it, so the fallback always works offline. The runtime cache below then keeps
+				// whichever locale a user actually picked available offline after its first load.
+				globIgnores: ['**/node_modules/**/*', 'assets/locale-*.js'],
+				runtimeCaching: [
+					{
+						urlPattern: /\/assets\/locale-[^/]+\.js$/,
+						handler: 'CacheFirst',
+						options: {
+							cacheName: 'longbox-locales',
+							// Filenames are content-hashed, so a cached entry is never stale.
+							expiration: {
+								maxEntries: 8,
+								maxAgeSeconds: 60 * 60 * 24 * 30,
+							},
+							cacheableResponse: {
+								statuses: [0, 200],
+							},
+						},
+					},
+				],
 				navigateFallbackDenylist: [
 					/^\/api(?:\/|$)/,
 					/^\/opds(?:\/|$)/,
@@ -105,6 +133,7 @@ export default defineConfig({
 			manifestFilename: 'assets/manifest.webmanifest',
 		}),
 		reactFallbackThrottlePlugin(), // Leave empty for 0, or provide your own value if you like
+		preloadPrimaryFontPlugin(),
 	],
 	publicDir: '../../../packages/browser/public',
 	root: 'src',
@@ -112,6 +141,72 @@ export default defineConfig({
 		port: 3000,
 	},
 })
+
+/**
+ * Give every lazily-imported translation file a predictable chunk name (`locale-de-DE`, ...).
+ *
+ * packages/i18n loads all non-en-US locales through `import()`, so rollup already splits them
+ * out; naming them here is what makes them addressable by the service worker config above
+ * (`globIgnores` / `runtimeCaching`) instead of hiding behind rollup's derived chunk names.
+ *
+ * en-US is deliberately *not* matched: it is statically imported as the i18next fallback and must
+ * stay inside the app chunk so the very first render has translations without a network hop.
+ */
+function localeChunks(id: string): string | undefined {
+	const [, locale] = /[\\/]i18n[\\/]src[\\/]locales[\\/]([\w-]+)\.json$/.exec(id) ?? []
+	return locale && locale !== 'en-US' ? `locale-${locale}` : undefined
+}
+
+/**
+ * The `@font-face` rules for Inter are pulled through the CSS pipeline (see
+ * packages/components/src/styles/overrides.css), so Vite emits a content-hashed
+ * copy of each woff2 — e.g. `assets/inter-latin-standard-normal-BwkfbSeq.woff2`.
+ * That means a hardcoded `<link rel="preload">` in index.html can never point at
+ * the file the CSS actually uses: it just downloads a second, unused copy of the
+ * font (and steals preload priority from the one that is used).
+ *
+ * This plugin looks the real, hashed filename up in the output bundle and injects
+ * the preload for it. Latin/standard/normal is the subset used to paint the UI on
+ * a default (English) first load.
+ */
+function preloadPrimaryFontPlugin(
+	fontPattern = /(^|\/)inter-latin-standard-normal-[\w-]+\.woff2$/,
+) {
+	let base = '/'
+
+	return {
+		name: 'vite-plugin-preload-primary-font',
+		apply: 'build',
+		enforce: 'post',
+		configResolved(config: { base: string }) {
+			base = config.base
+		},
+		transformIndexHtml: {
+			order: 'post' as const,
+			handler(_html: string, ctx: { bundle?: Record<string, unknown> }) {
+				const fileName = Object.keys(ctx.bundle ?? {}).find((name) => fontPattern.test(name))
+
+				// No match means the font is no longer bundled (or was renamed). Injecting
+				// nothing is strictly better than injecting a preload that goes unused.
+				if (!fileName) return
+
+				return [
+					{
+						tag: 'link',
+						attrs: {
+							rel: 'preload',
+							href: `${base}${fileName}`,
+							as: 'font',
+							type: 'font/woff2',
+							crossorigin: true,
+						},
+						injectTo: 'head' as const,
+					},
+				]
+			},
+		},
+	} satisfies PluginOption
+}
 
 // FIXME: This is actually fucking silly. I can't believe they hardcoded a 300ms throttle
 // in React's source code with no way to override it. This plugin should be short term, I loved

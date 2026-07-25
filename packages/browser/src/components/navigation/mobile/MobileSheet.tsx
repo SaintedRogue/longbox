@@ -1,4 +1,5 @@
 import { IconButton, Sheet } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 import { Menu } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useMediaMatch } from 'rooks'
@@ -8,6 +9,7 @@ import { SideBar, SideBarFooter } from '../sidebar'
 
 export default function MobileSheet() {
 	const [open, setOpen] = useState(false)
+	const { t } = useLocaleContext()
 
 	const isMobile = useMediaMatch('(max-width: 768px)')
 
@@ -20,7 +22,11 @@ export default function MobileSheet() {
 			size="xl"
 			title={<UserMenu />}
 			trigger={
-				<IconButton variant="ghost" onClick={() => setOpen(true)}>
+				<IconButton
+					variant="ghost"
+					onClick={() => setOpen(true)}
+					aria-label={t('sidebar.buttons.openNavigation')}
+				>
 					<Menu className="h-5 w-5" />
 				</IconButton>
 			}

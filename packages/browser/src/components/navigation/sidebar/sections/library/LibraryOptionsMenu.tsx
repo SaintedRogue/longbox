@@ -84,6 +84,7 @@ export default function LibraryOptionsMenu({ library }: Props) {
 						variant="ghost"
 						size="sm"
 						className="h-7 w-7 rounded-md text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
+						aria-label={t(getLocaleKey('label'))}
 					>
 						<MoreHorizontal className="h-4 w-4 shrink-0" />
 					</IconButton>

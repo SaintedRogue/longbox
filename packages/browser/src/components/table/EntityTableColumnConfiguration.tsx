@@ -268,8 +268,13 @@ export default function EntityTableColumnConfiguration({ entity, configuration, 
 			onClose={() => setIsOpen(false)}
 			onOpen={() => setIsOpen(true)}
 			trigger={
-				<ToolTip content="Configure columns" size="sm" align="start">
-					<IconButton size="xs" variant="ghost" onClick={() => setIsOpen(true)}>
+				<ToolTip content={t('filters.buttons.columns')} size="sm" align="start">
+					<IconButton
+						size="xs"
+						variant="ghost"
+						onClick={() => setIsOpen(true)}
+						aria-label={t('filters.buttons.columns')}
+					>
 						<Columns className="h-4 w-4" />
 					</IconButton>
 				</ToolTip>

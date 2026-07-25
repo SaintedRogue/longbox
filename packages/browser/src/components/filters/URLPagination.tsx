@@ -1,4 +1,5 @@
 import { IconButton, Input, Text, ToolTip } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 
@@ -11,6 +12,7 @@ type Props = {
 
 export default function URLPagination({ pages, currentPage, onChangePage, onPrefetchPage }: Props) {
 	const [inputPage, setInputPage] = useState<number | undefined>(currentPage)
+	const { t } = useLocaleContext()
 
 	const handleNextPage = useCallback(() => {
 		if (currentPage < pages) {
@@ -74,31 +76,34 @@ export default function URLPagination({ pages, currentPage, onChangePage, onPref
 					onBlur={handleInputBlur}
 					max={pages}
 					min={1}
+					aria-label={t('pagination.input.label')}
 				/>
 				<Text size="sm" variant="muted" className="inline-flex shrink-0">
 					of {pages}
 				</Text>
 			</form>
 			<div className="space-x-1 flex items-center">
-				<ToolTip content="Previous page" size="sm" align="end">
+				<ToolTip content={t('pagination.buttons.previousPage')} size="sm" align="end">
 					<IconButton
 						size="xs"
 						variant="ghost"
 						disabled={currentPage <= 1}
 						onClick={handlePreviousPage}
 						onMouseEnter={handlePrefetchPreviousPage}
+						aria-label={t('pagination.buttons.previousPage')}
 					>
 						<ChevronLeft className="h-4 w-4" />
 					</IconButton>
 				</ToolTip>
 
-				<ToolTip content="Next page" size="sm" align="end">
+				<ToolTip content={t('pagination.buttons.nextPage')} size="sm" align="end">
 					<IconButton
 						size="xs"
 						variant="ghost"
 						disabled={currentPage >= pages}
 						onClick={handleNextPage}
 						onMouseEnter={handlePrefetchNextPage}
+						aria-label={t('pagination.buttons.nextPage')}
 					>
 						<ChevronRight className="h-4 w-4" />
 					</IconButton>

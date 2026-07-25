@@ -56,6 +56,24 @@ pub enum FileError {
 	UnknownError(String),
 }
 
+impl FileError {
+	/// Whether this error was caused by a file which does not exist on disk.
+	///
+	/// The HTTP layer uses this to answer with a 404 instead of a 500: a book whose source file
+	/// was moved or deleted since the last scan is a missing resource, not a server fault. Only
+	/// variants which genuinely wrap an [`io::Error`] are considered.
+	pub fn is_not_found(&self) -> bool {
+		let io_error = match self {
+			FileError::FileIoError(error) => Some(error),
+			FileError::ZipFileError(ZipError::Io(error)) => Some(error),
+			FileError::ImageIoError(image::ImageError::IoError(error)) => Some(error),
+			_ => None,
+		};
+
+		io_error.is_some_and(|error| error.kind() == io::ErrorKind::NotFound)
+	}
+}
+
 impl From<FileError> for CoreError {
 	fn from(error: FileError) -> Self {
 		match error {
@@ -63,5 +81,49 @@ impl From<FileError> for CoreError {
 			FileError::UnknownError(err) => CoreError::Unknown(err),
 			_ => CoreError::InternalError(error.to_string()),
 		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	fn not_found() -> io::Error {
+		io::Error::new(io::ErrorKind::NotFound, "No such file or directory")
+	}
+
+	#[test]
+	fn missing_source_file_is_not_found() {
+		assert!(FileError::FileIoError(not_found()).is_not_found());
+		assert!(FileError::ZipFileError(ZipError::Io(not_found())).is_not_found());
+		assert!(
+			FileError::ImageIoError(image::ImageError::IoError(not_found()))
+				.is_not_found()
+		);
+	}
+
+	#[test]
+	fn other_io_errors_are_not_not_found() {
+		let denied = || io::Error::new(io::ErrorKind::PermissionDenied, "nope");
+
+		assert!(!FileError::FileIoError(denied()).is_not_found());
+		assert!(!FileError::ZipFileError(ZipError::Io(denied())).is_not_found());
+		assert!(
+			!FileError::ImageIoError(image::ImageError::IoError(denied())).is_not_found()
+		);
+	}
+
+	#[test]
+	fn unrelated_errors_are_not_not_found() {
+		// These are genuine internal errors and must keep mapping to a 500. In particular
+		// `ZipError::FileNotFound` refers to an *entry* missing from an archive we opened fine,
+		// which is a corrupt/unexpected book rather than a missing resource.
+		assert!(!FileError::ArchiveEmptyError.is_not_found());
+		assert!(!FileError::NoImageError.is_not_found());
+		assert!(!FileError::DirectoryReadError.is_not_found());
+		assert!(!FileError::ZipFileError(ZipError::FileNotFound).is_not_found());
+		assert!(!FileError::ZipFileError(ZipError::InvalidArchive("bad")).is_not_found());
+		assert!(!FileError::UnknownError("boom".to_string()).is_not_found());
+		assert!(!FileError::EpubOpenError("boom".to_string()).is_not_found());
 	}
 }

@@ -9,6 +9,7 @@ import {
 	Tabs,
 	useSticky,
 } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 import { EllipsisVertical, Info, Settings } from 'lucide-react'
 import { useLocation } from 'react-router'
 import { useMediaMatch } from 'rooks'
@@ -36,6 +37,7 @@ type Props = {
 export function EntityHeader({ name, tabs, actions, stats, settingsLink, onInfoClick }: Props) {
 	const isMobile = useMediaMatch('(max-width: 768px)')
 	const location = useLocation()
+	const { t } = useLocaleContext()
 	const {
 		preferences: { primaryNavigationMode, layoutMaxWidthPx },
 	} = usePreferences()
@@ -76,7 +78,12 @@ export function EntityHeader({ name, tabs, actions, stats, settingsLink, onInfoC
 							align="end"
 							contentWrapperClassName="w-48"
 							trigger={
-								<Button variant="outline" size="icon" className="size-7 shrink-0">
+								<Button
+									variant="outline"
+									size="icon"
+									className="size-7 shrink-0"
+									aria-label={t('common.moreOptions')}
+								>
 									<EllipsisVertical className="h-4 w-4" />
 								</Button>
 							}
@@ -99,6 +106,7 @@ export function EntityHeader({ name, tabs, actions, stats, settingsLink, onInfoC
 					<button
 						className="gap-1 px-1 py-1 group flex items-center rounded-lg bg-primary/15"
 						onClick={onInfoClick}
+						aria-label={t('common.info')}
 					>
 						<Info className="h-4 w-4 text-primary" />
 					</button>
@@ -124,7 +132,7 @@ export function EntityHeader({ name, tabs, actions, stats, settingsLink, onInfoC
 							'h-7 w-7 flex shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
 							{ 'bg-muted text-foreground': isSettingsActive },
 						)}
-						aria-label="Settings"
+						aria-label={t('sidebar.buttons.settings')}
 					>
 						<Settings className="h-4 w-4" />
 					</Link>

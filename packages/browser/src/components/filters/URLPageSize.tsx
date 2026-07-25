@@ -1,4 +1,5 @@
 import { Input, Text } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 import { useCallback, useEffect, useState } from 'react'
 
 import { useURLPageParams } from './useFilterScene'
@@ -6,6 +7,7 @@ import { useURLPageParams } from './useFilterScene'
 export default function URLPageSize() {
 	const { pageSize, setPageSize } = useURLPageParams()
 	const [inputPageSize, setInputPageSize] = useState<number | undefined>(pageSize)
+	const { t } = useLocaleContext()
 
 	const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const parsed = parseInt(e.target.value)
@@ -35,6 +37,7 @@ export default function URLPageSize() {
 				value={inputPageSize ?? ''}
 				onChange={handleInputChange}
 				min={1}
+				aria-label={t('pagination.pageSize.label')}
 			/>
 			<Text size="sm" variant="muted" className="inline-flex shrink-0">
 				per page

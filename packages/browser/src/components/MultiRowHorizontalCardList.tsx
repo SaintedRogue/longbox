@@ -1,4 +1,5 @@
 import { Button, cn, Heading, Text, ToolTip } from '@longbox/components'
+import { useLocaleContext } from '@longbox/i18n'
 import { ChevronLeft, ChevronRight, CircleSlash2 } from 'lucide-react'
 import { forwardRef, ReactNode, useMemo } from 'react'
 import { ScrollerProps, Virtuoso } from 'react-virtuoso'
@@ -30,6 +31,7 @@ export default function MultiRowHorizontalCardList<T>({
 	const {
 		preferences: { enableHideScrollbar },
 	} = usePreferences()
+	const { t } = useLocaleContext()
 
 	const { scrollerRef, canSkipBackward, canSkipForward, handleSkipBackward, handleSkipAhead } =
 		useHorizontalScroll()
@@ -103,22 +105,32 @@ export default function MultiRowHorizontalCardList<T>({
 				<Heading size="sm">{title}</Heading>
 				<div className={cn('self-end', { hidden: !items.length })}>
 					<div className="gap-2 flex">
-						<ToolTip content="Seek backwards" isDisabled={!canSkipBackward} align="end">
+						<ToolTip
+							content={t('slidingList.buttons.previous')}
+							isDisabled={!canSkipBackward}
+							align="end"
+						>
 							<Button
 								variant="ghost"
 								size="icon"
 								disabled={!canSkipBackward}
 								onClick={handleSkipBackward}
+								aria-label={t('slidingList.buttons.previous')}
 							>
 								<ChevronLeft className="h-4 w-4" />
 							</Button>
 						</ToolTip>
-						<ToolTip content="Seek Ahead" isDisabled={!canSkipForward} align="end">
+						<ToolTip
+							content={t('slidingList.buttons.next')}
+							isDisabled={!canSkipForward}
+							align="end"
+						>
 							<Button
 								variant="ghost"
 								size="icon"
 								disabled={!canSkipForward}
 								onClick={handleSkipAhead}
+								aria-label={t('slidingList.buttons.next')}
 							>
 								<ChevronRight className="h-4 w-4" />
 							</Button>

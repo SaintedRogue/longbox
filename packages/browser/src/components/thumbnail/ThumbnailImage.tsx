@@ -3,7 +3,7 @@ import { cn } from '@longbox/components'
 import { AnimatePresence, motion } from 'framer-motion'
 import { forwardRef, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
-import { cacheOnView } from '@/offline/passiveCache'
+import { cacheOnViewOnce } from '@/offline/cacheOnViewOnce'
 import { useOfflineImageSrc } from '@/offline/resolveOfflineUrl'
 
 import { AuthImage } from '../entity/AuthImage'
@@ -44,9 +44,18 @@ export type ThumbnailImageProps = {
 	className?: string
 	imageClassName?: string
 	/**
-	 * Whether to lazy load the image, which should help with perf
+	 * Whether to lazy load the image, which should help with perf. Defaults to `true`: virtually
+	 * every usage is a cover inside a scrolling grid/carousel, the majority of which are offscreen
+	 * on first paint (a live home page measured 26 of 30 covers offscreen). Set `priority` instead
+	 * of `lazy={false}` for above-the-fold images so the intent is explicit.
 	 */
 	lazy?: boolean
+	/**
+	 * Opt out of lazy loading for a genuinely above-the-fold image (e.g. a detail page's hero
+	 * cover, which is usually the LCP element). Forces an eager load at high fetch priority, and
+	 * wins over `lazy`.
+	 */
+	priority?: boolean
 	onLoad?: () => void
 	onError?: () => void
 }
@@ -62,7 +71,8 @@ export const ThumbnailImage = forwardRef<HTMLDivElement, ThumbnailImageProps>(
 			borderAndShadowStyle,
 			className,
 			imageClassName,
-			lazy = false,
+			lazy = true,
+			priority = false,
 			onLoad,
 			onError,
 		},
@@ -151,9 +161,11 @@ export const ThumbnailImage = forwardRef<HTMLDivElement, ThumbnailImageProps>(
 
 		// Session-mode, network (cache-miss) branch only -- same "shadow fetch" side channel as
 		// EntityImage.tsx. The offline-hit branch and AuthImage (token-mode) are handled elsewhere.
+		// Once-per-session (see `cacheOnViewOnce`): the same cover is re-rendered across grids,
+		// carousels and peek sheets, and every repeat re-GET was pure waste.
 		const handleNetworkLoad = () => {
 			handleLoad()
-			void cacheOnView(src, sdk)
+			void cacheOnViewOnce(src, sdk)
 		}
 
 		const handleError = () => {
@@ -165,10 +177,18 @@ export const ThumbnailImage = forwardRef<HTMLDivElement, ThumbnailImageProps>(
 
 		const imageStyle = { borderRadius: computedStyles.borderRadius }
 
-		// Lazy loading attributes for improved scroll performance
-		const lazyProps = lazy
-			? { loading: 'lazy' as const, decoding: 'async' as const }
-			: { decoding: 'async' as const }
+		// `priority` always wins: an above-the-fold cover must not be deferred behind the browser's
+		// lazy-loading heuristics, and gets `fetchpriority="high"` so it isn't queued behind the
+		// (now lazy) covers further down the page.
+		const isLazy = lazy && !priority
+
+		// Lazy loading attributes for improved scroll performance. `decoding="async"` is applied on
+		// both paths -- it keeps the decode off the main thread regardless of when the fetch starts.
+		const lazyProps = {
+			decoding: 'async' as const,
+			loading: isLazy ? ('lazy' as const) : ('eager' as const),
+			...(priority ? { fetchPriority: 'high' as const } : {}),
+		}
 
 		const renderImage = () => {
 			if (offlineSrc) {
@@ -187,6 +207,11 @@ export const ThumbnailImage = forwardRef<HTMLDivElement, ThumbnailImageProps>(
 			}
 
 			if (sdk.isTokenAuth) {
+				// `loading="lazy"` is inert on AuthImage (it fetches over XHR, then renders an
+				// already-resolved object URL), so `lazy` is passed explicitly: it switches AuthImage
+				// to its IntersectionObserver-gated mode. Safe here specifically because a
+				// ThumbnailImage always renders into a sized box (`containerStyle` / the caller's
+				// aspect-ratio wrapper), so AuthImage's placeholder has real dimensions to observe.
 				return (
 					<AuthImage
 						ref={imageRef}
@@ -197,6 +222,7 @@ export const ThumbnailImage = forwardRef<HTMLDivElement, ThumbnailImageProps>(
 						style={imageStyle}
 						onLoad={handleLoad}
 						onError={handleError}
+						lazy={isLazy}
 						{...lazyProps}
 					/>
 				)

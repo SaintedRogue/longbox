@@ -10,7 +10,7 @@ import { useBookPreferences } from '@/scenes/book/reader/useBookPreferences'
 import { useBookTimer } from '@/stores/reader'
 
 import ReaderContainer from './container'
-import { ImageBaseReaderContext, ImageReaderBookRef } from './context'
+import { ImageBaseReaderContext, ImagePageDimensionRef, ImageReaderBookRef } from './context'
 import { ContinuousScrollReader } from './continuous'
 import { AnimatedPagedReader, PagedReader } from './paged'
 import { useImageSizes } from './useImageSizes'
@@ -140,14 +140,25 @@ export default function ImageBasedReader({ media, isIncognito, initialPage, onPr
 	)
 
 	/**
+	 * Stored in a `useCallback` rather than inlined into the `usePreloadPage` call below: it is one
+	 * of that hook's effect dependencies, so a fresh identity on every render would re-run the
+	 * preload effect on every render. The effect is guarded against re-fetching, but the churn is
+	 * pointless -- and `setPageSize` is itself stable, so there is nothing to recreate it for.
+	 */
+	const handleStoreDimensions = useCallback(
+		(page: number, dimensions: ImagePageDimensionRef) => {
+			setPageSize(page - 1, dimensions)
+		},
+		[setPageSize],
+	)
+
+	/**
 	 * Preload pages that are not currently visible. This is done to try and
 	 * prevent wait times for the next page to load.
 	 */
 	// TODO: Fix on desktop
 	usePreloadPage({
-		onStoreDimensions: (page, dimensions) => {
-			setPageSize(page - 1, dimensions)
-		},
+		onStoreDimensions: handleStoreDimensions,
 		pages: pagesToPreload,
 		sdk,
 		urlBuilder: getPageUrl,

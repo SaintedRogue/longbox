@@ -5,7 +5,7 @@ import { renderHook, waitFor } from '@testing-library/react'
 import * as blobStoreModule from '@/offline/blobStore'
 import * as passiveCacheModule from '@/offline/passiveCache'
 
-import { usePreloadPage } from '../usePreloadPage'
+import { _resetPreloadedUrlsForTests, usePreloadPage } from '../usePreloadPage'
 
 jest.mock('@longbox/client', () => ({
 	queryClient: { fetchQuery: jest.fn() },
@@ -47,6 +47,9 @@ function sdkWithGet(get: jest.Mock): Api {
 describe('usePreloadPage', () => {
 	beforeEach(() => {
 		jest.clearAllMocks()
+		// The "already preloaded" claim set is module-level (session-scoped by design), so it has to
+		// be cleared between cases or a later case reusing a URL would silently be skipped.
+		_resetPreloadedUrlsForTests()
 		mockedFetchQuery.mockImplementation(async (config: { queryFn: () => Promise<Blob> }) =>
 			config.queryFn(),
 		)
@@ -152,6 +155,76 @@ describe('usePreloadPage', () => {
 			expect(get).toHaveBeenCalledTimes(2)
 		})
 		expect(get).toHaveBeenNthCalledWith(2, '/page/2', { responseType: 'blob' })
+	})
+
+	it('de-dupes by URL, not page number: the same page number in a different book still preloads', async () => {
+		mockedMatchUrl.mockResolvedValue(undefined)
+		const get = jest.fn().mockResolvedValue({ data: fakeBlob('x') })
+		const sdk = sdkWithGet(get)
+
+		const { rerender } = renderHook(
+			({ bookId }: { bookId: string }) =>
+				usePreloadPage({ pages: [1], sdk, urlBuilder: (p) => `/book/${bookId}/page/${p}` }),
+			{ initialProps: { bookId: 'a' } },
+		)
+
+		await waitFor(() => {
+			expect(get).toHaveBeenCalledTimes(1)
+		})
+		expect(get).toHaveBeenNthCalledWith(1, '/book/a/page/1', { responseType: 'blob' })
+
+		// Page *number* 1 is already claimed, but book b's page 1 is a different URL -- the old
+		// number-keyed bookkeeping skipped it entirely.
+		rerender({ bookId: 'b' })
+
+		await waitFor(() => {
+			expect(get).toHaveBeenCalledTimes(2)
+		})
+		expect(get).toHaveBeenNthCalledWith(2, '/book/b/page/1', { responseType: 'blob' })
+	})
+
+	it('fetches a page at most once per session, even across a full unmount/remount', async () => {
+		mockedMatchUrl.mockResolvedValue(undefined)
+		const get = jest.fn().mockResolvedValue({ data: fakeBlob('x') })
+		const sdk = sdkWithGet(get)
+
+		const { unmount } = renderHook(() =>
+			usePreloadPage({ pages: [7], sdk, urlBuilder: (p) => `/page/${p}` }),
+		)
+		await waitFor(() => {
+			expect(get).toHaveBeenCalledTimes(1)
+		})
+		unmount()
+
+		renderHook(() => usePreloadPage({ pages: [7], sdk, urlBuilder: (p) => `/page/${p}` }))
+		// Give an accidental re-fetch a chance to happen before asserting it didn't.
+		await new Promise((resolve) => setTimeout(resolve, 0))
+
+		expect(get).toHaveBeenCalledTimes(1)
+	})
+
+	it('releases the claim on a failed page so it can be retried later in the session', async () => {
+		mockedMatchUrl.mockResolvedValue(undefined)
+		const get = jest
+			.fn()
+			.mockRejectedValueOnce(new Error('boom'))
+			.mockResolvedValue({ data: fakeBlob('x') })
+		const sdk = sdkWithGet(get)
+		const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+
+		const { unmount } = renderHook(() =>
+			usePreloadPage({ pages: [4], sdk, urlBuilder: (p) => `/page/${p}` }),
+		)
+		await waitFor(() => {
+			expect(consoleErrorSpy).toHaveBeenCalled()
+		})
+		unmount()
+
+		renderHook(() => usePreloadPage({ pages: [4], sdk, urlBuilder: (p) => `/page/${p}` }))
+
+		await waitFor(() => {
+			expect(get).toHaveBeenCalledTimes(2)
+		})
 	})
 
 	it('a rejected page fetch is caught by Promise.allSettled and logged, not thrown into the caller', async () => {
