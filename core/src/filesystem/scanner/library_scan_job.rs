@@ -538,6 +538,7 @@ impl JobLifecycle for LibraryScanJob {
 						.collect::<Vec<String>>();
 
 					let mut total_affected = 0u64;
+					let mut total_media_affected = 0u64;
 					for chunk in missing_series_str.chunks(SQLITE_BIND_LIMIT) {
 						let chunk_affected_rows = series::Entity::update_many()
 							.col_expr(
@@ -559,8 +560,46 @@ impl JobLifecycle for LibraryScanJob {
 								|result| result.rows_affected,
 							);
 						total_affected += chunk_affected_rows;
+
+						// The books inside a missing series are missing too, and flagging only the
+						// series leaves them at READY. `clean_library` then deletes the series --
+						// which no longer matches Ready -- while leaving its books behind, pointing
+						// at a series row that no longer exists. `handle_missing_series` (the series
+						// scan job's path) has always flagged both; this bulk path only ever did
+						// half the job.
+						let chunk_media_affected = media::Entity::update_many()
+							.col_expr(
+								media::Column::Status,
+								Expr::value(FileStatus::Missing.to_string()),
+							)
+							.filter(
+								media::Column::SeriesId.in_subquery(
+									Query::select()
+										.column(series::Column::Id)
+										.from(series::Entity)
+										.and_where(
+											series::Column::Path.is_in(chunk.to_vec()),
+										)
+										.to_owned(),
+								),
+							)
+							.exec(ctx.conn())
+							.await
+							.map_or_else(
+								|error| {
+									tracing::error!(error = ?error, "Failed to update media of missing series");
+									logs.push(JobExecuteLog::error(format!(
+										"Failed to update media of missing series: {:?}",
+										error.to_string()
+									)));
+									0
+								},
+								|result| result.rows_affected,
+							);
+						total_media_affected += chunk_media_affected;
 					}
 					output.updated_series = total_affected;
+					output.updated_media += total_media_affected;
 
 					ctx.report_progress(JobProgress::subtask_position(
 						if total_affected > 0 {
