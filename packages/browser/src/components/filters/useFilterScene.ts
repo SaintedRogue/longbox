@@ -8,7 +8,7 @@ import {
 	SeriesOrderBy,
 } from '@longbox/graphql'
 import { toObjectParams, toUrlParams } from '@longbox/sdk'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useMediaMatch } from 'rooks'
 
@@ -23,6 +23,18 @@ export const DEFAULT_SERIES_ORDER_BY: SeriesOrderBy[] = [
 export const DEFAULT_MEDIA_ORDER_BY: MediaOrderBy[] = [
 	{ media: { field: MediaModelOrdering.Name, direction: OrderDirection.Asc } },
 ] as MediaOrderBy[]
+
+/**
+ * Browse state (page, page size, ordering, filters, search) is written to the URL by
+ * *replacing* the current history entry rather than pushing a new one.
+ *
+ * Pushing looks harmless per-write but compounds: paging 1 -> 5 stacked five entries and
+ * typing a search stacked one per keystroke, so backing out of a list took a half-dozen
+ * presses. Replacing keeps every one of these states deep-linkable and shareable while
+ * leaving exactly one history entry for the list, so back means "leave this list" -- and
+ * lands on the page the user was actually on, since that is what the entry now holds.
+ */
+const REPLACE_ENTRY = { replace: true } as const
 
 export const useURLPageParams = () => {
 	const [searchParams, setSearchParams] = useSearchParams()
@@ -45,7 +57,7 @@ export const useURLPageParams = () => {
 			setSearchParams((prev) => {
 				prev.set('page', page.toString())
 				return prev
-			})
+			}, REPLACE_ENTRY)
 		},
 		[setSearchParams],
 	)
@@ -55,7 +67,7 @@ export const useURLPageParams = () => {
 			setSearchParams((prev) => {
 				prev.set('pageSize', pageSize.toString())
 				return prev
-			})
+			}, REPLACE_ENTRY)
 		},
 		[setSearchParams],
 	)
@@ -80,7 +92,7 @@ export const useURLKeywordSearch = () => {
 					prev.delete('search')
 				}
 				return prev
-			})
+			}, REPLACE_ENTRY)
 		},
 		[setSearchParams],
 	)
@@ -89,7 +101,7 @@ export const useURLKeywordSearch = () => {
 		setSearchParams((prev) => {
 			prev.delete('search')
 			return prev
-		})
+		}, REPLACE_ENTRY)
 	}, [setSearchParams])
 
 	return { search, setSearch, removeSearch }
@@ -139,7 +151,11 @@ export function useSearchSeriesFilter(search: string | undefined): SeriesFilterI
 
 export function useFilterScene(): Return {
 	const [searchParams, setSearchParams] = useSearchParams()
-	const [search, setSearch] = useState<string | undefined>(undefined)
+	// Derived from the URL rather than held alongside it. This was local state seeded to
+	// `undefined`, so arriving at a list that already had `?search=...` -- a shared link, or a
+	// back-navigation into a search you had run -- rendered an empty search box over filtered
+	// results. The URL is the single source of truth; `useURLKeywordSearch` is the one reader.
+	const { search } = useURLKeywordSearch()
 
 	const is3XLScreenOrBigger = useMediaMatch('(min-width: 1600px)')
 	const defaultPageSize = is3XLScreenOrBigger ? 40 : 20
@@ -190,6 +206,7 @@ export function useFilterScene(): Return {
 					undefined,
 					{ removeEmpty: true },
 				),
+				REPLACE_ENTRY,
 			)
 		},
 		[setSearchParams, pagination, filters],
@@ -200,7 +217,7 @@ export function useFilterScene(): Return {
 			setSearchParams((prev) => {
 				prev.set('page', page.toString())
 				return prev
-			})
+			}, REPLACE_ENTRY)
 		},
 		[setSearchParams],
 	)
@@ -220,6 +237,7 @@ export function useFilterScene(): Return {
 					undefined,
 					{ removeEmpty: true },
 				),
+				REPLACE_ENTRY,
 			)
 		},
 		[ordering, pagination, setSearchParams],
@@ -233,9 +251,8 @@ export function useFilterScene(): Return {
 			setSearchParams((prev) => {
 				const params = toObjectParams<Record<string, unknown>>(prev)
 				params['search'] = value
-				setSearch(value)
 				return toUrlParams(params)
-			})
+			}, REPLACE_ENTRY)
 		},
 		[setSearchParams],
 	)
@@ -247,7 +264,7 @@ export function useFilterScene(): Return {
 		setSearchParams((prev) => {
 			prev.delete('search')
 			return prev
-		})
+		}, REPLACE_ENTRY)
 	}, [setSearchParams])
 
 	return {

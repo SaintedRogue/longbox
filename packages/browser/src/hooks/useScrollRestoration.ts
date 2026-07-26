@@ -95,9 +95,27 @@ export function useScrollRestoration(navigationType: NavigationType) {
 		}
 
 		let frames = 0
-		const MAX_FRAMES = 60 // ~1s @ 60fps, then give up
+		const MAX_FRAMES = 180 // ~3s @ 60fps, then give up
 		let raf = 0
+		let aborted = false
+
+		// Yield to the user. Without this the loop competes with them: they land on a list that
+		// has not finished growing, start scrolling, and get snapped back to the saved offset a
+		// second later. Any deliberate input means they have taken over and no longer want to be
+		// moved. The flag (not just cancelAnimationFrame) is what stops an already-queued frame.
+		const abort = () => {
+			aborted = true
+			cancelAnimationFrame(raf)
+		}
+		const ABORT_EVENTS = ['wheel', 'touchstart', 'keydown'] as const
+		ABORT_EVENTS.forEach((event) =>
+			window.addEventListener(event, abort, { passive: true, once: true }),
+		)
+
 		const apply = () => {
+			if (aborted) {
+				return
+			}
 			const el = getAppScroller()
 			if (!el) {
 				return
@@ -111,7 +129,10 @@ export function useScrollRestoration(navigationType: NavigationType) {
 		}
 		apply()
 
-		return () => cancelAnimationFrame(raf)
+		return () => {
+			cancelAnimationFrame(raf)
+			ABORT_EVENTS.forEach((event) => window.removeEventListener(event, abort))
+		}
 		// navigationType is a primitive string that only changes alongside a new entry (`key`), so
 		// listing it costs no redundant re-runs while keeping the deps exhaustive -- which lets
 		// react-compiler optimize this effect instead of bailing on a disabled lint rule.

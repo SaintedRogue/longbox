@@ -34,7 +34,11 @@ export default function EpubReaderScene() {
 	}, [client, sdk.cacheKeys])
 
 	if (lazyReader) {
-		return <EpubJsReader id={id} isIncognito={isIncognito} />
+		// Keyed by book id for the same reason as BookReaderScene: every ebook matches this one
+		// route, so without a key React reuses a single reader instance across an ebook-to-ebook
+		// navigation and its mount-only refs (the elapsed-time baseline, the progress sequence
+		// number) carry into -- and mis-attribute time to -- the next book.
+		return <EpubJsReader key={id} id={id} isIncognito={isIncognito} />
 	} else {
 		search.set('stream', 'true')
 		setSearch(search)

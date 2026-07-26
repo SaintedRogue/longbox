@@ -80,7 +80,15 @@ export default function BookReaderSceneContainer() {
 
 	return (
 		<Suspense>
-			<BookReaderScene book={media} />
+			{/*
+			 * Keyed by book id so a book-to-book navigation mounts a *fresh* scene. Every book
+			 * matches the same `/books/:id/reader` route, so without this React reconciles one
+			 * long-lived instance and its mount-only state carries over: the reader would open
+			 * book B on the page you left book A on. The scene (not just the reader) is keyed
+			 * because its progress refs -- the elapsed-time baseline and the mutation sequence
+			 * number -- leak across books the same way.
+			 */}
+			<BookReaderScene key={media.id} book={media} />
 		</Suspense>
 	)
 }
