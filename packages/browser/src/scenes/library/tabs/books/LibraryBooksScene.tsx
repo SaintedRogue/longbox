@@ -1,5 +1,5 @@
 import { PREFETCH_STALE_TIME, useGraphQL, useSDK } from '@longbox/client'
-import { usePrevious, usePreviousIsDifferent } from '@longbox/components'
+import { usePrevious } from '@longbox/components'
 import { graphql, InterfaceLayout, MediaFilterInput, MediaOrderBy } from '@longbox/graphql'
 import { useQueryClient } from '@tanstack/react-query'
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
@@ -164,7 +164,14 @@ function LibraryBooksScene() {
 	const { search } = useURLKeywordSearch()
 	const searchFilter = useSearchMediaFilter(search)
 
-	const differentSearch = usePreviousIsDifferent(search)
+	// Guarded on there being a previous value, matching LibrarySeriesScene and SeriesBooksScene.
+	// `usePreviousIsDifferent` is `value != null && value !== previous`, and `useURLKeywordSearch`
+	// reports "no search" as an empty string -- which is not nullish. So on first render ('' against
+	// an undefined previous) this read as a search change and reset the page, meaning any arrival
+	// at ?page=5 -- a deep link, a shared URL, or a back-navigation -- snapped to page 1 before
+	// anything rendered. Only a real page change should reset the page.
+	const previousSearch = usePrevious(search)
+	const differentSearch = previousSearch != null && search !== previousSearch
 	useEffect(() => {
 		if (differentSearch) {
 			setPage(1)

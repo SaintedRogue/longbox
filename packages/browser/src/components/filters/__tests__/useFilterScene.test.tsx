@@ -22,6 +22,7 @@ function Harness() {
 		<div>
 			<span data-testid="page">{String(pagination.page)}</span>
 			<span data-testid="search">{search ?? ''}</span>
+			<span data-testid="search-is-undefined">{String(search === undefined)}</span>
 			<span data-testid="nav-type">{navigationType}</span>
 			<span data-testid="query">{location.search}</span>
 			<button onClick={() => setPage(5)}>set page</button>
@@ -86,6 +87,17 @@ describe('useFilterScene', () => {
 			renderAt('/libraries/1/books?page=2')
 
 			expect(screen.getByTestId('search')).toBeEmptyDOMElement()
+		})
+
+		it('reports "no search" as undefined, not as an empty string', () => {
+			// Not cosmetic. Browse scenes reset to page 1 when the search changes, via
+			// `usePreviousIsDifferent`, which is `value != null && value !== previous`. An empty
+			// string is not nullish, so on first render ('' vs undefined) it reads as a change and
+			// the scene resets the page -- meaning any deep link carrying ?page=5 would snap back
+			// to page 1. `undefined` is what makes the first render a non-event.
+			renderAt('/libraries/1/books?page=5')
+
+			expect(screen.getByTestId('search-is-undefined')).toHaveTextContent('true')
 		})
 	})
 })

@@ -155,7 +155,14 @@ export function useFilterScene(): Return {
 	// `undefined`, so arriving at a list that already had `?search=...` -- a shared link, or a
 	// back-navigation into a search you had run -- rendered an empty search box over filtered
 	// results. The URL is the single source of truth; `useURLKeywordSearch` is the one reader.
-	const { search } = useURLKeywordSearch()
+	//
+	// Normalised back to `undefined` when absent, which is load-bearing rather than tidiness.
+	// Browse scenes reset to page 1 when the search changes, via `usePreviousIsDifferent` --
+	// `value != null && value !== previous`. An empty string is not nullish, so on first render
+	// ('' against undefined) it reads as a change and the scene resets the page, which would
+	// make every deep link carrying ?page=5 snap back to page 1.
+	const { search: urlSearch } = useURLKeywordSearch()
+	const search = urlSearch || undefined
 
 	const is3XLScreenOrBigger = useMediaMatch('(min-width: 1600px)')
 	const defaultPageSize = is3XLScreenOrBigger ? 40 : 20
