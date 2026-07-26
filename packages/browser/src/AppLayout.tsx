@@ -29,7 +29,6 @@ import { AppContext, PermissionEnforcerOptions } from './context'
 import { useIsMobile, useScrollRestoration, useTheme } from './hooks'
 import { useCoreEvent } from './hooks/useCoreEvent'
 import { useOfflineDownloads } from './offline/useDownloads'
-import { usePassiveCacheMaintenance } from './offline/usePassiveCache'
 import { useProgressOutbox } from './offline/useProgressOutbox'
 import { OfflineAppShell } from './OfflineAppShell'
 import { useAppStore, useUserStore } from './stores'
@@ -151,10 +150,6 @@ export function AppLayout({ overlayLocation, navigationType }: AppLayoutProps) {
 	// Register the SDK-backed download fetcher (so enqueue() can actually fetch bytes) and
 	// hydrate the durable-records projection from IndexedDB (so past downloads appear on load).
 	useOfflineDownloads()
-
-	// Passive read-through cache maintenance: prune/sweep stale entries and proactively request
-	// persistent storage, since passive writes now happen continuously from normal reading.
-	usePassiveCacheMaintenance()
 
 	/**
 	 * If the user prefers the top bar, we hide the sidebar

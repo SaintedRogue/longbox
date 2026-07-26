@@ -5,6 +5,7 @@ mod common;
 mod content_type;
 mod directory_listing;
 pub(crate) mod error;
+mod existence;
 mod hash;
 pub mod image;
 pub mod media;
@@ -20,3 +21,4 @@ pub use directory_listing::{
 	DirectoryListingInput,
 };
 pub use error::FileError;
+pub use existence::*;

@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 
 import { ImagePageDimensionRef } from '@/components/readers/imageBased/context'
 import { matchUrl } from '@/offline/blobStore'
-import { cacheAlreadyFetched, touchAccess } from '@/offline/passiveCache'
 
 type Params = {
 	/**
@@ -20,24 +19,22 @@ type Params = {
 	 */
 	onStoreDimensions?: (page: number, dimensions: ImagePageDimensionRef) => void
 	/**
-	 * The authenticated SDK -- used to fetch page bytes (so a Bearer/api-key auth request carries
-	 * its credentials, unlike a bare `<img src>`/`new Image()` load) and to feed the passive cache.
+	 * The authenticated SDK -- used to fetch page bytes, so a Bearer/api-key auth request carries
+	 * its credentials, unlike a bare `<img src>`/`new Image()` load.
 	 */
 	sdk: Api
 }
 
-/** Fetches the bytes for `url`, preferring the offline blob store, then the passive/offline cache,
- *  falling back to a network fetch that's also fed back into the passive cache. Routed through the
- *  same React-Query key AuthImage uses so a concurrent AuthImage fetch and a preload fetch for the
- *  same URL coalesce into a single in-flight request instead of double-fetching. */
+/** Fetches the bytes for `url`, preferring the offline blob store (so a downloaded book preloads
+ *  from disk, and still works with the network cut) and otherwise going to the network. The network
+ *  fetch is routed through the same React-Query key AuthImage uses so a concurrent AuthImage fetch
+ *  and a preload fetch for the same URL coalesce into a single in-flight request instead of
+ *  double-fetching; repeat loads beyond that are the browser HTTP cache's job. */
 async function fetchPageBlob(url: string, sdk: Api): Promise<Blob> {
 	const cached = await matchUrl(url)
-	if (cached) {
-		await touchAccess(url)
-		return cached.blob()
-	}
+	if (cached) return cached.blob()
 
-	const blob = await queryClient.fetchQuery({
+	return queryClient.fetchQuery({
 		queryKey: ['AuthImage.fetchImage', url],
 		staleTime: 1000 * 60 * 60 * 24 * 5, // 5 days
 		queryFn: async () => {
@@ -45,8 +42,6 @@ async function fetchPageBlob(url: string, sdk: Api): Promise<Blob> {
 			return response.data as Blob
 		},
 	})
-	await cacheAlreadyFetched(url, blob)
-	return blob
 }
 
 /**
@@ -64,9 +59,9 @@ async function fetchPageBlob(url: string, sdk: Api): Promise<Blob> {
  *  2. It was per-instance, so anything that remounted the reader (or a second reader mounting for a
  *     "next in series" jump) started from an empty map and re-fetched + re-decoded everything.
  *
- * Keying by URL fixes (1); module scope -- deliberately, and matching `passiveCache`'s own
- * session-scoped singletons -- fixes (2), giving the "at most one fetch per page per session"
- * guarantee. A page that fails is un-claimed below so it can be retried.
+ * Keying by URL fixes (1); module scope -- deliberately session-scoped, so it survives remounts --
+ * fixes (2), giving the "at most one fetch per page per session" guarantee. A page that fails is
+ * un-claimed below so it can be retried.
  */
 const preloadedUrls = new Set<string>()
 

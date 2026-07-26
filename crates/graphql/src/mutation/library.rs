@@ -1,12 +1,16 @@
+use std::collections::HashSet;
+
 use async_graphql::{Context, Json, Object, Result, SimpleObject, ID};
 use chrono::Utc;
 use itertools::chain;
 use longbox_core::filesystem::{
+	find_missing_paths,
 	image::{
 		generate_book_thumbnail, remove_thumbnails, GenerateThumbnailOptions,
 		ImageProcessorOptionsExt, PlaceholderGenerationJobConfig,
 		PlaceholderGenerationJobScope, ThumbnailGenerationJobParams,
 	},
+	is_storage_root_available,
 	media::analysis::{AnalysisJobConfig, MediaAnalysisJobScope},
 	metadata::{MetadataFetchJobParams, MetadataFetchScope},
 	scanner::ScanOptions,
@@ -44,7 +48,104 @@ use crate::{
 struct CleanLibraryResponse {
 	deleted_media_count: usize,
 	deleted_series_count: usize,
+	/// How many of the deleted records were stale entries: still flagged as `READY`, but with
+	/// no file left on disk. These are the records a scan can never fix, because a file that
+	/// was removed outside of Longbox is never revisited.
+	missing_file_count: usize,
+	/// Whether the on-disk sweep was skipped because the library's root could not be read (an
+	/// unmounted share, a detached drive, or an empty root). When true, no record was removed
+	/// on the grounds of a missing file, and the library should be cleaned again once its
+	/// storage is back.
+	storage_unavailable: bool,
 	is_empty: bool,
+}
+
+/// Records in a library whose file the filesystem says is gone, despite them being flagged
+/// `READY` in the database.
+#[derive(Default)]
+struct MissingFromDisk {
+	media_ids: Vec<String>,
+	series_ids: Vec<String>,
+	storage_unavailable: bool,
+}
+
+/// Find the `READY` media and series in a library whose paths no longer resolve on disk.
+///
+/// This is the destructive half of a library clean, so it leads with a guard: if the library's
+/// own root cannot be read, every book underneath it would stat as missing, and pruning on that
+/// basis would erase the whole library over an unplugged drive. In that case the sweep is
+/// skipped entirely and reported back to the caller. Individual paths the filesystem cannot
+/// answer for are likewise left alone.
+async fn find_missing_from_disk(
+	conn: &DatabaseConnection,
+	library_id: &str,
+	library_path: &str,
+	concurrency: usize,
+) -> Result<MissingFromDisk> {
+	if !is_storage_root_available(library_path).await {
+		tracing::warn!(
+			library_id,
+			library_path,
+			"Library root is unavailable; skipping the missing-file sweep rather than \
+			 treating every book as deleted"
+		);
+		return Ok(MissingFromDisk {
+			storage_unavailable: true,
+			..Default::default()
+		});
+	}
+
+	let ready = FileStatus::Ready.to_string();
+
+	let media_rows: Vec<(String, String)> = media::Entity::find()
+		.select_only()
+		.column(media::Column::Id)
+		.column(media::Column::Path)
+		.filter(
+			media::Column::Status.eq(ready.clone()).and(
+				media::Column::SeriesId.in_subquery(
+					Query::select()
+						.column(series::Column::Id)
+						.from(series::Entity)
+						.and_where(series::Column::LibraryId.eq(library_id))
+						.to_owned(),
+				),
+			),
+		)
+		.into_tuple()
+		.all(conn)
+		.await?;
+
+	let series_rows: Vec<(String, String)> = series::Entity::find()
+		.select_only()
+		.column(series::Column::Id)
+		.column(series::Column::Path)
+		.filter(
+			series::Column::Status
+				.eq(ready)
+				.and(series::Column::LibraryId.eq(library_id)),
+		)
+		.into_tuple()
+		.all(conn)
+		.await?;
+
+	let media = find_missing_paths(media_rows, concurrency).await;
+	let series = find_missing_paths(series_rows, concurrency).await;
+
+	if media.indeterminate_count > 0 || series.indeterminate_count > 0 {
+		tracing::warn!(
+			library_id,
+			media_skipped = media.indeterminate_count,
+			series_skipped = series.indeterminate_count,
+			"Some paths could not be checked and were left in place"
+		);
+	}
+
+	Ok(MissingFromDisk {
+		media_ids: media.missing_ids,
+		series_ids: series.missing_ids,
+		storage_unavailable: false,
+	})
 }
 
 #[derive(Default)]
@@ -83,9 +184,16 @@ impl LibraryMutation {
 	///
 	/// - A series that is missing from disk (status is not `Ready`)
 	/// - A media that is missing from disk (status is not `Ready`)
+	/// - A series or media still flagged `Ready` whose path no longer exists on disk. These
+	///   are files that were removed outside of Longbox, which a scan never revisits, so
+	///   without this they would remain in the library forever
 	/// - A series that is not associated with any media (i.e., no media in the series)
 	///
 	/// This operation will also remove any associated thumbnails of the deleted media and series.
+	///
+	/// No file is ever deleted by this operation. If the library's storage is not currently
+	/// attached, the on-disk portion of the sweep is skipped rather than mistaking an
+	/// unmounted share for a library the user emptied.
 	#[graphql(guard = "PermissionGuard::one(UserPermission::ManageLibrary)")]
 	async fn clean_library(
 		&self,
@@ -95,8 +203,9 @@ impl LibraryMutation {
 		let AuthContext { user, .. } = ctx.data::<AuthContext>()?;
 		let core = ctx.data::<CoreContext>()?;
 
-		// This is primarily for access control assertion
-		let _library = library::Entity::find_for_user(user)
+		// This is primarily for access control assertion, but the path is needed to verify
+		// the library's storage is actually attached before anything is pruned
+		let library = library::Entity::find_for_user(user)
 			.filter(library::Column::Id.eq(id.to_string()))
 			.into_model::<library::LibraryIdentSelect>()
 			.one(core.conn.as_ref())
@@ -105,19 +214,43 @@ impl LibraryMutation {
 
 		let thumbnails_dir = core.config.get_thumbnails_dir();
 
+		// A stat per record is acceptable here because this is an explicit, user-initiated
+		// action, but it is bounded so a large library cannot exhaust file descriptors
+		let missing = find_missing_from_disk(
+			core.conn.as_ref(),
+			&library.id,
+			&library.path,
+			core.config.cpu_concurrency_limit(),
+		)
+		.await?;
+		let missing_media_ids = missing.media_ids.iter().cloned().collect::<HashSet<_>>();
+		let missing_series_ids =
+			missing.series_ids.iter().cloned().collect::<HashSet<_>>();
+
 		let txn = core.conn.as_ref().begin().await?;
+
+		let mut media_condition =
+			Condition::any().add(media::Column::Status.ne(FileStatus::Ready.to_string()));
+		if !missing.media_ids.is_empty() {
+			media_condition =
+				media_condition.add(media::Column::Id.is_in(missing.media_ids.clone()));
+		}
 
 		let deleted_media_ids = media::Entity::delete_many()
 			.filter(
-				media::Column::Status.ne(FileStatus::Ready.to_string()).and(
-					media::Column::SeriesId.in_subquery(
-						Query::select()
-							.column(series::Column::Id)
-							.from(series::Entity)
-							.and_where(series::Column::LibraryId.eq(id.to_string()))
-							.to_owned(),
+				Condition::all()
+					.add(media_condition)
+					// Scoping to this library must stay a hard `AND` — the conditions above
+					// are an `OR` chain and would otherwise reach other libraries
+					.add(
+						media::Column::SeriesId.in_subquery(
+							Query::select()
+								.column(series::Column::Id)
+								.from(series::Entity)
+								.and_where(series::Column::LibraryId.eq(id.to_string()))
+								.to_owned(),
+						),
 					),
-				),
 			)
 			.exec_with_returning(&txn)
 			.await?
@@ -126,22 +259,26 @@ impl LibraryMutation {
 			.collect::<Vec<_>>();
 		tracing::trace!(?deleted_media_ids, "Deleted media ids");
 
+		let mut series_condition = Condition::any()
+			.add(series::Column::Status.ne(FileStatus::Ready.to_string()))
+			// TODO: Double check that this query is correct
+			.add(
+				series::Column::Id.not_in_subquery(
+					Query::select()
+						.column(media::Column::SeriesId)
+						.distinct()
+						.from(media::Entity)
+						.to_owned(),
+				),
+			);
+		if !missing.series_ids.is_empty() {
+			series_condition = series_condition
+				.add(series::Column::Id.is_in(missing.series_ids.clone()));
+		}
+
 		let deleted_series_ids = series::Entity::delete_many()
 			.filter(series::Column::LibraryId.eq(id.to_string()))
-			.filter(
-				Condition::any()
-					.add(series::Column::Status.ne(FileStatus::Ready.to_string()))
-					// TODO: Double check that this query is correct
-					.add(
-						series::Column::Id.not_in_subquery(
-							Query::select()
-								.column(media::Column::SeriesId)
-								.distinct()
-								.from(media::Entity)
-								.to_owned(),
-						),
-					),
-			)
+			.filter(series_condition)
 			.exec_with_returning(&txn)
 			.await?
 			.into_iter()
@@ -172,9 +309,21 @@ impl LibraryMutation {
 			}
 		}
 
+		// Counted against what was actually deleted, so a record the sweep flagged but that
+		// some other rule would have removed anyway is not reported twice
+		let missing_file_count = deleted_media_ids
+			.iter()
+			.filter(|id| missing_media_ids.contains(*id))
+			.count() + deleted_series_ids
+			.iter()
+			.filter(|id| missing_series_ids.contains(*id))
+			.count();
+
 		Ok(CleanLibraryResponse {
 			deleted_media_count: deleted_media_ids.len(),
 			deleted_series_count: deleted_series_ids.len(),
+			missing_file_count,
+			storage_unavailable: missing.storage_unavailable,
 			is_empty: is_library_empty,
 		})
 	}
@@ -1137,4 +1286,39 @@ async fn enforce_valid_library_path(
 	}
 
 	Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+	use sea_orm::{DatabaseBackend, MockDatabase};
+
+	use super::*;
+
+	/// The most destructive failure mode this feature can have: a library whose storage has
+	/// detached looks exactly like a library whose files were all deleted. The sweep has to
+	/// bail out *before* it asks the database for anything to prune, which is what the
+	/// result-less mock connection asserts here — any query at all would error out.
+	#[tokio::test]
+	async fn missing_file_sweep_aborts_when_the_library_root_is_unavailable() {
+		let conn = MockDatabase::new(DatabaseBackend::Sqlite).into_connection();
+		let tempdir = tempfile::tempdir().expect("failed to create tempdir");
+
+		// An empty directory is what an unmounted share or a detached drive leaves behind:
+		// the mount point survives, everything under it does not
+		let detached = tempdir.path().to_string_lossy().to_string();
+		let result = find_missing_from_disk(&conn, "library-id", &detached, 4)
+			.await
+			.expect("the sweep should skip, not fail");
+
+		assert!(result.storage_unavailable);
+		assert!(result.media_ids.is_empty());
+		assert!(result.series_ids.is_empty());
+
+		// And a root that is gone outright is treated the same way
+		let gone = tempdir.path().join("gone").to_string_lossy().to_string();
+		let result = find_missing_from_disk(&conn, "library-id", &gone, 4)
+			.await
+			.expect("the sweep should skip, not fail");
+		assert!(result.storage_unavailable);
+	}
 }

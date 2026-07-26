@@ -18,6 +18,7 @@ type Documents = {
     "\n\tquery TagSelectQuery {\n\t\ttags {\n\t\t\tid\n\t\t\tname\n\t\t}\n\t}\n": typeof types.TagSelectQueryDocument,
     "\n\tfragment BookCard on Media {\n\t\tid\n\t\tresolvedName\n\t\textension\n\t\tpages\n\t\tsize\n\t\tstatus\n\t\tthumbnail {\n\t\t\turl\n\t\t\tmetadata {\n\t\t\t\taverageColor\n\t\t\t\tcolors {\n\t\t\t\t\tcolor\n\t\t\t\t\tpercentage\n\t\t\t\t}\n\t\t\t\tthumbhash\n\t\t\t}\n\t\t\theight\n\t\t\twidth\n\t\t}\n\t\treadProgress {\n\t\t\tpercentageCompleted\n\t\t\tepubcfi\n\t\t\tpage\n\t\t\tupdatedAt\n\t\t}\n\t\treadHistory {\n\t\t\t__typename\n\t\t\tcompletedAt\n\t\t}\n\t\tcreatedAt\n\t\tlibraryConfig {\n\t\t\tskipBookOverview\n\t\t}\n\t}\n": typeof types.BookCardFragmentDoc,
     "\n\tquery BookSearchOverlay($pagination: Pagination, $filter: MediaFilterInput!) {\n\t\tmedia(pagination: $pagination, filter: $filter) {\n\t\t\tnodes {\n\t\t\t\tid\n\t\t\t\t...BookCard\n\t\t\t}\n\t\t\tpageInfo {\n\t\t\t\t__typename\n\t\t\t\t... on CursorPaginationInfo {\n\t\t\t\t\tcurrentCursor\n\t\t\t\t\tnextCursor\n\t\t\t\t\tlimit\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t}\n": typeof types.BookSearchOverlayDocument,
+    "\n\tmutation DeleteBookPermanently($id: ID!, $deleteFile: Boolean!) {\n\t\tdeleteMediaPermanently(id: $id, deleteFile: $deleteFile) {\n\t\t\tid\n\t\t}\n\t}\n": typeof types.DeleteBookPermanentlyDocument,
     "\n\tfragment SimpleBookCard on Media {\n\t\tid\n\t\tresolvedName\n\t\tcreatedAt\n\t\tthumbnail {\n\t\t\turl\n\t\t\tmetadata {\n\t\t\t\taverageColor\n\t\t\t\tcolors {\n\t\t\t\t\tcolor\n\t\t\t\t\tpercentage\n\t\t\t\t}\n\t\t\t\tthumbhash\n\t\t\t}\n\t\t}\n\t}\n": typeof types.SimpleBookCardFragmentDoc,
     "\n\tfragment MediaMetadataEditor on MediaMetadata {\n\t\tageRating\n\t\tcharacters\n\t\tcolorists\n\t\tcoverArtists\n\t\tday\n\t\teditors\n\t\tformat\n\t\tidentifierAmazon\n\t\tidentifierCalibre\n\t\tidentifierGoogle\n\t\tidentifierIsbn\n\t\tidentifierMobiAsin\n\t\tidentifierUuid\n\t\tgenres\n\t\tinkers\n\t\tlanguage\n\t\tletterers\n\t\tlinks\n\t\tmonth\n\t\tnotes\n\t\tnumber\n\t\tpageCount\n\t\tpencillers\n\t\tpublisher\n\t\tseries\n\t\tseriesGroup\n\t\tstoryArc\n\t\tstoryArcNumber\n\t\tsummary\n\t\tteams\n\t\ttitle\n\t\ttitleSort\n\t\tvolume\n\t\twriters\n\t\tyear\n\t\tlockedFields\n\t}\n": typeof types.MediaMetadataEditorFragmentDoc,
     "\n\tmutation UpdateMediaMetadata($id: ID!, $input: MediaMetadataInput!) {\n\t\tupdateMediaMetadata(id: $id, input: $input) {\n\t\t\tmetadata {\n\t\t\t\t...MediaMetadataEditor\n\t\t\t}\n\t\t}\n\t}\n": typeof types.UpdateMediaMetadataDocument,
@@ -126,7 +127,7 @@ type Documents = {
     "\n\tquery LibraryExclusionsUsersQuery {\n\t\tusers(pagination: { none: { unpaginated: true } }) {\n\t\t\tnodes {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t}\n\t\t}\n\t}\n": typeof types.LibraryExclusionsUsersQueryDocument,
     "\n\tquery LibraryExclusionsQuery($id: ID!) {\n\t\tlibraryById(id: $id) {\n\t\t\texcludedUsers {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t}\n\t\t}\n\t}\n": typeof types.LibraryExclusionsQueryDocument,
     "\n\tmutation UpdateLibraryExclusions($id: ID!, $userIds: [String!]!) {\n\t\tupdateLibraryExcludedUsers(id: $id, userIds: $userIds) {\n\t\t\tid\n\t\t\texcludedUsers {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t}\n\t\t}\n\t}\n": typeof types.UpdateLibraryExclusionsDocument,
-    "\n\tmutation CleanLibrary($id: ID!) {\n\t\tcleanLibrary(id: $id) {\n\t\t\tdeletedMediaCount\n\t\t\tdeletedSeriesCount\n\t\t\tisEmpty\n\t\t}\n\t}\n": typeof types.CleanLibraryDocument,
+    "\n\tmutation CleanLibrary($id: ID!) {\n\t\tcleanLibrary(id: $id) {\n\t\t\tdeletedMediaCount\n\t\t\tdeletedSeriesCount\n\t\t\tmissingFileCount\n\t\t\tstorageUnavailable\n\t\t\tisEmpty\n\t\t}\n\t}\n": typeof types.CleanLibraryDocument,
     "\n\tquery LibraryMissingEntities($libraryId: ID!, $pagination: Pagination!) {\n\t\tlibraryMissingEntities(libraryId: $libraryId, pagination: $pagination) {\n\t\t\tnodes {\n\t\t\t\tid\n\t\t\t\tpath\n\t\t\t\ttype\n\t\t\t}\n\t\t\tpageInfo {\n\t\t\t\t__typename\n\t\t\t\t... on OffsetPaginationInfo {\n\t\t\t\t\ttotalPages\n\t\t\t\t\tcurrentPage\n\t\t\t\t\tpageSize\n\t\t\t\t\tpageOffset\n\t\t\t\t\tpageOffset\n\t\t\t\t\tzeroBased\n\t\t\t\t\ttotalItems\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t}\n": typeof types.LibraryMissingEntitiesDocument,
     "\n\tmutation AnalyzeLibraryMedia($id: ID!) {\n\t\tanalyzeLibrary(id: $id)\n\t}\n": typeof types.AnalyzeLibraryMediaDocument,
     "\n\tquery InitFetchJobCheckProviders {\n\t\tmetadataProviderConfigs {\n\t\t\tid\n\t\t}\n\t}\n": typeof types.InitFetchJobCheckProvidersDocument,
@@ -146,6 +147,7 @@ type Documents = {
     "\n\tmutation LibraryThumbnailSelectorUpload($id: ID!, $file: Upload!) {\n\t\tuploadLibraryThumbnail(id: $id, file: $file) {\n\t\t\tid\n\t\t\tthumbnail {\n\t\t\t\turl\n\t\t\t}\n\t\t}\n\t}\n": typeof types.LibraryThumbnailSelectorUploadDocument,
     "\n\tmutation ProcessLibraryThumbnails($id: ID!, $forceRegenerate: Boolean!) {\n\t\tprocessLibraryThumbnails(id: $id, forceRegenerate: $forceRegenerate)\n\t}\n": typeof types.ProcessLibraryThumbnailsDocument,
     "\n\tmutation RegenerateThumbnails($id: ID!, $forceRegenerate: Boolean!) {\n\t\tgenerateLibraryThumbnails(id: $id, forceRegenerate: $forceRegenerate)\n\t}\n": typeof types.RegenerateThumbnailsDocument,
+    "\n\tmutation LibraryUploadSectionUploadBooks($input: UploadBooksInput!) {\n\t\tuploadBooks(input: $input)\n\t}\n": typeof types.LibraryUploadSectionUploadBooksDocument,
     "\n\tmutation SeriesActionComplete($id: ID!) {\n\t\tfinishSeriesProgress(id: $id)\n\t}\n": typeof types.SeriesActionCompleteDocument,
     "\n\tquery SeriesLayout($id: ID!) {\n\t\tseriesById(id: $id) {\n\t\t\tid\n\t\t\tpath\n\t\t\tlibrary {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t}\n\t\t\tresolvedName\n\t\t\tresolvedDescription\n\t\t\tstats {\n\t\t\t\tbookCount\n\t\t\t\tcompletedBooks\n\t\t\t\tinProgressBooks\n\t\t\t\ttotalBytes\n\t\t\t\ttotalReadingTimeSeconds\n\t\t\t}\n\t\t\ttags {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t}\n\t\t\tthumbnail {\n\t\t\t\turl\n\t\t\t\tmetadata {\n\t\t\t\t\taverageColor\n\t\t\t\t\tthumbhash\n\t\t\t\t\tcolors {\n\t\t\t\t\t\tcolor\n\t\t\t\t\t\tpercentage\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t\tcreatedAt\n\t\t\tupdatedAt\n\t\t}\n\t}\n": typeof types.SeriesLayoutDocument,
     "\n\tquery SeriesLibrayLink($id: ID!) {\n\t\tlibraryById(id: $id) {\n\t\t\tid\n\t\t\tname\n\t\t}\n\t}\n": typeof types.SeriesLibrayLinkDocument,
@@ -242,6 +244,7 @@ const documents: Documents = {
     "\n\tquery TagSelectQuery {\n\t\ttags {\n\t\t\tid\n\t\t\tname\n\t\t}\n\t}\n": types.TagSelectQueryDocument,
     "\n\tfragment BookCard on Media {\n\t\tid\n\t\tresolvedName\n\t\textension\n\t\tpages\n\t\tsize\n\t\tstatus\n\t\tthumbnail {\n\t\t\turl\n\t\t\tmetadata {\n\t\t\t\taverageColor\n\t\t\t\tcolors {\n\t\t\t\t\tcolor\n\t\t\t\t\tpercentage\n\t\t\t\t}\n\t\t\t\tthumbhash\n\t\t\t}\n\t\t\theight\n\t\t\twidth\n\t\t}\n\t\treadProgress {\n\t\t\tpercentageCompleted\n\t\t\tepubcfi\n\t\t\tpage\n\t\t\tupdatedAt\n\t\t}\n\t\treadHistory {\n\t\t\t__typename\n\t\t\tcompletedAt\n\t\t}\n\t\tcreatedAt\n\t\tlibraryConfig {\n\t\t\tskipBookOverview\n\t\t}\n\t}\n": types.BookCardFragmentDoc,
     "\n\tquery BookSearchOverlay($pagination: Pagination, $filter: MediaFilterInput!) {\n\t\tmedia(pagination: $pagination, filter: $filter) {\n\t\t\tnodes {\n\t\t\t\tid\n\t\t\t\t...BookCard\n\t\t\t}\n\t\t\tpageInfo {\n\t\t\t\t__typename\n\t\t\t\t... on CursorPaginationInfo {\n\t\t\t\t\tcurrentCursor\n\t\t\t\t\tnextCursor\n\t\t\t\t\tlimit\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t}\n": types.BookSearchOverlayDocument,
+    "\n\tmutation DeleteBookPermanently($id: ID!, $deleteFile: Boolean!) {\n\t\tdeleteMediaPermanently(id: $id, deleteFile: $deleteFile) {\n\t\t\tid\n\t\t}\n\t}\n": types.DeleteBookPermanentlyDocument,
     "\n\tfragment SimpleBookCard on Media {\n\t\tid\n\t\tresolvedName\n\t\tcreatedAt\n\t\tthumbnail {\n\t\t\turl\n\t\t\tmetadata {\n\t\t\t\taverageColor\n\t\t\t\tcolors {\n\t\t\t\t\tcolor\n\t\t\t\t\tpercentage\n\t\t\t\t}\n\t\t\t\tthumbhash\n\t\t\t}\n\t\t}\n\t}\n": types.SimpleBookCardFragmentDoc,
     "\n\tfragment MediaMetadataEditor on MediaMetadata {\n\t\tageRating\n\t\tcharacters\n\t\tcolorists\n\t\tcoverArtists\n\t\tday\n\t\teditors\n\t\tformat\n\t\tidentifierAmazon\n\t\tidentifierCalibre\n\t\tidentifierGoogle\n\t\tidentifierIsbn\n\t\tidentifierMobiAsin\n\t\tidentifierUuid\n\t\tgenres\n\t\tinkers\n\t\tlanguage\n\t\tletterers\n\t\tlinks\n\t\tmonth\n\t\tnotes\n\t\tnumber\n\t\tpageCount\n\t\tpencillers\n\t\tpublisher\n\t\tseries\n\t\tseriesGroup\n\t\tstoryArc\n\t\tstoryArcNumber\n\t\tsummary\n\t\tteams\n\t\ttitle\n\t\ttitleSort\n\t\tvolume\n\t\twriters\n\t\tyear\n\t\tlockedFields\n\t}\n": types.MediaMetadataEditorFragmentDoc,
     "\n\tmutation UpdateMediaMetadata($id: ID!, $input: MediaMetadataInput!) {\n\t\tupdateMediaMetadata(id: $id, input: $input) {\n\t\t\tmetadata {\n\t\t\t\t...MediaMetadataEditor\n\t\t\t}\n\t\t}\n\t}\n": types.UpdateMediaMetadataDocument,
@@ -350,7 +353,7 @@ const documents: Documents = {
     "\n\tquery LibraryExclusionsUsersQuery {\n\t\tusers(pagination: { none: { unpaginated: true } }) {\n\t\t\tnodes {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t}\n\t\t}\n\t}\n": types.LibraryExclusionsUsersQueryDocument,
     "\n\tquery LibraryExclusionsQuery($id: ID!) {\n\t\tlibraryById(id: $id) {\n\t\t\texcludedUsers {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t}\n\t\t}\n\t}\n": types.LibraryExclusionsQueryDocument,
     "\n\tmutation UpdateLibraryExclusions($id: ID!, $userIds: [String!]!) {\n\t\tupdateLibraryExcludedUsers(id: $id, userIds: $userIds) {\n\t\t\tid\n\t\t\texcludedUsers {\n\t\t\t\tid\n\t\t\t\tusername\n\t\t\t}\n\t\t}\n\t}\n": types.UpdateLibraryExclusionsDocument,
-    "\n\tmutation CleanLibrary($id: ID!) {\n\t\tcleanLibrary(id: $id) {\n\t\t\tdeletedMediaCount\n\t\t\tdeletedSeriesCount\n\t\t\tisEmpty\n\t\t}\n\t}\n": types.CleanLibraryDocument,
+    "\n\tmutation CleanLibrary($id: ID!) {\n\t\tcleanLibrary(id: $id) {\n\t\t\tdeletedMediaCount\n\t\t\tdeletedSeriesCount\n\t\t\tmissingFileCount\n\t\t\tstorageUnavailable\n\t\t\tisEmpty\n\t\t}\n\t}\n": types.CleanLibraryDocument,
     "\n\tquery LibraryMissingEntities($libraryId: ID!, $pagination: Pagination!) {\n\t\tlibraryMissingEntities(libraryId: $libraryId, pagination: $pagination) {\n\t\t\tnodes {\n\t\t\t\tid\n\t\t\t\tpath\n\t\t\t\ttype\n\t\t\t}\n\t\t\tpageInfo {\n\t\t\t\t__typename\n\t\t\t\t... on OffsetPaginationInfo {\n\t\t\t\t\ttotalPages\n\t\t\t\t\tcurrentPage\n\t\t\t\t\tpageSize\n\t\t\t\t\tpageOffset\n\t\t\t\t\tpageOffset\n\t\t\t\t\tzeroBased\n\t\t\t\t\ttotalItems\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t}\n": types.LibraryMissingEntitiesDocument,
     "\n\tmutation AnalyzeLibraryMedia($id: ID!) {\n\t\tanalyzeLibrary(id: $id)\n\t}\n": types.AnalyzeLibraryMediaDocument,
     "\n\tquery InitFetchJobCheckProviders {\n\t\tmetadataProviderConfigs {\n\t\t\tid\n\t\t}\n\t}\n": types.InitFetchJobCheckProvidersDocument,
@@ -370,6 +373,7 @@ const documents: Documents = {
     "\n\tmutation LibraryThumbnailSelectorUpload($id: ID!, $file: Upload!) {\n\t\tuploadLibraryThumbnail(id: $id, file: $file) {\n\t\t\tid\n\t\t\tthumbnail {\n\t\t\t\turl\n\t\t\t}\n\t\t}\n\t}\n": types.LibraryThumbnailSelectorUploadDocument,
     "\n\tmutation ProcessLibraryThumbnails($id: ID!, $forceRegenerate: Boolean!) {\n\t\tprocessLibraryThumbnails(id: $id, forceRegenerate: $forceRegenerate)\n\t}\n": types.ProcessLibraryThumbnailsDocument,
     "\n\tmutation RegenerateThumbnails($id: ID!, $forceRegenerate: Boolean!) {\n\t\tgenerateLibraryThumbnails(id: $id, forceRegenerate: $forceRegenerate)\n\t}\n": types.RegenerateThumbnailsDocument,
+    "\n\tmutation LibraryUploadSectionUploadBooks($input: UploadBooksInput!) {\n\t\tuploadBooks(input: $input)\n\t}\n": types.LibraryUploadSectionUploadBooksDocument,
     "\n\tmutation SeriesActionComplete($id: ID!) {\n\t\tfinishSeriesProgress(id: $id)\n\t}\n": types.SeriesActionCompleteDocument,
     "\n\tquery SeriesLayout($id: ID!) {\n\t\tseriesById(id: $id) {\n\t\t\tid\n\t\t\tpath\n\t\t\tlibrary {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t}\n\t\t\tresolvedName\n\t\t\tresolvedDescription\n\t\t\tstats {\n\t\t\t\tbookCount\n\t\t\t\tcompletedBooks\n\t\t\t\tinProgressBooks\n\t\t\t\ttotalBytes\n\t\t\t\ttotalReadingTimeSeconds\n\t\t\t}\n\t\t\ttags {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t}\n\t\t\tthumbnail {\n\t\t\t\turl\n\t\t\t\tmetadata {\n\t\t\t\t\taverageColor\n\t\t\t\t\tthumbhash\n\t\t\t\t\tcolors {\n\t\t\t\t\t\tcolor\n\t\t\t\t\t\tpercentage\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t\tcreatedAt\n\t\t\tupdatedAt\n\t\t}\n\t}\n": types.SeriesLayoutDocument,
     "\n\tquery SeriesLibrayLink($id: ID!) {\n\t\tlibraryById(id: $id) {\n\t\t\tid\n\t\t\tname\n\t\t}\n\t}\n": types.SeriesLibrayLinkDocument,
@@ -475,6 +479,10 @@ export function graphql(source: "\n\tfragment BookCard on Media {\n\t\tid\n\t\tr
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n\tquery BookSearchOverlay($pagination: Pagination, $filter: MediaFilterInput!) {\n\t\tmedia(pagination: $pagination, filter: $filter) {\n\t\t\tnodes {\n\t\t\t\tid\n\t\t\t\t...BookCard\n\t\t\t}\n\t\t\tpageInfo {\n\t\t\t\t__typename\n\t\t\t\t... on CursorPaginationInfo {\n\t\t\t\t\tcurrentCursor\n\t\t\t\t\tnextCursor\n\t\t\t\t\tlimit\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t}\n"): typeof import('./graphql').BookSearchOverlayDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\tmutation DeleteBookPermanently($id: ID!, $deleteFile: Boolean!) {\n\t\tdeleteMediaPermanently(id: $id, deleteFile: $deleteFile) {\n\t\t\tid\n\t\t}\n\t}\n"): typeof import('./graphql').DeleteBookPermanentlyDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -910,7 +918,7 @@ export function graphql(source: "\n\tmutation UpdateLibraryExclusions($id: ID!, 
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n\tmutation CleanLibrary($id: ID!) {\n\t\tcleanLibrary(id: $id) {\n\t\t\tdeletedMediaCount\n\t\t\tdeletedSeriesCount\n\t\t\tisEmpty\n\t\t}\n\t}\n"): typeof import('./graphql').CleanLibraryDocument;
+export function graphql(source: "\n\tmutation CleanLibrary($id: ID!) {\n\t\tcleanLibrary(id: $id) {\n\t\t\tdeletedMediaCount\n\t\t\tdeletedSeriesCount\n\t\t\tmissingFileCount\n\t\t\tstorageUnavailable\n\t\t\tisEmpty\n\t\t}\n\t}\n"): typeof import('./graphql').CleanLibraryDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -987,6 +995,10 @@ export function graphql(source: "\n\tmutation ProcessLibraryThumbnails($id: ID!,
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n\tmutation RegenerateThumbnails($id: ID!, $forceRegenerate: Boolean!) {\n\t\tgenerateLibraryThumbnails(id: $id, forceRegenerate: $forceRegenerate)\n\t}\n"): typeof import('./graphql').RegenerateThumbnailsDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\tmutation LibraryUploadSectionUploadBooks($input: UploadBooksInput!) {\n\t\tuploadBooks(input: $input)\n\t}\n"): typeof import('./graphql').LibraryUploadSectionUploadBooksDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

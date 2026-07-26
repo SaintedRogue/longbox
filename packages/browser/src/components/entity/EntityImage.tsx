@@ -1,7 +1,6 @@
 import { useSDK } from '@longbox/client'
 import { forwardRef, Suspense, useCallback } from 'react'
 
-import { cacheOnViewOnce } from '@/offline/cacheOnViewOnce'
 import { useOfflineImageSrc } from '@/offline/resolveOfflineUrl'
 
 import { AuthImage } from './AuthImage'
@@ -30,14 +29,13 @@ const EntityImage = forwardRef<HTMLImageElement, Props>(
 		const { sdk } = useSDK()
 
 		// Checked above the token/session split: session-mode's plain <img> is browser-fetched (no JS
-		// to intercept at the network layer), so the only way to serve cached bytes there is to swap
-		// `src` for an object URL before render -- which also means offline must win in token mode too,
-		// since AuthImage would otherwise re-fetch over the network. useOfflineImageSrc resolves to
-		// `undefined` until checked and for non-downloaded images, so the common (non-downloaded) path
-		// still renders the network image immediately with no blank flash. `sdk` is passed so a hit
-		// also revalidates in the background -- otherwise a cached URL is pinned to its first bytes
-		// even after the server regenerates them.
-		const offlineSrc = useOfflineImageSrc(typeof src === 'string' ? src : undefined, sdk)
+		// to intercept at the network layer), so the only way to serve a downloaded book's bytes there
+		// is to swap `src` for an object URL before render -- which also means offline must win in
+		// token mode too, since AuthImage would otherwise re-fetch over the network.
+		// useOfflineImageSrc resolves to `undefined` until checked and for non-downloaded images, so
+		// the common (non-downloaded) path still renders the network image immediately with no blank
+		// flash, and repeat loads are served by the browser's own HTTP cache.
+		const offlineSrc = useOfflineImageSrc(typeof src === 'string' ? src : undefined)
 
 		// An explicit `loading`/`decoding`/`fetchPriority` from the caller always wins over the
 		// defaults derived from `lazy`/`priority`. `decoding="async"` is the default on every path --
@@ -56,22 +54,6 @@ const EntityImage = forwardRef<HTMLImageElement, Props>(
 				}
 			},
 			[onLoad],
-		)
-
-		// Session-mode, network (cache-miss) branch only: the browser fetched `src` directly (no JS
-		// interception), so this is a "shadow fetch" side channel -- re-GET the same bytes to feed the
-		// passive cache, without changing how the visible <img> itself loads. Offline-hit and
-		// AuthImage (token-mode) branches are handled elsewhere (resolveOfflineUrl / AuthImage.tsx).
-		// `cacheOnViewOnce` (not `cacheOnView`) so a URL that gets loaded repeatedly -- the readers
-		// remount the same page image on every scale/page-set change -- only shadow-fetches once.
-		const handleNetworkImageLoad = useCallback(
-			(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-				handleImageLoad(e)
-				if (typeof src === 'string') {
-					void cacheOnViewOnce(src, sdk)
-				}
-			},
-			[handleImageLoad, src, sdk],
 		)
 
 		const renderImage = () => {
@@ -96,9 +78,7 @@ const EntityImage = forwardRef<HTMLImageElement, Props>(
 					/>
 				)
 			} else {
-				return (
-					<img src={src} {...loadingProps} {...props} ref={ref} onLoad={handleNetworkImageLoad} />
-				)
+				return <img src={src} {...loadingProps} {...props} ref={ref} onLoad={handleImageLoad} />
 			}
 		}
 

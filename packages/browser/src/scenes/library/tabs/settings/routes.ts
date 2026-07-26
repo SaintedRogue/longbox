@@ -8,6 +8,7 @@ import {
 	PackageX,
 	ScanSearch,
 	ShieldCheck,
+	Upload,
 } from 'lucide-react'
 
 import { RouteGroup } from '@/hooks/useRouteGroups'
@@ -55,6 +56,16 @@ export const routeGroups: RouteGroup[] = [
 				localeKey: 'options/organize',
 				permissions: [UserPermission.ManageLibrary],
 				to: 'settings/organize',
+			},
+			{
+				icon: Upload,
+				label: 'Upload',
+				localeKey: 'options/upload',
+				// Note: deliberately gated on ManageLibrary rather than UploadFile. The scene
+				// itself explains, in place, when uploads are off or the user can't upload --
+				// hiding it would leave the user with nothing to read.
+				permissions: [UserPermission.ManageLibrary],
+				to: 'settings/upload',
 			},
 		],
 		label: 'Configuration',

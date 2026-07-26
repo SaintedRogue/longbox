@@ -3,7 +3,6 @@ import type { Api } from '@longbox/sdk'
 import { renderHook, waitFor } from '@testing-library/react'
 
 import * as blobStoreModule from '@/offline/blobStore'
-import * as passiveCacheModule from '@/offline/passiveCache'
 
 import { _resetPreloadedUrlsForTests, usePreloadPage } from '../usePreloadPage'
 
@@ -15,14 +14,7 @@ jest.mock('@/offline/blobStore', () => ({
 	matchUrl: jest.fn(),
 }))
 
-jest.mock('@/offline/passiveCache', () => ({
-	cacheAlreadyFetched: jest.fn(),
-	touchAccess: jest.fn(),
-}))
-
 const mockedMatchUrl = jest.mocked(blobStoreModule.matchUrl)
-const mockedCacheAlreadyFetched = jest.mocked(passiveCacheModule.cacheAlreadyFetched)
-const mockedTouchAccess = jest.mocked(passiveCacheModule.touchAccess)
 const mockedFetchQuery = queryClient.fetchQuery as jest.Mock
 
 /** A "blob" that's just enough shape to identify in assertions (mirrors downloadFetcher.test.ts). */
@@ -53,15 +45,13 @@ describe('usePreloadPage', () => {
 		mockedFetchQuery.mockImplementation(async (config: { queryFn: () => Promise<Blob> }) =>
 			config.queryFn(),
 		)
-		mockedTouchAccess.mockResolvedValue(undefined)
-		mockedCacheAlreadyFetched.mockResolvedValue(undefined)
 		// jsdom has no native createImageBitmap -- mock it globally per the task's guidance.
 		;(globalThis as unknown as { createImageBitmap: jest.Mock }).createImageBitmap = jest.fn(
 			async () => fakeBitmap(200, 100),
 		)
 	})
 
-	it('cache hit: reuses blobStore bytes, touches access, never calls fetchQuery or cacheAlreadyFetched', async () => {
+	it('cache hit: a downloaded page is served from the blob store, with no network fetch at all', async () => {
 		const blob = fakeBlob('cached')
 		mockedMatchUrl.mockResolvedValue(fakeResponse(blob))
 		const onStoreDimensions = jest.fn()
@@ -80,15 +70,12 @@ describe('usePreloadPage', () => {
 			expect(onStoreDimensions).toHaveBeenCalledWith(2, { height: 100, ratio: 2, width: 200 })
 		})
 
-		expect(mockedTouchAccess).toHaveBeenCalledWith('/page/2')
 		expect(mockedFetchQuery).not.toHaveBeenCalled()
-		expect(mockedCacheAlreadyFetched).not.toHaveBeenCalled()
 	})
 
-	it('cache miss: fetches via the AuthImage.fetchImage query key and feeds the passive cache', async () => {
+	it('cache miss: fetches over the network via the AuthImage.fetchImage query key', async () => {
 		mockedMatchUrl.mockResolvedValue(undefined)
-		const blob = fakeBlob('network')
-		const get = jest.fn().mockResolvedValue({ data: blob })
+		const get = jest.fn().mockResolvedValue({ data: fakeBlob('network') })
 		const sdk = sdkWithGet(get)
 
 		renderHook(() =>
@@ -100,14 +87,14 @@ describe('usePreloadPage', () => {
 		)
 
 		await waitFor(() => {
-			expect(mockedCacheAlreadyFetched).toHaveBeenCalledWith('/page/3', blob)
+			expect(get).toHaveBeenCalledWith('/page/3', { responseType: 'blob' })
 		})
 
+		// Coalesced with AuthImage's own fetch for the same URL; nothing is written back to
+		// CacheStorage -- repeat loads are the browser HTTP cache's job now.
 		expect(mockedFetchQuery).toHaveBeenCalledWith(
 			expect.objectContaining({ queryKey: ['AuthImage.fetchImage', '/page/3'] }),
 		)
-		expect(get).toHaveBeenCalledWith('/page/3', { responseType: 'blob' })
-		expect(mockedTouchAccess).not.toHaveBeenCalled()
 	})
 
 	it('derives dimensions from createImageBitmap and closes the bitmap afterwards', async () => {
@@ -130,7 +117,10 @@ describe('usePreloadPage', () => {
 		expect(bitmap.close).toHaveBeenCalledTimes(1)
 	})
 
-	it('does not re-preload an already-preloaded page across rerenders, but does preload a newly-added one', async () => {
+	// The "already-preloaded pages aren't re-fetched" half of this is covered more strongly by the
+	// unmount/remount case below, so this only guards the opposite failure: de-dup being so eager
+	// that a newly-added page never loads at all.
+	it('preloads a page that is added to the set after the first render', async () => {
 		mockedMatchUrl.mockResolvedValue(undefined)
 		const get = jest.fn().mockResolvedValue({ data: fakeBlob('x') })
 		const sdk = sdkWithGet(get)
@@ -144,11 +134,6 @@ describe('usePreloadPage', () => {
 		await waitFor(() => {
 			expect(get).toHaveBeenCalledTimes(1)
 		})
-
-		rerender({ pages: [1] })
-		// Give an accidental re-fetch a chance to happen before asserting it didn't.
-		await new Promise((resolve) => setTimeout(resolve, 0))
-		expect(get).toHaveBeenCalledTimes(1)
 
 		rerender({ pages: [1, 2] })
 		await waitFor(() => {

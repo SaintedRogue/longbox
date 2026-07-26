@@ -3,7 +3,6 @@ import { cn } from '@longbox/components'
 import { AnimatePresence, motion } from 'framer-motion'
 import { forwardRef, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
-import { cacheOnViewOnce } from '@/offline/cacheOnViewOnce'
 import { useOfflineImageSrc } from '@/offline/resolveOfflineUrl'
 
 import { AuthImage } from '../entity/AuthImage'
@@ -80,11 +79,10 @@ export const ThumbnailImage = forwardRef<HTMLDivElement, ThumbnailImageProps>(
 	) => {
 		const { sdk } = useSDK()
 
-		// Mirrors EntityImage's pattern: offline hits win over both AuthImage and a plain network
-		// <img>, so cached bytes are served (and reused) instead of re-fetching over the network.
-		// `sdk` opts the hit into background revalidation, so a regenerated thumbnail (the same URL,
-		// different bytes) eventually replaces the cached copy instead of being masked by it forever.
-		const offlineSrc = useOfflineImageSrc(src, sdk)
+		// Mirrors EntityImage's pattern: a downloaded book's stored thumbnail wins over both AuthImage
+		// and a plain network <img>, so it renders with the network cut. Anything not downloaded misses
+		// here and loads normally, with repeat loads served by the browser's own HTTP cache.
+		const offlineSrc = useOfflineImageSrc(src)
 
 		const [isLoaded, setIsLoaded] = useState(false)
 		const [hasError, setHasError] = useState(false)
@@ -161,15 +159,6 @@ export const ThumbnailImage = forwardRef<HTMLDivElement, ThumbnailImageProps>(
 			onLoad?.()
 		}
 
-		// Session-mode, network (cache-miss) branch only -- same "shadow fetch" side channel as
-		// EntityImage.tsx. The offline-hit branch and AuthImage (token-mode) are handled elsewhere.
-		// Once-per-session (see `cacheOnViewOnce`): the same cover is re-rendered across grids,
-		// carousels and peek sheets, and every repeat re-GET was pure waste.
-		const handleNetworkLoad = () => {
-			handleLoad()
-			void cacheOnViewOnce(src, sdk)
-		}
-
 		const handleError = () => {
 			setHasError(true)
 			onError?.()
@@ -237,7 +226,7 @@ export const ThumbnailImage = forwardRef<HTMLDivElement, ThumbnailImageProps>(
 					alt={alt}
 					className={imageClasses}
 					style={imageStyle}
-					onLoad={handleNetworkLoad}
+					onLoad={handleLoad}
 					onError={handleError}
 					{...lazyProps}
 				/>

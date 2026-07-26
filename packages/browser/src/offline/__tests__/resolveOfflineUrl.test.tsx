@@ -1,16 +1,12 @@
-import type { Api } from '@longbox/sdk'
 import { act, renderHook, waitFor } from '@testing-library/react'
 
 import * as blobStore from '../blobStore'
-import * as passiveCache from '../passiveCache'
 import { offlineBlobUrl, offlineFileBlob, useOfflineImageSrc } from '../resolveOfflineUrl'
 
 /** Fake "response": just enough shape for resolveOfflineUrl's `.blob()` usage. */
 function fakeResponse(blob: Blob = {} as Blob): Response {
 	return { blob: () => Promise.resolve(blob) } as unknown as Response
 }
-
-const fakeSdk = { axios: { get: jest.fn() } } as unknown as Api
 
 describe('offlineBlobUrl', () => {
 	let n = 0
@@ -46,55 +42,6 @@ describe('offlineBlobUrl', () => {
 		expect(result).toBeNull()
 		expect(createObjectURL).not.toHaveBeenCalled()
 	})
-
-	it('fires touchAccess on a cache hit, to keep LRU recency accurate', async () => {
-		jest.spyOn(blobStore, 'matchUrl').mockResolvedValue(fakeResponse())
-		const touchAccessSpy = jest.spyOn(passiveCache, 'touchAccess').mockResolvedValue(undefined)
-
-		await offlineBlobUrl('/api/v2/media/1/page/1')
-
-		expect(touchAccessSpy).toHaveBeenCalledWith('/api/v2/media/1/page/1')
-	})
-
-	it('does not fire touchAccess on a miss', async () => {
-		jest.spyOn(blobStore, 'matchUrl').mockResolvedValue(undefined)
-		const touchAccessSpy = jest.spyOn(passiveCache, 'touchAccess').mockResolvedValue(undefined)
-
-		await offlineBlobUrl('/api/v2/media/1/page/1')
-
-		expect(touchAccessSpy).not.toHaveBeenCalled()
-	})
-
-	it('fires revalidateIfStale on a cache hit when an sdk is available', async () => {
-		jest.spyOn(blobStore, 'matchUrl').mockResolvedValue(fakeResponse())
-		const revalidateSpy = jest.spyOn(passiveCache, 'revalidateIfStale').mockResolvedValue(undefined)
-
-		await offlineBlobUrl('/api/v2/media/1/thumbnail', fakeSdk)
-
-		expect(revalidateSpy).toHaveBeenCalledWith('/api/v2/media/1/thumbnail', fakeSdk)
-	})
-
-	it('does not revalidate without an sdk, or on a miss', async () => {
-		const revalidateSpy = jest.spyOn(passiveCache, 'revalidateIfStale').mockResolvedValue(undefined)
-
-		jest.spyOn(blobStore, 'matchUrl').mockResolvedValue(fakeResponse())
-		await offlineBlobUrl('/api/v2/media/1/thumbnail')
-
-		jest.spyOn(blobStore, 'matchUrl').mockResolvedValue(undefined)
-		await offlineBlobUrl('/api/v2/media/1/thumbnail', fakeSdk)
-
-		expect(revalidateSpy).not.toHaveBeenCalled()
-	})
-
-	it('serves the cached blob without waiting for the revalidation to settle', async () => {
-		jest.spyOn(blobStore, 'matchUrl').mockResolvedValue(fakeResponse())
-		// A revalidation that never settles -- if the hit path awaited it, this would hang.
-		jest.spyOn(passiveCache, 'revalidateIfStale').mockReturnValue(new Promise<void>(() => {}))
-
-		const result = await offlineBlobUrl('/api/v2/media/1/thumbnail', fakeSdk)
-
-		expect(result).toBe('blob:mock-0')
-	})
 })
 
 describe('offlineFileBlob', () => {
@@ -117,25 +64,6 @@ describe('offlineFileBlob', () => {
 		const result = await offlineFileBlob('/api/v2/media/1/file')
 
 		expect(result).toBeNull()
-	})
-
-	it('fires touchAccess on a cache hit, to keep LRU recency accurate', async () => {
-		const fakeBlob = { size: 42 } as Blob
-		jest.spyOn(blobStore, 'matchUrl').mockResolvedValue(fakeResponse(fakeBlob))
-		const touchAccessSpy = jest.spyOn(passiveCache, 'touchAccess').mockResolvedValue(undefined)
-
-		await offlineFileBlob('/api/v2/media/1/file')
-
-		expect(touchAccessSpy).toHaveBeenCalledWith('/api/v2/media/1/file')
-	})
-
-	it('does not fire touchAccess on a miss', async () => {
-		jest.spyOn(blobStore, 'matchUrl').mockResolvedValue(undefined)
-		const touchAccessSpy = jest.spyOn(passiveCache, 'touchAccess').mockResolvedValue(undefined)
-
-		await offlineFileBlob('/api/v2/media/1/file')
-
-		expect(touchAccessSpy).not.toHaveBeenCalled()
 	})
 })
 
@@ -166,39 +94,10 @@ describe('useOfflineImageSrc', () => {
 		})
 	})
 
-	it('fires touchAccess on a cache hit', async () => {
-		jest.spyOn(blobStore, 'matchUrl').mockResolvedValue(fakeResponse())
-		const touchAccessSpy = jest.spyOn(passiveCache, 'touchAccess').mockResolvedValue(undefined)
-
-		renderHook(() => useOfflineImageSrc('/api/v2/media/1/page/1'))
-
-		await waitFor(() => {
-			expect(touchAccessSpy).toHaveBeenCalledWith('/api/v2/media/1/page/1')
-		})
-	})
-
-	it('forwards the sdk so a hit revalidates in the background, without delaying the src', async () => {
-		jest.spyOn(blobStore, 'matchUrl').mockResolvedValue(fakeResponse())
-		// Never settles: the src below must still resolve, proving the revalidation isn't awaited.
-		const revalidateSpy = jest
-			.spyOn(passiveCache, 'revalidateIfStale')
-			.mockReturnValue(new Promise<void>(() => {}))
-
-		const { result } = renderHook(() => useOfflineImageSrc('/api/v2/media/1/thumbnail', fakeSdk))
-
-		await waitFor(() => {
-			expect(result.current).toBe('blob:mock-0')
-		})
-		expect(revalidateSpy).toHaveBeenCalledWith('/api/v2/media/1/thumbnail', fakeSdk)
-	})
-
 	it('does not re-resolve (or re-render) when only unrelated props change', async () => {
 		jest.spyOn(blobStore, 'matchUrl').mockResolvedValue(fakeResponse())
-		jest.spyOn(passiveCache, 'revalidateIfStale').mockResolvedValue(undefined)
 
-		const { result, rerender } = renderHook(() =>
-			useOfflineImageSrc('/api/v2/media/1/thumbnail', fakeSdk),
-		)
+		const { result, rerender } = renderHook(() => useOfflineImageSrc('/api/v2/media/1/thumbnail'))
 
 		await waitFor(() => {
 			expect(result.current).toBe('blob:mock-0')
@@ -207,8 +106,8 @@ describe('useOfflineImageSrc', () => {
 		rerender()
 		rerender()
 
-		// A stable url + sdk means the effect never re-runs, so no new object URL and no revoke of
-		// the live one -- the revalidation side channel must not churn the rendered src.
+		// A stable url means the effect never re-runs, so no new object URL and no revoke of the
+		// live one.
 		expect(createObjectURL).toHaveBeenCalledTimes(1)
 		expect(revokeObjectURL).not.toHaveBeenCalled()
 		expect(result.current).toBe('blob:mock-0')

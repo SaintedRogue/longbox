@@ -8,14 +8,14 @@ import {
 	Heading,
 	Text,
 } from '@longbox/components'
-import { graphql, LibraryMissingEntitiesQuery } from '@longbox/graphql'
+import { graphql } from '@longbox/graphql'
 import { useLocaleContext } from '@longbox/i18n'
-import { useQueryClient } from '@tanstack/react-query'
 import { Info } from 'lucide-react'
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useState } from 'react'
 import { toast } from 'sonner'
 
 import { useLibraryManagement } from '../../context'
+import { buildCleanLibraryMessage, getCleanLibraryKey as getKey } from './cleanLibraryResult'
 import MisisngEntitiesTable from './MissingEntitiesTable'
 
 const mutation = graphql(`
@@ -23,6 +23,8 @@ const mutation = graphql(`
 		cleanLibrary(id: $id) {
 			deletedMediaCount
 			deletedSeriesCount
+			missingFileCount
+			storageUnavailable
 			isEmpty
 		}
 	}
@@ -36,38 +38,12 @@ export default function CleanLibrary() {
 	const { mutateAsync: cleanLibrary, isPending } = useGraphQLMutation(mutation)
 
 	const [showConfirmation, setShowConfirmation] = useState(false)
-	const [isNoneMissingState, setIsNoneMissingState] = useState(false)
-
-	const client = useQueryClient()
-
-	useEffect(() => {
-		const unsubscribe = client.getQueryCache().subscribe(({ query: { queryKey } }) => {
-			const [baseKey, libraryID] = queryKey
-			if (baseKey === 'missingEntities' && libraryID === id) {
-				const data = client.getQueryData<LibraryMissingEntitiesQuery>(queryKey)
-				const entities = data?.libraryMissingEntities.nodes ?? []
-				setIsNoneMissingState(entities.length === 0)
-			}
-		})
-
-		return () => {
-			unsubscribe()
-		}
-	}, [id, client])
 
 	const handleClean = async () => {
 		try {
 			toast.promise(cleanLibrary({ id }), {
 				loading: t(getKey('confirmation.loading')),
-				success: ({ cleanLibrary: result }) => {
-					if (result.isEmpty) {
-						return t(getKey('emptyText'))
-					} else if (result.deletedMediaCount === 0 && result.deletedSeriesCount === 0) {
-						return t(getKey('confirmation.nothingToDelete'))
-					} else {
-						return `Cleaned ${result.deletedMediaCount} media and ${result.deletedSeriesCount} series`
-					}
-				},
+				success: ({ cleanLibrary: result }) => buildCleanLibraryMessage(result, t),
 				error: (error) => {
 					const fallbackMessage = t(getKey('confirmation.error'))
 					if (error instanceof Error) {
@@ -109,11 +85,15 @@ export default function CleanLibrary() {
 					confirmIsLoading={isPending}
 					trigger={
 						<div>
+							{/* Note: this is deliberately not gated on the table below being empty.
+							    That table only lists records a scan already flagged as missing, and
+							    the whole point of a clean is to also catch records still marked
+							    ready whose file has since disappeared — which never appear there. */}
 							<Button
 								type="button"
 								onClick={() => setShowConfirmation(true)}
 								className="shrink-0"
-								disabled={isNoneMissingState || isPending}
+								disabled={isPending}
 								isLoading={isPending}
 								variant="destructive"
 							>
@@ -136,6 +116,3 @@ export default function CleanLibrary() {
 		</div>
 	)
 }
-
-const LOCALE_KEY = 'librarySettingsScene.danger-zone/delete.sections.cleanLibrary'
-const getKey = (key: string) => `${LOCALE_KEY}.${key}`

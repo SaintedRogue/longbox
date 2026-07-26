@@ -39,6 +39,17 @@ export async function matchUrl(url: string): Promise<Response | undefined> {
 	return cache.match(url)
 }
 
+/**
+ * Every URL currently stored in the cache, in the *resolved* form the Cache API hands back
+ * (`Request.url` is always absolute). Used by the v3->v4 orphan purge to find blobs no
+ * `DownloadRecord` claims; not a hot path (O(n) over every stored entry).
+ */
+export async function listUrls(): Promise<string[]> {
+	const cache = await openCache()
+	const keys = await cache.keys()
+	return keys.map((key) => key.url)
+}
+
 // The blob store is keyed purely by URL, not by book id -- a `deleteBook(bookId, urls)` signature
 // would leave `bookId` unused here. The caller (the download manager) already holds the book's
 // URL list from its DownloadRecord, so `deleteUrls(urls)` is the honest primitive.
@@ -46,25 +57,4 @@ export async function matchUrl(url: string): Promise<Response | undefined> {
 export async function deleteUrls(urls: string[]): Promise<void> {
 	const cache = await openCache()
 	await Promise.all(urls.map((url) => cache.delete(url)))
-}
-
-/**
- * Sums stored blob sizes across the whole cache. O(n) over every entry (each `match` + `.blob()`) --
- * intended for occasional totals (e.g. the Downloads scene), not hot paths. Responses returned by
- * a cache `match` are fresh, unconsumed bodies, so no `.clone()` is needed before reading `.blob()`.
- */
-export async function estimateUsage(): Promise<{ entries: number; bytes: number }> {
-	const cache = await openCache()
-	const keys = await cache.keys()
-
-	let entries = 0
-	let bytes = 0
-	for (const key of keys) {
-		const response = await cache.match(key)
-		if (!response) continue
-		entries += 1
-		bytes += (await response.blob()).size
-	}
-
-	return { entries, bytes }
 }

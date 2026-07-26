@@ -437,6 +437,19 @@ export type CleanLibraryResponse = {
   deletedMediaCount: Scalars['Int']['output'];
   deletedSeriesCount: Scalars['Int']['output'];
   isEmpty: Scalars['Boolean']['output'];
+  /**
+   * How many of the deleted records were stale entries: still flagged as `READY`, but with
+   * no file left on disk. These are the records a scan can never fix, because a file that
+   * was removed outside of Longbox is never revisited.
+   */
+  missingFileCount: Scalars['Int']['output'];
+  /**
+   * Whether the on-disk sweep was skipped because the library's root could not be read (an
+   * unmounted share, a detached drive, or an empty root). When true, no record was removed
+   * on the grounds of a missing file, and the library should be cleaned again once its
+   * storage is back.
+   */
+  storageUnavailable: Scalars['Boolean']['output'];
 };
 
 /**
@@ -2126,9 +2139,16 @@ export type Mutation = {
    *
    * - A series that is missing from disk (status is not `Ready`)
    * - A media that is missing from disk (status is not `Ready`)
+   * - A series or media still flagged `Ready` whose path no longer exists on disk. These
+   * are files that were removed outside of Longbox, which a scan never revisits, so
+   * without this they would remain in the library forever
    * - A series that is not associated with any media (i.e., no media in the series)
    *
    * This operation will also remove any associated thumbnails of the deleted media and series.
+   *
+   * No file is ever deleted by this operation. If the library's storage is not currently
+   * attached, the on-disk portion of the sweep is skipped rather than mistaking an
+   * unmounted share for a library the user emptied.
    */
   cleanLibrary: CleanLibraryResponse;
   /** trashes current readthrough, if there is one */
@@ -2208,7 +2228,25 @@ export type Mutation = {
   deleteLogFile: Scalars['Boolean']['output'];
   deleteLoginActivity: Scalars['Int']['output'];
   deleteLogs: LogDeleteOutput;
+  /**
+   * Soft delete a book. The record is flagged as deleted and hidden from the library, but
+   * is kept in the database and the file on disk is untouched — this acts like a trash bin.
+   * See `deleteMediaPermanently` to remove a book for good.
+   */
   deleteMedia: Media;
+  /**
+   * Permanently delete a book. Unlike `deleteMedia`, which is a reversible soft delete,
+   * this removes the database record and its thumbnails outright. When `deleteFile` is
+   * true the underlying file is also erased from disk. **This cannot be undone.**
+   *
+   * The file is removed *before* the record: if the filesystem refuses, the mutation fails
+   * with the library still describing reality. The reverse order could leave a file on
+   * disk that no longer appears anywhere in Longbox.
+   *
+   * A book whose file is already gone can always be removed, since that is the exact
+   * situation this exists to resolve.
+   */
+  deleteMediaPermanently: Media;
   /** trashes all completed readthroughs for the media */
   deleteMediaReadingHistory: Scalars['Int']['output'];
   /** Delete (soft delete) your own message */
@@ -2717,6 +2755,12 @@ export type MutationDeleteLogsArgs = {
 
 
 export type MutationDeleteMediaArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type MutationDeleteMediaPermanentlyArgs = {
+  deleteFile?: Scalars['Boolean']['input'];
   id: Scalars['ID']['input'];
 };
 
@@ -4953,10 +4997,28 @@ export type UploadBooksInput = {
   uploads: Array<Scalars['Upload']['input']>;
 };
 
+/**
+ * The upload-related slice of the server configuration. This exists so clients can
+ * render an accurate upload control -- whether uploads are permitted at all, and how
+ * large a file may be -- instead of discovering both by way of a failed mutation.
+ */
 export type UploadConfig = {
   __typename?: 'UploadConfig';
+  /**
+   * Whether `enable_upload` is set on the server. When false, every upload mutation
+   * is rejected by [`crate::guard::OptionalFeatureGuard`].
+   */
   enabled: Scalars['Boolean']['output'];
-  maxFileUploadSize: Scalars['Int']['output'];
+  /**
+   * The maximum size, in bytes, of a single uploaded file.
+   *
+   * Deliberately a GraphQL `Float` (f64) rather than an `Int`. `Int` is a *signed
+   * 32-bit* value per the GraphQL spec, so it tops out at ~2.1 GB, and deployments
+   * routinely configure a larger ceiling (5 GB on ours). `f64` represents every
+   * integer up to 2^53 exactly, so a byte count is lossless well past any plausible
+   * upload limit, and it maps to a plain `number` in the generated TS client.
+   */
+  maxFileUploadSize: Scalars['Float']['output'];
 };
 
 export type UploadSeriesInput = {
@@ -5161,6 +5223,14 @@ export type BookSearchOverlayQuery = { __typename?: 'Query', media: { __typename
       { __typename?: 'Media', id: string }
       & { ' $fragmentRefs'?: { 'BookCardFragment': BookCardFragment } }
     )>, pageInfo: { __typename: 'CursorPaginationInfo', currentCursor?: string | null, nextCursor?: string | null, limit: number } | { __typename: 'OffsetPaginationInfo' } } };
+
+export type DeleteBookPermanentlyMutationVariables = Exact<{
+  id: Scalars['ID']['input'];
+  deleteFile: Scalars['Boolean']['input'];
+}>;
+
+
+export type DeleteBookPermanentlyMutation = { __typename?: 'Mutation', deleteMediaPermanently: { __typename?: 'Media', id: string } };
 
 export type SimpleBookCardFragment = { __typename?: 'Media', id: string, resolvedName: string, createdAt: any, thumbnail: { __typename?: 'ImageRef', url: string, metadata?: { __typename?: 'ImageMetadata', averageColor?: string | null, thumbhash?: string | null, colors: Array<{ __typename?: 'ImageColor', color: string, percentage: any }> } | null } } & { ' $fragmentName'?: 'SimpleBookCardFragment' };
 
@@ -5917,7 +5987,7 @@ export type CleanLibraryMutationVariables = Exact<{
 }>;
 
 
-export type CleanLibraryMutation = { __typename?: 'Mutation', cleanLibrary: { __typename?: 'CleanLibraryResponse', deletedMediaCount: number, deletedSeriesCount: number, isEmpty: boolean } };
+export type CleanLibraryMutation = { __typename?: 'Mutation', cleanLibrary: { __typename?: 'CleanLibraryResponse', deletedMediaCount: number, deletedSeriesCount: number, missingFileCount: number, storageUnavailable: boolean, isEmpty: boolean } };
 
 export type LibraryMissingEntitiesQueryVariables = Exact<{
   libraryId: Scalars['ID']['input'];
@@ -6060,6 +6130,13 @@ export type RegenerateThumbnailsMutationVariables = Exact<{
 
 
 export type RegenerateThumbnailsMutation = { __typename?: 'Mutation', generateLibraryThumbnails: boolean };
+
+export type LibraryUploadSectionUploadBooksMutationVariables = Exact<{
+  input: UploadBooksInput;
+}>;
+
+
+export type LibraryUploadSectionUploadBooksMutation = { __typename?: 'Mutation', uploadBooks: boolean };
 
 export type SeriesActionCompleteMutationVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -7328,6 +7405,13 @@ export const BookSearchOverlayDocument = new TypedDocumentString(`
     skipBookOverview
   }
 }`) as unknown as TypedDocumentString<BookSearchOverlayQuery, BookSearchOverlayQueryVariables>;
+export const DeleteBookPermanentlyDocument = new TypedDocumentString(`
+    mutation DeleteBookPermanently($id: ID!, $deleteFile: Boolean!) {
+  deleteMediaPermanently(id: $id, deleteFile: $deleteFile) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<DeleteBookPermanentlyMutation, DeleteBookPermanentlyMutationVariables>;
 export const UpdateMediaMetadataDocument = new TypedDocumentString(`
     mutation UpdateMediaMetadata($id: ID!, $input: MediaMetadataInput!) {
   updateMediaMetadata(id: $id, input: $input) {
@@ -9544,6 +9628,8 @@ export const CleanLibraryDocument = new TypedDocumentString(`
   cleanLibrary(id: $id) {
     deletedMediaCount
     deletedSeriesCount
+    missingFileCount
+    storageUnavailable
     isEmpty
   }
 }
@@ -9757,6 +9843,11 @@ export const RegenerateThumbnailsDocument = new TypedDocumentString(`
   generateLibraryThumbnails(id: $id, forceRegenerate: $forceRegenerate)
 }
     `) as unknown as TypedDocumentString<RegenerateThumbnailsMutation, RegenerateThumbnailsMutationVariables>;
+export const LibraryUploadSectionUploadBooksDocument = new TypedDocumentString(`
+    mutation LibraryUploadSectionUploadBooks($input: UploadBooksInput!) {
+  uploadBooks(input: $input)
+}
+    `) as unknown as TypedDocumentString<LibraryUploadSectionUploadBooksMutation, LibraryUploadSectionUploadBooksMutationVariables>;
 export const SeriesActionCompleteDocument = new TypedDocumentString(`
     mutation SeriesActionComplete($id: ID!) {
   finishSeriesProgress(id: $id)

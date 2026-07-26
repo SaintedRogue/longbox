@@ -28,6 +28,7 @@ const LibraryOrganizeScene = lazy(() => import('./options/organizer'))
 const LibraryAnalysisScene = lazy(() => import('./integrations/analysis'))
 const LibraryMetadataScene = lazy(() => import('./integrations/metadata'))
 const LibraryReadingDefaultsScene = lazy(() => import('./options/readingDefaults'))
+const LibraryUploadScene = lazy(() => import('./options/upload'))
 
 const AccessControlScene = lazy(() => import('./danger/accessControl'))
 const DeletionScene = lazy(() => import('./danger/deletion'))
@@ -187,6 +188,7 @@ export default function LibrarySettingsRouter() {
 					<Route path="scanning" element={<ScannerBehaviorScene />} />
 					<Route path="thumbnails" element={<ThumbnailSettingsScene />} />
 					<Route path="organize" element={<LibraryOrganizeScene />} />
+					<Route path="upload" element={<LibraryUploadScene />} />
 					<Route path="analysis" element={<LibraryAnalysisScene />} />
 					{canAccessMetadata && <Route path="metadata" element={<LibraryMetadataScene />} />}
 

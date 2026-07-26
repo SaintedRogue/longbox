@@ -1,4 +1,4 @@
-import { _setCacheStorageForTests, deleteUrls, estimateUsage, matchUrl, putUrl } from '../blobStore'
+import { _setCacheStorageForTests, deleteUrls, matchUrl, putUrl } from '../blobStore'
 
 /** Lightweight fake "response": just enough shape for blobStore's `.blob().size` usage. */
 function fakeResponse(size: number): Response {
@@ -78,14 +78,6 @@ describe('blobStore', () => {
 		expect(await matchUrl('/a')).toBeUndefined()
 		expect(await matchUrl('/b')).toBeDefined()
 		expect(await matchUrl('/c')).toBeUndefined()
-	})
-
-	it('estimateUsage returns entry count and summed blob sizes across all stored entries', async () => {
-		await putUrl('/a', fakeResponse(100))
-		await putUrl('/b', fakeResponse(250))
-		await putUrl('/c', fakeResponse(50))
-
-		expect(await estimateUsage()).toEqual({ entries: 3, bytes: 400 })
 	})
 
 	it('opens the cache under the name longbox-offline-v1', async () => {

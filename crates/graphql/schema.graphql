@@ -379,6 +379,19 @@ enum CharacterOrdering {
 type CleanLibraryResponse {
 	deletedMediaCount: Int!
 	deletedSeriesCount: Int!
+	"""
+	How many of the deleted records were stale entries: still flagged as `READY`, but with
+	no file left on disk. These are the records a scan can never fix, because a file that
+	was removed outside of Longbox is never revisited.
+	"""
+	missingFileCount: Int!
+	"""
+	Whether the on-disk sweep was skipped because the library's root could not be read (an
+	unmounted share, a detached drive, or an empty root). When true, no record was removed
+	on the grounds of a missing file, and the library should be cleaned again once its
+	storage is back.
+	"""
+	storageUnavailable: Boolean!
 	isEmpty: Boolean!
 }
 
@@ -2034,7 +2047,25 @@ type Mutation {
 	updateSuggestionStatus(suggestionId: ID!, status: BookClubSuggestionStatus!, notes: String): BookClubBookSuggestion!
 	analyzeMedia(id: ID!, forceReanalysis: Boolean! = false): Boolean!
 	convertMedia(id: ID!): Boolean!
+	"""
+	Soft delete a book. The record is flagged as deleted and hidden from the library, but
+	is kept in the database and the file on disk is untouched — this acts like a trash bin.
+	See `deleteMediaPermanently` to remove a book for good.
+	"""
 	deleteMedia(id: ID!): Media!
+	"""
+	Permanently delete a book. Unlike `deleteMedia`, which is a reversible soft delete,
+	this removes the database record and its thumbnails outright. When `deleteFile` is
+	true the underlying file is also erased from disk. **This cannot be undone.**
+	
+	The file is removed *before* the record: if the filesystem refuses, the mutation fails
+	with the library still describing reality. The reverse order could leave a file on
+	disk that no longer appears anywhere in Longbox.
+	
+	A book whose file is already gone can always be removed, since that is the exact
+	situation this exists to resolve.
+	"""
+	deleteMediaPermanently(id: ID!, deleteFile: Boolean! = false): Media!
 	favoriteMedia(id: ID!, isFavorite: Boolean!): Media!
 	"""
 	Update the thumbnail for a book. This will replace the existing thumbnail with the the one
@@ -2085,9 +2116,16 @@ type Mutation {
 	
 	- A series that is missing from disk (status is not `Ready`)
 	- A media that is missing from disk (status is not `Ready`)
+	- A series or media still flagged `Ready` whose path no longer exists on disk. These
+	are files that were removed outside of Longbox, which a scan never revisits, so
+	without this they would remain in the library forever
 	- A series that is not associated with any media (i.e., no media in the series)
 	
 	This operation will also remove any associated thumbnails of the deleted media and series.
+	
+	No file is ever deleted by this operation. If the library's storage is not currently
+	attached, the on-disk portion of the sweep is skipped rather than mistaking an
+	unmounted share for a library the user emptied.
 	"""
 	cleanLibrary(id: ID!): CleanLibraryResponse!
 	"Clear the scan history for a specific library"
@@ -3695,9 +3733,27 @@ input UploadBooksInput {
 	uploads: [Upload!]!
 }
 
+"""
+The upload-related slice of the server configuration. This exists so clients can
+render an accurate upload control -- whether uploads are permitted at all, and how
+large a file may be -- instead of discovering both by way of a failed mutation.
+"""
 type UploadConfig {
+	"""
+	Whether `enable_upload` is set on the server. When false, every upload mutation
+	is rejected by [`crate::guard::OptionalFeatureGuard`].
+	"""
 	enabled: Boolean!
-	maxFileUploadSize: Int!
+	"""
+	The maximum size, in bytes, of a single uploaded file.
+	
+	Deliberately a GraphQL `Float` (f64) rather than an `Int`. `Int` is a *signed
+	32-bit* value per the GraphQL spec, so it tops out at ~2.1 GB, and deployments
+	routinely configure a larger ceiling (5 GB on ours). `f64` represents every
+	integer up to 2^53 exactly, so a byte count is lossless well past any plausible
+	upload limit, and it maps to a plain `number` in the generated TS client.
+	"""
+	maxFileUploadSize: Float!
 }
 
 input UploadSeriesInput {

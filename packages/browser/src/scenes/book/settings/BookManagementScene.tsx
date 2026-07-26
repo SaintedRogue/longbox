@@ -11,6 +11,7 @@ import paths from '@/paths'
 
 import BookTagEditor from './BookTagEditor'
 import BookThumbnailSelector from './BookThumbnailSelector'
+import DeleteBook from './DeleteBook'
 
 const query = graphql(`
 	query BookManagementScene($id: ID!) {
@@ -150,6 +151,10 @@ export default function BookManagementScene() {
 
 						<BookThumbnailSelector fragment={book} />
 					</div>
+				)}
+
+				{checkPermission(UserPermission.DeleteLibrary) && (
+					<DeleteBook bookId={book.id} bookName={book.resolvedName} seriesId={book.series.id} />
 				)}
 			</div>
 		</SceneContainer>

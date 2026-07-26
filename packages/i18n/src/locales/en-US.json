@@ -70,6 +70,30 @@
 		},
 		"nextInSeries": "Next in Series"
 	},
+	"bookManagementScene": {
+		"deleteBook": {
+			"heading": "Delete book",
+			"description": "Remove this book from the library, with or without its file",
+			"disclaimerTitle": "This cannot be undone",
+			"disclaimer": "Removing the book deletes its record, reading progress and thumbnails. Deleting the file as well erases it from disk permanently — it is not moved to a trash folder and cannot be recovered from Longbox.",
+			"error": "An error occurred while deleting the book",
+			"removeRecord": {
+				"action": "Remove from library",
+				"title": "Remove from library",
+				"description": "Remove \"{{name}}\" from the library. The file stays on disk, so a future scan will add the book back.",
+				"confirm": "Remove book",
+				"success": "Book removed from the library"
+			},
+			"deleteFile": {
+				"action": "Delete book and file",
+				"title": "Permanently delete this book and its file",
+				"description": "The file for \"{{name}}\" will be permanently deleted from disk, along with the book, its reading progress and its thumbnails. This cannot be undone.",
+				"confirm": "Permanently delete",
+				"typeToConfirm": "Type {{name}} to confirm that the file should be deleted from disk:",
+				"success": "Book and file permanently deleted"
+			}
+		}
+	},
 	"createOrUpdateBookClubForm": {
 		"fields": {
 			"name": {
@@ -564,6 +588,7 @@
 				"scanning": "Scanning",
 				"thumbnails": "Thumbnails",
 				"organize": "Organize",
+				"upload": "Upload",
 				"ignore-rules": "Ignore Rules",
 				"label": "Configuration"
 			},
@@ -720,6 +745,49 @@
 				"manualBadge": "Manual"
 			}
 		},
+		"options/upload": {
+			"title": "Upload",
+			"description": "Add books to this library by uploading files from your device",
+			"sections": {
+				"books": {
+					"heading": "Upload books",
+					"description": "Send book files straight into this library. They are written to the destination you choose below, then picked up by a library scan.",
+					"files": {
+						"label": "Books",
+						"accepted": "Accepted formats: {{extensions}}",
+						"maxSize": "Maximum size per file: {{size}}",
+						"maxSizeUnknown": "The maximum file size could not be read from the server.",
+						"tooLarge": "Too large to upload (limit is {{size}}): {{names}}"
+					},
+					"destination": {
+						"label": "Destination",
+						"description": "Where inside the library the files will be written. Defaults to the library root.",
+						"libraryRoot": "Library root",
+						"change": "Change",
+						"outsideLibrary": "Pick a directory inside this library."
+					},
+					"unavailable": {
+						"permission": {
+							"title": "You can't upload files",
+							"description": "Uploading requires the file upload permission, which your account does not have. A server administrator can grant it."
+						},
+						"feature": {
+							"title": "Uploads are turned off",
+							"description": "This server was started with uploads disabled. An administrator can enable them by setting LONGBOX_ENABLE_UPLOAD=true (or enable_upload in Longbox.toml) and restarting the server."
+						}
+					},
+					"uploading": "Uploading… {{progress}}%",
+					"submit": "Upload books",
+					"success": {
+						"title": "Upload complete",
+						"description": "A library scan has been queued. The new books will appear once it finishes."
+					},
+					"error": {
+						"title": "Upload failed"
+					}
+				}
+			}
+		},
 		"integrations/analysis": {
 			"title": "Analysis",
 			"description": "Analyze the contents of this library to identify potential issues or improvements",
@@ -785,10 +853,16 @@
 					"heading": "Clean library",
 					"description": "Remove all media and series that cannot be located on disk",
 					"disclaimerTitle": "No files will be deleted",
-					"disclaimer": "While this action will not delete any files, it will permanently delete all records relating to media and series which have a missing status",
+					"disclaimer": "While this action will not delete any files, it will permanently delete all records relating to media and series which have a missing status, as well as any which are still marked as ready but whose file is no longer on disk",
 					"confirmation": {
 						"label": "Clean library",
-						"text": "Are you sure you want to clean this library?"
+						"text": "Are you sure you want to clean this library?",
+						"loading": "Cleaning library...",
+						"success": "Removed {{mediaCount}} book(s) and {{seriesCount}} series from the library.",
+						"missingFiles": "{{count}} of these were stale entries whose files no longer exist on disk.",
+						"storageUnavailable": "This library's storage could not be read, so nothing was removed for having a missing file. Reconnect the storage and clean again.",
+						"nothingToDelete": "Everything in this library was found on disk, so nothing was removed",
+						"error": "An error occurred while cleaning the library"
 					},
 					"emptyText": "There was nothing to clean",
 					"missingEntitiesTable": {
@@ -802,8 +876,8 @@
 							"SERIES": "Series",
 							"LIBRARY": "Library"
 						},
-						"emptyHeading": "Nothing is missing for this library",
-						"emptySubtitle": "All files referenced in the database were located on disk"
+						"emptyHeading": "Nothing has been flagged as missing",
+						"emptySubtitle": "No scan has marked anything in this library as missing. Cleaning also checks for files removed outside of Longbox, which never appear here, so it may still find something."
 					}
 				},
 				"deleteLibrary": {

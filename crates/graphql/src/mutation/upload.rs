@@ -83,6 +83,10 @@ impl UploadMutation {
 		for upload in uploads {
 			let mut value = upload.value(ctx)?;
 			validate_book_file(&mut value)?;
+			// Book uploads previously enforced no size limit at all, so `max_file_upload_size`
+			// -- the setting whose entire purpose is to bound them -- did nothing, and a user
+			// with upload rights could fill the library volume.
+			enforce_max_size(&value, core.config.max_file_upload_size)?;
 
 			let file_name = value.filename.clone();
 			let file_path = placement_path.join(file_name);
@@ -133,6 +137,10 @@ impl UploadMutation {
 
 		// Validate the contents of the zip file
 		validate_series_upload_contents(&mut value, &placement_path, false)?;
+		// Same gap as `upload_books`: the uploaded archive was never size-checked. Note this
+		// bounds the archive as transferred, not its expanded contents -- a zip bomb is a
+		// separate concern from the transfer ceiling this setting describes.
+		enforce_max_size(&value, core.config.max_file_upload_size)?;
 
 		// Create directory if necessary
 		if let Err(e) = fs::metadata(&placement_path).await {
@@ -189,7 +197,7 @@ impl UploadMutation {
 
 		let value = file.value(ctx)?;
 
-		enforce_max_size(&value, core.config.max_file_upload_size)?;
+		enforce_max_size(&value, core.config.max_image_upload_size)?;
 		enforce_valid_content_type(&value)?;
 
 		let mut image_buf = Vec::new();
@@ -288,7 +296,7 @@ impl UploadMutation {
 
 		let value = file.value(ctx)?;
 
-		enforce_max_size(&value, core.config.max_file_upload_size)?;
+		enforce_max_size(&value, core.config.max_image_upload_size)?;
 		enforce_valid_content_type(&value)?;
 
 		let mut image_buf = Vec::new();
@@ -394,7 +402,7 @@ impl UploadMutation {
 
 		let value = file.value(ctx)?;
 
-		enforce_max_size(&value, core.config.max_file_upload_size)?;
+		enforce_max_size(&value, core.config.max_image_upload_size)?;
 		enforce_valid_content_type(&value)?;
 
 		let mut image_buf = Vec::new();
@@ -512,7 +520,7 @@ impl UploadMutation {
 			.ok_or("Series not found")?;
 
 		let (image_buf, extension) =
-			decode_base64_image(&image, core.config.max_file_upload_size)?;
+			decode_base64_image(&image, core.config.max_image_upload_size)?;
 
 		match remove_thumbnails(
 			std::slice::from_ref(&series.series.id),
@@ -607,7 +615,7 @@ impl UploadMutation {
 			.ok_or("Book not found")?;
 
 		let (image_buf, extension) =
-			decode_base64_image(&image, core.config.max_file_upload_size)?;
+			decode_base64_image(&image, core.config.max_image_upload_size)?;
 
 		let removal_result = remove_thumbnails(
 			std::slice::from_ref(&book.media.id),

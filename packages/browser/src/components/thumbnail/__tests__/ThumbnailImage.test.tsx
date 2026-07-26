@@ -1,8 +1,6 @@
 import { useSDK } from '@longbox/client'
 import { fireEvent, render } from '@testing-library/react'
 
-import { _resetCacheOnViewOnceForTests } from '@/offline/cacheOnViewOnce'
-import * as passiveCache from '@/offline/passiveCache'
 import { useOfflineImageSrc } from '@/offline/resolveOfflineUrl'
 
 import { ThumbnailImage } from '../ThumbnailImage'
@@ -48,19 +46,16 @@ jest.mock('../../entity/AuthImage', () => {
 const mockedUseSDK = jest.mocked(useSDK)
 const mockedUseOfflineImageSrc = jest.mocked(useOfflineImageSrc)
 
+/** Returns the sdk's `axios.get` mock, so a test can assert nothing fetches behind the <img>. */
 function setSDK(isTokenAuth: boolean) {
+	const get = jest.fn()
 	mockedUseSDK.mockReturnValue({
-		sdk: { isTokenAuth, token: isTokenAuth ? 'test-token' : undefined },
+		sdk: { isTokenAuth, token: isTokenAuth ? 'test-token' : undefined, axios: { get } },
 	} as unknown as ReturnType<typeof useSDK>)
+	return get
 }
 
 describe('ThumbnailImage', () => {
-	beforeEach(() => {
-		// `cacheOnViewOnce`'s claim set is module-level (session-scoped by design), so it has to be
-		// cleared between cases or a later case reusing a src would see no shadow fetch at all.
-		_resetCacheOnViewOnceForTests()
-	})
-
 	afterEach(() => {
 		jest.clearAllMocks()
 	})
@@ -190,64 +185,19 @@ describe('ThumbnailImage', () => {
 		})
 	})
 
-	describe('passive cache (cacheOnView)', () => {
-		it('fires cacheOnView on the network (cache-miss) img onLoad, in session mode', () => {
-			setSDK(false)
-			mockedUseOfflineImageSrc.mockReturnValue(undefined)
-			const cacheOnViewSpy = jest.spyOn(passiveCache, 'cacheOnView').mockResolvedValue(undefined)
+	it('does not re-fetch a cover once it has loaded (no shadow fetch behind the <img>)', () => {
+		const get = setSDK(false)
+		mockedUseOfflineImageSrc.mockReturnValue(undefined)
 
-			const { container } = render(<ThumbnailImage src="/api/v2/media/1/thumbnail" />)
-			const img = container.querySelector('img')
-			expect(img).not.toBeNull()
+		const { container } = render(<ThumbnailImage src="/api/v2/media/1/thumbnail" />)
+		const img = container.querySelector('img')
+		expect(img).not.toBeNull()
 
-			fireEvent.load(img as HTMLImageElement)
+		// The retired passive cache re-GET every cover the browser had just loaded, purely to stash a
+		// copy in CacheStorage -- and the same cover renders across grids, carousels and peek sheets.
+		// The browser's own HTTP cache handles reuse now, so the load handler must not fetch anything.
+		fireEvent.load(img as HTMLImageElement)
 
-			expect(cacheOnViewSpy).toHaveBeenCalledWith(
-				'/api/v2/media/1/thumbnail',
-				expect.objectContaining({ isTokenAuth: false }),
-			)
-		})
-
-		it('does NOT fire cacheOnView on the offline-cache-hit img onLoad', () => {
-			setSDK(false)
-			mockedUseOfflineImageSrc.mockReturnValue('blob:mock')
-			const cacheOnViewSpy = jest.spyOn(passiveCache, 'cacheOnView').mockResolvedValue(undefined)
-
-			const { container } = render(<ThumbnailImage src="/api/v2/media/1/thumbnail" />)
-			const img = container.querySelector('img')
-			expect(img).not.toBeNull()
-
-			fireEvent.load(img as HTMLImageElement)
-
-			expect(cacheOnViewSpy).not.toHaveBeenCalled()
-		})
-
-		it('does NOT fire cacheOnView from ThumbnailImage on the AuthImage (token-mode) branch', () => {
-			setSDK(true)
-			mockedUseOfflineImageSrc.mockReturnValue(undefined)
-			const cacheOnViewSpy = jest.spyOn(passiveCache, 'cacheOnView').mockResolvedValue(undefined)
-
-			const { container } = render(<ThumbnailImage src="/api/v2/media/1/thumbnail" />)
-			expect(container.querySelector('[data-testid="auth-image-mock"]')).not.toBeNull()
-
-			expect(cacheOnViewSpy).not.toHaveBeenCalled()
-		})
-
-		it('shadow-fetches a given src at most once per session, across separate renders', () => {
-			setSDK(false)
-			mockedUseOfflineImageSrc.mockReturnValue(undefined)
-			const cacheOnViewSpy = jest.spyOn(passiveCache, 'cacheOnView').mockResolvedValue(undefined)
-
-			const first = render(<ThumbnailImage src="/api/v2/media/1/thumbnail" />)
-			fireEvent.load(first.container.querySelector('img') as HTMLImageElement)
-			first.unmount()
-
-			// The same cover shows up in a grid, a carousel and a peek sheet -- only the first load
-			// should re-GET the bytes for the passive cache.
-			const second = render(<ThumbnailImage src="/api/v2/media/1/thumbnail" />)
-			fireEvent.load(second.container.querySelector('img') as HTMLImageElement)
-
-			expect(cacheOnViewSpy).toHaveBeenCalledTimes(1)
-		})
+		expect(get).not.toHaveBeenCalled()
 	})
 })

@@ -1,5 +1,7 @@
 import { type DBSchema, type IDBPDatabase, openDB } from 'idb'
 
+import { purgeUnownedBlobs } from './purgeUnownedBlobs'
+
 export type OutboxStatus = 'UNSYNCED' | 'SYNCING' | 'ERROR'
 
 /** One durable progress record per book, awaiting sync to the server. */
@@ -35,29 +37,6 @@ export type DownloadRecord = {
 	downloadedAt: number
 }
 
-/**
- * One passive-cache log row per cached URL (comic page or thumbnail), tracking LRU recency plus the
- * cache validators needed to notice that the server's bytes for that (stable) URL have changed.
- *
- * `etag` / `lastValidatedAt` are optional on purpose: rows written before revalidation existed have
- * neither, and both are absent from any index (the only index is `by-last-accessed`, on
- * `lastAccessedAt`, which every row still has). IndexedDB stores records, not a fixed column set, so
- * adding these needs no `DB_VERSION` bump and no migration -- old rows stay valid and simply take
- * the "no stored validator" branch on their first revalidation.
- */
-export type PassiveCacheEntry = {
-	url: string
-	sizeBytes: number
-	lastAccessedAt: number
-	/** Strong validator (`ETag`) of the response these bytes came from, when the writer had headers in hand. */
-	etag?: string
-	/** When the server last confirmed these bytes are current (a 304, or a 200 that replaced them). */
-	lastValidatedAt?: number
-}
-
-/** Singleton row (id is always 'singleton') tracking the running total of passiveCacheEntries' sizeBytes. */
-export type PassiveCacheMetaRecord = { id: 'singleton'; totalBytes: number }
-
 export type QueueStatus = 'pending' | 'downloading' | 'completed' | 'failed'
 
 /** A queued/in-flight download job. Parity with Expo `download_queue`. */
@@ -88,19 +67,10 @@ export interface LongboxOfflineDB extends DBSchema {
 		value: DownloadQueueItem
 		indexes: { 'by-status': QueueStatus }
 	}
-	passiveCacheEntries: {
-		key: string // url
-		value: PassiveCacheEntry
-		indexes: { 'by-last-accessed': number }
-	}
-	passiveCacheMeta: {
-		key: string // always 'singleton'
-		value: PassiveCacheMetaRecord
-	}
 }
 
 const DB_NAME = 'longbox-offline'
-const DB_VERSION = 3
+const DB_VERSION = 4
 
 // Cached so repeated calls share one connection instead of opening a new one every time:
 // an uncached `openDB` per call leaks connections (nothing ever closes them), and a
@@ -110,8 +80,12 @@ let dbPromise: Promise<IDBPDatabase<LongboxOfflineDB>> | null = null
 
 export function getDB(): Promise<IDBPDatabase<LongboxOfflineDB>> {
 	if (!dbPromise) {
+		// Set inside `upgrade()` (which can't await CacheStorage work) and acted on once the version
+		// change has committed. See the `.then` below.
+		let purgeNeeded = false
+
 		dbPromise = openDB<LongboxOfflineDB>(DB_NAME, DB_VERSION, {
-			upgrade(db) {
+			upgrade(db, oldVersion) {
 				if (!db.objectStoreNames.contains('progressOutbox')) {
 					const store = db.createObjectStore('progressOutbox', { keyPath: 'bookId' })
 					store.createIndex('by-status', 'status')
@@ -123,17 +97,44 @@ export function getDB(): Promise<IDBPDatabase<LongboxOfflineDB>> {
 					const q = db.createObjectStore('downloadQueue', { keyPath: 'id', autoIncrement: true })
 					q.createIndex('by-status', 'status')
 				}
-				if (!db.objectStoreNames.contains('passiveCacheEntries')) {
-					const store = db.createObjectStore('passiveCacheEntries', { keyPath: 'url' })
-					store.createIndex('by-last-accessed', 'lastAccessedAt')
-				}
-				if (!db.objectStoreNames.contains('passiveCacheMeta')) {
-					db.createObjectStore('passiveCacheMeta', { keyPath: 'id' })
+
+				// v4 retires the passive read-through cache. Its two bookkeeping stores go here; the
+				// blobs they tracked -- which share the `longbox-offline-v1` bucket with downloads --
+				// are cleaned up by `purgeUnownedBlobs` below, since deleting them needs the async
+				// Cache API and a version-change transaction can't wait on that.
+				deleteRetiredStore(db, 'passiveCacheEntries')
+				deleteRetiredStore(db, 'passiveCacheMeta')
+				// Only for a database that already existed: a fresh install has no passive residue to
+				// purge (and, with no DownloadRecords yet, nothing that could vouch for a blob either).
+				if (oldVersion > 0 && oldVersion < 4) {
+					purgeNeeded = true
 				}
 			},
+		}).then(async (db) => {
+			// Deliberately awaited *inside* the cached promise rather than fired and forgotten: every
+			// offline path goes through `getDB()`, so blocking here guarantees the purge finishes
+			// before a download job can enqueue and start writing blobs the purge would not recognize.
+			// It runs at most once per browser (only a real version change sets the flag) and never
+			// throws.
+			if (purgeNeeded) await purgeUnownedBlobs(db)
+			return db
 		})
 	}
 	return dbPromise
+}
+
+/**
+ * Drops a store that is no longer part of the schema, if the database still has it.
+ *
+ * A retired store's name is by definition not a `StoreNames<LongboxOfflineDB>` any more, so the
+ * typed handle rejects it; the untyped view is the only way to name it. A no-op for any database
+ * that never had the store (a fresh install, or a v1/v2 one from before the passive cache existed).
+ */
+function deleteRetiredStore(db: IDBPDatabase<LongboxOfflineDB>, name: string): void {
+	const untyped = db as unknown as IDBPDatabase
+	if (untyped.objectStoreNames.contains(name)) {
+		untyped.deleteObjectStore(name)
+	}
 }
 
 /** Test-only: close and forget the cached connection so the next `getDB()` reopens fresh. */

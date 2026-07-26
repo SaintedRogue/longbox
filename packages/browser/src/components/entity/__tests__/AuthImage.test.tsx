@@ -1,8 +1,6 @@
 import { queryClient, useSDK } from '@longbox/client'
 import { act, render, waitFor } from '@testing-library/react'
 
-import * as passiveCache from '@/offline/passiveCache'
-
 import { AuthImage } from '../AuthImage'
 
 jest.mock('@longbox/client', () => ({
@@ -67,19 +65,6 @@ describe('AuthImage', () => {
 		await waitFor(() => {
 			expect(get).toHaveBeenCalledWith('/api/v2/media/1/page/1', { responseType: 'arraybuffer' })
 		})
-	})
-
-	it('feeds the fetched bytes into the passive cache once in hand, at zero extra network cost', async () => {
-		const get = resolvedGet()
-		setupSdk(get)
-		const cacheSpy = jest.spyOn(passiveCache, 'cacheAlreadyFetched').mockResolvedValue(undefined)
-
-		render(<AuthImage src="/api/v2/media/1/page/1" token="tok" />)
-
-		await waitFor(() => {
-			expect(cacheSpy).toHaveBeenCalledTimes(1)
-		})
-		expect(cacheSpy).toHaveBeenCalledWith('/api/v2/media/1/page/1', expect.any(Blob))
 	})
 
 	it('revokes the created object URL on unmount', async () => {
