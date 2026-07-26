@@ -40,9 +40,13 @@ export function getAppScroller(): HTMLElement | null {
  * The listener records under `keyRef.current` (the entry live when the scroll
  * fired), so it always attributes scroll to the right history entry.
  *
- * Peek overlays (Stream D) are unaffected: while a peek is open, AppLayout's
- * `location` reflects the *background* entry, so `location.key` does not change and
- * the restore effect does not re-run — the background scroll is preserved natively.
+ * This hook is now the *only* thing preserving a browse grid's scroll across a
+ * drill-down. The peek overlay used to keep the grid mounted behind a sheet, so its
+ * scroll survived implicitly and this hook never ran for that case; with the overlay
+ * gone (see ADR-0002) opening a book unmounts the grid and returning is a genuine
+ * POP restore. That is why the retry budget below tolerates a slow list, and why the
+ * react-query `gcTime` default matters: an evicted list re-suspends and cannot be
+ * restored against.
  *
  * `navigationType` is passed in rather than read via `useNavigationType()`: this
  * hook runs under AppRouter's `<Routes location={...}>`, whose LocationContext

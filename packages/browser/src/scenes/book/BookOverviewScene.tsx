@@ -29,7 +29,7 @@ export default function BookOverviewScene() {
 				<title>Longbox | {media.resolvedName}</title>
 			</Helmet>
 
-			<BookOverviewContent id={id || ''} variant="page" />
+			<BookOverviewContent id={id || ''} />
 		</SceneContainer>
 	)
 }

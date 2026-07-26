@@ -4,18 +4,10 @@ import { UserPermission, UserPreferences } from '@longbox/graphql'
 import { isAxiosError } from '@longbox/sdk'
 import { useQueryClient } from '@tanstack/react-query'
 import { useOverlayScrollbars } from 'overlayscrollbars-react'
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useRef } from 'react'
 import Confetti from 'react-confetti'
 import { useErrorBoundary } from 'react-error-boundary'
-import {
-	Location,
-	NavigationType,
-	Outlet,
-	Route,
-	Routes,
-	useLocation,
-	useNavigate,
-} from 'react-router-dom'
+import { NavigationType, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useMediaMatch, useWindowSize } from 'rooks'
 import { toast } from 'sonner'
 
@@ -33,31 +25,19 @@ import { useProgressOutbox } from './offline/useProgressOutbox'
 import { OfflineAppShell } from './OfflineAppShell'
 import { useAppStore, useUserStore } from './stores'
 
-const BookPeekSheet = lazy(() => import('./scenes/book/BookPeekSheet'))
-
 type AppLayoutProps = {
 	/**
-	 * The real browser location, set only while a peek overlay (e.g. the book
-	 * detail sheet) should be open. Rendered inside this component's own
-	 * AppContext.Provider (rather than back up in AppRouter) so overlay
-	 * content has access to the same permission/user context as the rest of
-	 * the app -- the main route tree here is matched against
-	 * `state.backgroundLocation` instead, so `useLocation()` in this
-	 * component does not reflect the real URL while peeking.
-	 */
-	overlayLocation?: Location
-	/**
 	 * The real navigation type (POP/PUSH/REPLACE), read in AppRouter. It must be
-	 * threaded in rather than read here via `useNavigationType()`: AppRouter
-	 * renders the main tree through `<Routes location={...}>` (always set, for the
-	 * peek overlay), which wraps this subtree in a LocationContext that hardcodes
-	 * navigationType to POP — so a local `useNavigationType()` would always report
-	 * POP. Scroll restoration needs the true type.
+	 * threaded in rather than read here via `useNavigationType()`: AppRouter renders
+	 * the main tree through `<Routes location={...}>`, which wraps this subtree in a
+	 * LocationContext that hardcodes navigationType to POP -- so a local
+	 * `useNavigationType()` would always report POP. Scroll restoration needs the
+	 * true type.
 	 */
 	navigationType: NavigationType
 }
 
-export function AppLayout({ overlayLocation, navigationType }: AppLayoutProps) {
+export function AppLayout({ navigationType }: AppLayoutProps) {
 	const location = useLocation()
 	const navigate = useNavigate()
 
@@ -340,14 +320,6 @@ export function AppLayout({ overlayLocation, navigationType }: AppLayoutProps) {
 				</div>
 
 				{showJobOverlay && <JobOverlay />}
-
-				{overlayLocation && (
-					<Suspense fallback={null}>
-						<Routes location={overlayLocation}>
-							<Route path="/books/:id" element={<BookPeekSheet />} />
-						</Routes>
-					</Suspense>
-				)}
 			</Suspense>
 		</AppContext.Provider>
 	)

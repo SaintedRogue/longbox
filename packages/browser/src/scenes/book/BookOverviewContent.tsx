@@ -1,4 +1,4 @@
-import { cn, Heading } from '@longbox/components'
+import { Heading } from '@longbox/components'
 import { useFragment, UserPermission } from '@longbox/graphql'
 import sortBy from 'lodash/sortBy'
 import { Suspense, useMemo } from 'react'
@@ -18,10 +18,9 @@ import BooksAfterCursor from './BooksAfterCursor'
 
 type Props = {
 	id: string
-	variant: 'page' | 'sheet'
 }
 
-export default function BookOverviewContent({ id, variant }: Props) {
+export default function BookOverviewContent({ id }: Props) {
 	const {
 		data: { mediaById: media },
 	} = useBookOverview(id)
@@ -40,24 +39,12 @@ export default function BookOverviewContent({ id, variant }: Props) {
 		[media.readHistory],
 	)
 
-	const isSheet = variant === 'sheet'
-
 	return (
 		<>
 			<Suspense>
-				<div className={cn('gap-4 flex h-full w-full flex-col', isSheet && 'px-1 pt-1')}>
-					<div
-						className={cn(
-							'gap-3 tablet:mb-2 flex flex-col items-center tablet:flex-row tablet:items-start',
-							isSheet && 'tablet:flex-col tablet:items-center',
-						)}
-					>
-						<div
-							className={cn(
-								'max-w-sm gap-3 sm:max-w-50 flex w-full shrink-0 flex-col items-center',
-								isSheet && 'max-w-56 gap-4 sm:max-w-56',
-							)}
-						>
+				<div className="gap-4 flex h-full w-full flex-col">
+					<div className="gap-3 tablet:mb-2 flex flex-col items-center tablet:flex-row tablet:items-start">
+						<div className="max-w-sm gap-3 sm:max-w-50 flex w-full shrink-0 flex-col items-center">
 							<ProminentThumbnailImage
 								src={fragmentData.thumbnail.url}
 								alt={media.resolvedName}
@@ -72,9 +59,9 @@ export default function BookOverviewContent({ id, variant }: Props) {
 						<BookOverviewSceneHeader media={media} book={fragmentData} completedAt={completedAt} />
 					</div>
 
-					{variant === 'page' && <BooksAfterCursor cursor={media.id} />}
+					<BooksAfterCursor cursor={media.id} />
 
-					<div className={cn('gap-y-2 flex flex-col', isSheet && 'pt-4 border-t border-border')}>
+					<div className="gap-y-2 flex flex-col">
 						<div className="gap-2 flex flex-wrap items-center justify-between">
 							<Heading size="sm">Metadata</Heading>
 							<BookMetadataMatch mediaId={media.id} />
@@ -85,9 +72,7 @@ export default function BookOverviewContent({ id, variant }: Props) {
 			</Suspense>
 
 			{/*Note: There is no permission specific to file info but I am just taking a loose assumption here*/}
-			{variant === 'page' && checkPermission(UserPermission.ManageLibrary) && (
-				<BookFileInformation fragment={media} />
-			)}
+			{checkPermission(UserPermission.ManageLibrary) && <BookFileInformation fragment={media} />}
 		</>
 	)
 }

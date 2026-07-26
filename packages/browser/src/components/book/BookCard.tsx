@@ -176,11 +176,11 @@ const BookCard = memo(function BookCard({
 	const props = href
 		? {
 				to: href,
+				// `from` is the return-path contract the reader headers read to place their back
+				// arrow. It no longer carries `backgroundLocation`: book detail is a page, not an
+				// overlay over whatever happened to be behind it.
 				state: {
 					from: `${location.pathname}${location.search}`,
-					// Readers are always full-page by design -- only the overview
-					// link opens as a peek overlay over the current browse context.
-					...(isReaderLink ? {} : { backgroundLocation: location }),
 				},
 			}
 		: {}
