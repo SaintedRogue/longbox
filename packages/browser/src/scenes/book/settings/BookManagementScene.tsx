@@ -7,7 +7,9 @@ import { useNavigate, useParams } from 'react-router'
 
 import { SceneContainer } from '@/components/container'
 import { useAppContext } from '@/context'
+import { useBrowseReturnPath } from '@/hooks/useBrowseHistory'
 import paths from '@/paths'
+import { browseSceneKey } from '@/stores/browseHistory'
 
 import BookTagEditor from './BookTagEditor'
 import BookThumbnailSelector from './BookThumbnailSelector'
@@ -57,23 +59,34 @@ export default function BookManagementScene() {
 
 	const { data, mutate: analyze, isPending } = useGraphQLMutation(analyzeMutation)
 
+	// Hoisted out of the breadcrumb memo below, where they would be conditional hook calls.
+	// Both send you back to the list as you left it rather than to its first page.
+	const libraryReturnPath = useBrowseReturnPath(
+		browseSceneKey.library(book?.library.id ?? ''),
+		paths.librarySeries(book?.library.id ?? ''),
+	)
+	const seriesReturnPath = useBrowseReturnPath(
+		browseSceneKey.series(book?.series.id ?? ''),
+		paths.seriesOverview(book?.series.id ?? ''),
+	)
+
 	const breadcrumbs = useMemo(() => {
 		if (!book) return []
 
 		const { series, library } = book
 
 		return [
-			{ label: library.name, to: paths.librarySeries(library.id) },
+			{ label: library.name, to: libraryReturnPath },
 			{
 				label: series.resolvedName,
-				to: paths.seriesOverview(series.id),
+				to: seriesReturnPath,
 			},
 			{
 				label: book.resolvedName,
 				to: paths.bookOverview(book.id),
 			},
 		]
-	}, [book])
+	}, [book, libraryReturnPath, seriesReturnPath])
 
 	const handleAnalyze = useCallback(() => {
 		if (id != null) {

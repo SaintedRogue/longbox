@@ -35,8 +35,10 @@ import { LibrarySeriesCard, SeriesTable } from '@/components/series'
 import { defaultSeriesColumnSort } from '@/components/series/table'
 import { EntityTableColumnConfiguration } from '@/components/table'
 import TableOrGridLayout from '@/components/TableOrGridLayout'
+import { useRememberBrowsePosition } from '@/hooks/useBrowseHistory'
 import useIsInView from '@/hooks/useIsInView'
 import { usePreferences } from '@/hooks/usePreferences'
+import { browseSceneKey } from '@/stores/browseHistory'
 import { useSeriesLayout } from '@/stores/layout'
 
 import { useLibraryContext } from '../../context'
@@ -188,6 +190,9 @@ export default function LibrarySeriesScene() {
 	const {
 		library: { id, name },
 	} = useLibraryContext()
+	// Record where this list is so the library's "up" links (breadcrumbs, book -> library)
+	// return here rather than to page 1.
+	useRememberBrowsePosition(browseSceneKey.library(id))
 	const {
 		filters: seriesFilters,
 		ordering,

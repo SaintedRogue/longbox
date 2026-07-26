@@ -1,7 +1,9 @@
 import { useSDK, useSuspenseGraphQL } from '@longbox/client'
 import { Badge, Link, Text } from '@longbox/components'
 import { graphql } from '@longbox/graphql'
-import { useLocation } from 'react-router-dom'
+
+import { useBrowseReturnPath } from '@/hooks/useBrowseHistory'
+import { browseSceneKey } from '@/stores/browseHistory'
 
 import paths from '../../paths'
 
@@ -23,9 +25,6 @@ type Props = {
 }
 
 export default function BookLibrarySeriesLinks({ seriesId }: Props) {
-	const location = useLocation()
-	const cameFrom = (location.state as { from?: string } | null)?.from
-
 	const { sdk } = useSDK()
 	const {
 		data: { seriesById: series },
@@ -35,17 +34,25 @@ export default function BookLibrarySeriesLinks({ seriesId }: Props) {
 
 	const library = series?.library
 
-	const linkFor = (bareTarget: string) => {
-		if (cameFrom && cameFrom.split('?')[0] === bareTarget.split('?')[0]) {
-			return cameFrom // full URL incl. ?page=&filters= the user was on
-		}
-		return bareTarget
-	}
+	// Resolved from the browse-history store rather than `location.state.from`, which used to
+	// drive these links and could not work: it compared path prefixes, and
+	// `paths.librarySeries(id)` is the bare `/libraries/x` while the referrer is
+	// `/libraries/x/series?page=5`, so the two never matched and every link fell through to
+	// page 1. The store also survives the multi-hop route here -- grid, book, reader, back to
+	// book -- by which point `state.from` no longer names the grid at all.
+	const libraryReturnPath = useBrowseReturnPath(
+		browseSceneKey.library(library?.id ?? ''),
+		library ? paths.librarySeries(library.id) : '',
+	)
+	const seriesReturnPath = useBrowseReturnPath(
+		browseSceneKey.series(series?.id ?? ''),
+		series ? paths.seriesOverview(series.id) : '',
+	)
 
 	return (
 		<div className="gap-1.5 flex items-center">
 			{library && (
-				<Link to={linkFor(paths.librarySeries(library.id))} underline={false}>
+				<Link to={libraryReturnPath} underline={false}>
 					<Badge size="sm" rounded="full" className="cursor-pointer">
 						{library.name}
 					</Badge>
@@ -56,7 +63,7 @@ export default function BookLibrarySeriesLinks({ seriesId }: Props) {
 					<Text size="sm" variant="muted">
 						/
 					</Text>
-					<Link to={linkFor(paths.seriesOverview(series.id))} underline={false}>
+					<Link to={seriesReturnPath} underline={false}>
 						<Badge variant="primary" size="sm" rounded="full" className="cursor-pointer">
 							{series.resolvedName}
 						</Badge>

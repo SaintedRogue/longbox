@@ -29,8 +29,10 @@ import GenericEmptyState from '@/components/GenericEmptyState'
 import { LibraryBooksAlphabet, usePrefetchLibraryBooksAlphabet } from '@/components/library'
 import { EntityTableColumnConfiguration } from '@/components/table'
 import TableOrGridLayout from '@/components/TableOrGridLayout'
+import { useRememberBrowsePosition } from '@/hooks/useBrowseHistory'
 import useIsInView from '@/hooks/useIsInView'
 import { usePreferences } from '@/hooks/usePreferences'
+import { browseSceneKey } from '@/stores/browseHistory'
 import { useBooksLayout } from '@/stores/layout'
 
 import { useLibraryContext } from '../../context'
@@ -146,6 +148,9 @@ function getQueryKey(
 
 function LibraryBooksScene() {
 	const { library } = useLibraryContext()
+	// Record where this list is so the library's "up" links (breadcrumbs, book -> library)
+	// return here rather than to page 1.
+	useRememberBrowsePosition(browseSceneKey.library(library.id))
 	const {
 		filters: mediaFilters,
 		ordering,

@@ -29,8 +29,10 @@ import GenericEmptyState from '@/components/GenericEmptyState'
 import { SeriesBooksAlphabet } from '@/components/series'
 import { EntityTableColumnConfiguration } from '@/components/table'
 import TableOrGridLayout from '@/components/TableOrGridLayout'
+import { useRememberBrowsePosition } from '@/hooks/useBrowseHistory'
 import useIsInView from '@/hooks/useIsInView'
 import { usePreferences } from '@/hooks/usePreferences'
+import { browseSceneKey } from '@/stores/browseHistory'
 import { useBooksLayout } from '@/stores/layout'
 
 import { useSeriesContext } from '../../context'
@@ -139,6 +141,8 @@ function getQueryKey(
 
 function SeriesBooksScene() {
 	const { series } = useSeriesContext()
+	// Record where this list is so book -> series links return here rather than to page 1.
+	useRememberBrowsePosition(browseSceneKey.series(series.id))
 	const {
 		filters: mediaFilters,
 		ordering,

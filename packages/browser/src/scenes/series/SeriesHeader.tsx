@@ -21,7 +21,9 @@ import { toast } from 'sonner'
 import { ProviderMatchDialog } from '@/components/metadata/providerMatch'
 import { EntityHeader } from '@/components/sharedLayout'
 import { useAppContext } from '@/context'
+import { useBrowseReturnPath } from '@/hooks/useBrowseHistory'
 import { usePaths } from '@/paths'
+import { browseSceneKey } from '@/stores/browseHistory'
 
 import CompleteSeriesConfirmation from './CompleteSeriesConfirmation'
 import { useSeriesContext } from './context'
@@ -50,6 +52,12 @@ export default function SeriesHeader() {
 	const location = useLocation()
 	const navigate = useNavigate()
 	const paths = usePaths()
+	// Both ways back up to the library -- the breadcrumb and the "Go to library" action --
+	// return to the list as it was left, not to its first page.
+	const libraryReturnPath = useBrowseReturnPath(
+		browseSceneKey.library(libraryId),
+		paths.librarySeries(libraryId),
+	)
 	const formattedTime = stats.totalReadingTimeSeconds
 		? formatHumanDurationSeparate(stats.totalReadingTimeSeconds)
 		: null
@@ -112,7 +120,7 @@ export default function SeriesHeader() {
 					label: t('seriesHeader.actions.goToLibrary'),
 					leftIcon: <ArrowUpRight className="mr-2 h-4 w-4" />,
 					onClick: () => {
-						navigate(paths.librarySeries(libraryId))
+						navigate(libraryReturnPath)
 					},
 				},
 			],
@@ -198,7 +206,7 @@ export default function SeriesHeader() {
 				<Breadcrumbs
 					segments={[
 						{ label: 'Libraries', to: paths.libraries(), noShrink: true },
-						{ label: libraryName, to: paths.librarySeries(libraryId), noShrink: true },
+						{ label: libraryName, to: libraryReturnPath, noShrink: true },
 						{ label: resolvedName },
 					]}
 				/>

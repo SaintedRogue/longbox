@@ -1,6 +1,11 @@
 import { act, render } from '@testing-library/react'
 import type { NavigationType } from 'react-router-dom'
 
+// react-router models these as an enum, but the enum object lives in the module this file
+// mocks -- so the values are spelled out and cast rather than imported at runtime.
+const PUSH = 'PUSH' as NavigationType
+const POP = 'POP' as NavigationType
+
 import { useScrollRestoration } from '../useScrollRestoration'
 
 /**
@@ -78,7 +83,7 @@ describe('useScrollRestoration', () => {
 
 	/** Visit entry-1, scroll it, leave for entry-2 -- so entry-1 has a saved offset to restore. */
 	const visitScrollAndLeave = (offset: number) => {
-		const view = render(<Harness navigationType="PUSH" />)
+		const view = render(<Harness navigationType={PUSH} />)
 
 		scroller.grow(4000)
 		scroller.el.scrollTop = offset
@@ -92,7 +97,7 @@ describe('useScrollRestoration', () => {
 		flushFrames(1)
 
 		mockKey = 'entry-2'
-		view.rerender(<Harness navigationType="PUSH" />)
+		view.rerender(<Harness navigationType={PUSH} />)
 
 		return view
 	}
@@ -101,7 +106,7 @@ describe('useScrollRestoration', () => {
 		const view = visitScrollAndLeave(800)
 
 		mockKey = 'entry-1'
-		view.rerender(<Harness navigationType="POP" />)
+		view.rerender(<Harness navigationType={POP} />)
 
 		expect(scroller.el.scrollTop).toBe(800)
 	})
@@ -113,7 +118,7 @@ describe('useScrollRestoration', () => {
 		// query resolves.
 		scroller.collapse()
 		mockKey = 'entry-1'
-		view.rerender(<Harness navigationType="POP" />)
+		view.rerender(<Harness navigationType={POP} />)
 		expect(scroller.el.scrollTop).toBe(0)
 
 		flushFrames(90) // ~1.5s at 60fps -- past the old 60 frame cutoff
@@ -128,7 +133,7 @@ describe('useScrollRestoration', () => {
 
 		scroller.collapse()
 		mockKey = 'entry-1'
-		view.rerender(<Harness navigationType="POP" />)
+		view.rerender(<Harness navigationType={POP} />)
 
 		act(() => {
 			window.dispatchEvent(new Event('wheel'))
@@ -144,7 +149,7 @@ describe('useScrollRestoration', () => {
 		const view = visitScrollAndLeave(800)
 
 		mockKey = 'entry-3'
-		view.rerender(<Harness navigationType="PUSH" />)
+		view.rerender(<Harness navigationType={PUSH} />)
 
 		expect(scroller.el.scrollTop).toBe(0)
 	})

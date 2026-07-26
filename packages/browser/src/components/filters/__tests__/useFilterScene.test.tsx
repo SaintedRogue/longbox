@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, useLocation, useNavigationType } from 'react-router-dom'
 
+import { FilterInput, Ordering } from '../context'
 import { useFilterScene } from '../useFilterScene'
 
 /**
@@ -25,8 +26,12 @@ function Harness() {
 			<span data-testid="query">{location.search}</span>
 			<button onClick={() => setPage(5)}>set page</button>
 			<button onClick={() => setSearch('batman')}>set search</button>
-			<button onClick={() => setOrdering({ orderBy: 'NAME', direction: 'DESC' })}>set order</button>
-			<button onClick={() => setFilters({ extension: 'cbz' })}>set filters</button>
+			<button onClick={() => setOrdering({ orderBy: 'NAME', direction: 'DESC' } as Ordering)}>
+				set order
+			</button>
+			<button onClick={() => setFilters({ extension: { eq: 'cbz' } } as FilterInput)}>
+				set filters
+			</button>
 		</div>
 	)
 }

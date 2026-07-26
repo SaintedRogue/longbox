@@ -3,11 +3,13 @@ import { useLocaleContext } from '@longbox/i18n'
 import { ArrowLeft, Home } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router'
 
+import { useBrowseReturnPath } from '@/hooks/useBrowseHistory'
 import { usePreferences } from '@/hooks/usePreferences'
 import { formatRouteKey, useRouteGroups } from '@/hooks/useRouteGroups'
 import { useTheme } from '@/hooks/useTheme'
 import { usePaths } from '@/paths'
 import { SideBarLinkButton } from '@/scenes/settings'
+import { browseSceneKey } from '@/stores/browseHistory'
 
 import { useLibraryContext } from '../../context'
 import { routeGroups } from './routes'
@@ -18,6 +20,12 @@ export default function LibrarySettingsSidebar() {
 	const paths = usePaths()
 
 	const { library } = useLibraryContext()
+	// The back arrow used to be hardcoded to the books tab, so leaving settings dropped you on
+	// a list you may never have been looking at. Return to the one you actually came from.
+	const returnPath = useBrowseReturnPath(
+		browseSceneKey.library(library.id),
+		paths.libraryBooks(library.id),
+	)
 	const { t } = useLocaleContext()
 	const {
 		preferences: { enableReplacePrimarySidebar, primaryNavigationMode },
@@ -41,7 +49,7 @@ export default function LibrarySettingsSidebar() {
 			<div className="gap-4 flex h-full grow flex-col">
 				<div className="space-x-2 flex items-center">
 					<ButtonOrLink
-						href={paths.libraryBooks(library.id)}
+						href={returnPath}
 						variant="ghost"
 						className="p-1 h-[unset] w-[unset] shrink-0 border border-transparent text-foreground hover:border-border hover:bg-accent hover:text-accent-foreground"
 						size="sm"
