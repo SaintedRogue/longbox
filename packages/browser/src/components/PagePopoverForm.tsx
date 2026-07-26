@@ -52,7 +52,10 @@ export default function PagePopoverForm({
 			off()
 			setTimeout(() => {
 				form.reset()
-				onPageChange(values.goTo)
+				// Parsed, not passed through: the field is a string (zod validates it as one), and
+				// handing that straight to a `(page: number) => void` meant callers doing arithmetic
+				// on it -- or writing it to the URL -- got string semantics.
+				onPageChange(parseInt(values.goTo, 10))
 			}, 50)
 		}
 	}

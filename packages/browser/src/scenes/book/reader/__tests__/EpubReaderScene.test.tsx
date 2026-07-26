@@ -1,4 +1,8 @@
 import { fireEvent, render, screen } from '@testing-library/react'
+// Namespace-imported under a `mock` prefix so the stub below can use a hook: jest hoists
+// mock factories above imports and rejects out-of-scope references, but exempts names
+// beginning with `mock` -- and the factory only runs once the module graph is initialised.
+import * as mockReact from 'react'
 import { Link, MemoryRouter, Route, Routes } from 'react-router-dom'
 
 import EpubReaderScene from '../EpubReaderScene'
@@ -19,8 +23,7 @@ const mockMountCount = jest.fn()
 jest.mock('@/components/readers/epub/EpubJsReader', () => ({
 	__esModule: true,
 	default: ({ id }: { id: string }) => {
-		// eslint-disable-next-line react-hooks/rules-of-hooks
-		require('react').useEffect(() => mockMountCount(id), [])
+		mockReact.useEffect(() => mockMountCount(id), [])
 		return <div data-testid="epub-reader" data-book={id} />
 	},
 }))

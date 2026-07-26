@@ -2661,6 +2661,7 @@
 		}
 	},
 	"pagination": {
+		"label": "Pagination",
 		"buttons": {
 			"next": "Next",
 			"previous": "Previous",
