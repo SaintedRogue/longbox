@@ -39,14 +39,14 @@ export default function UserSmartListHeader() {
 					key: 'seriesCount',
 					icon: Layers,
 					label: t('libraryHeader.stats.series'),
-					priority: 1 as const,
+					priority: 2 as const,
 					value: meta.matchedSeries,
 				},
 				{
 					key: 'libraryCount',
 					icon: Library,
 					label: t('libraryHeader.stats.libraries'),
-					priority: 2 as const,
+					priority: 3 as const,
 					value: meta.matchedLibraries,
 				},
 			]
