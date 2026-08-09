@@ -31,16 +31,22 @@ export default function UserSmartListHeader() {
 				{
 					key: 'bookCount',
 					icon: Book,
+					label: t('libraryHeader.stats.books'),
+					priority: 1 as const,
 					value: meta.matchedBooks,
 				},
 				{
 					key: 'seriesCount',
 					icon: Layers,
+					label: t('libraryHeader.stats.series'),
+					priority: 1 as const,
 					value: meta.matchedSeries,
 				},
 				{
 					key: 'libraryCount',
 					icon: Library,
+					label: t('libraryHeader.stats.libraries'),
+					priority: 2 as const,
 					value: meta.matchedLibraries,
 				},
 			]

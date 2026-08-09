@@ -16,7 +16,26 @@ import { useMediaMatch } from 'rooks'
 
 import { usePreferences } from '@/hooks'
 
-type Stat = React.ComponentProps<typeof MiniStatCard> & { key: string }
+/**
+ * How much width a stat has to earn before it appears.
+ *
+ * The header carries identity, navigation and settings; stats are the only thing on the row
+ * that can be dropped without losing a function. Revealing them in tiers keeps a tablet from
+ * cramming five chips between the title and the tabs, and everything stays reachable via the
+ * info sheet regardless of width.
+ */
+export type StatPriority = 1 | 2 | 3
+
+const PRIORITY_VISIBILITY: Record<StatPriority, string> = {
+	1: 'flex', // shown as soon as stats appear at all (>= sm)
+	2: 'hidden lg:flex',
+	3: 'hidden xl:flex',
+}
+
+type Stat = React.ComponentProps<typeof MiniStatCard> & {
+	key: string
+	priority?: StatPriority
+}
 
 type Tab = {
 	isActive: boolean
@@ -69,7 +88,9 @@ export function EntityHeader({ name, tabs, actions, stats, settingsLink, onInfoC
 				style={{ maxWidth: preferTopBar ? layoutMaxWidthPx || undefined : undefined }}
 			>
 				<div className="gap-3 min-w-0 flex items-center">
-					<Heading size="sm" className="shrink-0">
+					{/* Truncates rather than shrink-0: a long library name should give way to the
+					    tabs, not push them off the row. */}
+					<Heading size="sm" className="min-w-0 truncate">
 						{name}
 					</Heading>
 
@@ -92,9 +113,11 @@ export function EntityHeader({ name, tabs, actions, stats, settingsLink, onInfoC
 					)}
 
 					{stats && (
-						<div className="sm:flex gap-2 hidden items-center">
-							{stats.map(({ key, ...stat }) => (
-								<MiniStatCard key={key} {...stat} />
+						// Kept at sm so no width that previously showed stats loses them; the
+						// tiers below just stop all five arriving at once.
+						<div className="sm:flex gap-2 hidden shrink-0 items-center">
+							{stats.map(({ key, priority = 1, ...stat }) => (
+								<MiniStatCard key={key} className={PRIORITY_VISIBILITY[priority]} {...stat} />
 							))}
 						</div>
 					)}
@@ -103,8 +126,10 @@ export function EntityHeader({ name, tabs, actions, stats, settingsLink, onInfoC
 				<div className="flex-1" />
 
 				{onInfoClick && (
+					// 44px tap target through tablet widths -- those are touch devices too --
+					// and compact only at lg where a pointer is the likely input.
 					<button
-						className="gap-1 px-1 py-1 group flex items-center rounded-lg bg-primary/15"
+						className="h-11 w-11 lg:h-7 lg:w-7 group flex shrink-0 items-center justify-center rounded-lg bg-primary/15"
 						onClick={onInfoClick}
 						aria-label={t('common.info')}
 					>
@@ -129,7 +154,7 @@ export function EntityHeader({ name, tabs, actions, stats, settingsLink, onInfoC
 						to={settingsLink}
 						underline={false}
 						className={cn(
-							'h-7 w-7 flex shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
+							'h-11 w-11 lg:h-7 lg:w-7 flex shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
 							{ 'bg-muted text-foreground': isSettingsActive },
 						)}
 						aria-label={t('sidebar.buttons.settings')}

@@ -75,6 +75,8 @@ export default function LibraryHeader() {
 							{
 								key: 'seriesCount',
 								icon: Layers,
+								label: t('libraryHeader.stats.series'),
+								priority: 1 as const,
 								value: stats.seriesCount,
 							},
 						]
@@ -82,11 +84,15 @@ export default function LibraryHeader() {
 				{
 					key: 'inProgressBooks',
 					icon: BookOpen,
+					label: t('libraryHeader.stats.inProgress'),
+					priority: 2 as const,
 					value: stats.inProgressBooks,
 				},
 				{
 					key: 'completedBooks',
 					icon: BookCheck,
+					label: t('libraryHeader.stats.completed'),
+					priority: 1 as const,
 					value: stats.completedBooks,
 					suffix: `/ ${stats.bookCount}`,
 				},
@@ -95,6 +101,8 @@ export default function LibraryHeader() {
 							{
 								key: 'totalReadingTimeSeconds',
 								icon: Clock,
+								label: t('libraryHeader.stats.readingTime'),
+								priority: 3 as const,
 								value: formattedTime.value,
 								suffix: formattedTime.unit,
 							},
@@ -105,6 +113,8 @@ export default function LibraryHeader() {
 							{
 								key: 'totalBytes',
 								icon: HardDrive,
+								label: t('libraryHeader.stats.diskSize'),
+								priority: 3 as const,
 								value: formattedSize.value,
 								suffix: formattedSize.unit,
 							},
