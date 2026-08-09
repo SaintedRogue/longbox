@@ -93,6 +93,7 @@ fn signal_for(
 		source,
 		number,
 		year,
+		has_volume_token: parsed.has_volume_token,
 	})
 }
 

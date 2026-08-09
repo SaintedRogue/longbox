@@ -20,6 +20,14 @@ pub struct ParsedComicName {
 	pub number: Option<String>,
 	/// A 4-digit release year found in a bracketed group (1900–2099).
 	pub year: Option<i32>,
+	/// Whether the name carried a volume marker (`v01`, `Vol. 3`, `Volume 1`).
+	///
+	/// Reported because it distinguishes a *collected volume* from a *floppy issue*, and
+	/// nothing else does. `number` cannot: a collected edition's volume number lands in
+	/// the same field an issue number would. Callers grouping books need that difference
+	/// — for an issue run the year is a volume designation constant across the run, but
+	/// for a collected edition it is the publication year of one volume and varies.
+	pub has_volume_token: bool,
 }
 
 /// Parse a comic filename stem into a best-effort `{series, number, year}`.
@@ -30,12 +38,17 @@ pub struct ParsedComicName {
 /// series.
 pub fn parse_comic_filename(name: &str) -> ParsedComicName {
 	let (stripped, year) = strip_bracketed_groups(name);
-	let devolumed = strip_volume_tokens(stripped.trim());
+	let trimmed = stripped.trim();
+	let devolumed = strip_volume_tokens(trimmed);
+	// A token count that dropped means strip_volume_tokens removed a volume marker.
+	let has_volume_token =
+		devolumed.split_whitespace().count() != trimmed.split_whitespace().count();
 	let (series, number) = split_series_and_number(devolumed.trim());
 	ParsedComicName {
 		series: series.filter(|s| !s.is_empty()),
 		number,
 		year,
+		has_volume_token,
 	}
 }
 
@@ -183,6 +196,7 @@ mod tests {
 			series: Some(series.to_string()),
 			number: Some(number.to_string()),
 			year: Some(year),
+			has_volume_token: false,
 		}
 	}
 
@@ -216,6 +230,7 @@ mod tests {
 				series: Some("Batman".into()),
 				number: Some("12".into()),
 				year: None,
+				has_volume_token: false,
 			}
 		);
 	}
@@ -245,6 +260,7 @@ mod tests {
 				series: Some("Some One-Shot".into()),
 				number: None,
 				year: Some(2020),
+				has_volume_token: false,
 			}
 		);
 	}
@@ -258,6 +274,7 @@ mod tests {
 				series: None,
 				number: None,
 				year: Some(2024),
+				has_volume_token: false,
 			}
 		);
 	}

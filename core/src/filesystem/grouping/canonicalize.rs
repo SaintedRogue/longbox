@@ -67,10 +67,30 @@ pub fn canonicalize_title(raw: &str) -> CanonicalTitle {
 			is_collection: true,
 		},
 		None => CanonicalTitle {
-			base: series_family_key(&normalized),
+			base: trim_dangling_volume_word(&series_family_key(&normalized)),
 			is_collection: false,
 		},
 	}
+}
+
+/// Drop a trailing bare `book`/`vol`/`volume` left behind when the number that followed
+/// it was parsed off as an issue number.
+///
+/// `The Complete Fantastic Four by Jonathan Hickman Book 1` loses its `1` to the issue
+/// parser and would otherwise name a shelf `… Hickman Book`. A title genuinely ending in
+/// a bare "book" is vanishingly rare; a dangling one is a parse artifact.
+fn trim_dangling_volume_word(key: &str) -> String {
+	let trimmed = key.trim_end_matches([' ', '-']).to_string();
+	for word in ["book", "vol", "volume"] {
+		if let Some(rest) = trimmed.strip_suffix(word) {
+			// Only when it stands alone as the final word, not as part of one
+			// ("Sandbook", "Notebook").
+			if rest.is_empty() || rest.ends_with([' ', '-']) {
+				return rest.trim_end_matches([' ', '-']).trim().to_string();
+			}
+		}
+	}
+	trimmed
 }
 
 /// Build the full grouping key for one book.
@@ -92,19 +112,27 @@ pub fn canonicalize_title(raw: &str) -> CanonicalTitle {
 /// vanished entirely once singletons were dropped.
 ///
 /// Requiring an issue number — not merely the absence of a marker — is what protects
-/// untagged collected runs like `Saga of the Swamp Thing`, which carry no marker word
-/// but are still one shelf spanning several years.
+/// untagged collected runs that carry no marker word but are still one shelf spanning
+/// several years.
+///
+/// An issue number alone is not sufficient either, which production proved:
+/// `Saga of the Swamp Thing v01..v04` carry numbers 1–4, because a collected edition's
+/// *volume* number lands in the same field an issue number would. All four looked
+/// issue-shaped, year entered the key, and the run split 2/1/1 with the two singletons
+/// dropped. `has_volume_token` is the signal that separates them — a `v01` in the
+/// filename means collected volume, never floppy issue.
 pub fn group_key(
 	raw_title: &str,
 	number: Option<&str>,
 	year: Option<i32>,
+	has_volume_token: bool,
 ) -> (GroupKey, bool) {
 	let CanonicalTitle {
 		base,
 		is_collection,
 	} = canonicalize_title(raw_title);
 
-	let is_issue_shaped = !is_collection && number.is_some();
+	let is_issue_shaped = !is_collection && !has_volume_token && number.is_some();
 
 	(
 		GroupKey {
@@ -121,7 +149,13 @@ pub fn group_key(
 /// reads `Fantastic Four Epic Collection` rather than the lowercased key.
 pub fn display_name(raw: &str, is_collection: bool) -> String {
 	if !is_collection {
-		return raw.trim().to_string();
+		// Mirrors the key: a shelf should not be named "... Hickman Book".
+		let trimmed = raw.trim();
+		let without = trim_dangling_volume_word(&trimmed.to_lowercase());
+		return trimmed
+			.get(..without.len())
+			.map(|s| s.trim().to_string())
+			.unwrap_or_else(|| trimmed.to_string());
 	}
 
 	let lowered = raw.to_lowercase();
@@ -191,8 +225,8 @@ mod tests {
 
 	#[test]
 	fn issue_shaped_books_keep_year_so_batman_2011_and_2016_stay_apart() {
-		let (a, _) = group_key("Batman", Some("1"), Some(2011));
-		let (b, _) = group_key("Batman", Some("1"), Some(2016));
+		let (a, _) = group_key("Batman", Some("1"), Some(2011), false);
+		let (b, _) = group_key("Batman", Some("1"), Some(2016), false);
 
 		assert_ne!(a, b);
 		assert_eq!(a.year, Some(2011));
@@ -206,11 +240,13 @@ mod tests {
 			"Fantastic Four Epic Collection: Annihilus Revealed",
 			None,
 			Some(2022),
+			false,
 		);
 		let (v09, _) = group_key(
 			"Fantastic Four Epic Collection: The Crusader Syndrome",
 			None,
 			Some(2023),
+			false,
 		);
 
 		assert_eq!(v08, v09);
@@ -219,16 +255,51 @@ mod tests {
 
 	#[test]
 	fn untagged_collected_runs_without_a_marker_still_stay_together() {
-		// `Saga of the Swamp Thing` carries no marker word, spans 2009-2011, and has no
-		// issue numbers. Requiring a number -- not just the absence of a marker -- is
-		// what keeps these four books on one shelf.
-		let (a, _) = group_key("Saga of the Swamp Thing", None, Some(2009));
-		let (b, _) = group_key("Saga of the Swamp Thing", None, Some(2010));
-		let (c, _) = group_key("Saga of the Swamp Thing", None, Some(2011));
+		// `Saga of the Swamp Thing` carries no marker word and spans 2009-2011.
+		let (a, _) = group_key("Saga of the Swamp Thing", None, Some(2009), false);
+		let (b, _) = group_key("Saga of the Swamp Thing", None, Some(2010), false);
+		let (c, _) = group_key("Saga of the Swamp Thing", None, Some(2011), false);
 
 		assert_eq!(a, b);
 		assert_eq!(b, c);
 		assert_eq!(a.year, None);
+	}
+
+	#[test]
+	fn numbered_volumes_of_one_run_stay_together_across_years() {
+		// Production regression. These four are `Saga of the Swamp Thing v01..v04`, and
+		// they defeated the earlier "has a number => it's an issue" rule: a collected
+		// edition's *volume* number lands in the same field an issue number would, so all
+		// four looked issue-shaped, year entered the key, and the run split 2/1/1 with the
+		// singletons dropped. The `v01` token in the filename is what tells them apart.
+		let keys: Vec<_> = [(1, 2009), (2, 2009), (3, 2010), (4, 2011)]
+			.iter()
+			.map(|(n, y)| {
+				group_key(
+					"Saga of the Swamp Thing",
+					Some(&n.to_string()),
+					Some(*y),
+					true, // v01..v04
+				)
+				.0
+			})
+			.collect();
+
+		assert!(
+			keys.windows(2).all(|w| w[0] == w[1]),
+			"all four volumes must share one key, got {keys:?}"
+		);
+		assert_eq!(keys[0].year, None);
+	}
+
+	#[test]
+	fn a_volume_token_never_makes_a_book_issue_shaped() {
+		// Guards the inverse: a real issue run keeps its year and stays split.
+		let (collected, _) = group_key("Batman", Some("1"), Some(2011), true);
+		let (issue, _) = group_key("Batman", Some("1"), Some(2011), false);
+
+		assert_eq!(collected.year, None);
+		assert_eq!(issue.year, Some(2011));
 	}
 
 	#[test]
@@ -239,9 +310,14 @@ mod tests {
 			"Fantastic Four by Jonathan Hickman Omnibus",
 			None,
 			Some(2022),
+			false,
 		);
-		let (untagged, _) =
-			group_key("Fantastic Four by Jonathan Hickman Omnibus", None, None);
+		let (untagged, _) = group_key(
+			"Fantastic Four by Jonathan Hickman Omnibus",
+			None,
+			None,
+			false,
+		);
 
 		assert_eq!(tagged, untagged);
 	}

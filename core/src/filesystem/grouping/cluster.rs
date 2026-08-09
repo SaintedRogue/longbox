@@ -26,9 +26,13 @@ pub struct GroupSignal {
 	pub raw_title: String,
 	/// Which of those two it came from.
 	pub source: BookGroupSource,
-	/// The issue number, when known. Its presence is what marks a book issue-shaped.
+	/// The issue number, when known. Not sufficient on its own to mark a book
+	/// issue-shaped — a collected edition's volume number lands in the same field.
 	pub number: Option<String>,
 	pub year: Option<i32>,
+	/// Whether the filename carried a volume marker (`v01`, `Vol. 3`). A book that has
+	/// one is a collected volume, never a floppy issue.
+	pub has_volume_token: bool,
 }
 
 /// A proposed shelf.
@@ -63,8 +67,12 @@ pub fn cluster(signals: &[GroupSignal]) -> Vec<BookCluster> {
 			continue;
 		}
 
-		let (key, is_collection) =
-			group_key(&signal.raw_title, signal.number.as_deref(), signal.year);
+		let (key, is_collection) = group_key(
+			&signal.raw_title,
+			signal.number.as_deref(),
+			signal.year,
+			signal.has_volume_token,
+		);
 
 		is_collection_by_key.insert(key.clone(), is_collection);
 		buckets.entry(key).or_default().push(signal);
@@ -125,6 +133,7 @@ mod tests {
 			source: BookGroupSource::Metadata,
 			number: None,
 			year,
+			has_volume_token: false,
 		}
 	}
 
@@ -135,6 +144,7 @@ mod tests {
 			source: BookGroupSource::Filename,
 			number: Some(number.to_string()),
 			year,
+			has_volume_token: false,
 		}
 	}
 
