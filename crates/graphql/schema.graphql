@@ -1685,6 +1685,8 @@ type MediaMetadata {
 	metadataExternalId: String
 	"ComicVine issue ID parsed from embedded ComicTagger metadata (Notes/Web)"
 	comicvineId: String
+	"Metron issue ID parsed from embedded metadata (dedicated tag/Web/Notes)"
+	metronId: String
 	writers: [String!]!
 	genres: [String!]!
 	characters: [String!]!
@@ -1805,6 +1807,7 @@ enum MediaMetadataModelOrdering {
 	METADATA_EXTERNAL_ID
 	LOCKED_FIELDS
 	COMICVINE_ID
+	METRON_ID
 	TRANSLATORS
 }
 

@@ -114,6 +114,9 @@ pub struct Model {
 	/// ComicVine issue ID parsed from embedded ComicTagger metadata (Notes/Web)
 	#[sea_orm(column_type = "Text", nullable)]
 	pub comicvine_id: Option<String>,
+	/// Metron issue ID parsed from embedded metadata (dedicated tag/Web/Notes)
+	#[sea_orm(column_type = "Text", nullable)]
+	pub metron_id: Option<String>,
 	#[sea_orm(column_type = "Text", nullable)]
 	#[graphql(skip)]
 	pub translators: Option<String>,

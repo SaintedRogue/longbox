@@ -1797,6 +1797,8 @@ export type MediaMetadata = {
   metadataExternalId?: Maybe<Scalars['String']['output']>;
   /** The external metadata provider that supplied this metadata (e.g., "HARDCOVER") */
   metadataSource?: Maybe<Scalars['String']['output']>;
+  /** Metron issue ID parsed from embedded metadata (dedicated tag/Web/Notes) */
+  metronId?: Maybe<Scalars['String']['output']>;
   month?: Maybe<Scalars['Int']['output']>;
   notes?: Maybe<Scalars['String']['output']>;
   number?: Maybe<Scalars['Decimal']['output']>;
@@ -1905,6 +1907,7 @@ export enum MediaMetadataModelOrdering {
   MediaId = 'MEDIA_ID',
   MetadataExternalId = 'METADATA_EXTERNAL_ID',
   MetadataSource = 'METADATA_SOURCE',
+  MetronId = 'METRON_ID',
   Month = 'MONTH',
   Notes = 'NOTES',
   Number = 'NUMBER',
