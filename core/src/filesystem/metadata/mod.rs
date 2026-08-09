@@ -11,4 +11,4 @@ pub use fetch_job::{
 	MetadataFetchJob, MetadataFetchJobOutput, MetadataFetchJobParams, MetadataFetchScope,
 };
 pub use provider_cache::{ProviderCacheError, ProviderClientCache};
-pub use runtime::DbProviderRuntime;
+pub use runtime::{provider_budget_id, DbProviderRuntime};

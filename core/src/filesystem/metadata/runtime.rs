@@ -69,6 +69,18 @@ fn endpoint_key(url: &str) -> String {
 		})
 }
 
+/// The budget-ledger key for a configured provider — must match the
+/// [`MetadataProvider::id`] string each client passes to its runtime.
+pub fn provider_budget_id(
+	provider: &models::shared::enums::MetadataProvider,
+) -> &'static str {
+	match provider {
+		models::shared::enums::MetadataProvider::ComicVine => "comicvine",
+		models::shared::enums::MetadataProvider::Metron => "metron",
+		models::shared::enums::MetadataProvider::Hardcover => "hardcover",
+	}
+}
+
 pub struct DbProviderRuntime {
 	conn: Arc<DatabaseConnection>,
 	ttls: CacheTtls,

@@ -408,6 +408,58 @@ impl JobLifecycle for MetadataFetchJob {
 
 		let mut logs = vec![];
 
+		// Budget gate: when every enabled provider's rolling window is exhausted,
+		// firing more requests would only deepen the rate-limit hole. Mark the
+		// entity RATE_LIMITED without any provider traffic — the scheduled
+		// MetadataRetry job resumes it once the window rolls over.
+		let runtime = provider_cache.runtime();
+		let mut budget_states = Vec::with_capacity(all_provider_configs.len());
+		for config in &all_provider_configs {
+			let budget_id = super::provider_budget_id(&config.provider_type);
+			budget_states.push((budget_id, runtime.budget_exhausted(budget_id).await));
+		}
+		if all_budgets_exhausted(&budget_states) {
+			output.total_processed = 1;
+			output.rate_limited = 1;
+			let (series_id, media_id, conflict_column) = match &task {
+				MetadataFetchTask::FetchSeries { series_id, .. } => (
+					Some(series_id.clone()),
+					None,
+					metadata_fetch_record::Column::SeriesId,
+				),
+				MetadataFetchTask::FetchMedia { media_id, .. } => (
+					None,
+					Some(media_id.clone()),
+					metadata_fetch_record::Column::MediaId,
+				),
+			};
+			metadata_fetch_record::Entity::insert(metadata_fetch_record::ActiveModel {
+				series_id: Set(series_id),
+				media_id: Set(media_id),
+				status: Set(MetadataFetchStatus::RateLimited),
+				..Default::default()
+			})
+			.on_conflict(
+				OnConflict::column(conflict_column)
+					.update_columns([
+						metadata_fetch_record::Column::Status,
+						metadata_fetch_record::Column::UpdatedAt,
+					])
+					.to_owned(),
+			)
+			.exec(conn)
+			.await?;
+			logs.push(JobExecuteLog::warn(
+				"Provider API budgets exhausted — deferred without spending requests; \
+				 the scheduled metadata retry resumes this entity",
+			));
+			return Ok(JobTaskOutput {
+				output,
+				logs,
+				subtasks: vec![],
+			});
+		}
+
 		match task {
 			MetadataFetchTask::FetchSeries {
 				series_id,
@@ -799,6 +851,14 @@ impl JobLifecycle for MetadataFetchJob {
 	}
 }
 
+/// True when every enabled provider's budget window is exhausted — the only
+/// situation where deferring the whole task beats trying. A single provider
+/// with headroom (including budget-free providers like Hardcover, which are
+/// never exhausted) keeps the task running.
+fn all_budgets_exhausted(states: &[(&'static str, bool)]) -> bool {
+	!states.is_empty() && states.iter().all(|(_, exhausted)| *exhausted)
+}
+
 async fn resolve_library_type(
 	conn: &DatabaseConnection,
 	library_id: &str,
@@ -815,4 +875,30 @@ async fn resolve_library_type(
 		})?;
 
 	Ok(config.library_type)
+}
+
+#[cfg(test)]
+mod tests {
+	use super::all_budgets_exhausted;
+
+	#[test]
+	fn defers_only_when_every_provider_is_exhausted() {
+		// All exhausted → defer.
+		assert!(all_budgets_exhausted(&[
+			("comicvine", true),
+			("metron", true)
+		]));
+		// Any provider with headroom keeps the task running.
+		assert!(!all_budgets_exhausted(&[
+			("comicvine", true),
+			("metron", false)
+		]));
+		// Budget-free providers (hardcover) are never exhausted → never defer.
+		assert!(!all_budgets_exhausted(&[
+			("comicvine", true),
+			("hardcover", false)
+		]));
+		// No providers at all is handled upstream; the gate must not fire.
+		assert!(!all_budgets_exhausted(&[]));
+	}
 }

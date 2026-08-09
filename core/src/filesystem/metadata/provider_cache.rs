@@ -98,6 +98,12 @@ impl ProviderClientCache {
 		Ok(client_arc)
 	}
 
+	/// The cache's [`RuntimeHandle`] — lets jobs consult the budget ledger
+	/// directly (e.g. the fetch job's defer-before-spending gate).
+	pub fn runtime(&self) -> RuntimeHandle {
+		self.runtime.clone()
+	}
+
 	/// Clear all cached clients
 	pub async fn clear(&self) {
 		let mut clients = self.clients.write().await;
