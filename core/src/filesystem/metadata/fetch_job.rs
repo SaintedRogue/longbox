@@ -760,6 +760,9 @@ impl JobLifecycle for MetadataFetchJob {
 								comicvine_id: metadata
 									.as_ref()
 									.and_then(|m| m.comicvine_id.clone()),
+								metron_id: metadata
+									.as_ref()
+									.and_then(|m| m.metron_id.clone()),
 								limit: Some(10),
 								..Default::default()
 							};

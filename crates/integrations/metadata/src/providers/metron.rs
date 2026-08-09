@@ -165,6 +165,34 @@ impl MetadataProvider for MetronClient {
 		&self,
 		query: &SearchQuery,
 	) -> Result<Vec<MatchCandidate>, MetadataProviderError> {
+		// A native Metron issue ID is the strongest evidence there is — fetch the
+		// issue directly, no cv_id bridge and no search. Errors fall through to
+		// the remaining strategies rather than failing the whole search.
+		if let Some(metron_id) = &query.metron_id {
+			match self.fetch_media_metadata(metron_id).await {
+				Ok(metadata) => {
+					return Ok(vec![MatchCandidate {
+						provider: self.id().to_string(),
+						external_id: metron_id.clone(),
+						metadata: ExternalMetadata::Media(metadata),
+						confidence: 1.0,
+						confidence_factors: vec![ConfidenceFactor {
+							factor: "metron_id_exact".to_string(),
+							weight: 1.0,
+							matched: true,
+						}],
+					}]);
+				},
+				Err(e) => {
+					tracing::warn!(
+						metron_id,
+						error = ?e,
+						"Stored Metron id did not resolve — falling back to cv_id/fuzzy search"
+					);
+				},
+			}
+		}
+
 		// A known ComicVine issue ID lets us skip fuzzy search entirely: a unique hit
 		// is treated as an exact match with confidence 1.0
 		if let Some(cv_id) = &query.comicvine_id {
@@ -650,6 +678,39 @@ mod tests {
 			.validate_credentials()
 			.await
 			.expect("validation should not error")
+	}
+
+	#[tokio::test]
+	async fn native_metron_id_short_circuits_search() {
+		let server = MockServer::start().await;
+		// Only the direct issue-detail endpoint may be hit — a query-param
+		// cv_id lookup or fuzzy /issue/ search would miss this matcher and 404.
+		Mock::given(method("GET"))
+			.and(path("/issue/9910/"))
+			.respond_with(
+				ResponseTemplate::new(200).set_body_string(ISSUE_DETAIL_FIXTURE),
+			)
+			.expect(1)
+			.mount(&server)
+			.await;
+
+		let client = validation_client(server.uri());
+		let query = SearchQuery {
+			title: "Harley Quinn".to_string(),
+			metron_id: Some("9910".to_string()),
+			// A stored cv_id must be ignored when the native id resolves.
+			comicvine_id: Some("555444".to_string()),
+			..Default::default()
+		};
+
+		let candidates = client.search_media(&query).await.expect("search succeeds");
+		assert_eq!(candidates.len(), 1);
+		assert_eq!(candidates[0].external_id, "9910");
+		assert_eq!(candidates[0].confidence, 1.0);
+		assert!(candidates[0]
+			.confidence_factors
+			.iter()
+			.any(|f| f.factor == "metron_id_exact" && f.matched));
 	}
 
 	#[tokio::test]

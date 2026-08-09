@@ -285,6 +285,9 @@ fn enrich_query_with_media_metadata(
 		if search.comicvine_id.is_none() {
 			search.comicvine_id = metadata.comicvine_id.clone();
 		}
+		if search.metron_id.is_none() {
+			search.metron_id = metadata.metron_id.clone();
+		}
 	}
 
 	// Last resort for filename-only libraries (no ComicInfo.xml, so empty

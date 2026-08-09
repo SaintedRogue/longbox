@@ -13,6 +13,9 @@ pub struct SearchQuery {
 	/// Known ComicVine issue ID (from media_metadata.comicvine_id, Stream C) —
 	/// providers that can resolve it directly should skip fuzzy search.
 	pub comicvine_id: Option<String>,
+	/// Known Metron issue ID (from media_metadata.metron_id) — Metron resolves
+	/// it directly, skipping both the cv_id bridge and fuzzy search.
+	pub metron_id: Option<String>,
 }
 
 impl Default for SearchQuery {
@@ -28,6 +31,7 @@ impl Default for SearchQuery {
 			publisher: None,
 			series_year: None,
 			comicvine_id: None,
+			metron_id: None,
 		}
 	}
 }
