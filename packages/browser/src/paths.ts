@@ -96,6 +96,9 @@ const pathsInternal = {
 		}
 		return `/libraries/${id}/books`
 	},
+	libraryCollection: (libraryId: string, collectionId: string) =>
+		`/libraries/${libraryId}/collections/${collectionId}`,
+	libraryCollections: (libraryId: string) => `/libraries/${libraryId}/series?view=collections`,
 	libraryCreate: () => '/libraries/create',
 	libraryFileExplorer: (id: string) => `/libraries/${id}/files`,
 	libraryManage: (id: string) => `/libraries/${id}/settings`,
@@ -162,6 +165,10 @@ export function usePaths() {
 		libraries: () => `${basePath}${pathsInternal.libraries()}`,
 		libraryBooks: (id: string, page?: number) =>
 			`${basePath}${pathsInternal.libraryBooks(id, page)}`,
+		libraryCollection: (libraryId: string, collectionId: string) =>
+			`${basePath}${pathsInternal.libraryCollection(libraryId, collectionId)}`,
+		libraryCollections: (libraryId: string) =>
+			`${basePath}${pathsInternal.libraryCollections(libraryId)}`,
 		libraryCreate: () => `${basePath}${pathsInternal.libraryCreate()}`,
 		libraryFileExplorer: (id: string) => `${basePath}${pathsInternal.libraryFileExplorer(id)}`,
 		libraryManage: (id: string) => `${basePath}${pathsInternal.libraryManage(id)}`,

@@ -9,8 +9,9 @@ import {
 	SeriesOrderBy,
 } from '@longbox/graphql'
 import { useQueryClient } from '@tanstack/react-query'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { Helmet } from 'react-helmet'
+import { useSearchParams } from 'react-router-dom'
 import { useShallow } from 'zustand/react/shallow'
 
 import { DynamicCardGrid, GridSizeSlider } from '@/components/container'
@@ -43,6 +44,7 @@ import { useSeriesLayout } from '@/stores/layout'
 
 import { useLibraryContext } from '../../context'
 import LibraryCollections from './LibraryCollections'
+import SeriesViewToggle from './SeriesViewToggle'
 
 const query = graphql(`
 	query LibrarySeries(
@@ -191,6 +193,27 @@ export default function LibrarySeriesScene() {
 	const {
 		library: { id, name },
 	} = useLibraryContext()
+	// Kept in the URL rather than component state so the view survives a back-navigation and
+	// can be linked to, matching how page/search/filters are already handled here.
+	const [searchParams, setSearchParams] = useSearchParams()
+	const isCollectionsView = searchParams.get('view') === 'collections'
+	const setView = useCallback(
+		(view: 'series' | 'collections') => {
+			setSearchParams((params) => {
+				const next = new URLSearchParams(params)
+				if (view === 'collections') {
+					next.set('view', 'collections')
+				} else {
+					next.delete('view')
+				}
+				// Page numbers belong to the series list; carrying one into the collections
+				// view (or back out of it) would land on a page that does not exist there.
+				next.delete('page')
+				return next
+			})
+		},
+		[setSearchParams],
+	)
 	// Record where this list is so the library's "up" links (breadcrumbs, book -> library)
 	// return here rather than to page 1.
 	useRememberBrowsePosition(browseSceneKey.library(id))
@@ -426,14 +449,24 @@ export default function LibrarySeriesScene() {
 
 				<FilterHeader
 					isSearching={isLoading}
-					layoutControls={<TableOrGridLayout layout={layoutMode} setLayout={setLayout} />}
-					orderControls={<URLOrdering entity="series" />}
-					filterControls={<URLFilterDrawer entity="series" />}
+					layoutControls={
+						isCollectionsView ? undefined : (
+							<TableOrGridLayout layout={layoutMode} setLayout={setLayout} />
+						)
+					}
+					orderControls={isCollectionsView ? undefined : <URLOrdering entity="series" />}
+					filterControls={isCollectionsView ? undefined : <URLFilterDrawer entity="series" />}
+					viewControls={
+						<SeriesViewToggle
+							value={isCollectionsView ? 'collections' : 'series'}
+							onChange={setView}
+						/>
+					}
 					sizeControls={layoutMode === InterfaceLayout.Grid ? <GridSizeSlider /> : undefined}
 					navOffset
 				/>
 
-				{enableAlphabetSelect && (
+				{enableAlphabetSelect && !isCollectionsView && (
 					<LibrarySeriesAlphabet
 						startsWith={startsWith}
 						onSelectLetter={onSelectLetter}
@@ -441,9 +474,13 @@ export default function LibrarySeriesScene() {
 					/>
 				)}
 
-				<LibraryCollections libraryId={id} />
-
-				{renderContent()}
+				{isCollectionsView ? (
+					<Suspense fallback={null}>
+						<LibraryCollections libraryId={id} />
+					</Suspense>
+				) : (
+					renderContent()
+				)}
 			</div>
 		</FilterContext.Provider>
 	)

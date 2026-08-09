@@ -6097,22 +6097,29 @@ export type LibraryBooksSceneQuery = { __typename?: 'Query', media: { __typename
       & { ' $fragmentRefs'?: { 'BookCardFragment': BookCardFragment;'BookMetadataFragment': BookMetadataFragment } }
     )>, pageInfo: { __typename: 'CursorPaginationInfo' } | { __typename: 'OffsetPaginationInfo', currentPage: number, totalPages: number, pageSize: number, pageOffset: number, zeroBased: boolean } } };
 
+export type LibraryCollectionSceneQueryVariables = Exact<{
+  id: Scalars['ID']['input'];
+}>;
+
+
+export type LibraryCollectionSceneQuery = { __typename?: 'Query', bookGroupById?: { __typename?: 'BookGroup', id: string, name: string, source: BookGroupSource, bookCount: number, books: Array<(
+      { __typename?: 'Media', id: string }
+      & { ' $fragmentRefs'?: { 'BookCardFragment': BookCardFragment } }
+    )> } | null };
+
 export type LibraryCollectionsQueryVariables = Exact<{
   libraryId: Scalars['ID']['input'];
 }>;
 
 
-export type LibraryCollectionsQuery = { __typename?: 'Query', bookGroups: Array<{ __typename?: 'BookGroup', id: string, name: string, bookCount: number, books: Array<(
-      { __typename?: 'Media', id: string }
-      & { ' $fragmentRefs'?: { 'BookCardFragment': BookCardFragment } }
-    )> }> };
+export type LibraryCollectionsQuery = { __typename?: 'Query', bookGroups: Array<{ __typename?: 'BookGroup', id: string, name: string, bookCount: number, books: Array<{ __typename?: 'Media', id: string, thumbnail: { __typename?: 'ImageRef', url: string, metadata?: { __typename?: 'ImageMetadata', averageColor?: string | null, thumbhash?: string | null, colors: Array<{ __typename?: 'ImageColor', color: string, percentage: any }> } | null } }> }> };
 
 export type LibraryCollectionsDetectMutationVariables = Exact<{
   libraryId: Scalars['ID']['input'];
 }>;
 
 
-export type LibraryCollectionsDetectMutation = { __typename?: 'Mutation', detectBookGroups: { __typename?: 'DetectBookGroupsResult', groupsCreated: number, groupsMatched: number, groupsPruned: number, booksGrouped: number, booksStandalone: number, booksLocked: number } };
+export type LibraryCollectionsDetectMutation = { __typename?: 'Mutation', detectBookGroups: { __typename?: 'DetectBookGroupsResult', groupsCreated: number, groupsMatched: number, groupsPruned: number, booksGrouped: number, booksStandalone: number } };
 
 export type LibrarySeriesQueryVariables = Exact<{
   filter: SeriesFilterInput;
@@ -9696,11 +9703,12 @@ fragment BookMetadata on Media {
     number
   }
 }`) as unknown as TypedDocumentString<LibraryBooksSceneQuery, LibraryBooksSceneQueryVariables>;
-export const LibraryCollectionsDocument = new TypedDocumentString(`
-    query LibraryCollections($libraryId: ID!) {
-  bookGroups(libraryId: $libraryId) {
+export const LibraryCollectionSceneDocument = new TypedDocumentString(`
+    query LibraryCollectionScene($id: ID!) {
+  bookGroupById(id: $id) {
     id
     name
+    source
     bookCount
     books {
       id
@@ -9742,7 +9750,30 @@ export const LibraryCollectionsDocument = new TypedDocumentString(`
   libraryConfig {
     skipBookOverview
   }
-}`) as unknown as TypedDocumentString<LibraryCollectionsQuery, LibraryCollectionsQueryVariables>;
+}`) as unknown as TypedDocumentString<LibraryCollectionSceneQuery, LibraryCollectionSceneQueryVariables>;
+export const LibraryCollectionsDocument = new TypedDocumentString(`
+    query LibraryCollections($libraryId: ID!) {
+  bookGroups(libraryId: $libraryId) {
+    id
+    name
+    bookCount
+    books {
+      id
+      thumbnail {
+        url
+        metadata {
+          averageColor
+          colors {
+            color
+            percentage
+          }
+          thumbhash
+        }
+      }
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<LibraryCollectionsQuery, LibraryCollectionsQueryVariables>;
 export const LibraryCollectionsDetectDocument = new TypedDocumentString(`
     mutation LibraryCollectionsDetect($libraryId: ID!) {
   detectBookGroups(libraryId: $libraryId) {
@@ -9751,7 +9782,6 @@ export const LibraryCollectionsDetectDocument = new TypedDocumentString(`
     groupsPruned
     booksGrouped
     booksStandalone
-    booksLocked
   }
 }
     `) as unknown as TypedDocumentString<LibraryCollectionsDetectMutation, LibraryCollectionsDetectMutationVariables>;

@@ -36,6 +36,11 @@ type Props = {
 	 * The controls for adjusting the size of cards/items
 	 */
 	sizeControls?: React.ReactNode
+	/**
+	 * Controls placed immediately after the search input, before the trailing controls. For
+	 * switching *what* is being listed, as opposed to how it is sorted or displayed.
+	 */
+	viewControls?: React.ReactNode
 	navOffset?: boolean
 }
 
@@ -48,6 +53,7 @@ export default function FilterHeader({
 	orderControls,
 	filterControls,
 	sizeControls,
+	viewControls,
 	navOffset,
 }: Props) {
 	const isMobile = useMediaMatch('(max-width: 768px)')
@@ -95,6 +101,8 @@ export default function FilterHeader({
 			/>
 
 			<div className="gap-x-4 flex items-center">
+				{viewControls}
+
 				{sizeControls}
 
 				<div className="gap-x-1 flex items-center">

@@ -60,6 +60,14 @@ type Props = {
 	width: number
 	thumbnailData: ImageRef[]
 	className?: string
+	/**
+	 * Where the card navigates. Defaults to the series overview; collections reuse this card's
+	 * visual language deliberately, because a collection is a shelf of books exactly like a
+	 * series is -- it just isn't backed by a folder.
+	 */
+	to?: string
+	/** Skipped for destinations that are not a series, where series prefetch would be wasted. */
+	disablePrefetch?: boolean
 }
 
 export function StackedSeriesCard({
@@ -70,6 +78,8 @@ export function StackedSeriesCard({
 	width: cardWidth,
 	thumbnailData,
 	className,
+	to,
+	disablePrefetch,
 }: Props) {
 	const { isDarkVariant, getColor: getThemeColor } = useTheme()
 	const {
@@ -212,9 +222,9 @@ export function StackedSeriesCard({
 
 	return (
 		<Link
-			to={paths.seriesOverview(id)}
+			to={to ?? paths.seriesOverview(id)}
 			className={cn('group relative block w-full', !shouldFancyHover && 'hover:opacity-80')}
-			onMouseEnter={prefetch}
+			onMouseEnter={disablePrefetch ? undefined : prefetch}
 		>
 			<div
 				className={cn('relative', className)}

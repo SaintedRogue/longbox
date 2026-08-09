@@ -13,6 +13,7 @@ const LibrarySettingsRouter = lazy(() => import('./tabs/settings'))
 const LibraryExplorerScene = lazy(() => import('./tabs/files/LibraryExplorerScene.tsx'))
 const LibrarySeriesScene = lazy(() => import('./tabs/series/LibrarySeriesScene.tsx'))
 const LibraryBooksScene = lazy(() => import('./tabs/books/LibraryBooksScene.tsx'))
+const LibraryCollectionScene = lazy(() => import('./tabs/series/LibraryCollectionScene.tsx'))
 const LibrarySearchScene = lazy(() => import('../librarySearch'))
 
 export default function LibraryRouter() {
@@ -30,6 +31,7 @@ export default function LibraryRouter() {
 				<Route path="" element={<LibraryDefaultRedirect />} />
 				<Route path="series" element={<LibrarySeriesScene />} />
 				<Route path="books" element={<LibraryBooksScene />} />
+				<Route path="collections/:collectionId" element={<LibraryCollectionScene />} />
 				{canAccessExplorer && <Route path="files" element={<LibraryExplorerScene />} />}
 
 				<Route element={<LibraryAdminLayout />}>
