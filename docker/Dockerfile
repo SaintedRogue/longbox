@@ -7,7 +7,14 @@ FROM debian:bookworm-slim AS pdfium
 ARG TARGETARCH
 
 # Update and install curl and tar
-RUN --mount=type=cache,target=/var/cache/apt --mount=type=cache,target=/var/lib/apt \
+#
+# sharing=locked, not the default sharing=shared: this stage and the Rust builder stage
+# below mount the *same* unnamed apt caches (the id defaults to the target path), and
+# BuildKit runs independent stages in parallel. Two concurrent apt-gets against one
+# lists/archives dir race for its lock and one dies with "Could not get lock ... held by
+# process 0" -- in whichever stage loses. Locking serializes them while keeping the cache.
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && apt-get install -y curl tar
 
 # Download and extract the PDFium binaries
@@ -78,7 +85,10 @@ ARG TARGETARCH
 ENV GIT_REV=${GIT_REV}
 ENV BUILD_CHANNEL=${BUILD_CHANNEL}
 
-RUN --mount=type=cache,target=/var/cache/apt --mount=type=cache,target=/var/lib/apt \
+# sharing=locked for the same reason as the pdfium stage above -- these two stages run
+# in parallel and share this cache.
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && apt-get install -y \
         build-essential \
         cmake \

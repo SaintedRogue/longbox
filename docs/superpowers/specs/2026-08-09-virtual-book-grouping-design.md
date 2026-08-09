@@ -320,7 +320,17 @@ fn canonicalize(raw: &str) -> (String /* base_key */, bool /* is_collection */) 
 }
 ```
 
-**Grouping key = `(base_key, is_collection ? None : year)`.**
+**Grouping key = `(base_key, is_issue_shaped ? year : None)`**, where a book is
+issue-shaped when it has an issue number **and** no collected-edition marker.
+
+> **Correction made during implementation.** This spec originally said
+> `is_collection ? None : year` — drop year only when a marker is present. That
+> is not enough. `Saga of the Swamp Thing` carries no marker word, spans 2009,
+> 2010 and 2011, and has no issue numbers; the marker-only rule would still have
+> split it three ways and orphaned two of its four books. Requiring a positive
+> signal that the book _is_ an issue — a parsed issue number — is what protects
+> untagged collected runs. The regression test is
+> `untagged_collected_runs_without_a_marker_still_stay_together`.
 
 Dropping year for collected editions is load-bearing, not a detail. Measured
 against prod:
