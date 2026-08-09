@@ -23,13 +23,20 @@ import { usePreferences } from '@/hooks'
  * that can be dropped without losing a function. Revealing them in tiers keeps a tablet from
  * cramming five chips between the title and the tabs, and everything stays reachable via the
  * info sheet regardless of width.
+ *
+ * These are **container** queries, not viewport ones. The sidebar takes ~208px, so a 768px
+ * tablet leaves the header barely more room than a 560px phone in landscape — keying off the
+ * viewport showed two chips there and squeezed the library name down to "Co…". Measuring the
+ * row's own width instead means the tiers stay correct whether the sidebar is open, collapsed,
+ * or replaced by the top bar.
  */
-export type StatPriority = 1 | 2 | 3
+export type StatPriority = 1 | 2 | 3 | 4
 
 const PRIORITY_VISIBILITY: Record<StatPriority, string> = {
-	1: 'flex', // shown as soon as stats appear at all (>= sm)
-	2: 'hidden lg:flex',
-	3: 'hidden xl:flex',
+	1: 'hidden @lg:flex',
+	2: 'hidden @2xl:flex',
+	3: 'hidden @4xl:flex',
+	4: 'hidden @6xl:flex',
 }
 
 type Stat = React.ComponentProps<typeof MiniStatCard> & {
@@ -82,15 +89,16 @@ export function EntityHeader({ name, tabs, actions, stats, settingsLink, onInfoC
 			})}
 		>
 			<div
-				className={cn('h-12 px-4 gap-3 flex items-center', {
+				className={cn('h-12 px-4 gap-3 @container flex items-center', {
 					'mx-auto': preferTopBar && !!layoutMaxWidthPx,
 				})}
 				style={{ maxWidth: preferTopBar ? layoutMaxWidthPx || undefined : undefined }}
 			>
 				<div className="gap-3 min-w-0 flex items-center">
-					{/* Truncates rather than shrink-0: a long library name should give way to the
-					    tabs, not push them off the row. */}
-					<Heading size="sm" className="min-w-0 truncate">
+					{/* Capped rather than free-shrinking: a genuinely long name truncates, but a
+					    short one like "Comics" must never lose characters to make room for a
+					    stat chip. The name outranks the chips. */}
+					<Heading size="sm" className="max-w-[14rem] shrink-0 truncate">
 						{name}
 					</Heading>
 
@@ -113,9 +121,9 @@ export function EntityHeader({ name, tabs, actions, stats, settingsLink, onInfoC
 					)}
 
 					{stats && (
-						// Kept at sm so no width that previously showed stats loses them; the
-						// tiers below just stop all five arriving at once.
-						<div className="sm:flex gap-2 hidden shrink-0 items-center">
+						// The chips decide their own visibility from the container width; this
+						// wrapper only spaces them.
+						<div className="gap-2 flex shrink-0 items-center">
 							{stats.map(({ key, priority = 1, ...stat }) => (
 								<MiniStatCard key={key} className={PRIORITY_VISIBILITY[priority]} {...stat} />
 							))}
