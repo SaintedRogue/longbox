@@ -331,6 +331,45 @@ enum BookClubSuggestionStatus {
 	REJECTED
 }
 
+"""
+A virtual shelf of books that belong together but do not share a folder.
+
+Unlike a `Series`, this has no path and no directory behind it — it exists so books
+left loose in a library root can be browsed sensibly without anything moving on disk.
+"""
+type BookGroup {
+	id: String!
+	libraryId: String!
+	name: String!
+	"Where this group's identity came from."
+	source: BookGroupSource!
+	"""
+	The normalized key detection used to form this group, so a re-run matches it
+	rather than creating a duplicate. `None` for manually created groups.
+	"""
+	sourceKey: String
+	createdAt: DateTime!
+	updatedAt: DateTime!
+	"The books on this shelf, in name order."
+	books: [Media!]!
+	bookCount: Int!
+}
+
+"""
+Where a book group's identity came from.
+
+`Metadata` and `Filename` groups are produced by offline detection and may be
+recomputed; `Manual` groups were created by a person and are never recomputed away.
+"""
+enum BookGroupSource {
+	"Grouped on the embedded `media_metadata.series` value."
+	METADATA
+	"Grouped on a series name parsed out of the filename."
+	FILENAME
+	"Created or corrected by a person."
+	MANUAL
+}
+
 type Bookmark {
 	id: String!
 	previewContent: String
@@ -611,6 +650,16 @@ type DeleteJobAssociatedLogs {
 type DeleteJobHistory {
 	"The number of logs deleted that were related to a job"
 	affectedRows: Int!
+}
+
+"What a detection run did."
+type DetectBookGroupsResult {
+	groupsCreated: Int!
+	groupsMatched: Int!
+	groupsPruned: Int!
+	booksGrouped: Int!
+	booksStandalone: Int!
+	booksLocked: Int!
 }
 
 enum Dimension {
@@ -1488,6 +1537,18 @@ type Media {
 	expected that all media will belong to a series
 	"""
 	seriesId: String
+	"""
+	The virtual shelf this book belongs to, if any. Orthogonal to `series_id`, which
+	always stays pointed at the folder the file actually lives in — a book can be
+	grouped without ever moving on disk.
+	"""
+	bookGroupId: String
+	"""
+	Set once a person decides this book's grouping, including deciding it has none.
+	Offline detection skips locked rows, which is what makes a manual correction
+	survive both a re-run and a rescan.
+	"""
+	bookGroupLocked: Boolean!
 	"The timestamp of when the media was **soft** deleted. This will act like a trash bin."
 	deletedAt: DateTime
 	metadata: MediaMetadata
@@ -1499,6 +1560,18 @@ type Media {
 	tags: [Tag!]!
 	"The series the media belongs to"
 	series: Series!
+	"""
+	Whether this book stands alone rather than belonging to a real series.
+	
+	True when the book has no series at all, or when its series is the library's
+	loose-file bucket (the row the scanner makes at the library root for books that
+	sit loose in it). Clients use this to drop the series breadcrumb and suppress
+	the "next in series" rail, which would otherwise list unrelated books that
+	merely share the bucket.
+	"""
+	isStandalone: Boolean!
+	"The virtual shelf this book sits on, if any."
+	bookGroup: BookGroup
 	libraryId: String!
 	library: Library!
 	libraryConfig: LibraryConfig!
@@ -1560,6 +1633,13 @@ input MediaFilterInput {
 	createdAt: NumericFilterDateTime = null
 	updatedAt: NumericFilterDateTime = null
 	seriesId: FieldFilterString = null
+	"Restrict to books on a given virtual shelf."
+	bookGroupId: FieldFilterString = null
+	"""
+	`true` keeps only books that stand alone — no virtual shelf, and a series that is
+	really the library's loose-file bucket. `false` inverts it.
+	"""
+	isStandalone: Boolean = null
 	status: FieldFilterFileStatus = null
 	path: FieldFilterString = null
 	pages: NumericFilterI32 = null
@@ -1764,6 +1844,8 @@ enum MediaModelOrdering {
 	THUMBNAIL_META
 	THUMBNAIL_PATH
 	SERIES_ID
+	BOOK_GROUP_ID
+	BOOK_GROUP_LOCKED
 	DELETED_AT
 }
 
@@ -2356,6 +2438,38 @@ type Mutation {
 	deleteCustomEmoji(id: ID!): Boolean!
 	"Rename a custom emoji"
 	updateCustomEmoji(id: ID!, input: UpdateCustomEmojiInput!): CustomEmoji!
+	"""
+	Group a library's loose books into virtual shelves.
+	
+	Runs inline rather than as a queued job: it is pure string work over embedded
+	metadata and filenames, with no network calls, so it finishes in milliseconds.
+	That is deliberate — the provider-confirmed organize job this sits beside once ran
+	for 917 seconds against the same library before failing.
+	
+	Idempotent. Books whose grouping a person has already decided are left untouched.
+	"""
+	detectBookGroups(libraryId: ID!): DetectBookGroupsResult!
+	"""
+	Move a book onto a shelf, or off every shelf when `bookGroupId` is null.
+	
+	Either way the book is locked, so later detection runs leave it exactly where the
+	person put it. This is what makes a correction stick across rescans.
+	"""
+	assignBookGroup(mediaId: ID!, bookGroupId: ID): Boolean!
+	"""
+	Create a shelf by hand and put the given books on it.
+	
+	Manual shelves carry no `source_key`, so detection never matches, renames, or
+	prunes them.
+	"""
+	createBookGroup(libraryId: ID!, name: String!, mediaIds: [ID!]!): BookGroup!
+	renameBookGroup(id: ID!, name: String!): BookGroup!
+	"""
+	Delete a shelf. Its books stay exactly where they are on disk and in the library —
+	they simply become standalone again, and stay locked so detection does not
+	immediately rebuild the shelf someone just dismantled.
+	"""
+	deleteBookGroup(id: ID!): Boolean!
 	updateMediaProgress(id: ID!, input: MediaProgressInput!): ReadingSession!
 	"trashes current readthrough, if there is one"
 	clearMediaProgress(id: ID!): Boolean!
@@ -2807,7 +2921,7 @@ type Query {
 	finishedReadingSessionCount: Int!
 	activeReadingSessionCount: Int!
 	mediaDiskUsage: Int!
-	media(filter: MediaFilterInput! = {id: null, name: null, size: null, extension: null, createdAt: null, updatedAt: null, seriesId: null, status: null, path: null, pages: null, readingStatus: null, metadata: null, series: null, tags: null, _and: null, _not: null, _or: null}, orderBy: [MediaOrderBy!]! = [{media: {field: NAME, direction: ASC}}], pagination: Pagination! = {offset: {page: 1, pageSize: 20, zeroBased: false}}): PaginatedMediaResponse!
+	media(filter: MediaFilterInput! = {id: null, name: null, size: null, extension: null, createdAt: null, updatedAt: null, seriesId: null, bookGroupId: null, isStandalone: null, status: null, path: null, pages: null, readingStatus: null, metadata: null, series: null, tags: null, _and: null, _not: null, _or: null}, orderBy: [MediaOrderBy!]! = [{media: {field: NAME, direction: ASC}}], pagination: Pagination! = {offset: {page: 1, pageSize: 20, zeroBased: false}}): PaginatedMediaResponse!
 	mediaById(id: ID!): Media
 	mediaByPath(path: String!): Media
 	"Returns the available alphabet for all media in the server"
@@ -2854,6 +2968,15 @@ type Query {
 	persisted (writes no metadata_fetch_record). ScanLibrary-gated, library-scoped.
 	"""
 	organizeSearchSeries(libraryId: ID!, title: String!, year: Int, provider: MetadataProvider): [MatchCandidate!]!
+	"""
+	The virtual shelves in a library, in name order.
+	
+	Deliberately unpaginated. A shelf only exists for two or more books that share a
+	series identity, so a library produces a handful of these, not hundreds — on the
+	library this was built for, 139 loose books yielded 8 shelves.
+	"""
+	bookGroups(libraryId: ID!): [BookGroup!]!
+	bookGroupById(id: ID!): BookGroup
 	me: User!
 	userCount: Int!
 	topReaders(take: Int): [User!]!
@@ -3223,6 +3346,17 @@ type Series {
 	libraryId: String
 	metadata: SeriesMetadata
 	isFavorite: Boolean!
+	"""
+	Whether this series is really the library's loose-file bucket rather than a
+	series anyone created.
+	
+	The scanner turns the library root into a series when books sit loose in it, so
+	a library at `/data` grows a series named `data`. Browse surfaces filter it out
+	server-side, but `seriesById` deliberately still resolves it so book pages can
+	reach their library through it — clients use this flag to hide the series part
+	of a breadcrumb while keeping the library part.
+	"""
+	isLooseRoot: Boolean!
 	resolvedName: String!
 	resolvedDescription: String
 	library: Library!

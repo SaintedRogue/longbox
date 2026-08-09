@@ -5,6 +5,7 @@ mod book_club_discussion;
 mod book_club_invitation;
 mod book_club_member;
 mod book_club_suggestion;
+mod book_group;
 mod custom_emoji;
 mod email_device;
 mod emailer;
@@ -36,6 +37,7 @@ use book_club_discussion::BookClubDiscussionMutation;
 use book_club_invitation::BookClubInvitationMutation;
 use book_club_member::BookClubMemberMutation;
 use book_club_suggestion::BookClubSuggestionMutation;
+use book_group::BookGroupMutation;
 use custom_emoji::CustomEmojiMutation;
 use email_device::EmailDeviceMutation;
 use emailer::EmailerMutation;
@@ -83,6 +85,12 @@ struct ContentMutations(
 	OrganizeMutation,
 );
 
+/// Loose-book grouping lives in its own group rather than inside `ContentMutations`.
+/// These merged trees are chunked deliberately: growing one past a certain size
+/// overflows the compiler's recursion limit while expanding the resolver futures.
+#[derive(async_graphql::MergedObject, Default)]
+struct GroupingMutations(BookGroupMutation);
+
 #[derive(async_graphql::MergedObject, Default)]
 struct UserAndNotifsMutations(UserMutation, EmailerMutation, EmailDeviceMutation);
 
@@ -112,5 +120,6 @@ pub struct Mutation(
 	UserAndNotifsMutations,
 	SystemMutations,
 	ListMutations,
+	GroupingMutations,
 	ReadProgressMutation,
 );

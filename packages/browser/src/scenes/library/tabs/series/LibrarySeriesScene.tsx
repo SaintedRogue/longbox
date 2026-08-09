@@ -42,6 +42,7 @@ import { browseSceneKey } from '@/stores/browseHistory'
 import { useSeriesLayout } from '@/stores/layout'
 
 import { useLibraryContext } from '../../context'
+import LibraryCollections from './LibraryCollections'
 
 const query = graphql(`
 	query LibrarySeries(
@@ -439,6 +440,8 @@ export default function LibrarySeriesScene() {
 						onPrefetchLetter={onPrefetchLetter}
 					/>
 				)}
+
+				<LibraryCollections libraryId={id} />
 
 				{renderContent()}
 			</div>

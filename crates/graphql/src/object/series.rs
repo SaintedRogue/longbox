@@ -23,6 +23,7 @@ use crate::{
 	data::{AuthContext, CoreContext, ServiceContext},
 	loader::{
 		favorite::{FavoriteSeriesLoaderKey, FavoritesLoader},
+		loose_root::LooseRootLoader,
 		series_count::SeriesCountLoader,
 		series_finished_count::{FinishedCountLoaderKey, SeriesFinishedCountLoader},
 	},
@@ -62,6 +63,22 @@ impl Series {
 			.await?;
 
 		Ok(is_favorite.unwrap_or(false))
+	}
+
+	/// Whether this series is really the library's loose-file bucket rather than a
+	/// series anyone created.
+	///
+	/// The scanner turns the library root into a series when books sit loose in it, so
+	/// a library at `/data` grows a series named `data`. Browse surfaces filter it out
+	/// server-side, but `seriesById` deliberately still resolves it so book pages can
+	/// reach their library through it — clients use this flag to hide the series part
+	/// of a breadcrumb while keeping the library part.
+	async fn is_loose_root(&self, ctx: &Context<'_>) -> Result<bool> {
+		let loader = ctx.data::<DataLoader<LooseRootLoader>>()?;
+		Ok(loader
+			.load_one(self.model.id.clone())
+			.await?
+			.unwrap_or(false))
 	}
 
 	async fn resolved_name(&self) -> String {

@@ -286,6 +286,40 @@ impl JobStatus {
 	}
 }
 
+/// Where a book group's identity came from.
+///
+/// `Metadata` and `Filename` groups are produced by offline detection and may be
+/// recomputed; `Manual` groups were created by a person and are never recomputed away.
+#[derive(
+	Eq,
+	Copy,
+	Hash,
+	Debug,
+	Default,
+	Clone,
+	EnumIter,
+	PartialEq,
+	Serialize,
+	Deserialize,
+	DeriveActiveEnum,
+	Enum,
+)]
+#[sea_orm(
+	rs_type = "String",
+	rename_all = "SCREAMING_SNAKE_CASE",
+	db_type = "String(StringLen::None)"
+)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum BookGroupSource {
+	/// Grouped on the embedded `media_metadata.series` value.
+	#[default]
+	Metadata,
+	/// Grouped on a series name parsed out of the filename.
+	Filename,
+	/// Created or corrected by a person.
+	Manual,
+}
+
 // TODO: rename these terrible things:
 // - FirstFolderOnly?
 // - FolderPerSeries?

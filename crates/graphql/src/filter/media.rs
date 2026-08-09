@@ -1,6 +1,6 @@
 use async_graphql::InputObject;
 use models::{
-	entity::{media, media_tag, reading_session, tag},
+	entity::{media, media_tag, reading_session, series, tag},
 	shared::enums::{FileStatus, ReadingStatus},
 };
 use sea_orm::{
@@ -82,6 +82,13 @@ pub struct MediaFilterInput {
 	pub updated_at: Option<NumericFilter<DateTimeWithTimeZone>>,
 	#[graphql(default)]
 	pub series_id: Option<StringLikeFilter<String>>,
+	/// Restrict to books on a given virtual shelf.
+	#[graphql(default)]
+	pub book_group_id: Option<StringLikeFilter<String>>,
+	/// `true` keeps only books that stand alone — no virtual shelf, and a series that is
+	/// really the library's loose-file bucket. `false` inverts it.
+	#[graphql(default)]
+	pub is_standalone: Option<bool>,
 	#[graphql(default)]
 	pub status: Option<StringLikeFilter<FileStatus>>,
 	#[graphql(default)]
@@ -130,6 +137,26 @@ impl IntoFilter for MediaFilterInput {
 					or_condition = or_condition.add(filter.into_filter());
 				}
 				or_condition
+			}))
+			.add_option(
+				self.book_group_id
+					.map(|f| apply_string_filter(media::Column::BookGroupId, f)),
+			)
+			.add_option(self.is_standalone.map(|standalone| {
+				// Standalone is derived, never stored: no shelf, and a series that is the
+				// library's own loose-file bucket rather than one anyone created.
+				let condition = sea_orm::Condition::all()
+					.add(media::Column::BookGroupId.is_null())
+					.add(
+						media::Column::SeriesId
+							.in_subquery(series::Entity::loose_root_ids_subquery()),
+					);
+
+				if standalone {
+					condition
+				} else {
+					condition.not()
+				}
 			}))
 			.add_option(self.id.map(|f| apply_string_filter(media::Column::Id, f)))
 			.add_option(

@@ -70,6 +70,15 @@ pub struct Model {
 	/// expected that all media will belong to a series
 	#[sea_orm(column_type = "Text", nullable)]
 	pub series_id: Option<String>,
+	/// The virtual shelf this book belongs to, if any. Orthogonal to `series_id`, which
+	/// always stays pointed at the folder the file actually lives in — a book can be
+	/// grouped without ever moving on disk.
+	#[sea_orm(column_type = "Text", nullable)]
+	pub book_group_id: Option<String>,
+	/// Set once a person decides this book's grouping, including deciding it has none.
+	/// Offline detection skips locked rows, which is what makes a manual correction
+	/// survive both a re-run and a rescan.
+	pub book_group_locked: bool,
 	/// The timestamp of when the media was **soft** deleted. This will act like a trash bin.
 	#[sea_orm(column_type = "custom(\"DATETIME\")", nullable)]
 	pub deleted_at: Option<DateTimeWithTimeZone>,
@@ -342,6 +351,16 @@ pub enum Relation {
 		on_delete = "Cascade"
 	)]
 	Series,
+	// SetNull, deliberately unlike the Series relation above: deleting a virtual shelf
+	// must never delete the books on it.
+	#[sea_orm(
+		belongs_to = "super::book_group::Entity",
+		from = "Column::BookGroupId",
+		to = "super::book_group::Column::Id",
+		on_update = "Cascade",
+		on_delete = "SetNull"
+	)]
+	BookGroup,
 	#[sea_orm(has_many = "super::media_analysis::Entity")]
 	Analysis,
 	#[sea_orm(has_one = "super::metadata_fetch_record::Entity")]
@@ -414,6 +433,12 @@ impl Related<super::series::Entity> for Entity {
 	}
 }
 
+impl Related<super::book_group::Entity> for Entity {
+	fn to() -> RelationDef {
+		Relation::BookGroup.def()
+	}
+}
+
 impl Related<super::media_analysis::Entity> for Entity {
 	fn to() -> RelationDef {
 		Relation::Analysis.def()
@@ -438,6 +463,12 @@ impl ActiveModelBehavior for ActiveModel {
 			}
 			if self.status.is_not_set() {
 				self.status = ActiveValue::Set(FileStatus::Ready);
+			}
+			// A freshly scanned book has no grouping decision behind it yet. The column
+			// carries a DB-level default too, but filling it here keeps inserts working
+			// against schemas built straight from the entity, such as the test harness.
+			if self.book_group_locked.is_not_set() {
+				self.book_group_locked = ActiveValue::Set(false);
 			}
 			self.created_at = ActiveValue::Set(DateTimeWithTimeZone::from(Utc::now()));
 		} else {

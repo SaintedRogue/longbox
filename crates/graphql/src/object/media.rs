@@ -3,7 +3,7 @@ use async_graphql::{
 };
 
 use models::{
-	entity::{library, media, media_analysis, series, tag},
+	entity::{book_group, library, media, media_analysis, series, tag},
 	shared::{analysis::MediaAnalysisData, image::ImageRef},
 };
 use num_traits::cast::ToPrimitive;
@@ -17,6 +17,7 @@ use crate::{
 	loader::{
 		favorite::{FavoriteMediaLoaderKey, FavoritesLoader},
 		library_config::{LibraryConfigLoader, LibraryConfigLoaderKey},
+		loose_root::LooseRootLoader,
 		media_analysis::{MediaAnalysisLoader, PageDimensionLoaderKey},
 		reading_session::{
 			ReadingSessionLoader, ReadthroughRecordLoaderKey,
@@ -29,9 +30,9 @@ use crate::{
 };
 
 use super::{
-	library::Library, library_config::LibraryConfig, media_metadata::MediaMetadata,
-	readthrough_record::ReadthroughRecord, resume_reading_cursor::ResumeReadingCursor,
-	series::Series, tag::Tag,
+	book_group::BookGroup, library::Library, library_config::LibraryConfig,
+	media_metadata::MediaMetadata, readthrough_record::ReadthroughRecord,
+	resume_reading_cursor::ResumeReadingCursor, series::Series, tag::Tag,
 };
 
 #[derive(Debug, Clone, SimpleObject)]
@@ -112,6 +113,33 @@ impl Media {
 			.ok_or("Series not found")?;
 
 		Ok(series)
+	}
+
+	/// Whether this book stands alone rather than belonging to a real series.
+	///
+	/// True when the book has no series at all, or when its series is the library's
+	/// loose-file bucket (the row the scanner makes at the library root for books that
+	/// sit loose in it). Clients use this to drop the series breadcrumb and suppress
+	/// the "next in series" rail, which would otherwise list unrelated books that
+	/// merely share the bucket.
+	async fn is_standalone(&self, ctx: &Context<'_>) -> Result<bool> {
+		let Some(series_id) = self.model.series_id.clone() else {
+			return Ok(true);
+		};
+		let loader = ctx.data::<DataLoader<LooseRootLoader>>()?;
+		Ok(loader.load_one(series_id).await?.unwrap_or(false))
+	}
+
+	/// The virtual shelf this book sits on, if any.
+	async fn book_group(&self, ctx: &Context<'_>) -> Result<Option<BookGroup>> {
+		let Some(group_id) = self.model.book_group_id.clone() else {
+			return Ok(None);
+		};
+		let conn = ctx.data::<CoreContext>()?.conn.as_ref();
+
+		let group = book_group::Entity::find_by_id(group_id).one(conn).await?;
+
+		Ok(group.map(BookGroup::from))
 	}
 
 	async fn library_id(&self, ctx: &Context<'_>) -> Result<String> {

@@ -27,6 +27,7 @@ const query = graphql(`
 			series {
 				id
 				resolvedName
+				isLooseRoot
 			}
 			tags {
 				id
@@ -77,10 +78,16 @@ export default function BookManagementScene() {
 
 		return [
 			{ label: library.name, to: libraryReturnPath },
-			{
-				label: series.resolvedName,
-				to: seriesReturnPath,
-			},
+			// The library-root bucket is a scan artifact, not a real series -- skip its
+			// segment so standalone books read as "Library / Book".
+			...(series.isLooseRoot
+				? []
+				: [
+						{
+							label: series.resolvedName,
+							to: seriesReturnPath,
+						},
+					]),
 			{
 				label: book.resolvedName,
 				to: paths.bookOverview(book.id),
