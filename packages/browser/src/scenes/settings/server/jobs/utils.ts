@@ -33,6 +33,9 @@ export const CRON_PRESETS = [
 export const RETRYABLE_STATUSES = [
 	{ localeKey: 'rateLimited', value: MetadataFetchStatus.RateLimited },
 	{ localeKey: 'failed', value: MetadataFetchStatus.Failed },
+	// NO_MATCH entities are re-attempted too: file evidence or provider data may
+	// have improved since the last pass, and the budget gate keeps retries cheap.
+	{ localeKey: 'noMatch', value: MetadataFetchStatus.NoMatch },
 ] as const
 
 export const KIND_OPTIONS = [

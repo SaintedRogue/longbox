@@ -2137,7 +2137,8 @@
 							"label": "Statuses to retry",
 							"description": "Which metadata fetch statuses should be retried",
 							"rateLimited": "Rate Limited",
-							"failed": "Failed"
+							"failed": "Failed",
+							"noMatch": "No Match Found"
 						},
 						"enabled": "Enabled"
 					},
@@ -2146,6 +2147,7 @@
 						"disabled": "Disabled",
 						"allLibraries": "All libraries",
 						"rateLimited": "rate limited",
+						"noMatch": "no match found",
 						"lastRun": "Last run at {{date}}",
 						"edit": "Edit",
 						"delete": "Delete"
