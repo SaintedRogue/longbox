@@ -1,10 +1,12 @@
 use async_trait::async_trait;
 
+use chrono::NaiveDate;
+
 use crate::{
 	error::MetadataProviderError,
 	types::{
 		ExternalMediaMetadata, ExternalSeriesMetadata, MatchCandidate, MediaType,
-		ProviderValidationResult, ProviderValidationStatus, SearchQuery,
+		ProviderValidationResult, ProviderValidationStatus, SearchQuery, UpcomingRelease,
 	},
 	MatchScorer,
 };
@@ -59,6 +61,18 @@ pub trait MetadataProvider: Send + Sync {
 	/// Cheaply verify that the configured credentials work against the provider's
 	/// live API, returning a granular [`ProviderValidationResult`].
 	///
+	/// Issues the provider reports releasing inside `[start, end]` (inclusive),
+	/// capped at `cap` results — the release-calendar oracle's data source.
+	/// Default: unsupported; only the comics providers implement it.
+	async fn fetch_upcoming_releases(
+		&self,
+		_start: NaiveDate,
+		_end: NaiveDate,
+		_cap: usize,
+	) -> Result<Vec<UpcomingRelease>, MetadataProviderError> {
+		Err(MetadataProviderError::OperationNotSupported)
+	}
+
 	/// Default implementation reports [`ProviderValidationStatus::Unsupported`] for
 	/// providers that validate elsewhere (e.g. Hardcover, which validates client-side
 	/// because it supports CORS). Providers without CORS — like Metron — override this

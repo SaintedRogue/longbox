@@ -9,6 +9,7 @@ use crate::{
 	types::{
 		ConfidenceFactor, ExternalMediaMetadata, ExternalSeriesMetadata, MatchCandidate,
 		MediaType, ProviderValidationResult, ProviderValidationStatus, SearchQuery,
+		UpcomingRelease,
 	},
 	ExternalMetadata, MetadataProvider, RateLimiter,
 };
@@ -116,6 +117,80 @@ impl MetronClient {
 impl MetadataProvider for MetronClient {
 	fn id(&self) -> &'static str {
 		"metron"
+	}
+
+	/// Windowed store-date sweep for the release-calendar oracle, paginated by
+	/// page number until `count` is exhausted or `cap` is reached.
+	///
+	/// NOTE: the `series.id` field on the issue-list serializer is asserted by
+	/// our wiremock fixture but has not been verified against the live API
+	/// (egress to metron.cloud is currently firewalled) — verify via VPN before
+	/// enabling the Metron oracle flag. Entries without a series id are skipped.
+	async fn fetch_upcoming_releases(
+		&self,
+		start: NaiveDate,
+		end: NaiveDate,
+		cap: usize,
+	) -> Result<Vec<UpcomingRelease>, MetadataProviderError> {
+		#[derive(Deserialize)]
+		struct MetronSeriesRef {
+			#[serde(default)]
+			id: Option<i64>,
+		}
+		#[derive(Deserialize)]
+		struct MetronWindowIssue {
+			id: i64,
+			#[serde(default)]
+			number: Option<String>,
+			#[serde(default)]
+			issue: Option<String>,
+			#[serde(default)]
+			store_date: Option<String>,
+			#[serde(default)]
+			cover_date: Option<String>,
+			#[serde(default)]
+			image: Option<String>,
+			#[serde(default)]
+			series: Option<MetronSeriesRef>,
+		}
+
+		let mut releases: Vec<UpcomingRelease> = Vec::new();
+		let mut page = 1u32;
+		let mut seen = 0usize;
+		loop {
+			let params = vec![
+				("store_date_range_after", start.to_string()),
+				("store_date_range_before", end.to_string()),
+				("page", page.to_string()),
+			];
+			let response: Paginated<MetronWindowIssue> =
+				self.get_json("issue", &params).await?;
+			let page_len = response.results.len();
+			seen += page_len;
+
+			for hit in response.results {
+				let Some(series_id) = hit.series.as_ref().and_then(|s| s.id) else {
+					continue;
+				};
+				releases.push(UpcomingRelease {
+					series_external_id: series_id.to_string(),
+					external_id: hit.id.to_string(),
+					number: hit.number,
+					title: hit.issue,
+					cover_url: hit.image,
+					release_date: hit.store_date.or(hit.cover_date),
+				});
+				if releases.len() >= cap {
+					return Ok(releases);
+				}
+			}
+
+			if page_len == 0 || seen >= response.count as usize {
+				break;
+			}
+			page += 1;
+		}
+		Ok(releases)
 	}
 
 	fn name(&self) -> &'static str {
@@ -678,6 +753,49 @@ mod tests {
 			.validate_credentials()
 			.await
 			.expect("validation should not error")
+	}
+
+	#[tokio::test]
+	async fn upcoming_releases_map_window_items_and_skip_seriesless() {
+		let server = MockServer::start().await;
+		Mock::given(method("GET"))
+			.and(path("/issue/"))
+			.respond_with(ResponseTemplate::new(200).set_body_json(json!({
+				"count": 2,
+				"results": [
+					{
+						"id": 9911,
+						"number": "13",
+						"issue": "Saga #13",
+						"store_date": "2026-08-12",
+						"cover_date": "2026-09-01",
+						"image": "https://static.metron.cloud/saga-13.jpg",
+						"series": { "id": 120, "name": "Saga" }
+					},
+					// No series link — unmatched, skipped.
+					{ "id": 9912, "number": "1", "issue": "Mystery #1" }
+				]
+			})))
+			.expect(1)
+			.mount(&server)
+			.await;
+
+		let releases = validation_client(server.uri())
+			.fetch_upcoming_releases(
+				chrono::NaiveDate::from_ymd_opt(2026, 7, 26).unwrap(),
+				chrono::NaiveDate::from_ymd_opt(2026, 11, 7).unwrap(),
+				3000,
+			)
+			.await
+			.expect("sweep succeeds");
+
+		assert_eq!(releases.len(), 1);
+		let release = &releases[0];
+		assert_eq!(release.series_external_id, "120");
+		assert_eq!(release.external_id, "9911");
+		assert_eq!(release.number.as_deref(), Some("13"));
+		assert_eq!(release.title.as_deref(), Some("Saga #13"));
+		assert_eq!(release.release_date.as_deref(), Some("2026-08-12"));
 	}
 
 	#[tokio::test]
