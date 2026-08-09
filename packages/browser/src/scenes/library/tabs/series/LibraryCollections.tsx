@@ -1,11 +1,15 @@
 import { useGraphQLMutation, useSDK, useSuspenseGraphQL } from '@longbox/client'
-import { Button, Heading, Text } from '@longbox/components'
+import { Button, Text } from '@longbox/components'
 import { graphql, UserPermission } from '@longbox/graphql'
-import { Suspense, useCallback } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
-import BookCard from '@/components/book/BookCard'
-import HorizontalCardList from '@/components/HorizontalCardList'
+import { DynamicCardGrid } from '@/components/container'
+import GenericEmptyState from '@/components/GenericEmptyState'
+import { StackedSeriesCard } from '@/components/series'
 import { useAppContext } from '@/context'
+import { usePaths } from '@/paths'
+
+import pluralizeStat from '../../../../utils/pluralize'
 
 const query = graphql(`
 	query LibraryCollections($libraryId: ID!) {
@@ -15,7 +19,17 @@ const query = graphql(`
 			bookCount
 			books {
 				id
-				...BookCard
+				thumbnail {
+					url
+					metadata {
+						averageColor
+						colors {
+							color
+							percentage
+						}
+						thumbhash
+					}
+				}
 			}
 		}
 	}
@@ -29,7 +43,6 @@ const detectMutation = graphql(`
 			groupsPruned
 			booksGrouped
 			booksStandalone
-			booksLocked
 		}
 	}
 `)
@@ -38,82 +51,119 @@ type Props = {
 	libraryId: string
 }
 
-const noop = () => {}
-
 /**
- * Virtual shelves for books that sit loose in the library root.
+ * Collections shown in the same grid, with the same card, as series.
  *
- * These are not series -- nothing moved on disk and no folder exists for them. They are
- * shown above the series grid so a library whose root holds a pile of loose books reads
- * as collections plus standalone works, rather than as one junk series.
+ * A collection is a shelf of books exactly like a series is; it just isn't backed by a
+ * folder. Rendering it in the series visual language rather than as its own carousel row is
+ * the whole point — an earlier version stacked one horizontal list per collection above the
+ * grid, which pushed the series list ~4,700px down the page and made every page of the
+ * paginated grid look identical.
  */
 export default function LibraryCollections({ libraryId }: Props) {
-	return (
-		<Suspense fallback={null}>
-			<Collections libraryId={libraryId} />
-		</Suspense>
-	)
-}
-
-function Collections({ libraryId }: Props) {
 	const { sdk } = useSDK()
 	const { checkPermission } = useAppContext()
 
 	const {
 		data: { bookGroups },
 		refetch,
-	} = useSuspenseGraphQL(query, sdk.cacheKey('bookGroups', [libraryId]), {
-		libraryId,
-	})
+	} = useSuspenseGraphQL(query, sdk.cacheKey('bookGroups', [libraryId]), { libraryId })
 
 	const { mutate: detect, isPending } = useGraphQLMutation(detectMutation, {
 		onSuccess: () => refetch(),
 	})
 
 	const handleDetect = useCallback(() => detect({ libraryId }), [detect, libraryId])
-
 	const canDetect = checkPermission(UserPermission.ScanLibrary)
 
-	// Nothing to show and nothing the user could do about it.
-	if (!bookGroups.length && !canDetect) {
-		return null
+	if (!bookGroups.length) {
+		return (
+			<div className="px-4 pt-4 flex flex-1">
+				<div className="gap-4 col-span-full flex flex-1 flex-col items-center place-self-center">
+					<GenericEmptyState
+						title="No collections yet"
+						subtitle="Detection groups books that share a series but not a folder, and leaves genuinely standalone books alone."
+					/>
+					{canDetect && (
+						<Button variant="secondary" onClick={handleDetect} disabled={isPending}>
+							{isPending ? 'Detecting…' : 'Detect collections'}
+						</Button>
+					)}
+				</div>
+			</div>
+		)
 	}
 
 	return (
-		<div className="gap-4 px-4 pt-4 flex flex-col">
+		<div className="gap-4 px-4 pt-4 flex flex-1 flex-col">
 			<div className="gap-2 flex flex-wrap items-center justify-between">
-				<div>
-					<Heading size="sm">Collections</Heading>
-					<Text size="sm" variant="muted">
-						Books grouped by their metadata. Nothing moves on disk.
-					</Text>
-				</div>
+				<Text size="sm" variant="muted">
+					{pluralizeStat('collection', bookGroups.length)} grouped by metadata. Nothing moves on
+					disk.
+				</Text>
 				{canDetect && (
 					<Button variant="secondary" size="sm" onClick={handleDetect} disabled={isPending}>
-						{isPending ? 'Detecting…' : 'Detect collections'}
+						{isPending ? 'Detecting…' : 'Re-detect'}
 					</Button>
 				)}
 			</div>
 
-			{!bookGroups.length && (
-				<Text size="sm" variant="muted">
-					No collections yet. Detection groups loose books that share a series, and leaves genuinely
-					standalone books alone.
-				</Text>
-			)}
+			<DynamicCardGrid
+				count={bookGroups.length}
+				renderItem={(index) => {
+					const group = bookGroups[index]
+					if (!group) return null
+					return <CollectionCard key={group.id} group={group} libraryId={libraryId} />
+				}}
+			/>
+		</div>
+	)
+}
 
-			{bookGroups.map((group) => (
-				<HorizontalCardList
-					key={group.id}
-					title={`${group.name} (${group.bookCount})`}
-					items={group.books.map((book) => (
-						<BookCard key={book.id} fragment={book} fullWidth={false} />
-					))}
-					// A collection only exists for books already loaded with it, so the whole
-					// shelf is on screen and there is nothing further to page in.
-					onFetchMore={noop}
+type CollectionCardProps = {
+	libraryId: string
+	group: {
+		id: string
+		name: string
+		bookCount: number
+		books: {
+			id: string
+			thumbnail: React.ComponentProps<typeof StackedSeriesCard>['thumbnailData'][number]
+		}[]
+	}
+}
+
+function CollectionCard({ group, libraryId }: CollectionCardProps) {
+	const paths = usePaths()
+	const containerRef = useRef<HTMLDivElement>(null)
+	const [width, setWidth] = useState<number | null>(null)
+
+	// Mirrors LibrarySeriesCard: the stacked card needs a pixel width and the grid is resizable.
+	useEffect(() => {
+		if (!containerRef.current) return
+		const observer = new ResizeObserver((entries) => {
+			const entry = entries[0]
+			if (entry) setWidth(entry.contentRect.width)
+		})
+		observer.observe(containerRef.current)
+		setWidth(containerRef.current.offsetWidth)
+		return () => observer.disconnect()
+	}, [])
+
+	return (
+		<div ref={containerRef}>
+			{width != null && (
+				<StackedSeriesCard
+					id={group.id}
+					name={group.name}
+					subtitle={pluralizeStat('book', group.bookCount)}
+					isMissing={false}
+					width={width}
+					thumbnailData={group.books.slice(0, 3).map((book) => book.thumbnail)}
+					to={paths.libraryCollection(libraryId, group.id)}
+					disablePrefetch
 				/>
-			))}
+			)}
 		</div>
 	)
 }
