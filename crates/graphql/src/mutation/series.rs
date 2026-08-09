@@ -6,7 +6,7 @@ use longbox_core::filesystem::{
 };
 use longbox_core::job::longbox_job::LongboxJob;
 use models::{
-	entity::{favorite_series, library, library_config, media, series},
+	entity::{favorite_series, library, library_config, media, series, series_follow},
 	shared::{enums::UserPermission, image_processor_options::ImageProcessorOptions},
 };
 use sea_orm::{
@@ -100,6 +100,54 @@ impl SeriesMutation {
 		}
 
 		Ok(model.into())
+	}
+
+	/// Follow or unfollow a series for the viewer. Follows are personal
+	/// curation only — they drive the pull-list calendar tab and the updates
+	/// feed, and never any automation. Idempotent in both directions.
+	async fn follow_series(
+		&self,
+		ctx: &Context<'_>,
+		id: ID,
+		is_following: bool,
+	) -> Result<bool> {
+		let AuthContext { user, .. } = ctx.data::<AuthContext>()?;
+		let core = ctx.data::<CoreContext>()?;
+		let conn = core.conn.as_ref();
+
+		let model = series::ModelWithMetadata::find_for_user(user)
+			.filter(
+				series::Column::Id
+					.eq(id.to_string())
+					.and(series::Column::DeletedAt.is_null()),
+			)
+			.into_model::<series::ModelWithMetadata>()
+			.one(conn)
+			.await?
+			.ok_or("Series not found")?;
+
+		if is_following {
+			series_follow::Entity::insert(series_follow::ActiveModel {
+				user_id: Set(user.id.clone()),
+				series_id: Set(model.series.id.clone()),
+				created_at: Set(DateTimeWithTimeZone::from(Utc::now())),
+				..Default::default()
+			})
+			.on_conflict(OnConflict::new().do_nothing().to_owned())
+			.exec(conn)
+			.await?;
+		} else {
+			series_follow::Entity::delete_many()
+				.filter(
+					series_follow::Column::UserId
+						.eq(user.id.clone())
+						.and(series_follow::Column::SeriesId.eq(model.series.id.clone())),
+				)
+				.exec(conn)
+				.await?;
+		}
+
+		Ok(is_following)
 	}
 
 	/// Update the thumbnail for a series. This will replace the existing thumbnail with the the one

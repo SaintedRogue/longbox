@@ -387,6 +387,31 @@ input BookmarkInput {
 	previewContent: String
 }
 
+type CalendarDay {
+	"ISO `YYYY-MM-DD`."
+	date: String!
+	entries: [CalendarEntry!]!
+}
+
+type CalendarEntry {
+	seriesId: ID!
+	seriesName: String!
+	number: String
+	title: String
+	coverUrl: String
+	"ISO `YYYY-MM-DD`."
+	releaseDate: String!
+	"Whether a book with this issue number already exists in the series."
+	inLibrary: Boolean!
+}
+
+enum CalendarScope {
+	"Only series the viewer follows — the personal pull list."
+	FOLLOWED
+	"Every series the viewer can access."
+	ALL
+}
+
 type Character {
 	name: String!
 	"""
@@ -2271,6 +2296,12 @@ type Mutation {
 	analyzeSeries(id: ID!, forceReanalysis: Boolean! = false): Boolean!
 	favoriteSeries(id: ID!, isFavorite: Boolean!): Series!
 	"""
+	Follow or unfollow a series for the viewer. Follows are personal
+	curation only — they drive the pull-list calendar tab and the updates
+	feed, and never any automation. Idempotent in both directions.
+	"""
+	followSeries(id: ID!, isFollowing: Boolean!): Boolean!
+	"""
 	Update the thumbnail for a series. This will replace the existing thumbnail with the the one
 	associated with the provided input (book). If the book does not have a thumbnail, one
 	will be generated based on the library's thumbnail configuration.
@@ -2980,6 +3011,15 @@ type Query {
 	"""
 	bookGroups(libraryId: ID!): [BookGroup!]!
 	bookGroupById(id: ID!): BookGroup
+	"Series ids the viewer follows."
+	followedSeriesIds: [ID!]!
+	"""
+	One Sunday-aligned week of expected releases, day by day (all seven days
+	are present, empty or not, so the grid renders without gap logic).
+	"""
+	releaseCalendar(weekOffset: Int! = 0, scope: CalendarScope! = FOLLOWED): [CalendarDay!]!
+	"New books in followed series, newest first — 30-day window, hard cap."
+	updatesFeed(days: Int! = 30, cap: Int! = 500): UpdatesFeed!
 	me: User!
 	userCount: Int!
 	topReaders(take: Int): [User!]!
@@ -3809,6 +3849,16 @@ input UpdateCustomEmojiInput {
 	name: String!
 }
 
+type UpdateItem {
+	mediaId: ID!
+	seriesId: ID!
+	seriesName: String!
+	mediaName: String!
+	"RFC 3339."
+	createdAt: String!
+	isRead: Boolean!
+}
+
 input UpdateScheduledJobInput {
 	name: String
 	"A cron expression"
@@ -3861,6 +3911,12 @@ input UpdateUserPreferencesInput {
 	enableReadingJournal: Boolean!
 	dayResetHourOffset: Int!
 	readingSessionGracePeriodSecs: Int!
+}
+
+type UpdatesFeed {
+	items: [UpdateItem!]!
+	"True when the window held more items than the cap."
+	capped: Boolean!
 }
 
 "A multipart file upload"

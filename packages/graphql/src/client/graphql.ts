@@ -443,6 +443,33 @@ export type BookmarkInput = {
   previewContent?: InputMaybe<Scalars['String']['input']>;
 };
 
+export type CalendarDay = {
+  __typename?: 'CalendarDay';
+  /** ISO `YYYY-MM-DD`. */
+  date: Scalars['String']['output'];
+  entries: Array<CalendarEntry>;
+};
+
+export type CalendarEntry = {
+  __typename?: 'CalendarEntry';
+  coverUrl?: Maybe<Scalars['String']['output']>;
+  /** Whether a book with this issue number already exists in the series. */
+  inLibrary: Scalars['Boolean']['output'];
+  number?: Maybe<Scalars['String']['output']>;
+  /** ISO `YYYY-MM-DD`. */
+  releaseDate: Scalars['String']['output'];
+  seriesId: Scalars['ID']['output'];
+  seriesName: Scalars['String']['output'];
+  title?: Maybe<Scalars['String']['output']>;
+};
+
+export enum CalendarScope {
+  /** Every series the viewer can access. */
+  All = 'ALL',
+  /** Only series the viewer follows — the personal pull list. */
+  Followed = 'FOLLOWED'
+}
+
 export type Character = {
   __typename?: 'Character';
   /**
@@ -2431,6 +2458,12 @@ export type Mutation = {
   finishMediaProgress: Scalars['Boolean']['output'];
   /** marks all books in the series as finished */
   finishSeriesProgress: Scalars['Int']['output'];
+  /**
+   * Follow or unfollow a series for the viewer. Follows are personal
+   * curation only — they drive the pull-list calendar tab and the updates
+   * feed, and never any automation. Idempotent in both directions.
+   */
+  followSeries: Scalars['Boolean']['output'];
   generateLibraryThumbnails: Scalars['Boolean']['output'];
   /** Deletes the membership of the caller to the target book club */
   leaveBookClub: BookClubMember;
@@ -3017,6 +3050,12 @@ export type MutationFinishMediaProgressArgs = {
 
 export type MutationFinishSeriesProgressArgs = {
   id: Scalars['ID']['input'];
+};
+
+
+export type MutationFollowSeriesArgs = {
+  id: Scalars['ID']['input'];
+  isFollowing: Scalars['Boolean']['input'];
 };
 
 
@@ -3871,6 +3910,8 @@ export type Query = {
   /** Get a single epub by its media ID */
   epubById: Epub;
   finishedReadingSessionCount: Scalars['Int']['output'];
+  /** Series ids the viewer follows. */
+  followedSeriesIds: Array<Scalars['ID']['output']>;
   getNotifierById: Notifier;
   getNotifiers: Array<Notifier>;
   jobById?: Maybe<Job>;
@@ -3951,6 +3992,11 @@ export type Query = {
   readingLists: PaginatedReadingListResponse;
   recentlyAddedMedia: PaginatedMediaResponse;
   recentlyAddedSeries: PaginatedSeriesResponse;
+  /**
+   * One Sunday-aligned week of expected releases, day by day (all seven days
+   * are present, empty or not, so the grid renders without gap logic).
+   */
+  releaseCalendar: Array<CalendarDay>;
   scheduledJobs: Array<ScheduledJob>;
   series: PaginatedSeriesResponse;
   /** Returns the available alphabet for all series in the server */
@@ -3965,6 +4011,8 @@ export type Query = {
   /** Returns a list of all tags. */
   tags: Array<Tag>;
   topReaders: Array<User>;
+  /** New books in followed series, newest first — 30-day window, hard cap. */
+  updatesFeed: UpdatesFeed;
   uploadConfig: UploadConfig;
   userById: User;
   userCount: Scalars['Int']['output'];
@@ -4246,6 +4294,12 @@ export type QueryRecentlyAddedSeriesArgs = {
 };
 
 
+export type QueryReleaseCalendarArgs = {
+  scope?: CalendarScope;
+  weekOffset?: Scalars['Int']['input'];
+};
+
+
 export type QuerySeriesArgs = {
   filter?: SeriesFilterInput;
   orderBy?: Array<SeriesOrderBy>;
@@ -4281,6 +4335,12 @@ export type QuerySmartListsArgs = {
 
 export type QueryTopReadersArgs = {
   take?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+export type QueryUpdatesFeedArgs = {
+  cap?: Scalars['Int']['input'];
+  days?: Scalars['Int']['input'];
 };
 
 
@@ -5117,6 +5177,17 @@ export type UpdateCustomEmojiInput = {
   name: Scalars['String']['input'];
 };
 
+export type UpdateItem = {
+  __typename?: 'UpdateItem';
+  /** RFC 3339. */
+  createdAt: Scalars['String']['output'];
+  isRead: Scalars['Boolean']['output'];
+  mediaId: Scalars['ID']['output'];
+  mediaName: Scalars['String']['output'];
+  seriesId: Scalars['ID']['output'];
+  seriesName: Scalars['String']['output'];
+};
+
 export type UpdateScheduledJobInput = {
   /** Replace the config entirely. The kind is inferred from the variant */
   config?: InputMaybe<ScheduledJobConfigInput>;
@@ -5169,6 +5240,13 @@ export type UpdateUserPreferencesInput = {
   thumbnailPlaceholderStyle: ThumbnailPlaceholderStyle;
   thumbnailRatio: Scalars['Float']['input'];
   thumbnailRoundness: InterfaceRoundness;
+};
+
+export type UpdatesFeed = {
+  __typename?: 'UpdatesFeed';
+  /** True when the window held more items than the cap. */
+  capped: Scalars['Boolean']['output'];
+  items: Array<UpdateItem>;
 };
 
 export type UploadBooksInput = {
