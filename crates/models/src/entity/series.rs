@@ -2,8 +2,10 @@ use async_graphql::SimpleObject;
 use chrono::Utc;
 use filter_gen::Ordering;
 use sea_orm::{
-	entity::prelude::*, prelude::async_trait::async_trait, sea_query::Query, ActiveValue,
-	Condition, FromQueryResult, Linked, QueryOrder, QuerySelect, QueryTrait,
+	entity::prelude::*,
+	prelude::async_trait::async_trait,
+	sea_query::{Expr, JoinType, Query, SelectStatement},
+	ActiveValue, Condition, FromQueryResult, Linked, QueryOrder, QuerySelect, QueryTrait,
 };
 
 use crate::{
@@ -15,7 +17,7 @@ use crate::{
 	},
 };
 
-use super::{library_exclusion, series_metadata, user::AuthUser};
+use super::{library, library_exclusion, series_metadata, user::AuthUser};
 
 // TODO: Properly support soft deletion
 
@@ -79,6 +81,35 @@ impl Entity {
 			.apply_if(age_restriction_filter, |query, filter| {
 				query.left_join(series_metadata::Entity).filter(filter)
 			})
+	}
+
+	/// Ids of the series rows that are really a library's loose-file bucket rather than
+	/// a series the user meant to have.
+	///
+	/// The scanner walks with `min_depth(0)` so that the library root itself becomes a
+	/// series when media sit directly in it, and `SeriesBuilder` names that row after
+	/// the root directory — a library at `/data` yields a series literally named
+	/// `data`. Because `SeriesBuilder` is handed the same path string the walker was
+	/// given, the bucket is identifiable structurally: its path equals its own
+	/// library's path.
+	///
+	/// Nothing persists or maintains this. It is re-derived per query, so it stays
+	/// correct after every scan without a column to backfill or drift.
+	pub fn loose_root_ids_subquery() -> SelectStatement {
+		Query::select()
+			.column((Entity, Column::Id))
+			.from(Entity)
+			.join(
+				JoinType::InnerJoin,
+				library::Entity,
+				Expr::col((library::Entity, library::Column::Id))
+					.equals((Entity, Column::LibraryId)),
+			)
+			.and_where(
+				Expr::col((Entity, Column::Path))
+					.equals((library::Entity, library::Column::Path)),
+			)
+			.to_owned()
 	}
 
 	pub fn find_series_ident_for_user_and_id(
@@ -322,6 +353,17 @@ mod tests {
 		assert_eq!(
 			stmt_str,
 			r#"SELECT  FROM "series" LEFT JOIN "series_metadata" ON "series"."id" = "series_metadata"."series_id" WHERE "series"."deleted_at" IS NULL AND "series"."library_id" NOT IN (SELECT "library_id" FROM "library_exclusions" WHERE "library_exclusions"."user_id" = '42') AND "series_metadata"."age_rating" IS NOT NULL AND "series_metadata"."age_rating" <= 18"#
+		);
+	}
+
+	#[test]
+	fn loose_root_ids_subquery_matches_series_path_to_its_own_library_path() {
+		use sea_orm::sea_query::SqliteQueryBuilder;
+
+		let stmt_str = Entity::loose_root_ids_subquery().to_string(SqliteQueryBuilder);
+		assert_eq!(
+			stmt_str,
+			r#"SELECT "series"."id" FROM "series" INNER JOIN "libraries" ON "libraries"."id" = "series"."library_id" WHERE "series"."path" = "libraries"."path""#
 		);
 	}
 

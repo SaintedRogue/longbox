@@ -4,6 +4,7 @@ pub mod favorite;
 pub mod library;
 pub mod library_config;
 pub mod log;
+pub mod loose_root;
 pub mod media;
 pub mod media_analysis;
 pub mod reading_session;

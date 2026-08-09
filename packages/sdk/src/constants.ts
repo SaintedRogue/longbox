@@ -16,6 +16,7 @@ export const cacheKeys = {
 	lastVisitedLibrary: 'lastVisitedLibrary',
 	libraryBooks: 'libraryBooks',
 	librarySeries: 'librarySeries',
+	bookGroups: 'bookGroups',
 	libraryOverview: 'libraryOverview',
 	libraryCreateLibraryQuery: 'createLibraryQuery',
 	libraryCreate: 'createLibrary',

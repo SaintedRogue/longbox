@@ -7,6 +7,7 @@ use crate::{
 		library::LibraryLoader,
 		library_config::LibraryConfigLoader,
 		log::JobAssociatedLogLoader,
+		loose_root::LooseRootLoader,
 		media::MediaLoader,
 		media_analysis::MediaAnalysisLoader,
 		reading_session::ReadingSessionLoader,
@@ -99,6 +100,10 @@ pub fn add_data_loaders<
 		))
 		.data(DataLoader::new(
 			MediaAnalysisLoader::new(conn.clone()),
+			tokio::spawn,
+		))
+		.data(DataLoader::new(
+			LooseRootLoader::new(conn.clone()),
 			tokio::spawn,
 		))
 }

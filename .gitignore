@@ -63,3 +63,6 @@ graphify-out/
 
 # local runtime env / secrets (never commit)
 longbox.env
+
+# Nx local cache and workspace data (build artefacts, never committed)
+.nx/

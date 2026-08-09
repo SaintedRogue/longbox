@@ -284,6 +284,14 @@ impl Library {
 				LEFT JOIN series_metadata ON series.id = series_metadata.series_id
 				WHERE
 					series.library_id = $1
+					-- The library-root bucket is a scan artifact, not a series anyone
+					-- made; without this the alphabet grows a letter for the library
+					-- directory's own name.
+					AND NOT EXISTS (
+						SELECT 1 FROM libraries
+						WHERE libraries.id = series.library_id
+						  AND libraries.path = series.path
+					)
 				GROUP BY
 					letter
 				ORDER BY

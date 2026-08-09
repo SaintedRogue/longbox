@@ -23,6 +23,23 @@ use crate::{
 	},
 };
 
+/// Keep a library's loose-file bucket out of a browse surface.
+///
+/// The scanner turns the library root into a series when books sit loose in it, so a
+/// library at `/data` grows a series named `data`. It is a scan artifact, not a series
+/// anyone asked for, and it should never appear anywhere a user browses or counts
+/// series.
+///
+/// Deliberately **not** applied to `series_by_id`: book detail pages resolve their
+/// library through that lookup, so filtering it there would drop the library
+/// breadcrumb from every book in the bucket. The books stay reachable via the Books
+/// tab either way.
+fn exclude_loose_root(query: Select<series::Entity>) -> Select<series::Entity> {
+	query.filter(
+		series::Column::Id.not_in_subquery(series::Entity::loose_root_ids_subquery()),
+	)
+}
+
 #[derive(Default)]
 pub struct SeriesQuery;
 
@@ -44,7 +61,9 @@ impl SeriesQuery {
 		let conditions = filter.into_filter_with_user(&user.id);
 		let query = SeriesOrderBy::add_order_by(
 			&order_by,
-			series::ModelWithMetadata::find_for_user(user).filter(conditions),
+			exclude_loose_root(
+				series::ModelWithMetadata::find_for_user(user).filter(conditions),
+			),
 		)?;
 
 		match pagination.resolve() {
@@ -141,6 +160,11 @@ impl SeriesQuery {
 				FROM
 					series
 				LEFT JOIN series_metadata ON series.id = series_metadata.series_id
+				WHERE NOT EXISTS (
+					SELECT 1 FROM libraries
+					WHERE libraries.id = series.library_id
+					  AND libraries.path = series.path
+				)
 				GROUP BY
 					letter
 				ORDER BY
@@ -163,7 +187,9 @@ impl SeriesQuery {
 	async fn number_of_series(&self, ctx: &Context<'_>) -> Result<u64> {
 		let AuthContext { user, .. } = ctx.data::<AuthContext>()?;
 		let conn = ctx.data::<CoreContext>()?.conn.as_ref();
-		let count = series::Entity::find_for_user(user).count(conn).await?;
+		let count = exclude_loose_root(series::Entity::find_for_user(user))
+			.count(conn)
+			.await?;
 		Ok(count)
 	}
 
@@ -176,7 +202,7 @@ impl SeriesQuery {
 		let AuthContext { user, .. } = ctx.data::<AuthContext>()?;
 		let conn = ctx.data::<CoreContext>()?.conn.as_ref();
 
-		let query = series::ModelWithMetadata::find_for_user(user);
+		let query = exclude_loose_root(series::ModelWithMetadata::find_for_user(user));
 
 		match pagination.resolve() {
 			Pagination::Cursor(info) => {

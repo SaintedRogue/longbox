@@ -48,7 +48,15 @@ impl LibraryStats {
 					SELECT
 						COUNT(*) AS book_count,
 						IFNULL(SUM(size), 0) AS total_bytes,
-						(SELECT COUNT(*) FROM series WHERE ($1 IS NULL OR series.library_id = $1)) AS series_count
+						-- The library-root bucket series is a scan artifact, not a real
+						-- series; exclude it so this matches `numberOfSeries`.
+						(SELECT COUNT(*) FROM series
+						 WHERE ($1 IS NULL OR series.library_id = $1)
+						   AND NOT EXISTS (
+							 SELECT 1 FROM libraries
+							 WHERE libraries.id = series.library_id
+							   AND libraries.path = series.path
+						   )) AS series_count
 					FROM library_media
 				),
 				filtered_sessions AS (
@@ -122,11 +130,7 @@ impl LibraryStats {
 					session_stats.total_reading_time_seconds
 				FROM base_counts, session_stats;
 				",
-				[
-					for_library.into(),
-					for_all_users.into(),
-					user_id.into(),
-				],
+				[for_library.into(), for_all_users.into(), user_id.into()],
 			))
 			.await?
 			.ok_or("Library stats failed to be calculated")?;

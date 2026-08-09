@@ -59,7 +59,10 @@ export default function BookOverviewContent({ id }: Props) {
 						<BookOverviewSceneHeader media={media} book={fragmentData} completedAt={completedAt} />
 					</div>
 
-					<BooksAfterCursor cursor={media.id} />
+					{/* `nextInSeries` walks the book's series_id. For a standalone book that is
+					    the library-root bucket, so the rail would list every unrelated loose
+					    book in the library. */}
+					{!media.isStandalone && <BooksAfterCursor cursor={media.id} />}
 
 					<div className="gap-y-2 flex flex-col">
 						<div className="gap-2 flex flex-wrap items-center justify-between">

@@ -546,6 +546,17 @@ impl MediaQuery {
 						-- Exclude media that user has read or is currently reading
 						AND m.id NOT IN (SELECT media_id FROM user_read_media)
 						AND m.deleted_at IS NULL
+						-- Never propose a "next" from the library-root bucket. That row
+						-- is a scan artifact holding every book left loose in the
+						-- library folder, so partitioning by series_id there would
+						-- offer an unrelated book as the continuation of one the user
+						-- happened to finish. A standalone book has no next.
+						AND NOT EXISTS (
+							SELECT 1
+							FROM series s
+							JOIN libraries l ON l.id = s.library_id
+							WHERE s.id = m.series_id AND s.path = l.path
+						)
 				)
 
 				-- Get only the first book for each series

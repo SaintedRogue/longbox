@@ -12,6 +12,7 @@ const seriesQuery = graphql(`
 		seriesById(id: $id) {
 			id
 			resolvedName
+			isLooseRoot
 			library {
 				id
 				name
@@ -58,7 +59,10 @@ export default function BookLibrarySeriesLinks({ seriesId }: Props) {
 					</Badge>
 				</Link>
 			)}
-			{series && (
+			{/* The library-root bucket is a scan artifact, not a series anyone made, so it
+			    gets no breadcrumb segment. The library badge above still renders -- these
+			    books belong to a library, just not to a series. */}
+			{series && !series.isLooseRoot && (
 				<>
 					<Text size="sm" variant="muted">
 						/

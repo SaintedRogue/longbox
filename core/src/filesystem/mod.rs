@@ -6,6 +6,7 @@ mod content_type;
 mod directory_listing;
 pub(crate) mod error;
 mod existence;
+pub mod grouping;
 mod hash;
 pub mod image;
 pub mod media;

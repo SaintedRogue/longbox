@@ -11,6 +11,7 @@ const query = graphql(`
 			resolvedName
 			extension
 			seriesId
+			isStandalone
 			pages
 			size
 			metadata {

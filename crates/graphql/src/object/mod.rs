@@ -1,5 +1,7 @@
 pub mod api_key;
 pub mod author;
+pub mod book_group;
+
 pub mod book_club;
 pub mod book_club_book;
 pub mod book_club_book_suggestion;

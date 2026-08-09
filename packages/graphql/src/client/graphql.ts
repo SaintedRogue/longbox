@@ -385,6 +385,46 @@ export enum BookClubSuggestionStatus {
   Rejected = 'REJECTED'
 }
 
+/**
+ * A virtual shelf of books that belong together but do not share a folder.
+ *
+ * Unlike a `Series`, this has no path and no directory behind it — it exists so books
+ * left loose in a library root can be browsed sensibly without anything moving on disk.
+ */
+export type BookGroup = {
+  __typename?: 'BookGroup';
+  bookCount: Scalars['Int']['output'];
+  /** The books on this shelf, in name order. */
+  books: Array<Media>;
+  createdAt: Scalars['DateTime']['output'];
+  id: Scalars['String']['output'];
+  libraryId: Scalars['String']['output'];
+  name: Scalars['String']['output'];
+  /** Where this group's identity came from. */
+  source: BookGroupSource;
+  /**
+   * The normalized key detection used to form this group, so a re-run matches it
+   * rather than creating a duplicate. `None` for manually created groups.
+   */
+  sourceKey?: Maybe<Scalars['String']['output']>;
+  updatedAt: Scalars['DateTime']['output'];
+};
+
+/**
+ * Where a book group's identity came from.
+ *
+ * `Metadata` and `Filename` groups are produced by offline detection and may be
+ * recomputed; `Manual` groups were created by a person and are never recomputed away.
+ */
+export enum BookGroupSource {
+  /** Grouped on a series name parsed out of the filename. */
+  Filename = 'FILENAME',
+  /** Created or corrected by a person. */
+  Manual = 'MANUAL',
+  /** Grouped on the embedded `media_metadata.series` value. */
+  Metadata = 'METADATA'
+}
+
 export type Bookmark = {
   __typename?: 'Bookmark';
   createdAt: Scalars['DateTime']['output'];
@@ -669,6 +709,17 @@ export type DeleteJobHistory = {
   __typename?: 'DeleteJobHistory';
   /** The number of logs deleted that were related to a job */
   affectedRows: Scalars['Int']['output'];
+};
+
+/** What a detection run did. */
+export type DetectBookGroupsResult = {
+  __typename?: 'DetectBookGroupsResult';
+  booksGrouped: Scalars['Int']['output'];
+  booksLocked: Scalars['Int']['output'];
+  booksStandalone: Scalars['Int']['output'];
+  groupsCreated: Scalars['Int']['output'];
+  groupsMatched: Scalars['Int']['output'];
+  groupsPruned: Scalars['Int']['output'];
 };
 
 export enum Dimension {
@@ -1550,6 +1601,20 @@ export type MatchCandidate = {
 export type Media = {
   __typename?: 'Media';
   analysisData?: Maybe<MediaAnalysisData>;
+  /** The virtual shelf this book sits on, if any. */
+  bookGroup?: Maybe<BookGroup>;
+  /**
+   * The virtual shelf this book belongs to, if any. Orthogonal to `series_id`, which
+   * always stays pointed at the folder the file actually lives in — a book can be
+   * grouped without ever moving on disk.
+   */
+  bookGroupId?: Maybe<Scalars['String']['output']>;
+  /**
+   * Set once a person decides this book's grouping, including deciding it has none.
+   * Offline detection skips locked rows, which is what makes a manual correction
+   * survive both a re-run and a rescan.
+   */
+  bookGroupLocked: Scalars['Boolean']['output'];
   /** The timestamp of the creation of the media */
   createdAt: Scalars['DateTime']['output'];
   /** The timestamp of when the media was **soft** deleted. This will act like a trash bin. */
@@ -1567,6 +1632,16 @@ export type Media = {
   id: Scalars['String']['output'];
   /** Whether the media is marked as a favorite by the current user */
   isFavorite: Scalars['Boolean']['output'];
+  /**
+   * Whether this book stands alone rather than belonging to a real series.
+   *
+   * True when the book has no series at all, or when its series is the library's
+   * loose-file bucket (the row the scanner makes at the library root for books that
+   * sit loose in it). Clients use this to drop the series breadcrumb and suppress
+   * the "next in series" rail, which would otherwise list unrelated books that
+   * merely share the bucket.
+   */
+  isStandalone: Scalars['Boolean']['output'];
   /**
    * A hash of the media file that adheres to the KoReader hash algorithm. This is used to identify
    * books from the KoReader application so progress can be synced between the two applications
@@ -1670,9 +1745,16 @@ export type MediaFilterInput = {
   _and?: InputMaybe<Array<MediaFilterInput>>;
   _not?: InputMaybe<Array<MediaFilterInput>>;
   _or?: InputMaybe<Array<MediaFilterInput>>;
+  /** Restrict to books on a given virtual shelf. */
+  bookGroupId?: InputMaybe<FieldFilterString>;
   createdAt?: InputMaybe<NumericFilterDateTime>;
   extension?: InputMaybe<FieldFilterString>;
   id?: InputMaybe<FieldFilterString>;
+  /**
+   * `true` keeps only books that stand alone — no virtual shelf, and a series that is
+   * really the library's loose-file bucket. `false` inverts it.
+   */
+  isStandalone?: InputMaybe<Scalars['Boolean']['input']>;
   metadata?: InputMaybe<MediaMetadataFilterInput>;
   name?: InputMaybe<FieldFilterString>;
   pages?: InputMaybe<NumericFilterI32>;
@@ -1865,6 +1947,8 @@ export type MediaMetadataOverview = {
 };
 
 export enum MediaModelOrdering {
+  BookGroupId = 'BOOK_GROUP_ID',
+  BookGroupLocked = 'BOOK_GROUP_LOCKED',
   CreatedAt = 'CREATED_AT',
   DeletedAt = 'DELETED_AT',
   Extension = 'EXTENSION',
@@ -2133,6 +2217,13 @@ export type Mutation = {
   applyOrganizeLooseFiles: Scalars['Boolean']['output'];
   /** Archive or unarchive a discussion (Moderator+) */
   archiveDiscussion: Scalars['Boolean']['output'];
+  /**
+   * Move a book onto a shelf, or off every shelf when `bookGroupId` is null.
+   *
+   * Either way the book is locked, so later detection runs leave it exactly where the
+   * person put it. This is what makes a correction stick across rescans.
+   */
+  assignBookGroup: Scalars['Boolean']['output'];
   cancelJob: Scalars['Boolean']['output'];
   /**
    * Delete media and series from a library that match one of the following conditions:
@@ -2170,6 +2261,13 @@ export type Mutation = {
   createBookClubInvitation: BookClubInvitation;
   /** Creates a new member in the book club */
   createBookClubMember: BookClubMember;
+  /**
+   * Create a shelf by hand and put the given books on it.
+   *
+   * Manual shelves carry no `source_key`, so detection never matches, renames, or
+   * prunes them.
+   */
+  createBookGroup: BookGroup;
   /** Create a bookmark for a user */
   createBookmark: Bookmark;
   /** Manually create a discussion for a book */
@@ -2207,6 +2305,12 @@ export type Mutation = {
   deleteAnnotation: MediaAnnotation;
   deleteApiKey: Apikey;
   deleteBookClub: BookClub;
+  /**
+   * Delete a shelf. Its books stay exactly where they are on disk and in the library —
+   * they simply become standalone again, and stay locked so detection does not
+   * immediately rebuild the shelf someone just dismantled.
+   */
+  deleteBookGroup: Scalars['Boolean']['output'];
   /** Delete a bookmark by ID, only if the user created it */
   deleteBookmark: Bookmark;
   /** Delete a bookmark by epubcfi */
@@ -2277,6 +2381,17 @@ export type Mutation = {
    */
   deleteUserAvatar: User;
   deleteUserSessions: Scalars['Int']['output'];
+  /**
+   * Group a library's loose books into virtual shelves.
+   *
+   * Runs inline rather than as a queued job: it is pure string work over embedded
+   * metadata and filenames, with no network calls, so it finishes in milliseconds.
+   * That is deliberate — the provider-confirmed organize job this sits beside once ran
+   * for 917 seconds against the same library before failing.
+   *
+   * Idempotent. Books whose grouping a person has already decided are left untouched.
+   */
+  detectBookGroups: DetectBookGroupsResult;
   /** Edit your own message */
   editMessage: BookClubDiscussionMessage;
   favoriteMedia: Media;
@@ -2334,6 +2449,7 @@ export type Mutation = {
   removeBookClubMember: BookClubMember;
   /** Remove your own suggestion (only before it's resolved) */
   removeSuggestion: BookClubBookSuggestion;
+  renameBookGroup: BookGroup;
   /**
    * Rename a tag. Returns the updated tag, or an error if the tag was not found or the new
    * name already exists.
@@ -2555,6 +2671,12 @@ export type MutationArchiveDiscussionArgs = {
 };
 
 
+export type MutationAssignBookGroupArgs = {
+  bookGroupId?: InputMaybe<Scalars['ID']['input']>;
+  mediaId: Scalars['ID']['input'];
+};
+
+
 export type MutationCancelJobArgs = {
   id: Scalars['ID']['input'];
 };
@@ -2614,6 +2736,13 @@ export type MutationCreateBookClubInvitationArgs = {
 export type MutationCreateBookClubMemberArgs = {
   bookClubId: Scalars['ID']['input'];
   input: CreateBookClubMemberInput;
+};
+
+
+export type MutationCreateBookGroupArgs = {
+  libraryId: Scalars['ID']['input'];
+  mediaIds: Array<Scalars['ID']['input']>;
+  name: Scalars['String']['input'];
 };
 
 
@@ -2694,6 +2823,11 @@ export type MutationDeleteApiKeyArgs = {
 
 
 export type MutationDeleteBookClubArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type MutationDeleteBookGroupArgs = {
   id: Scalars['ID']['input'];
 };
 
@@ -2827,6 +2961,11 @@ export type MutationDeleteUserSessionsArgs = {
 };
 
 
+export type MutationDetectBookGroupsArgs = {
+  libraryId: Scalars['ID']['input'];
+};
+
+
 export type MutationEditMessageArgs = {
   input: EditMessageInput;
   messageId: Scalars['ID']['input'];
@@ -2938,6 +3077,12 @@ export type MutationRemoveBookClubMemberArgs = {
 
 export type MutationRemoveSuggestionArgs = {
   suggestionId: Scalars['ID']['input'];
+};
+
+
+export type MutationRenameBookGroupArgs = {
+  id: Scalars['ID']['input'];
+  name: Scalars['String']['input'];
 };
 
 
@@ -3698,6 +3843,15 @@ export type Query = {
   /** Get all suggestions for a book club */
   bookClubSuggestions: Array<BookClubBookSuggestion>;
   bookClubs: Array<BookClub>;
+  bookGroupById?: Maybe<BookGroup>;
+  /**
+   * The virtual shelves in a library, in name order.
+   *
+   * Deliberately unpaginated. A shelf only exists for two or more books that share a
+   * series identity, so a library produces a handful of these, not hundreds — on the
+   * library this was built for, 139 loose books yielded 8 shelves.
+   */
+  bookGroups: Array<BookGroup>;
   /** Get all bookmarks for a single epub by its media ID */
   bookmarksByMediaId: Array<Bookmark>;
   /** Get a single character by name (case-insensitive exact match) */
@@ -3899,6 +4053,16 @@ export type QueryBookClubSuggestionsArgs = {
 
 export type QueryBookClubsArgs = {
   all?: InputMaybe<Scalars['Boolean']['input']>;
+};
+
+
+export type QueryBookGroupByIdArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type QueryBookGroupsArgs = {
+  libraryId: Scalars['ID']['input'];
 };
 
 
@@ -4439,6 +4603,17 @@ export type Series = {
   id: Scalars['String']['output'];
   isComplete: Scalars['Boolean']['output'];
   isFavorite: Scalars['Boolean']['output'];
+  /**
+   * Whether this series is really the library's loose-file bucket rather than a
+   * series anyone created.
+   *
+   * The scanner turns the library root into a series when books sit loose in it, so
+   * a library at `/data` grows a series named `data`. Browse surfaces filter it out
+   * server-side, but `seriesById` deliberately still resolves it so book pages can
+   * reach their library through it — clients use this flag to hide the series part
+   * of a breadcrumb while keeping the library part.
+   */
+  isLooseRoot: Scalars['Boolean']['output'];
   library: Library;
   libraryId?: Maybe<Scalars['String']['output']>;
   /** Get media in this series */
@@ -5261,7 +5436,7 @@ export type BookOverviewSceneQueryVariables = Exact<{
 
 
 export type BookOverviewSceneQuery = { __typename?: 'Query', mediaById?: (
-    { __typename?: 'Media', id: string, resolvedName: string, extension: string, seriesId?: string | null, pages: number, size: number, metadata?: (
+    { __typename?: 'Media', id: string, resolvedName: string, extension: string, seriesId?: string | null, isStandalone: boolean, pages: number, size: number, metadata?: (
       { __typename?: 'MediaMetadata', links: Array<string>, summary?: string | null, ageRating?: number | null, genres: Array<string>, language?: string | null, publisher?: string | null, writers: Array<string>, year?: number | null }
       & { ' $fragmentRefs'?: { 'MediaMetadataEditorFragment': MediaMetadataEditorFragment } }
     ) | null, tags: Array<{ __typename?: 'Tag', id: number, name: string }>, readHistory: Array<{ __typename?: 'ReadthroughRecord', completedAt: any }> }
@@ -5647,7 +5822,7 @@ export type BookLibrarySeriesLinksQueryVariables = Exact<{
 }>;
 
 
-export type BookLibrarySeriesLinksQuery = { __typename?: 'Query', seriesById?: { __typename?: 'Series', id: string, resolvedName: string, library: { __typename?: 'Library', id: string, name: string } } | null };
+export type BookLibrarySeriesLinksQuery = { __typename?: 'Query', seriesById?: { __typename?: 'Series', id: string, resolvedName: string, isLooseRoot: boolean, library: { __typename?: 'Library', id: string, name: string } } | null };
 
 export type BookMetadataFragment = { __typename?: 'Media', metadata?: { __typename?: 'MediaMetadata', ageRating?: number | null, characters: Array<string>, colorists: Array<string>, coverArtists: Array<string>, editors: Array<string>, genres: Array<string>, inkers: Array<string>, letterers: Array<string>, links: Array<string>, pencillers: Array<string>, publisher?: string | null, teams: Array<string>, writers: Array<string>, year?: number | null, month?: number | null, day?: number | null, volume?: number | null, number?: any | null } | null } & { ' $fragmentName'?: 'BookMetadataFragment' };
 
@@ -5693,7 +5868,7 @@ export type BookManagementSceneQueryVariables = Exact<{
 
 
 export type BookManagementSceneQuery = { __typename?: 'Query', mediaById?: (
-    { __typename?: 'Media', id: string, resolvedName: string, library: { __typename?: 'Library', id: string, name: string }, series: { __typename?: 'Series', id: string, resolvedName: string }, tags: Array<{ __typename?: 'Tag', id: number, name: string }> }
+    { __typename?: 'Media', id: string, resolvedName: string, library: { __typename?: 'Library', id: string, name: string }, series: { __typename?: 'Series', id: string, resolvedName: string, isLooseRoot: boolean }, tags: Array<{ __typename?: 'Tag', id: number, name: string }> }
     & { ' $fragmentRefs'?: { 'BookThumbnailSelectorFragment': BookThumbnailSelectorFragment } }
   ) | null };
 
@@ -5921,6 +6096,23 @@ export type LibraryBooksSceneQuery = { __typename?: 'Query', media: { __typename
       { __typename?: 'Media', id: string }
       & { ' $fragmentRefs'?: { 'BookCardFragment': BookCardFragment;'BookMetadataFragment': BookMetadataFragment } }
     )>, pageInfo: { __typename: 'CursorPaginationInfo' } | { __typename: 'OffsetPaginationInfo', currentPage: number, totalPages: number, pageSize: number, pageOffset: number, zeroBased: boolean } } };
+
+export type LibraryCollectionsQueryVariables = Exact<{
+  libraryId: Scalars['ID']['input'];
+}>;
+
+
+export type LibraryCollectionsQuery = { __typename?: 'Query', bookGroups: Array<{ __typename?: 'BookGroup', id: string, name: string, bookCount: number, books: Array<(
+      { __typename?: 'Media', id: string }
+      & { ' $fragmentRefs'?: { 'BookCardFragment': BookCardFragment } }
+    )> }> };
+
+export type LibraryCollectionsDetectMutationVariables = Exact<{
+  libraryId: Scalars['ID']['input'];
+}>;
+
+
+export type LibraryCollectionsDetectMutation = { __typename?: 'Mutation', detectBookGroups: { __typename?: 'DetectBookGroupsResult', groupsCreated: number, groupsMatched: number, groupsPruned: number, booksGrouped: number, booksStandalone: number, booksLocked: number } };
 
 export type LibrarySeriesQueryVariables = Exact<{
   filter: SeriesFilterInput;
@@ -7474,6 +7666,7 @@ export const BookOverviewSceneDocument = new TypedDocumentString(`
     resolvedName
     extension
     seriesId
+    isStandalone
     pages
     size
     metadata {
@@ -8648,6 +8841,7 @@ export const BookLibrarySeriesLinksDocument = new TypedDocumentString(`
   seriesById(id: $id) {
     id
     resolvedName
+    isLooseRoot
     library {
       id
       name
@@ -8778,6 +8972,7 @@ export const BookManagementSceneDocument = new TypedDocumentString(`
     series {
       id
       resolvedName
+      isLooseRoot
     }
     tags {
       id
@@ -9501,6 +9696,65 @@ fragment BookMetadata on Media {
     number
   }
 }`) as unknown as TypedDocumentString<LibraryBooksSceneQuery, LibraryBooksSceneQueryVariables>;
+export const LibraryCollectionsDocument = new TypedDocumentString(`
+    query LibraryCollections($libraryId: ID!) {
+  bookGroups(libraryId: $libraryId) {
+    id
+    name
+    bookCount
+    books {
+      id
+      ...BookCard
+    }
+  }
+}
+    fragment BookCard on Media {
+  id
+  resolvedName
+  extension
+  pages
+  size
+  status
+  thumbnail {
+    url
+    metadata {
+      averageColor
+      colors {
+        color
+        percentage
+      }
+      thumbhash
+    }
+    height
+    width
+  }
+  readProgress {
+    percentageCompleted
+    epubcfi
+    page
+    updatedAt
+  }
+  readHistory {
+    __typename
+    completedAt
+  }
+  createdAt
+  libraryConfig {
+    skipBookOverview
+  }
+}`) as unknown as TypedDocumentString<LibraryCollectionsQuery, LibraryCollectionsQueryVariables>;
+export const LibraryCollectionsDetectDocument = new TypedDocumentString(`
+    mutation LibraryCollectionsDetect($libraryId: ID!) {
+  detectBookGroups(libraryId: $libraryId) {
+    groupsCreated
+    groupsMatched
+    groupsPruned
+    booksGrouped
+    booksStandalone
+    booksLocked
+  }
+}
+    `) as unknown as TypedDocumentString<LibraryCollectionsDetectMutation, LibraryCollectionsDetectMutationVariables>;
 export const LibrarySeriesDocument = new TypedDocumentString(`
     query LibrarySeries($filter: SeriesFilterInput!, $orderBy: [SeriesOrderBy!]!, $pagination: Pagination!) {
   series(filter: $filter, orderBy: $orderBy, pagination: $pagination) {

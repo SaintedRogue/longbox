@@ -1,3 +1,8 @@
+// Same reason as in lib.rs: the merged async-graphql resolver trees nest deeper than the
+// default limit of 128 once expanded. The binary is its own crate root, so it needs the
+// attribute independently.
+#![recursion_limit = "256"]
+
 use cli::{handle_command, Cli, Parser};
 use errors::EntryError;
 use longbox_core::{
