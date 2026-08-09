@@ -46,8 +46,13 @@ impl ProviderClientCache {
 			.map_err(|e| ProviderCacheError::DecryptionFailed(e.to_string()))?;
 
 		let provider_type_str = config.provider_type.to_string();
-		let client = create_provider(&provider_type_str, decrypted_token)
-			.map_err(ProviderCacheError::ProviderCreationFailed)?;
+		// TODO(T5): replace with the DB-backed runtime once it hangs off Ctx.
+		let client = create_provider(
+			&provider_type_str,
+			decrypted_token,
+			metadata_integrations::runtime::noop_runtime(),
+		)
+		.map_err(ProviderCacheError::ProviderCreationFailed)?;
 
 		let client_arc: Arc<dyn MetadataProvider + Send + Sync> = Arc::from(client);
 

@@ -5,6 +5,7 @@ use serde::Deserialize;
 use crate::{
 	client::{build_client_with_retry, default_metadata_client, RetryClientConfig},
 	error::MetadataProviderError,
+	runtime::{cached_get_json, noop_runtime, RuntimeHandle},
 	types::{
 		ConfidenceFactor, ExternalMediaMetadata, ExternalSeriesMetadata, MatchCandidate,
 		MediaType, ProviderValidationResult, ProviderValidationStatus, SearchQuery,
@@ -34,6 +35,8 @@ pub struct MetronClient {
 	/// a mock server (see [`MetronClient::with_base_url`]).
 	base_url: String,
 	rate_limiter: RateLimiter,
+	/// Host-supplied response cache + budget ledger; [`noop_runtime`] outside core.
+	runtime: RuntimeHandle,
 }
 
 impl MetronClient {
@@ -42,6 +45,13 @@ impl MetronClient {
 		rate_limit: Option<u32>,
 	) -> Result<Self, MetadataProviderError> {
 		Self::with_base_url(token, rate_limit, METRON_API_URL.to_string())
+	}
+
+	/// Attach a host runtime (response cache + budget ledger). Defaults to
+	/// [`noop_runtime`] so standalone construction behaves exactly as before.
+	pub fn with_runtime(mut self, runtime: RuntimeHandle) -> Self {
+		self.runtime = runtime;
+		self
 	}
 
 	/// Construct a client against an explicit base URL. Used by [`new`](Self::new)
@@ -69,11 +79,13 @@ impl MetronClient {
 			rate_limiter: RateLimiter::per_minute(
 				rate_limit.unwrap_or(METRON_RATE_LIMIT_PER_MINUTE),
 			),
+			runtime: noop_runtime(),
 		})
 	}
 
-	/// GET a JSON resource from the Metron API with Basic auth, honoring the local
-	/// rate limiter. Server-side 429/5xx responses are retried with backoff by
+	/// GET a JSON resource from the Metron API with Basic auth, through the
+	/// runtime's response cache — a fresh hit skips the rate limiter and budget.
+	/// Server-side 429/5xx responses are retried with backoff by
 	/// `build_client_with_retry`; 4xx (including 401/403 auth failures) are treated
 	/// as fatal and NOT retried (`RetryOn429And5xx`), so bad credentials fail fast.
 	#[tracing::instrument(skip(self))]
@@ -82,16 +94,21 @@ impl MetronClient {
 		path: &str,
 		params: &[(&str, String)],
 	) -> Result<T, MetadataProviderError> {
-		self.rate_limiter.until_ready().await;
-		let response = self
+		let request = self
 			.client
 			.get(format!("{}/{path}/", self.base_url))
 			.basic_auth(&self.username, Some(&self.password))
 			.query(params)
-			.send()
-			.await?
-			.error_for_status()?;
-		Ok(response.json::<T>().await?)
+			.build()?;
+		let body = cached_get_json(
+			&self.client,
+			self.runtime.as_ref(),
+			&self.rate_limiter,
+			"metron",
+			request,
+		)
+		.await?;
+		Ok(serde_json::from_value(body)?)
 	}
 }
 

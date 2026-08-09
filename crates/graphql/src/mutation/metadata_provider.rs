@@ -250,8 +250,13 @@ async fn run_validation(
 		));
 	}
 
-	let provider = create_provider(provider_type, token)
-		.map_err(|e| async_graphql::Error::new(e.to_string()))?;
+	// Validation probes are rare one-offs: no response cache or budget ledger.
+	let provider = create_provider(
+		provider_type,
+		token,
+		metadata_integrations::runtime::noop_runtime(),
+	)
+	.map_err(|e| async_graphql::Error::new(e.to_string()))?;
 
 	provider
 		.validate_credentials()
