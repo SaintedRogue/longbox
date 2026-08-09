@@ -574,6 +574,15 @@
 			"books": "Books",
 			"series": "Series",
 			"files": "Files"
+		},
+		"stats": {
+			"series": "Series",
+			"inProgress": "Books in progress",
+			"completed": "Books completed",
+			"readingTime": "Total reading time",
+			"diskSize": "Size on disk",
+			"books": "Books",
+			"libraries": "Libraries"
 		}
 	},
 	"librarySettingsScene": {
