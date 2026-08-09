@@ -127,6 +127,18 @@ impl MatchScorer {
 	/// Penalty when the query has an issue number and the candidate's differs — a
 	/// strong signal it's the wrong issue of an otherwise-matching series.
 	const NUMBER_MISMATCH_PENALTY: f32 = 0.40;
+	/// Bonus when the candidate's year is within ±1 of the query's. ComicVine
+	/// ignores year in requests entirely, so the scorer is the only place this
+	/// signal can act for it (Metron also filters server-side).
+	const YEAR_MATCH_BONUS: f32 = 0.05;
+	/// Penalty when both years are known and differ by more than 1 — the classic
+	/// wrong-volume signal for same-named series ("Suicide Squad" has ~8 volumes).
+	/// Sized to drop an exact-title match (0.90) below the alt-title floor.
+	const YEAR_MISMATCH_PENALTY: f32 = 0.20;
+	/// Bonus when the candidate's publisher matches the query's. No penalty on
+	/// mismatch — publisher naming is noisy (imprints, renames, "DC" vs
+	/// "DC Comics"), so absence of a match must not punish a good title match.
+	const PUBLISHER_MATCH_BONUS: f32 = 0.03;
 
 	/// Score a single candidate against the search query, populating its
 	/// `confidence` and `confidence_factors` fields in place
@@ -197,9 +209,82 @@ impl MatchScorer {
 		let number_adjustment =
 			Self::score_issue_number(query, &candidate.metadata, &mut factors);
 
-		candidate.confidence =
-			(title_score + author_bonus + number_adjustment).clamp(0.0, 1.0);
+		// Year signal: disambiguates same-named volumes/series by start (or
+		// cover) year. Publisher: a small corroborating bonus, never a penalty.
+		let year_adjustment = Self::score_year(query, &candidate.metadata, &mut factors);
+		let publisher_bonus =
+			Self::score_publisher(query, &candidate.metadata, &mut factors);
+
+		candidate.confidence = (title_score
+			+ author_bonus
+			+ number_adjustment
+			+ year_adjustment
+			+ publisher_bonus)
+			.clamp(0.0, 1.0);
 		candidate.confidence_factors = factors;
+	}
+
+	/// Score the year signal: query `series_year` against series candidates,
+	/// query `year` (issue/cover year) against media candidates. Emits no factor
+	/// when either side is unknown — absence of data is not evidence.
+	fn score_year(
+		query: &SearchQuery,
+		metadata: &ExternalMetadata,
+		factors: &mut Vec<ConfidenceFactor>,
+	) -> f32 {
+		let (query_year, candidate_year) = match metadata {
+			ExternalMetadata::Series(s) => (query.series_year, s.year),
+			ExternalMetadata::Media(m) => (query.year, m.year),
+		};
+		let (Some(query_year), Some(candidate_year)) = (query_year, candidate_year)
+		else {
+			return 0.0;
+		};
+
+		let matched = (query_year - candidate_year).abs() <= 1;
+		let weight = if matched {
+			Self::YEAR_MATCH_BONUS
+		} else {
+			-Self::YEAR_MISMATCH_PENALTY
+		};
+		factors.push(ConfidenceFactor {
+			factor: "year".into(),
+			weight,
+			matched,
+		});
+		weight
+	}
+
+	/// Score the publisher signal: a corroborating bonus when both sides name
+	/// the same publisher (exact or Jaro-Winkler > 0.90); mismatches add
+	/// nothing. Emits no factor when either side is unknown.
+	fn score_publisher(
+		query: &SearchQuery,
+		metadata: &ExternalMetadata,
+		factors: &mut Vec<ConfidenceFactor>,
+	) -> f32 {
+		let Some(query_publisher) = query.publisher.as_deref() else {
+			return 0.0;
+		};
+		let candidate_publisher = match metadata {
+			ExternalMetadata::Series(s) => s.publisher.as_deref(),
+			ExternalMetadata::Media(m) => m.publisher.as_deref(),
+		};
+		let Some(candidate_publisher) = candidate_publisher else {
+			return 0.0;
+		};
+
+		let matched = Self::names_match(query_publisher, candidate_publisher);
+		factors.push(ConfidenceFactor {
+			factor: "publisher".into(),
+			weight: Self::PUBLISHER_MATCH_BONUS,
+			matched,
+		});
+		if matched {
+			Self::PUBLISHER_MATCH_BONUS
+		} else {
+			0.0
+		}
 	}
 
 	/// Score the issue-number signal for a media candidate: a positive bonus when the
@@ -704,6 +789,114 @@ mod tests {
 			"Single-word typo should score > 0 via string similarity, got {}",
 			c.confidence
 		);
+	}
+
+	fn make_series_candidate_with(
+		title: &str,
+		year: Option<i32>,
+		publisher: Option<&str>,
+	) -> MatchCandidate {
+		MatchCandidate {
+			provider: "test".into(),
+			external_id: "1".into(),
+			metadata: ExternalMetadata::Series(ExternalSeriesMetadata {
+				title: title.to_string(),
+				year,
+				publisher: publisher.map(String::from),
+				..Default::default()
+			}),
+			confidence: 0.0,
+			confidence_factors: Vec::new(),
+		}
+	}
+
+	#[test]
+	fn year_disambiguates_same_named_volumes() {
+		let scorer = MatchScorer;
+		let query = SearchQuery {
+			title: "Suicide Squad".into(),
+			series_year: Some(2016),
+			..Default::default()
+		};
+		let mut candidates = vec![
+			make_series_candidate_with("Suicide Squad", Some(2011), None),
+			make_series_candidate_with("Suicide Squad", Some(2016), None),
+		];
+		scorer.score_and_sort(&query, &mut candidates);
+
+		let top_year = candidates[0].metadata.as_series().and_then(|s| s.year);
+		assert_eq!(top_year, Some(2016), "the year-matching volume ranks first");
+		assert!(candidates[0]
+			.confidence_factors
+			.iter()
+			.any(|f| f.factor == "year" && f.matched));
+		// Exact title (0.90) − mismatch penalty (0.20) = 0.70 for the wrong volume.
+		assert!(
+			(candidates[1].confidence - 0.70).abs() < 0.01,
+			"year mismatch must penalize: got {}",
+			candidates[1].confidence
+		);
+	}
+
+	#[test]
+	fn year_within_one_counts_as_a_match() {
+		let scorer = MatchScorer;
+		let query = SearchQuery {
+			title: "Saga".into(),
+			series_year: Some(2012),
+			..Default::default()
+		};
+		let mut c = make_series_candidate_with("Saga", Some(2013), None);
+		scorer.score_candidate(&query, &mut c);
+
+		assert!(c
+			.confidence_factors
+			.iter()
+			.any(|f| f.factor == "year" && f.matched && f.weight > 0.0));
+	}
+
+	#[test]
+	fn missing_year_emits_no_factor() {
+		let scorer = MatchScorer;
+		let query = SearchQuery {
+			title: "Saga".into(),
+			..Default::default()
+		};
+		let mut c = make_series_candidate_with("Saga", Some(2012), None);
+		scorer.score_candidate(&query, &mut c);
+		assert!(
+			!c.confidence_factors.iter().any(|f| f.factor == "year"),
+			"absence of data is not evidence"
+		);
+	}
+
+	#[test]
+	fn publisher_match_adds_bonus_and_mismatch_adds_nothing() {
+		let scorer = MatchScorer;
+		let query = SearchQuery {
+			title: "Saga".into(),
+			publisher: Some("Image Comics".into()),
+			..Default::default()
+		};
+
+		let mut matching = make_series_candidate_with("Saga", None, Some("Image Comics"));
+		let mut mismatched = make_series_candidate_with("Saga", None, Some("Marvel"));
+		let mut unknown = make_series_candidate_with("Saga", None, None);
+		scorer.score_candidate(&query, &mut matching);
+		scorer.score_candidate(&query, &mut mismatched);
+		scorer.score_candidate(&query, &mut unknown);
+
+		assert!(
+			(matching.confidence - (0.90 + 0.03)).abs() < 0.01,
+			"publisher bonus applies: got {}",
+			matching.confidence
+		);
+		// Mismatch and unknown score identically — no penalty for noisy names.
+		assert!((mismatched.confidence - unknown.confidence).abs() < f32::EPSILON);
+		assert!(mismatched
+			.confidence_factors
+			.iter()
+			.any(|f| f.factor == "publisher" && !f.matched));
 	}
 
 	#[test]
