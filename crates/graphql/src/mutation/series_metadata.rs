@@ -216,6 +216,27 @@ impl SeriesMetadataMutation {
 			.get(candidate_index as usize)
 			.ok_or("Candidate index out of bounds")?;
 
+		// An explicit user accept wins over an external-id collision, but the
+		// duplicate is worth surfacing in the logs (the auto-apply path refuses).
+		if let Some(holder_id) =
+			longbox_core::filesystem::metadata::find_series_external_id_holder(
+				conn,
+				series_id.as_ref(),
+				&candidate.provider,
+				&candidate.external_id,
+			)
+			.await
+			.unwrap_or(None)
+		{
+			tracing::warn!(
+				series_id = series_id.as_ref(),
+				holder_id,
+				provider = candidate.provider,
+				external_id = candidate.external_id,
+				"Accepting a match whose external id another series in this library already holds"
+			);
+		}
+
 		longbox_core::filesystem::metadata::apply_series_match(
 			conn,
 			series_id.as_ref(),

@@ -270,6 +270,27 @@ impl MediaMetadataMutation {
 			.get(candidate_index as usize)
 			.ok_or("Candidate index out of bounds")?;
 
+		// An explicit user accept wins over an external-id collision, but the
+		// duplicate is worth surfacing in the logs (the auto-apply path refuses).
+		if let Some(holder_id) =
+			longbox_core::filesystem::metadata::find_media_external_id_holder(
+				conn,
+				media_id.as_ref(),
+				&candidate.provider,
+				&candidate.external_id,
+			)
+			.await
+			.unwrap_or(None)
+		{
+			tracing::warn!(
+				media_id = media_id.as_ref(),
+				holder_id,
+				provider = candidate.provider,
+				external_id = candidate.external_id,
+				"Accepting a match whose external id another media in this library already holds"
+			);
+		}
+
 		longbox_core::filesystem::metadata::apply_media_match(
 			conn,
 			media_id.as_ref(),

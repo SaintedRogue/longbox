@@ -608,6 +608,38 @@ impl JobLifecycle for MetadataFetchJob {
 					&all_candidates,
 					&all_provider_configs,
 				) {
+					// Collision guard: never silently bind an external id a
+					// sibling series in this library already holds — leave the
+					// record awaiting review instead (fail open on lookup error).
+					let holder = apply::find_series_external_id_holder(
+						conn,
+						&series_id,
+						&candidate.provider,
+						&candidate.external_id,
+					)
+					.await
+					.unwrap_or(None);
+					if let Some(holder_id) = holder {
+						logs.push(
+							JobExecuteLog::warn(&format!(
+								"Auto-apply skipped: series {holder_id} already holds {} id {} in this library — left awaiting review",
+								candidate.provider, candidate.external_id
+							))
+							.with_ctx(format!("For {series_name}")),
+						);
+						tracing::warn!(
+							series_id,
+							holder_id,
+							provider = candidate.provider,
+							external_id = candidate.external_id,
+							"External-id collision — auto-apply skipped"
+						);
+						return Ok(JobTaskOutput {
+							output,
+							logs,
+							subtasks: vec![],
+						});
+					}
 					tracing::info!(
 						series_id,
 						provider = candidate.provider,
@@ -807,6 +839,36 @@ impl JobLifecycle for MetadataFetchJob {
 					&all_candidates,
 					&all_provider_configs,
 				) {
+					// Collision guard: see the series branch above.
+					let holder = apply::find_media_external_id_holder(
+						conn,
+						&media_id,
+						&candidate.provider,
+						&candidate.external_id,
+					)
+					.await
+					.unwrap_or(None);
+					if let Some(holder_id) = holder {
+						logs.push(
+							JobExecuteLog::warn(&format!(
+								"Auto-apply skipped: media {holder_id} already holds {} id {} in this library — left awaiting review",
+								candidate.provider, candidate.external_id
+							))
+							.with_ctx(format!("For {media_name}")),
+						);
+						tracing::warn!(
+							media_id,
+							holder_id,
+							provider = candidate.provider,
+							external_id = candidate.external_id,
+							"External-id collision — auto-apply skipped"
+						);
+						return Ok(JobTaskOutput {
+							output,
+							logs,
+							subtasks: vec![],
+						});
+					}
 					tracing::info!(
 						media_id,
 						provider = candidate.provider,
