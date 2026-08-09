@@ -5,7 +5,6 @@ use crate::{
 	object::{media::Media, metadata_fetch_record::MetadataFetchRecord},
 };
 use async_graphql::{Context, Object, Result, ID};
-use longbox_core::filesystem::metadata::ProviderClientCache;
 use metadata_integrations::{
 	MatchCandidate, MergeStrategy, MetadataField, MetadataFieldOverride, SearchQuery,
 };
@@ -171,8 +170,7 @@ impl MediaMetadataMutation {
 			.await?
 			.ok_or("Media not found")?;
 
-		let encryption_key = core_ctx.get_encryption_key().await?;
-		let provider_cache = ProviderClientCache::new(encryption_key);
+		let provider_cache = core_ctx.provider_cache();
 
 		let title = model
 			.metadata

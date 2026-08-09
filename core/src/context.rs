@@ -162,6 +162,15 @@ impl Ctx {
 		Arc::new(self.clone())
 	}
 
+	/// The process-wide provider client cache: jobs, GraphQL mutations, and the
+	/// organizer must all share this one instance so provider rate limiters,
+	/// the response cache, and the budget ledger see all traffic together.
+	pub fn provider_cache(
+		&self,
+	) -> Arc<crate::filesystem::metadata::ProviderClientCache> {
+		self.apalis_state.provider_cache.clone()
+	}
+
 	/// Returns the receiver for the `CoreEvent` channel. See [`emit_event`]
 	/// for more information and an example usage.
 	pub fn get_client_receiver(&self) -> Receiver<CoreEvent> {

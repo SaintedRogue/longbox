@@ -174,9 +174,9 @@ impl MetadataFetchJob {
 			return Ok(Arc::clone(cache));
 		}
 
-		let encryption_key = ctx.get_encryption_key().await?;
-
-		let cache = Arc::new(ProviderClientCache::new(encryption_key));
+		// The process-wide instance: sharing it keeps rate limiters, response
+		// cache, and budget ledger unified across jobs and mutations.
+		let cache = ctx.provider_cache();
 		self.provider_cache = Some(Arc::clone(&cache));
 		Ok(cache)
 	}

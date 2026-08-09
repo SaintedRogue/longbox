@@ -318,7 +318,15 @@ mod tests {
 		std::fs::write(root.path().join("Some Other Book 001.cbz"), b"x").unwrap();
 
 		let (lib_id, config) = seeded_library(&db, root.path().to_str().unwrap()).await;
-		let cache = ProviderClientCache::new("test-key".to_string());
+		// The cache's conn is only for lazy encryption-key resolution, which
+		// these provider-free paths never trigger — a mock connection suffices.
+		let cache = ProviderClientCache::new(
+			std::sync::Arc::new(
+				sea_orm::MockDatabase::new(sea_orm::DatabaseBackend::Sqlite)
+					.into_connection(),
+			),
+			metadata_integrations::runtime::noop_runtime(),
+		);
 		let plan = build_plan(
 			&db,
 			&lib_id,
@@ -368,7 +376,15 @@ mod tests {
 		.await
 		.unwrap();
 
-		let cache = ProviderClientCache::new("test-key".to_string());
+		// The cache's conn is only for lazy encryption-key resolution, which
+		// these provider-free paths never trigger — a mock connection suffices.
+		let cache = ProviderClientCache::new(
+			std::sync::Arc::new(
+				sea_orm::MockDatabase::new(sea_orm::DatabaseBackend::Sqlite)
+					.into_connection(),
+			),
+			metadata_integrations::runtime::noop_runtime(),
+		);
 		let plan = build_plan(
 			&db,
 			&lib_id,

@@ -1,5 +1,4 @@
 use async_graphql::{Context, Object, Result, ID};
-use longbox_core::filesystem::metadata::ProviderClientCache;
 use metadata_integrations::{
 	MatchCandidate, MergeStrategy, MetadataField, MetadataFieldOverride,
 };
@@ -151,8 +150,7 @@ impl SeriesMetadataMutation {
 			.await?
 			.ok_or("Series not found")?;
 
-		let encryption_key = core_ctx.get_encryption_key().await?;
-		let provider_cache = ProviderClientCache::new(encryption_key);
+		let provider_cache = core_ctx.provider_cache();
 
 		let title_override = query.as_ref().and_then(|q| q.title_override());
 		let year_override = query.as_ref().and_then(|q| q.year);

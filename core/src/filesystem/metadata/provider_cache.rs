@@ -1,28 +1,65 @@
 use std::{collections::HashMap, sync::Arc};
 
-use metadata_integrations::{create_provider, MetadataProvider, MetadataProviderError};
+use metadata_integrations::{
+	create_provider, runtime::RuntimeHandle, MetadataProvider, MetadataProviderError,
+};
 use models::{
-	entity::metadata_provider_config,
+	entity::{metadata_provider_config, server_config},
 	shared::enums::MetadataProvider as MetadataProviderEnum,
 };
-use tokio::sync::RwLock;
+use sea_orm::{prelude::*, DatabaseConnection, SelectColumns};
+use tokio::sync::{OnceCell, RwLock};
 
 use crate::utils::encryption::decrypt_string;
 
-/// A cache for lazily-loaded metadata provider clients
+/// A cache for lazily-loaded metadata provider clients.
+///
+/// There must be exactly ONE instance per process (it lives on
+/// `ApalisWorkerState`, reachable from both `Ctx` and `JobContext`): each cached
+/// client owns its rate limiter, and every client shares this cache's
+/// [`RuntimeHandle`] (response cache + budget ledger) — a second instance would
+/// hand out fresh limiters and split the budget accounting, which is exactly the
+/// bug this design retired.
 pub struct ProviderClientCache {
 	clients:
 		RwLock<HashMap<MetadataProviderEnum, Arc<dyn MetadataProvider + Send + Sync>>>,
-	encryption_key: String, // The encryption key used to decrypt API tokens
+	conn: Arc<DatabaseConnection>,
+	/// The API-token encryption key, resolved from `server_config` on first use.
+	encryption_key: OnceCell<String>,
+	runtime: RuntimeHandle,
 }
 
 impl ProviderClientCache {
-	/// Create a new provider client cache with the given encryption key
-	pub fn new(encryption_key: String) -> Self {
+	/// Create the cache. Construction is infallible — the encryption key is
+	/// resolved lazily on the first [`get_or_create`](Self::get_or_create).
+	pub fn new(conn: Arc<DatabaseConnection>, runtime: RuntimeHandle) -> Self {
 		Self {
 			clients: RwLock::new(HashMap::new()),
-			encryption_key,
+			conn,
+			encryption_key: OnceCell::new(),
+			runtime,
 		}
+	}
+
+	async fn encryption_key(&self) -> Result<&String, ProviderCacheError> {
+		self.encryption_key
+			.get_or_try_init(|| async {
+				let record = server_config::Entity::find()
+					.select_column(server_config::Column::EncryptionKey)
+					.one(self.conn.as_ref())
+					.await
+					.map_err(|e| {
+						ProviderCacheError::EncryptionKeyUnavailable(e.to_string())
+					})?;
+				record
+					.and_then(|config| config.encryption_key)
+					.ok_or_else(|| {
+						ProviderCacheError::EncryptionKeyUnavailable(
+							"encryption key is not set".to_string(),
+						)
+					})
+			})
+			.await
 	}
 
 	/// Get or create a provider client for the given configuration
@@ -42,17 +79,14 @@ impl ProviderClientCache {
 			.as_ref()
 			.ok_or(ProviderCacheError::MissingApiToken)?;
 
-		let decrypted_token = decrypt_string(encrypted_token, &self.encryption_key)
+		let encryption_key = self.encryption_key().await?;
+		let decrypted_token = decrypt_string(encrypted_token, encryption_key)
 			.map_err(|e| ProviderCacheError::DecryptionFailed(e.to_string()))?;
 
 		let provider_type_str = config.provider_type.to_string();
-		// TODO(T5): replace with the DB-backed runtime once it hangs off Ctx.
-		let client = create_provider(
-			&provider_type_str,
-			decrypted_token,
-			metadata_integrations::runtime::noop_runtime(),
-		)
-		.map_err(ProviderCacheError::ProviderCreationFailed)?;
+		let client =
+			create_provider(&provider_type_str, decrypted_token, self.runtime.clone())
+				.map_err(ProviderCacheError::ProviderCreationFailed)?;
 
 		let client_arc: Arc<dyn MetadataProvider + Send + Sync> = Arc::from(client);
 
@@ -75,6 +109,8 @@ impl ProviderClientCache {
 pub enum ProviderCacheError {
 	#[error("Provider has no API token configured")]
 	MissingApiToken,
+	#[error("Failed to resolve the API-token encryption key: {0}")]
+	EncryptionKeyUnavailable(String),
 	#[error("Failed to decrypt API token: {0}")]
 	DecryptionFailed(String),
 	#[error("Failed to create provider: {0}")]
