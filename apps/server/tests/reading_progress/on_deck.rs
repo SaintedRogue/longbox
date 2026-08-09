@@ -153,6 +153,64 @@ async fn test_one_books_on_deck() {
 	);
 }
 
+/// Books left loose in a library root all share one scan-created "bucket" series named
+/// after the directory. Finishing one must not offer an unrelated loose book as the
+/// continuation — a standalone book has no next.
+#[tokio::test]
+async fn test_loose_root_bucket_never_offers_a_next_book() {
+	let app = TestApp::new_with_default_user().await;
+	let db = app.conn();
+
+	let library = fake_data::Library {
+		id: Some("loose_lib".to_string()),
+		name: Some("Comics".to_string()),
+		path: Some("/data".to_string()),
+	}
+	.insert(db)
+	.await;
+
+	// The bucket: a series whose path equals its own library's path, which is exactly
+	// what the scanner produces for books sitting directly in the library root.
+	let _ = setup_single_series_with_n_books(
+		&app,
+		fake_data::Series {
+			id: Some("data".to_string()),
+			name: Some("data".to_string()),
+			path: Some("/data".to_string()),
+			library_id: Some(library.id.clone()),
+		},
+		5,
+	)
+	.await;
+
+	// A real series in the same library, to prove the exclusion is targeted.
+	let _ = setup_single_series_with_n_books(
+		&app,
+		fake_data::Series {
+			id: Some("absolute_batman".to_string()),
+			name: Some("Absolute Batman".to_string()),
+			path: Some("/data/Absolute Batman".to_string()),
+			library_id: Some(library.id.clone()),
+		},
+		5,
+	)
+	.await;
+
+	finish_book(&app, "data_1").await;
+	finish_book(&app, "absolute_batman_1").await;
+
+	let ids = fetch_on_deck_ids(&app).await;
+
+	assert!(
+		!ids.iter().any(|id| id.starts_with("data_")),
+		"a loose book must never be offered as the next in its bucket, got {ids:?}"
+	);
+	assert!(
+		ids.contains(&"absolute_batman_2".to_string()),
+		"a real series must still queue its next book, got {ids:?}"
+	);
+}
+
 /// if a series has a book that is currently active, then the next book should not be in the response
 #[tokio::test]
 async fn test_ignore_series_with_active_book() {

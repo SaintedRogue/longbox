@@ -517,18 +517,27 @@ the same byte total.
 
 ## Known gaps, accepted
 
-1. **`onDeck` cross-contamination.** The hand-written CTE at
-   `crates/graphql/src/query/media.rs:459-574` partitions "next unread" by
-   `m.series_id`. Once a book in the bucket has been read, an unrelated loose
-   book can surface as on-deck. Second-order, and the CTE is delicate; deferred
-   rather than silently ignored.
-2. **Raw-SQL surfaces still counting the bucket.** Beyond `stats.rs:51` (fixed in
-   Phase 1): `object/library.rs:214,276`, `object/series.rs:130`,
-   `query/library.rs:233,254`. Each needs an independent audit pass —
-   `grep -rn 'FROM series\|FROM "series"' crates/graphql` — before calling this
-   complete.
-3. **Missing-entities / Clean Library flow** could still surface the bucket row if
-   it is ever flagged `Missing`. Low probability; not addressed in v1.
+1. ~~**`onDeck` cross-contamination.**~~ **Fixed.** The `next_in_series` CTE in
+   `crates/graphql/src/query/media.rs` now excludes the bucket, so a standalone
+   book never offers a "next". Regression test:
+   `test_loose_root_bucket_never_offers_a_next_book`, verified to fail without
+   the fix (it offered `data_2`).
+2. ~~**Raw-SQL surfaces still counting the bucket.**~~ **Audited and fixed.** The
+   original list was too broad — it came from grepping `FROM series` without
+   checking what each query counts. The actual picture:
+
+   | Site                                  | Counts              | Action                    |
+   | ------------------------------------- | ------------------- | ------------------------- |
+   | `object/library.rs` `series_alphabet` | series              | **fixed**                 |
+   | `object/stats.rs` `series_count`      | series              | fixed in Phase 1          |
+   | `object/library.rs` `media_alphabet`  | books               | none — loose books belong |
+   | `object/series.rs` `media_alphabet`   | books in one series | none                      |
+   | `query/library.rs` missing-entities   | only `MISSING` rows | none — see 3              |
+
+3. **Missing-entities / Clean Library flow** can surface the bucket row if it is
+   ever flagged `Missing`. Left deliberately: the bucket only goes missing when
+   the library root itself is unreachable, and in that situation seeing it listed
+   is informative rather than wrong.
 4. **`SeriesLoader` applies no user scoping** (`loader/series.rs:32-35`), so
    `Media.series` resolves across library exclusions. Pre-existing, not
    introduced here, worth a separate look.
