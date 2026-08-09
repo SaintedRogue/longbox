@@ -3,6 +3,7 @@ use std::{sync::Arc, time::Instant};
 use crate::{
 	config::LongboxConfig,
 	event::{CoreEvent, JobOutput},
+	filesystem::metadata::{DbProviderRuntime, ProviderClientCache},
 	job::JobUpdate,
 	CoreError,
 };
@@ -30,6 +31,10 @@ pub struct ApalisWorkerState {
 	pub core_event_tx: broadcast::Sender<CoreEvent>,
 	pub cancellation_tokens: Arc<DashMap<String, CancellationToken>>,
 	pub job_storage: MemoryStorage<LongboxJob>,
+	/// The ONE process-wide provider client cache: jobs and GraphQL mutations
+	/// must share it so rate limiters, the response cache, and the budget
+	/// ledger see all provider traffic together.
+	pub provider_cache: Arc<ProviderClientCache>,
 }
 
 impl ApalisWorkerState {
@@ -39,12 +44,17 @@ impl ApalisWorkerState {
 		core_event_tx: broadcast::Sender<CoreEvent>,
 		job_storage: MemoryStorage<LongboxJob>,
 	) -> Self {
+		let provider_cache = Arc::new(ProviderClientCache::new(
+			conn.clone(),
+			Arc::new(DbProviderRuntime::new(conn.clone())),
+		));
 		Self {
 			conn,
 			config,
 			core_event_tx,
 			cancellation_tokens: Arc::new(DashMap::new()),
 			job_storage,
+			provider_cache,
 		}
 	}
 
@@ -88,6 +98,11 @@ pub struct JobContext {
 }
 
 impl JobContext {
+	/// The process-wide provider client cache (see [`ApalisWorkerState`]).
+	pub fn provider_cache(&self) -> Arc<ProviderClientCache> {
+		self.apalis_state.provider_cache.clone()
+	}
+
 	pub async fn new(
 		apalis_state: Arc<ApalisWorkerState>,
 		job_id: String,

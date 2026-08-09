@@ -2,7 +2,6 @@ use async_graphql::{Context, Object, Result, ID};
 use metadata_integrations::MatchCandidate;
 use sea_orm::{prelude::*, QueryOrder};
 
-use longbox_core::filesystem::metadata::ProviderClientCache;
 use longbox_core::filesystem::organizer::confirm::search_series_candidates;
 use longbox_core::filesystem::organizer::plan::{build_plan_scoped, OrganizePlan};
 use models::entity::{library, library_config, organize_plan_record};
@@ -92,8 +91,7 @@ impl OrganizeQuery {
 			.await?
 			.ok_or("Library config not found")?;
 
-		let encryption_key = core.get_encryption_key().await?;
-		let provider_cache = ProviderClientCache::new(encryption_key);
+		let provider_cache = core.provider_cache();
 
 		let plan = build_plan_scoped(
 			conn,
@@ -137,8 +135,7 @@ impl OrganizeQuery {
 			.await?
 			.ok_or("Library config not found")?;
 
-		let encryption_key = core.get_encryption_key().await?;
-		let provider_cache = ProviderClientCache::new(encryption_key);
+		let provider_cache = core.provider_cache();
 
 		search_series_candidates(
 			conn,

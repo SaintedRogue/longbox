@@ -204,6 +204,27 @@ pub async fn fetch_series_metadata(
 		if let Some((candidate, config)) =
 			apply::find_auto_apply_candidate(&all_candidates, &provider_configs)
 		{
+			// Collision guard: never silently bind an external id a sibling
+			// series in this library already holds — the record stays awaiting
+			// review instead (fail open on lookup error).
+			if let Some(holder_id) = apply::find_series_external_id_holder(
+				conn,
+				series_id,
+				&candidate.provider,
+				&candidate.external_id,
+			)
+			.await
+			.unwrap_or(None)
+			{
+				tracing::warn!(
+					series_id,
+					holder_id,
+					provider = candidate.provider,
+					external_id = candidate.external_id,
+					"External-id collision — auto-apply skipped, awaiting review"
+				);
+				return Ok(all_candidates);
+			}
 			tracing::info!(
 				series_id,
 				provider = candidate.provider,
@@ -263,6 +284,9 @@ fn enrich_query_with_media_metadata(
 		}
 		if search.comicvine_id.is_none() {
 			search.comicvine_id = metadata.comicvine_id.clone();
+		}
+		if search.metron_id.is_none() {
+			search.metron_id = metadata.metron_id.clone();
 		}
 	}
 
@@ -405,6 +429,25 @@ pub async fn fetch_media_metadata(
 		if let Some((candidate, config)) =
 			apply::find_auto_apply_candidate(&all_candidates, &provider_configs)
 		{
+			// Collision guard: see fetch_series_metadata above.
+			if let Some(holder_id) = apply::find_media_external_id_holder(
+				conn,
+				media_id,
+				&candidate.provider,
+				&candidate.external_id,
+			)
+			.await
+			.unwrap_or(None)
+			{
+				tracing::warn!(
+					media_id,
+					holder_id,
+					provider = candidate.provider,
+					external_id = candidate.external_id,
+					"External-id collision — auto-apply skipped, awaiting review"
+				);
+				return Ok(all_candidates);
+			}
 			tracing::info!(
 				media_id,
 				provider = candidate.provider,

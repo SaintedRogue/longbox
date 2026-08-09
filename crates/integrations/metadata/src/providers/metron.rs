@@ -5,6 +5,7 @@ use serde::Deserialize;
 use crate::{
 	client::{build_client_with_retry, default_metadata_client, RetryClientConfig},
 	error::MetadataProviderError,
+	runtime::{cached_get_json, noop_runtime, RuntimeHandle},
 	types::{
 		ConfidenceFactor, ExternalMediaMetadata, ExternalSeriesMetadata, MatchCandidate,
 		MediaType, ProviderValidationResult, ProviderValidationStatus, SearchQuery,
@@ -34,6 +35,8 @@ pub struct MetronClient {
 	/// a mock server (see [`MetronClient::with_base_url`]).
 	base_url: String,
 	rate_limiter: RateLimiter,
+	/// Host-supplied response cache + budget ledger; [`noop_runtime`] outside core.
+	runtime: RuntimeHandle,
 }
 
 impl MetronClient {
@@ -42,6 +45,13 @@ impl MetronClient {
 		rate_limit: Option<u32>,
 	) -> Result<Self, MetadataProviderError> {
 		Self::with_base_url(token, rate_limit, METRON_API_URL.to_string())
+	}
+
+	/// Attach a host runtime (response cache + budget ledger). Defaults to
+	/// [`noop_runtime`] so standalone construction behaves exactly as before.
+	pub fn with_runtime(mut self, runtime: RuntimeHandle) -> Self {
+		self.runtime = runtime;
+		self
 	}
 
 	/// Construct a client against an explicit base URL. Used by [`new`](Self::new)
@@ -69,11 +79,13 @@ impl MetronClient {
 			rate_limiter: RateLimiter::per_minute(
 				rate_limit.unwrap_or(METRON_RATE_LIMIT_PER_MINUTE),
 			),
+			runtime: noop_runtime(),
 		})
 	}
 
-	/// GET a JSON resource from the Metron API with Basic auth, honoring the local
-	/// rate limiter. Server-side 429/5xx responses are retried with backoff by
+	/// GET a JSON resource from the Metron API with Basic auth, through the
+	/// runtime's response cache — a fresh hit skips the rate limiter and budget.
+	/// Server-side 429/5xx responses are retried with backoff by
 	/// `build_client_with_retry`; 4xx (including 401/403 auth failures) are treated
 	/// as fatal and NOT retried (`RetryOn429And5xx`), so bad credentials fail fast.
 	#[tracing::instrument(skip(self))]
@@ -82,16 +94,21 @@ impl MetronClient {
 		path: &str,
 		params: &[(&str, String)],
 	) -> Result<T, MetadataProviderError> {
-		self.rate_limiter.until_ready().await;
-		let response = self
+		let request = self
 			.client
 			.get(format!("{}/{path}/", self.base_url))
 			.basic_auth(&self.username, Some(&self.password))
 			.query(params)
-			.send()
-			.await?
-			.error_for_status()?;
-		Ok(response.json::<T>().await?)
+			.build()?;
+		let body = cached_get_json(
+			&self.client,
+			self.runtime.as_ref(),
+			&self.rate_limiter,
+			"metron",
+			request,
+		)
+		.await?;
+		Ok(serde_json::from_value(body)?)
 	}
 }
 
@@ -148,6 +165,34 @@ impl MetadataProvider for MetronClient {
 		&self,
 		query: &SearchQuery,
 	) -> Result<Vec<MatchCandidate>, MetadataProviderError> {
+		// A native Metron issue ID is the strongest evidence there is — fetch the
+		// issue directly, no cv_id bridge and no search. Errors fall through to
+		// the remaining strategies rather than failing the whole search.
+		if let Some(metron_id) = &query.metron_id {
+			match self.fetch_media_metadata(metron_id).await {
+				Ok(metadata) => {
+					return Ok(vec![MatchCandidate {
+						provider: self.id().to_string(),
+						external_id: metron_id.clone(),
+						metadata: ExternalMetadata::Media(metadata),
+						confidence: 1.0,
+						confidence_factors: vec![ConfidenceFactor {
+							factor: "metron_id_exact".to_string(),
+							weight: 1.0,
+							matched: true,
+						}],
+					}]);
+				},
+				Err(e) => {
+					tracing::warn!(
+						metron_id,
+						error = ?e,
+						"Stored Metron id did not resolve — falling back to cv_id/fuzzy search"
+					);
+				},
+			}
+		}
+
 		// A known ComicVine issue ID lets us skip fuzzy search entirely: a unique hit
 		// is treated as an exact match with confidence 1.0
 		if let Some(cv_id) = &query.comicvine_id {
@@ -633,6 +678,39 @@ mod tests {
 			.validate_credentials()
 			.await
 			.expect("validation should not error")
+	}
+
+	#[tokio::test]
+	async fn native_metron_id_short_circuits_search() {
+		let server = MockServer::start().await;
+		// Only the direct issue-detail endpoint may be hit — a query-param
+		// cv_id lookup or fuzzy /issue/ search would miss this matcher and 404.
+		Mock::given(method("GET"))
+			.and(path("/issue/9910/"))
+			.respond_with(
+				ResponseTemplate::new(200).set_body_string(ISSUE_DETAIL_FIXTURE),
+			)
+			.expect(1)
+			.mount(&server)
+			.await;
+
+		let client = validation_client(server.uri());
+		let query = SearchQuery {
+			title: "Harley Quinn".to_string(),
+			metron_id: Some("9910".to_string()),
+			// A stored cv_id must be ignored when the native id resolves.
+			comicvine_id: Some("555444".to_string()),
+			..Default::default()
+		};
+
+		let candidates = client.search_media(&query).await.expect("search succeeds");
+		assert_eq!(candidates.len(), 1);
+		assert_eq!(candidates[0].external_id, "9910");
+		assert_eq!(candidates[0].confidence, 1.0);
+		assert!(candidates[0]
+			.confidence_factors
+			.iter()
+			.any(|f| f.factor == "metron_id_exact" && f.matched));
 	}
 
 	#[tokio::test]

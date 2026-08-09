@@ -1,7 +1,7 @@
 use quick_xml::de::from_str as xml_from_str;
 use tracing::error;
 
-use super::{metadata::extract_comicvine_id, ProcessedMediaMetadata};
+use super::{metadata::hydrate_provider_ids, ProcessedMediaMetadata};
 
 pub fn is_accepted_cover_name(name: &str) -> bool {
 	let cover_file_names = ["cover", "thumbnail", "folder"];
@@ -20,10 +20,7 @@ pub(crate) fn metadata_from_buf(contents: &str) -> Option<ProcessedMediaMetadata
 
 	match xml_from_str::<ProcessedMediaMetadata>(adjusted) {
 		Ok(mut meta) => {
-			meta.comicvine_id = extract_comicvine_id(
-				meta.notes.as_deref(),
-				meta.links.as_deref().unwrap_or(&[]),
-			);
+			hydrate_provider_ids(&mut meta);
 			Some(meta)
 		},
 		Err(err) => {

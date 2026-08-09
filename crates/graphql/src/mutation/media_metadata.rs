@@ -5,7 +5,6 @@ use crate::{
 	object::{media::Media, metadata_fetch_record::MetadataFetchRecord},
 };
 use async_graphql::{Context, Object, Result, ID};
-use longbox_core::filesystem::metadata::ProviderClientCache;
 use metadata_integrations::{
 	MatchCandidate, MergeStrategy, MetadataField, MetadataFieldOverride, SearchQuery,
 };
@@ -171,8 +170,7 @@ impl MediaMetadataMutation {
 			.await?
 			.ok_or("Media not found")?;
 
-		let encryption_key = core_ctx.get_encryption_key().await?;
-		let provider_cache = ProviderClientCache::new(encryption_key);
+		let provider_cache = core_ctx.provider_cache();
 
 		let title = model
 			.metadata
@@ -271,6 +269,27 @@ impl MediaMetadataMutation {
 		let candidate = candidates
 			.get(candidate_index as usize)
 			.ok_or("Candidate index out of bounds")?;
+
+		// An explicit user accept wins over an external-id collision, but the
+		// duplicate is worth surfacing in the logs (the auto-apply path refuses).
+		if let Some(holder_id) =
+			longbox_core::filesystem::metadata::find_media_external_id_holder(
+				conn,
+				media_id.as_ref(),
+				&candidate.provider,
+				&candidate.external_id,
+			)
+			.await
+			.unwrap_or(None)
+		{
+			tracing::warn!(
+				media_id = media_id.as_ref(),
+				holder_id,
+				provider = candidate.provider,
+				external_id = candidate.external_id,
+				"Accepting a match whose external id another media in this library already holds"
+			);
+		}
 
 		longbox_core::filesystem::metadata::apply_media_match(
 			conn,

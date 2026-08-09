@@ -5,6 +5,7 @@ use serde::{de::DeserializeOwned, Deserialize};
 use crate::{
 	client::{build_client_with_retry, default_metadata_client, RetryClientConfig},
 	error::MetadataProviderError,
+	runtime::{cached_get_json, noop_runtime, RuntimeHandle},
 	types::{
 		ConfidenceFactor, ExternalMediaMetadata, ExternalSeriesMetadata, MatchCandidate,
 		MediaType, ProviderValidationResult, ProviderValidationStatus, SearchQuery,
@@ -38,6 +39,8 @@ pub struct ComicVineClient {
 	/// point at a mock server (see [`ComicVineClient::with_base_url`]).
 	base_url: String,
 	rate_limiter: RateLimiter,
+	/// Host-supplied response cache + budget ledger; [`noop_runtime`] outside core.
+	runtime: RuntimeHandle,
 }
 
 impl ComicVineClient {
@@ -46,6 +49,13 @@ impl ComicVineClient {
 		rate_limit: Option<u32>,
 	) -> Result<Self, MetadataProviderError> {
 		Self::with_base_url(api_key, rate_limit, COMIC_VINE_API_URL.to_string())
+	}
+
+	/// Attach a host runtime (response cache + budget ledger). Defaults to
+	/// [`noop_runtime`] so standalone construction behaves exactly as before.
+	pub fn with_runtime(mut self, runtime: RuntimeHandle) -> Self {
+		self.runtime = runtime;
+		self
 	}
 
 	fn with_base_url(
@@ -66,11 +76,13 @@ impl ComicVineClient {
 			rate_limiter: RateLimiter::per_minute(
 				rate_limit.unwrap_or(COMIC_VINE_RATE_LIMIT_PER_MINUTE),
 			),
+			runtime: noop_runtime(),
 		})
 	}
 
-	/// GET a ComicVine resource, honoring the rate limiter and always requesting
-	/// JSON. Returns the raw [`CvEnvelope`]; callers extract typed `results` via
+	/// GET a ComicVine resource, always requesting JSON, through the runtime's
+	/// response cache: a fresh hit skips the rate limiter and budget entirely.
+	/// Returns the raw [`CvEnvelope`]; callers extract typed `results` via
 	/// [`CvEnvelope::into_results`] (which maps a non-1 `status_code` to an error).
 	#[tracing::instrument(skip(self))]
 	async fn request(
@@ -78,23 +90,26 @@ impl ComicVineClient {
 		path: &str,
 		params: &[(&str, String)],
 	) -> Result<CvEnvelope, MetadataProviderError> {
-		self.rate_limiter.until_ready().await;
 		let mut query: Vec<(&str, String)> = vec![
 			("api_key", self.api_key.clone()),
 			("format", "json".to_string()),
 		];
 		query.extend(params.iter().cloned());
 
-		let envelope: CvEnvelope = self
+		let request = self
 			.client
 			.get(format!("{}/{path}/", self.base_url))
 			.query(&query)
-			.send()
-			.await?
-			.error_for_status()?
-			.json()
-			.await?;
-		Ok(envelope)
+			.build()?;
+		let body = cached_get_json(
+			&self.client,
+			self.runtime.as_ref(),
+			&self.rate_limiter,
+			"comicvine",
+			request,
+		)
+		.await?;
+		Ok(serde_json::from_value(body)?)
 	}
 
 	/// Resolve issues via the volume→issue path: look up the series' volume(s) by

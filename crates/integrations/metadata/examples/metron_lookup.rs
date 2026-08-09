@@ -26,7 +26,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	let number = args.next().unwrap_or_else(|| "1".to_string());
 	let year: Option<i32> = args.next().and_then(|y| y.parse().ok());
 
-	let provider = create_provider("METRON", creds)?;
+	let provider = create_provider(
+		"METRON",
+		creds,
+		metadata_integrations::runtime::noop_runtime(),
+	)?;
 
 	println!("== Metron provider smoke test ==");
 	println!("query: series={series:?} number={number:?} year={year:?}\n");

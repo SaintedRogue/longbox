@@ -38,6 +38,7 @@ md5.workspace = true
 natord.workspace = true
 rand.workspace = true
 sea-orm.workspace = true
+url.workspace = true
 serde.workspace = true
 serde-xml-rs = "0.6.0" # Support for XML serialization/deserialization
 serde_json.workspace = true

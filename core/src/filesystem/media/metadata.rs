@@ -237,11 +237,23 @@ pub struct ProcessedMediaMetadata {
 		deserialize_with = "optional_i32_deserializer"
 	)]
 	pub page_count: Option<i32>,
-	/// ComicVine issue ID recovered from a Notes marker ("[Issue ID N]" or
-	/// "[CVDB N]") or a comicvine.gamespot.com Web URL ("/4000-N/").
-	/// Not a ComicInfo element; derived post-parse.
+	/// Dedicated ComicVine issue-id element some taggers (Omnibus, komf) write.
+	/// Outranks Notes/Web when present.
+	#[serde(default, alias = "ComicVineIssueId")]
+	pub comicvine_issue_id_tag: Option<String>,
+	/// Dedicated Metron issue-id element, same convention as above.
+	#[serde(default, alias = "MetronIssueId")]
+	pub metron_issue_id_tag: Option<String>,
+	/// ComicVine issue ID recovered from the dedicated tag, a Notes marker
+	/// ("[Issue ID N]" or "[CVDB N]") or a comicvine.gamespot.com Web URL
+	/// ("/4000-N/"). Not a ComicInfo element; derived post-parse.
 	#[serde(skip)]
 	pub comicvine_id: Option<String>,
+	/// Metron issue ID recovered from the dedicated tag, a metron.cloud Web URL
+	/// ("metron.cloud/issue/N"), or a "[Issue ID N]" Notes marker whose Notes
+	/// text mentions Metron. Not a ComicInfo element; derived post-parse.
+	#[serde(skip)]
+	pub metron_id: Option<String>,
 }
 
 /// Recover a ComicVine issue ID from the conventions taggers embed in metadata:
@@ -250,23 +262,91 @@ pub struct ProcessedMediaMetadata {
 /// Web URL of the form ".../4000-N/". Notes wins when both are present. The
 /// Amazon "[ASIN...]" marker that often sits beside it in Notes is ignored,
 /// since the digits must immediately follow the ComicVine prefix.
+///
+/// The generic "[Issue ID N]" marker is provider-ambiguous: when the Notes text
+/// mentions Metron the id belongs to Metron (see [`extract_metron_issue_id`]),
+/// so only the explicitly-ComicVine "[CVDB N]" form is honored there.
 pub fn extract_comicvine_id(notes: Option<&str>, links: &[String]) -> Option<String> {
 	static NOTES_RE: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
+	static CVDB_RE: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
 	static WEB_RE: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
 
 	let notes_re = NOTES_RE
 		.get_or_init(|| Regex::new(r"\[(?:Issue ID |CVDB)(\d+)\]").expect("valid regex"));
+	let cvdb_re =
+		CVDB_RE.get_or_init(|| Regex::new(r"\[CVDB(\d+)\]").expect("valid regex"));
 	let web_re = WEB_RE.get_or_init(|| {
 		Regex::new(r"comicvine\.gamespot\.com/[^\s]*?/4000-(\d+)").expect("valid regex")
 	});
 
-	if let Some(caps) = notes.and_then(|n| notes_re.captures(n)) {
-		return Some(caps[1].to_string());
+	if let Some(notes) = notes {
+		let marker_re = if notes_mention_metron(notes) {
+			cvdb_re
+		} else {
+			notes_re
+		};
+		if let Some(caps) = marker_re.captures(notes) {
+			return Some(caps[1].to_string());
+		}
 	}
 
 	links
 		.iter()
 		.find_map(|link| web_re.captures(link).map(|caps| caps[1].to_string()))
+}
+
+/// Recover a Metron issue ID: a metron.cloud Web URL (".../issue/N") or a
+/// generic "[Issue ID N]" Notes marker whose Notes text mentions Metron (the
+/// convention Metron-based taggers use). Web wins over Notes — it's explicit.
+pub fn extract_metron_issue_id(notes: Option<&str>, links: &[String]) -> Option<String> {
+	static WEB_RE: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
+	static ISSUE_ID_RE: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
+
+	let web_re = WEB_RE
+		.get_or_init(|| Regex::new(r"metron\.cloud/issue/(\d+)").expect("valid regex"));
+	let issue_id_re = ISSUE_ID_RE
+		.get_or_init(|| Regex::new(r"\[Issue ID (\d+)\]").expect("valid regex"));
+
+	if let Some(id) = links
+		.iter()
+		.find_map(|link| web_re.captures(link).map(|caps| caps[1].to_string()))
+	{
+		return Some(id);
+	}
+
+	notes
+		.filter(|n| notes_mention_metron(n))
+		.and_then(|n| issue_id_re.captures(n))
+		.map(|caps| caps[1].to_string())
+}
+
+fn notes_mention_metron(notes: &str) -> bool {
+	notes.to_lowercase().contains("metron")
+}
+
+/// A dedicated id tag is honored only when it's a plausible bare id — taggers
+/// occasionally write empty elements, which must not shadow Notes/Web evidence.
+fn clean_id_tag(tag: Option<String>) -> Option<String> {
+	tag.map(|t| t.trim().to_string())
+		.filter(|t| !t.is_empty() && t.chars().all(|c| c.is_ascii_digit()))
+}
+
+/// Resolve both provider issue ids with the shared precedence: dedicated tag →
+/// Web URL → Notes marker (per provider). Called post-parse — quick-xml has no
+/// hook for derived fields.
+pub(crate) fn hydrate_provider_ids(meta: &mut ProcessedMediaMetadata) {
+	let links_owned;
+	let links: &[String] = match meta.links.as_deref() {
+		Some(l) => l,
+		None => {
+			links_owned = Vec::new();
+			&links_owned
+		},
+	};
+	meta.comicvine_id = clean_id_tag(meta.comicvine_issue_id_tag.clone())
+		.or_else(|| extract_comicvine_id(meta.notes.as_deref(), links));
+	meta.metron_id = clean_id_tag(meta.metron_issue_id_tag.clone())
+		.or_else(|| extract_metron_issue_id(meta.notes.as_deref(), links));
 }
 
 impl ProcessedMediaMetadata {
@@ -314,6 +394,7 @@ impl ProcessedMediaMetadata {
 			identifier_uuid: Set(self.identifier_uuid),
 			translators: Set(self.translators.map(|v| v.join(", "))),
 			comicvine_id: Set(self.comicvine_id),
+			metron_id: Set(self.metron_id),
 			..Default::default()
 		}
 	}
@@ -702,6 +783,74 @@ mod tests {
 			),
 			None
 		);
+	}
+
+	#[test]
+	fn test_extract_metron_issue_id_from_web_url() {
+		assert_eq!(
+			extract_metron_issue_id(
+				None,
+				&["https://metron.cloud/issue/12345/".to_string()]
+			),
+			Some("12345".to_string())
+		);
+	}
+
+	#[test]
+	fn test_metron_notes_marker_is_provider_scoped() {
+		// "[Issue ID N]" with a Metron-attributed Notes text belongs to Metron —
+		// and must NOT be claimed as a ComicVine id.
+		let notes = "Tagged with MetronTagger using info from Metron [Issue ID 999]";
+		assert_eq!(
+			extract_metron_issue_id(Some(notes), &[]),
+			Some("999".to_string())
+		);
+		assert_eq!(extract_comicvine_id(Some(notes), &[]), None);
+
+		// Without a Metron mention, "[Issue ID N]" keeps its historical
+		// ComicVine meaning (ComicTagger convention) and Metron gets nothing.
+		let cv_notes = "Tagged with ComicTagger [Issue ID 999]";
+		assert_eq!(
+			extract_comicvine_id(Some(cv_notes), &[]),
+			Some("999".to_string())
+		);
+		assert_eq!(extract_metron_issue_id(Some(cv_notes), &[]), None);
+
+		// A CVDB marker stays ComicVine even in Metron-attributed Notes.
+		let mixed = "Metron + ComicVine [CVDB777]";
+		assert_eq!(
+			extract_comicvine_id(Some(mixed), &[]),
+			Some("777".to_string())
+		);
+	}
+
+	#[test]
+	fn test_dedicated_id_tags_outrank_notes_and_web() {
+		let xml = r#"<?xml version="1.0"?>
+			<ComicInfo>
+				<Series>Saga</Series>
+				<Number>12</Number>
+				<ComicVineIssueId>111</ComicVineIssueId>
+				<MetronIssueId>222</MetronIssueId>
+				<Notes>Tagged using info from Metron [Issue ID 999]</Notes>
+				<Web>https://metron.cloud/issue/888/ https://comicvine.gamespot.com/saga-12/4000-777/</Web>
+			</ComicInfo>"#;
+		let metadata = crate::filesystem::media::utils::metadata_from_buf(xml).unwrap();
+		assert_eq!(metadata.comicvine_id, Some("111".to_string()));
+		assert_eq!(metadata.metron_id, Some("222".to_string()));
+	}
+
+	#[test]
+	fn test_blank_dedicated_tags_fall_back_to_notes() {
+		let xml = r#"<?xml version="1.0"?>
+			<ComicInfo>
+				<Series>Saga</Series>
+				<MetronIssueId></MetronIssueId>
+				<Notes>Tagged using info from Metron [Issue ID 999]</Notes>
+			</ComicInfo>"#;
+		let metadata = crate::filesystem::media::utils::metadata_from_buf(xml).unwrap();
+		assert_eq!(metadata.metron_id, Some("999".to_string()));
+		assert_eq!(metadata.comicvine_id, None);
 	}
 
 	#[test]

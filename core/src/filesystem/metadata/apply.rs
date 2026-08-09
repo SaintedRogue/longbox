@@ -174,6 +174,120 @@ pub fn find_auto_apply_candidate(
 	None
 }
 
+/// Find another series in the same library already holding `(provider,
+/// external_id)`. The auto-apply path must not silently bind a second series to
+/// the same external identity — that's usually a duplicate the user should
+/// merge, so the fetch record is left awaiting review instead. Scoped to the
+/// library because external ids legitimately repeat across libraries (same
+/// reasoning as the organizer's lookup in `organizer/apply.rs`). Returns the
+/// holder's series id.
+pub async fn find_series_external_id_holder<C>(
+	conn: &C,
+	series_id: &str,
+	provider: &str,
+	external_id: &str,
+) -> Result<Option<String>, CoreError>
+where
+	C: ConnectionTrait,
+{
+	use models::entity::series;
+
+	let library_id = series::Entity::find_by_id(series_id)
+		.one(conn)
+		.await?
+		.and_then(|s| s.library_id);
+	let Some(library_id) = library_id else {
+		return Ok(None);
+	};
+
+	let holder_ids: Vec<String> = series_metadata::Entity::find()
+		.filter(series_metadata::Column::MetadataSource.eq(provider))
+		.filter(series_metadata::Column::MetadataExternalId.eq(external_id))
+		.filter(series_metadata::Column::SeriesId.ne(series_id))
+		.all(conn)
+		.await?
+		.into_iter()
+		.map(|m| m.series_id)
+		.collect();
+	if holder_ids.is_empty() {
+		return Ok(None);
+	}
+
+	let holder = series::Entity::find()
+		.filter(series::Column::Id.is_in(holder_ids))
+		.filter(series::Column::LibraryId.eq(library_id))
+		.one(conn)
+		.await?;
+	Ok(holder.map(|s| s.id))
+}
+
+/// The media twin of [`find_series_external_id_holder`]: another media item in
+/// the same library already holding `(provider, external_id)`. Returns the
+/// holder's media id.
+pub async fn find_media_external_id_holder<C>(
+	conn: &C,
+	media_id: &str,
+	provider: &str,
+	external_id: &str,
+) -> Result<Option<String>, CoreError>
+where
+	C: ConnectionTrait,
+{
+	use models::entity::{media, series};
+
+	let series_id = media::Entity::find_by_id(media_id)
+		.one(conn)
+		.await?
+		.and_then(|m| m.series_id);
+	let Some(series_id) = series_id else {
+		return Ok(None);
+	};
+	let library_id = series::Entity::find_by_id(&series_id)
+		.one(conn)
+		.await?
+		.and_then(|s| s.library_id);
+	let Some(library_id) = library_id else {
+		return Ok(None);
+	};
+
+	let holder_media_ids: Vec<String> = media_metadata::Entity::find()
+		.filter(media_metadata::Column::MetadataSource.eq(provider))
+		.filter(media_metadata::Column::MetadataExternalId.eq(external_id))
+		.filter(media_metadata::Column::MediaId.ne(media_id))
+		.all(conn)
+		.await?
+		.into_iter()
+		.filter_map(|m| m.media_id)
+		.collect();
+	if holder_media_ids.is_empty() {
+		return Ok(None);
+	}
+
+	let holders = media::Entity::find()
+		.filter(media::Column::Id.is_in(holder_media_ids))
+		.all(conn)
+		.await?;
+	let holder_series_ids: Vec<String> =
+		holders.iter().filter_map(|m| m.series_id.clone()).collect();
+	let same_library_series: std::collections::HashSet<String> = series::Entity::find()
+		.filter(series::Column::Id.is_in(holder_series_ids))
+		.filter(series::Column::LibraryId.eq(library_id))
+		.all(conn)
+		.await?
+		.into_iter()
+		.map(|s| s.id)
+		.collect();
+
+	Ok(holders
+		.into_iter()
+		.find(|m| {
+			m.series_id
+				.as_ref()
+				.is_some_and(|sid| same_library_series.contains(sid))
+		})
+		.map(|m| m.id))
+}
+
 fn parse_locked_fields(json: &Option<JsonValue>) -> Vec<MetadataField> {
 	json.as_ref()
 		.and_then(|v| serde_json::from_value(v.clone()).ok())
@@ -574,6 +688,141 @@ fn build_media_metadata_insert(
 #[cfg(test)]
 mod tests {
 	use super::*;
+	// Absolute path: this module is itself named `tests`, so `use super::*` glob-imports
+	// that self-reference and shadows the extern `tests` fixture crate under a bare name.
+	use ::tests::{db, fake_data};
+
+	async fn seeded_series(
+		conn: &sea_orm::DatabaseConnection,
+		library_id: &str,
+		name: &str,
+	) -> String {
+		fake_data::Series {
+			id: None,
+			name: Some(name.to_string()),
+			path: Some(format!("/tmp/{library_id}/{name}")),
+			library_id: Some(library_id.to_string()),
+		}
+		.insert(conn)
+		.await
+		.id
+	}
+
+	#[tokio::test]
+	async fn series_external_id_holder_is_scoped_to_the_library() {
+		let conn = db::test_database().await;
+		let lib_a = fake_data::Library {
+			id: None,
+			name: Some("A".to_string()),
+			path: Some("/tmp/lib-a".to_string()),
+		}
+		.insert(&conn)
+		.await;
+		let lib_b = fake_data::Library {
+			id: None,
+			name: Some("B".to_string()),
+			path: Some("/tmp/lib-b".to_string()),
+		}
+		.insert(&conn)
+		.await;
+
+		let holder = seeded_series(&conn, &lib_a.id, "Saga").await;
+		let sibling = seeded_series(&conn, &lib_a.id, "Saga Dup").await;
+		let other_library = seeded_series(&conn, &lib_b.id, "Saga Elsewhere").await;
+
+		series_metadata::ActiveModel {
+			series_id: Set(holder.clone()),
+			metadata_source: Set(Some("comicvine".to_string())),
+			metadata_external_id: Set(Some("4050-1".to_string())),
+			..Default::default()
+		}
+		.insert(&conn)
+		.await
+		.unwrap();
+
+		// A sibling in the same library binding the same id is a collision.
+		assert_eq!(
+			find_series_external_id_holder(&conn, &sibling, "comicvine", "4050-1")
+				.await
+				.unwrap(),
+			Some(holder.clone())
+		);
+		// The same id in a DIFFERENT library is legitimate (organizer precedent).
+		assert_eq!(
+			find_series_external_id_holder(&conn, &other_library, "comicvine", "4050-1")
+				.await
+				.unwrap(),
+			None
+		);
+		// A different id collides with nothing.
+		assert_eq!(
+			find_series_external_id_holder(&conn, &sibling, "comicvine", "4050-2")
+				.await
+				.unwrap(),
+			None
+		);
+	}
+
+	#[tokio::test]
+	async fn media_external_id_holder_is_scoped_to_the_library() {
+		let conn = db::test_database().await;
+		let lib = fake_data::Library {
+			id: None,
+			name: Some("A".to_string()),
+			path: Some("/tmp/lib-a".to_string()),
+		}
+		.insert(&conn)
+		.await;
+		let series_id = seeded_series(&conn, &lib.id, "Saga").await;
+
+		let holder = fake_data::Media {
+			series_id: series_id.clone(),
+			id: None,
+			name: Some("Saga #1".to_string()),
+			extension: Some("cbz".to_string()),
+			created_at: None,
+			modified_at: None,
+			deleted_at: None,
+			pages: None,
+		}
+		.insert(&conn)
+		.await;
+		let sibling = fake_data::Media {
+			series_id: series_id.clone(),
+			id: None,
+			name: Some("Saga #1 (dup)".to_string()),
+			extension: Some("cbz".to_string()),
+			created_at: None,
+			modified_at: None,
+			deleted_at: None,
+			pages: None,
+		}
+		.insert(&conn)
+		.await;
+
+		media_metadata::ActiveModel {
+			media_id: Set(Some(holder.id.clone())),
+			metadata_source: Set(Some("comicvine".to_string())),
+			metadata_external_id: Set(Some("4000-9".to_string())),
+			..Default::default()
+		}
+		.insert(&conn)
+		.await
+		.unwrap();
+
+		assert_eq!(
+			find_media_external_id_holder(&conn, &sibling.id, "comicvine", "4000-9")
+				.await
+				.unwrap(),
+			Some(holder.id.clone())
+		);
+		assert_eq!(
+			find_media_external_id_holder(&conn, &sibling.id, "comicvine", "4000-10")
+				.await
+				.unwrap(),
+			None
+		);
+	}
 
 	fn comic_ext(
 		series: Option<&str>,

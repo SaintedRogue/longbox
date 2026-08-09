@@ -1,5 +1,4 @@
 use async_graphql::{Context, Object, Result, ID};
-use longbox_core::filesystem::metadata::ProviderClientCache;
 use metadata_integrations::{
 	MatchCandidate, MergeStrategy, MetadataField, MetadataFieldOverride,
 };
@@ -151,8 +150,7 @@ impl SeriesMetadataMutation {
 			.await?
 			.ok_or("Series not found")?;
 
-		let encryption_key = core_ctx.get_encryption_key().await?;
-		let provider_cache = ProviderClientCache::new(encryption_key);
+		let provider_cache = core_ctx.provider_cache();
 
 		let title_override = query.as_ref().and_then(|q| q.title_override());
 		let year_override = query.as_ref().and_then(|q| q.year);
@@ -217,6 +215,27 @@ impl SeriesMetadataMutation {
 		let candidate = candidates
 			.get(candidate_index as usize)
 			.ok_or("Candidate index out of bounds")?;
+
+		// An explicit user accept wins over an external-id collision, but the
+		// duplicate is worth surfacing in the logs (the auto-apply path refuses).
+		if let Some(holder_id) =
+			longbox_core::filesystem::metadata::find_series_external_id_holder(
+				conn,
+				series_id.as_ref(),
+				&candidate.provider,
+				&candidate.external_id,
+			)
+			.await
+			.unwrap_or(None)
+		{
+			tracing::warn!(
+				series_id = series_id.as_ref(),
+				holder_id,
+				provider = candidate.provider,
+				external_id = candidate.external_id,
+				"Accepting a match whose external id another series in this library already holds"
+			);
+		}
 
 		longbox_core::filesystem::metadata::apply_series_match(
 			conn,

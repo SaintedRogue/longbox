@@ -5,6 +5,8 @@ pub mod merge;
 mod provider;
 mod providers;
 pub mod rate_limit;
+pub mod response_cache;
+pub mod runtime;
 pub mod scoring;
 pub(crate) mod serde_utils;
 pub mod title;
@@ -29,11 +31,17 @@ use providers::{ComicVineClient, HardcoverClient, MetronClient};
 pub fn create_provider(
 	provider_type: &str,
 	api_token: String,
+	runtime: runtime::RuntimeHandle,
 ) -> MetadataResult<Box<dyn MetadataProvider + Send + Sync>> {
 	match provider_type {
+		// Hardcover's GraphQL POSTs are uncacheable, so it takes no runtime.
 		"HARDCOVER" => Ok(Box::new(HardcoverClient::new(api_token, None))),
-		"METRON" => Ok(Box::new(MetronClient::new(api_token, None)?)),
-		"COMIC_VINE" => Ok(Box::new(ComicVineClient::new(api_token, None)?)),
+		"METRON" => Ok(Box::new(
+			MetronClient::new(api_token, None)?.with_runtime(runtime),
+		)),
+		"COMIC_VINE" => Ok(Box::new(
+			ComicVineClient::new(api_token, None)?.with_runtime(runtime),
+		)),
 		_ => Err(MetadataProviderError::UnsupportedProvider(
 			provider_type.to_string(),
 		)),
