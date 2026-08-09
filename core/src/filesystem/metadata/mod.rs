@@ -2,6 +2,7 @@ mod apply;
 mod fetch;
 mod fetch_job;
 mod provider_cache;
+mod release_calendar;
 mod runtime;
 
 pub use apply::{
@@ -14,4 +15,5 @@ pub use fetch_job::{
 	MetadataFetchJob, MetadataFetchJobOutput, MetadataFetchJobParams, MetadataFetchScope,
 };
 pub use provider_cache::{ProviderCacheError, ProviderClientCache};
+pub use release_calendar::{run_release_calendar_sync, sync_provider_releases};
 pub use runtime::{provider_budget_id, DbProviderRuntime};

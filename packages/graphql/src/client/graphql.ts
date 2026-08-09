@@ -4568,7 +4568,9 @@ export enum ScheduledJobKind {
   /** Scan one or more libraries on a cron schedule */
   LibraryScan = 'LIBRARY_SCAN',
   /** Retry fetching metadata for records that were rate-limited or failed */
-  MetadataRetry = 'METADATA_RETRY'
+  MetadataRetry = 'METADATA_RETRY',
+  /** Sweep provider release windows into expected_issues (the release calendar) */
+  ReleaseCalendarSync = 'RELEASE_CALENDAR_SYNC'
 }
 
 export type SendAttachmentEmailOutput = {

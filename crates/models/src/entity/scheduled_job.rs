@@ -42,6 +42,33 @@ pub struct MetadataRetryConfig {
 	pub statuses: Vec<MetadataFetchStatus>,
 }
 
+/// Configuration for a release-calendar sync scheduled job
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReleaseCalendarConfig {
+	/// Sweep ComicVine's store-date window (default on).
+	#[serde(default = "default_true")]
+	pub comicvine_enabled: bool,
+	/// Sweep Metron's store-date window. Default OFF: the endpoint shape is
+	/// unverified from this deployment's egress (firewall ban) — enable only
+	/// after a live test.
+	#[serde(default)]
+	pub metron_enabled: bool,
+}
+
+fn default_true() -> bool {
+	true
+}
+
+impl Default for ReleaseCalendarConfig {
+	fn default() -> Self {
+		Self {
+			comicvine_enabled: true,
+			metron_enabled: false,
+		}
+	}
+}
+
 impl Model {
 	pub fn library_scan_config(&self) -> Option<LibraryScanConfig> {
 		self.config
@@ -53,5 +80,13 @@ impl Model {
 		self.config
 			.as_ref()
 			.and_then(|v| serde_json::from_value(v.clone()).ok())
+	}
+
+	/// Missing/invalid config falls back to the safe default (CV on, Metron off).
+	pub fn release_calendar_config(&self) -> ReleaseCalendarConfig {
+		self.config
+			.as_ref()
+			.and_then(|v| serde_json::from_value(v.clone()).ok())
+			.unwrap_or_default()
 	}
 }

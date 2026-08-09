@@ -129,6 +129,9 @@ async fn dispatch(job: &scheduled_job::Model, ctx: &Ctx) -> CoreResult<()> {
 	match job.kind {
 		ScheduledJobKind::LibraryScan => dispatch_library_scan(job, ctx).await,
 		ScheduledJobKind::MetadataRetry => dispatch_metadata_retry(job, ctx).await,
+		ScheduledJobKind::ReleaseCalendarSync => {
+			crate::filesystem::metadata::run_release_calendar_sync(job, ctx).await
+		},
 	}
 }
 

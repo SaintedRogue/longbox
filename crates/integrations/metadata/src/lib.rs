@@ -23,7 +23,7 @@ pub use title::compose_comic_title;
 pub use types::{
 	ConfidenceFactor, ExternalMediaMetadata, ExternalMetadata, ExternalSeriesMetadata,
 	MatchCandidate, MediaType, MetadataField, ProviderValidationResult,
-	ProviderValidationStatus, PublicationStatus, SearchQuery,
+	ProviderValidationStatus, PublicationStatus, SearchQuery, UpcomingRelease,
 };
 
 use providers::{ComicVineClient, HardcoverClient, MetronClient};
