@@ -5,6 +5,7 @@ pub mod merge;
 mod provider;
 mod providers;
 pub mod rate_limit;
+pub mod response_cache;
 pub mod scoring;
 pub(crate) mod serde_utils;
 pub mod title;
