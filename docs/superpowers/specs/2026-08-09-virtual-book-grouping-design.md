@@ -331,6 +331,42 @@ issue-shaped when it has an issue number **and** no collected-edition marker.
 > signal that the book _is_ an issue — a parsed issue number — is what protects
 > untagged collected runs. The regression test is
 > `untagged_collected_runs_without_a_marker_still_stay_together`.
+>
+> **Second correction, found in production.** Requiring an issue number was also
+> not enough. `Saga of the Swamp Thing v01..v04` carry `number` 1.0–4.0, because
+> a collected edition's _volume_ number lands in the same column an issue number
+> would. All four looked issue-shaped, the run split 2009/2009/2010/2011 into
+> 2+1+1, and the singletons were dropped — a four-volume run surfaced as a
+> two-book shelf plus two orphans. The distinguishing signal is the filename
+> volume token (`v01`), which `parse_comic_filename` already stripped but never
+> reported. It now returns `has_volume_token`, and a book carrying one is never
+> issue-shaped. Regression test:
+> `numbered_volumes_of_one_run_stay_together_across_years`.
+>
+> Both corrections were the same mistake: taking a field that correlated with
+> "is an issue" in a hand-written fixture and treating the correlation as the
+> signal. The first test passed only because its fixture was written with
+> `number: None`, encoding the assumption rather than testing it.
+
+### Verified production results (2026-08-09)
+
+After deploy and one detection run against the real 609-book library:
+
+|                      |                       |
+| -------------------- | --------------------- |
+| Collections created  | 11, covering 47 books |
+| Standalone books     | 92                    |
+| Total books visible  | 609 (unchanged)       |
+| `numberOfSeries`     | 241 (was 242)         |
+| Detection wall clock | 0.11s                 |
+| Idempotent re-run    | 0 created, 11 matched |
+
+Largest shelves: `Fantastic Four Epic Collection` (22), `Fantastic Four Omnibus`
+(4), `Saga of the Swamp Thing` (4).
+
+Re-running detection after the key formula changed converged on its own —
+2 created, 9 matched, 2 pruned — confirming that keying group identity on
+`source_key` makes a change in the grouping rule self-healing.
 
 Dropping year for collected editions is load-bearing, not a detail. Measured
 against prod:
