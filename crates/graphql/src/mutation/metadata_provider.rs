@@ -239,16 +239,17 @@ async fn run_validation(
 	provider_type: &str,
 	token: String,
 ) -> Result<ProviderValidationResult> {
-	// Metron's gateway hands out 24h bans to clients that probe it, so Longbox never
-	// contacts Metron for credential validation — no matter who calls this. Verify
-	// Metron credentials out-of-band instead.
-	if provider_type.eq_ignore_ascii_case("METRON") {
-		return Ok(ProviderValidationResult::new(
-			ProviderValidationStatus::Unsupported,
-			"Metron credential validation is disabled in-app to avoid rate-limit bans. \
-			 Verify your Metron credentials manually.",
-		));
-	}
+	// Metron used to be short-circuited here to an `Unsupported` result without any
+	// request. That guard was aimed at the wrong thing: the abuse was the *frontend*
+	// re-validating on every debounced keystroke, so typing a password could fire a
+	// dozen authenticated requests. One deliberate check is not probing — Metron allows
+	// 20/min and 5,000/day, and `MetronClient::validate_credentials` costs exactly one
+	// request, already gated behind the client's own rate limiter.
+	//
+	// So the fix stays where the problem was: nothing calls this automatically. The
+	// create/edit form does not validate Metron as you type (`PROVIDER_VALIDATORS.METRON`
+	// is null); only an explicit "Test" click reaches here. Keep it that way — if you are
+	// adding a caller, make sure a human asked for it.
 
 	// Validation probes are rare one-offs: no response cache or budget ledger.
 	let provider = create_provider(

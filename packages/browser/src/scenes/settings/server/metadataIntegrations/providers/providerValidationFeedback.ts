@@ -17,9 +17,18 @@ export type Feedback = {
 	hint?: string
 }
 
-export function metronStatusToFeedback(
+/**
+ * Classify a validation result for display.
+ *
+ * `provider` only ever appears in the *hints* — the status→severity mapping is
+ * identical for every provider, because "wrong password" and "we couldn't reach
+ * the host" mean the same thing regardless of who is on the other end. Naming the
+ * provider in the hint is what makes the recovery advice actionable.
+ */
+export function validationStatusToFeedback(
 	status: ProviderValidationStatus,
 	message: string,
+	provider = 'the provider',
 ): Feedback {
 	switch (status) {
 		case ProviderValidationStatus.Valid:
@@ -37,7 +46,7 @@ export function metronStatusToFeedback(
 				asFieldError: false,
 				title: 'Access denied',
 				description: message,
-				hint: 'Your Metron account may be filtered, banned, or inactive — check that your account email is verified. This is not a password problem.',
+				hint: `Your ${provider} account may be filtered, banned, or inactive — check that the account is verified and in good standing. This is not a password problem.`,
 			}
 		case ProviderValidationStatus.NetworkError:
 			return {
@@ -45,7 +54,7 @@ export function metronStatusToFeedback(
 				asFieldError: false,
 				title: "Couldn't reach Metron",
 				description: message,
-				hint: "This is a connectivity/IP issue, not your credentials. If this server's IP is blocked by Metron, validation fails here even with a correct password.",
+				hint: `This is a connectivity or IP issue, not your credentials. If this server's IP is blocked by ${provider}, validation fails here even with a correct password.`,
 			}
 		case ProviderValidationStatus.RateLimited:
 			return {
@@ -58,7 +67,7 @@ export function metronStatusToFeedback(
 			return {
 				severity: 'warning',
 				asFieldError: false,
-				title: 'Metron service issue',
+				title: `${provider} service issue`,
 				description: message,
 			}
 		case ProviderValidationStatus.Unsupported:
@@ -82,3 +91,12 @@ export function composeMetronToken(username: string, password: string): string {
 	if (!username && !password) return ''
 	return `${username}:${password}`
 }
+
+/**
+ * @deprecated Metron-specific alias kept so existing callers and tests keep working.
+ * Prefer {@link validationStatusToFeedback}, which names the provider in its hints.
+ */
+export const metronStatusToFeedback = (
+	status: ProviderValidationStatus,
+	message: string,
+): Feedback => validationStatusToFeedback(status, message, 'Metron')

@@ -7169,6 +7169,13 @@ export type ProvidersSectionSetPreferredMutationVariables = Exact<{
 
 export type ProvidersSectionSetPreferredMutation = { __typename?: 'Mutation', updateMetadataProvider: { __typename?: 'MetadataProviderConfigModel', id: number, position: number } };
 
+export type TestMetadataProviderMutationVariables = Exact<{
+  id: Scalars['Int']['input'];
+}>;
+
+
+export type TestMetadataProviderMutation = { __typename?: 'Mutation', testMetadataProvider: { __typename?: 'ProviderValidationResult', status: ProviderValidationStatus, message: string } };
+
 export type CreateTagModalMutationVariables = Exact<{
   tags: Array<Scalars['String']['input']> | Scalars['String']['input'];
 }>;
@@ -11621,6 +11628,14 @@ export const ProvidersSectionSetPreferredDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<ProvidersSectionSetPreferredMutation, ProvidersSectionSetPreferredMutationVariables>;
+export const TestMetadataProviderDocument = new TypedDocumentString(`
+    mutation TestMetadataProvider($id: Int!) {
+  testMetadataProvider(id: $id) {
+    status
+    message
+  }
+}
+    `) as unknown as TypedDocumentString<TestMetadataProviderMutation, TestMetadataProviderMutationVariables>;
 export const CreateTagModalDocument = new TypedDocumentString(`
     mutation CreateTagModal($tags: [String!]!) {
   createTags(tags: $tags) {
