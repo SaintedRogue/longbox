@@ -1697,6 +1697,7 @@
 					"options": {
 						"HOME": "Home",
 						"EXPLORE": "Explore",
+						"SERIES": "Series",
 						"LIBRARIES": "Libraries",
 						"BOOK_CLUBS": "Book clubs",
 						"SMART_LISTS": "Smart lists"
@@ -2712,6 +2713,7 @@
 			"home": "Home",
 			"libraries": "Libraries",
 			"books": "Explore",
+			"series": "Series",
 			"bookClubs": "Book clubs",
 			"createLibrary": "Create library",
 			"noLibraries": "No libraries",

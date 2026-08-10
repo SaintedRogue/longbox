@@ -2,6 +2,7 @@ import { CommandPrompt } from '@longbox/components'
 import { UserPermission } from '@longbox/graphql'
 import {
 	Book,
+	BookCopy,
 	CalendarDays,
 	Download,
 	Home,
@@ -9,7 +10,6 @@ import {
 	ListFilter,
 	Search,
 	Settings,
-	Sparkles,
 	Users,
 } from 'lucide-react'
 import { useMemo } from 'react'
@@ -37,7 +37,7 @@ export default function AppCommandPrompt() {
 		const navigate = [
 			{ href: paths.home(), icon: Home, label: 'Home' },
 			{ href: paths.bookSearch(), icon: Book, label: 'Books' },
-			{ href: paths.series(), icon: Sparkles, label: 'Series' },
+			{ href: paths.series(), icon: BookCopy, label: 'Series' },
 			{ href: paths.libraries(), icon: Library, label: 'Libraries' },
 			{ href: paths.characters(), icon: Users, label: 'Characters' },
 			{ href: paths.calendar(), icon: CalendarDays, label: 'Release calendar' },

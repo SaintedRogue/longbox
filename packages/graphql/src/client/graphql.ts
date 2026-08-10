@@ -5298,6 +5298,7 @@ export enum SystemArrangement {
   Explore = 'EXPLORE',
   Home = 'HOME',
   Libraries = 'LIBRARIES',
+  Series = 'SERIES',
   SmartLists = 'SMART_LISTS'
 }
 
@@ -5649,6 +5650,11 @@ export type UserPreferences = {
   interfaceRoundness: InterfaceRoundness;
   layoutMaxWidthPx?: Maybe<Scalars['Int']['output']>;
   locale: Scalars['String']['output'];
+  /**
+   * A stored arrangement is reconciled against the current set of system
+   * sections on read, so a newly added one shows up for users who customised
+   * their navigation before it existed. Their order and visibility are kept.
+   */
   navigationArrangement: Arrangement;
   preferAccentColor: Scalars['Boolean']['output'];
   preferredLayoutMode: InterfaceLayout;
