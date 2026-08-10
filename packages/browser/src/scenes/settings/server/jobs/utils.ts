@@ -9,7 +9,16 @@ const scheduledMetadataRetryConfig = z.object({
 	statuses: z.array(z.nativeEnum(MetadataFetchStatus)),
 })
 
-const scheduledJobConfig = z.union([scheduledScanConfig, scheduledMetadataRetryConfig])
+const scheduledReleaseCalendarConfig = z.object({
+	comicvineEnabled: z.boolean(),
+	metronEnabled: z.boolean(),
+})
+
+const scheduledJobConfig = z.union([
+	scheduledScanConfig,
+	scheduledMetadataRetryConfig,
+	scheduledReleaseCalendarConfig,
+])
 
 export const parseScheduledJobConfig = (config: unknown) => {
 	const result = scheduledJobConfig.safeParse(config)
@@ -41,17 +50,20 @@ export const RETRYABLE_STATUSES = [
 export const KIND_OPTIONS = [
 	{ localeKey: 'libraryScan', value: 'LIBRARY_SCAN' },
 	{ localeKey: 'metadataRetry', value: 'METADATA_RETRY' },
+	{ localeKey: 'releaseCalendarSync', value: 'RELEASE_CALENDAR_SYNC' },
 ] as const
 
 export const scheduledJobFormSchema = z.object({
 	name: z.string().min(1),
 	schedule: z.string().min(1),
-	kind: z.enum(['LIBRARY_SCAN', 'METADATA_RETRY']),
+	kind: z.enum(['LIBRARY_SCAN', 'METADATA_RETRY', 'RELEASE_CALENDAR_SYNC']),
 	libraryIds: z.array(z.string()).default([]),
 	statuses: z
 		.array(z.nativeEnum(MetadataFetchStatus))
 		.min(1)
 		.default([MetadataFetchStatus.RateLimited]),
+	comicvineEnabled: z.boolean().default(true),
+	metronEnabled: z.boolean().default(false),
 	enabled: z.boolean().default(true),
 })
 export type ScheduledJobFormValues = z.infer<typeof scheduledJobFormSchema>
@@ -60,6 +72,13 @@ export function buildScheduledJobInput(values: ScheduledJobFormValues) {
 	const config =
 		values.kind === 'LIBRARY_SCAN'
 			? { libraryScan: { libraryIds: values.libraryIds } }
-			: { metadataRetry: { statuses: values.statuses } }
+			: values.kind === 'RELEASE_CALENDAR_SYNC'
+				? {
+						releaseCalendar: {
+							comicvineEnabled: values.comicvineEnabled,
+							metronEnabled: values.metronEnabled,
+						},
+					}
+				: { metadataRetry: { statuses: values.statuses } }
 	return { name: values.name, schedule: values.schedule, config, enabled: values.enabled }
 }

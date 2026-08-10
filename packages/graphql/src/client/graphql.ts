@@ -443,6 +443,33 @@ export type BookmarkInput = {
   previewContent?: InputMaybe<Scalars['String']['input']>;
 };
 
+export type CalendarDay = {
+  __typename?: 'CalendarDay';
+  /** ISO `YYYY-MM-DD`. */
+  date: Scalars['String']['output'];
+  entries: Array<CalendarEntry>;
+};
+
+export type CalendarEntry = {
+  __typename?: 'CalendarEntry';
+  coverUrl?: Maybe<Scalars['String']['output']>;
+  /** Whether a book with this issue number already exists in the series. */
+  inLibrary: Scalars['Boolean']['output'];
+  number?: Maybe<Scalars['String']['output']>;
+  /** ISO `YYYY-MM-DD`. */
+  releaseDate: Scalars['String']['output'];
+  seriesId: Scalars['ID']['output'];
+  seriesName: Scalars['String']['output'];
+  title?: Maybe<Scalars['String']['output']>;
+};
+
+export enum CalendarScope {
+  /** Every series the viewer can access. */
+  All = 'ALL',
+  /** Only series the viewer follows — the personal pull list. */
+  Followed = 'FOLLOWED'
+}
+
 export type Character = {
   __typename?: 'Character';
   /**
@@ -2431,6 +2458,12 @@ export type Mutation = {
   finishMediaProgress: Scalars['Boolean']['output'];
   /** marks all books in the series as finished */
   finishSeriesProgress: Scalars['Int']['output'];
+  /**
+   * Follow or unfollow a series for the viewer. Follows are personal
+   * curation only — they drive the pull-list calendar tab and the updates
+   * feed, and never any automation. Idempotent in both directions.
+   */
+  followSeries: Scalars['Boolean']['output'];
   generateLibraryThumbnails: Scalars['Boolean']['output'];
   /** Deletes the membership of the caller to the target book club */
   leaveBookClub: BookClubMember;
@@ -3017,6 +3050,12 @@ export type MutationFinishMediaProgressArgs = {
 
 export type MutationFinishSeriesProgressArgs = {
   id: Scalars['ID']['input'];
+};
+
+
+export type MutationFollowSeriesArgs = {
+  id: Scalars['ID']['input'];
+  isFollowing: Scalars['Boolean']['input'];
 };
 
 
@@ -3871,6 +3910,8 @@ export type Query = {
   /** Get a single epub by its media ID */
   epubById: Epub;
   finishedReadingSessionCount: Scalars['Int']['output'];
+  /** Series ids the viewer follows. */
+  followedSeriesIds: Array<Scalars['ID']['output']>;
   getNotifierById: Notifier;
   getNotifiers: Array<Notifier>;
   jobById?: Maybe<Job>;
@@ -3951,6 +3992,11 @@ export type Query = {
   readingLists: PaginatedReadingListResponse;
   recentlyAddedMedia: PaginatedMediaResponse;
   recentlyAddedSeries: PaginatedSeriesResponse;
+  /**
+   * One Sunday-aligned week of expected releases, day by day (all seven days
+   * are present, empty or not, so the grid renders without gap logic).
+   */
+  releaseCalendar: Array<CalendarDay>;
   scheduledJobs: Array<ScheduledJob>;
   series: PaginatedSeriesResponse;
   /** Returns the available alphabet for all series in the server */
@@ -3965,6 +4011,8 @@ export type Query = {
   /** Returns a list of all tags. */
   tags: Array<Tag>;
   topReaders: Array<User>;
+  /** New books in followed series, newest first — 30-day window, hard cap. */
+  updatesFeed: UpdatesFeed;
   uploadConfig: UploadConfig;
   userById: User;
   userCount: Scalars['Int']['output'];
@@ -4246,6 +4294,12 @@ export type QueryRecentlyAddedSeriesArgs = {
 };
 
 
+export type QueryReleaseCalendarArgs = {
+  scope?: CalendarScope;
+  weekOffset?: Scalars['Int']['input'];
+};
+
+
 export type QuerySeriesArgs = {
   filter?: SeriesFilterInput;
   orderBy?: Array<SeriesOrderBy>;
@@ -4281,6 +4335,12 @@ export type QuerySmartListsArgs = {
 
 export type QueryTopReadersArgs = {
   take?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+export type QueryUpdatesFeedArgs = {
+  cap?: Scalars['Int']['input'];
+  days?: Scalars['Int']['input'];
 };
 
 
@@ -4468,6 +4528,13 @@ export type RegisteredEmailDevice = {
   sendHistory: Array<EmailerSendRecord>;
 };
 
+export type ReleaseCalendarConfigInput = {
+  /** Sweep ComicVine's store-date window */
+  comicvineEnabled: Scalars['Boolean']['input'];
+  /** Sweep Metron's store-date window (leave off until verified reachable) */
+  metronEnabled: Scalars['Boolean']['input'];
+};
+
 /**
  * the current reading position for a book, derived from the latest session
  * with the highest `readthrough_number`
@@ -4560,15 +4627,18 @@ export type ScheduledJob = {
 
 /** A oneOf input for the schedule config */
 export type ScheduledJobConfigInput =
-  { libraryScan: LibraryScanConfigInput; metadataRetry?: never; }
-  |  { libraryScan?: never; metadataRetry: MetadataRetryConfigInput; };
+  { libraryScan: LibraryScanConfigInput; metadataRetry?: never; releaseCalendar?: never; }
+  |  { libraryScan?: never; metadataRetry: MetadataRetryConfigInput; releaseCalendar?: never; }
+  |  { libraryScan?: never; metadataRetry?: never; releaseCalendar: ReleaseCalendarConfigInput; };
 
 /** The kind of a scheduled job, aligned with the config variants */
 export enum ScheduledJobKind {
   /** Scan one or more libraries on a cron schedule */
   LibraryScan = 'LIBRARY_SCAN',
   /** Retry fetching metadata for records that were rate-limited or failed */
-  MetadataRetry = 'METADATA_RETRY'
+  MetadataRetry = 'METADATA_RETRY',
+  /** Sweep provider release windows into expected_issues (the release calendar) */
+  ReleaseCalendarSync = 'RELEASE_CALENDAR_SYNC'
 }
 
 export type SendAttachmentEmailOutput = {
@@ -5115,6 +5185,17 @@ export type UpdateCustomEmojiInput = {
   name: Scalars['String']['input'];
 };
 
+export type UpdateItem = {
+  __typename?: 'UpdateItem';
+  /** RFC 3339. */
+  createdAt: Scalars['String']['output'];
+  isRead: Scalars['Boolean']['output'];
+  mediaId: Scalars['ID']['output'];
+  mediaName: Scalars['String']['output'];
+  seriesId: Scalars['ID']['output'];
+  seriesName: Scalars['String']['output'];
+};
+
 export type UpdateScheduledJobInput = {
   /** Replace the config entirely. The kind is inferred from the variant */
   config?: InputMaybe<ScheduledJobConfigInput>;
@@ -5167,6 +5248,13 @@ export type UpdateUserPreferencesInput = {
   thumbnailPlaceholderStyle: ThumbnailPlaceholderStyle;
   thumbnailRatio: Scalars['Float']['input'];
   thumbnailRoundness: InterfaceRoundness;
+};
+
+export type UpdatesFeed = {
+  __typename?: 'UpdatesFeed';
+  /** True when the window held more items than the cap. */
+  capped: Scalars['Boolean']['output'];
+  items: Array<UpdateItem>;
 };
 
 export type UploadBooksInput = {
@@ -5975,6 +6063,14 @@ export type BookSearchSceneQuery = { __typename?: 'Query', media: { __typename?:
       & { ' $fragmentRefs'?: { 'BookCardFragment': BookCardFragment;'BookMetadataFragment': BookMetadataFragment } }
     )>, pageInfo: { __typename: 'CursorPaginationInfo' } | { __typename: 'OffsetPaginationInfo', currentPage: number, totalPages: number, pageSize: number, pageOffset: number, zeroBased: boolean } } };
 
+export type ReleaseCalendarQueryVariables = Exact<{
+  weekOffset: Scalars['Int']['input'];
+  scope: CalendarScope;
+}>;
+
+
+export type ReleaseCalendarQuery = { __typename?: 'Query', releaseCalendar: Array<{ __typename?: 'CalendarDay', date: string, entries: Array<{ __typename?: 'CalendarEntry', seriesId: string, seriesName: string, number?: string | null, title?: string | null, coverUrl?: string | null, inLibrary: boolean }> }> };
+
 export type CharacterCardFragment = { __typename?: 'Character', name: string, bookCount?: number | null } & { ' $fragmentName'?: 'CharacterCardFragment' };
 
 export type CharacterDetailSceneQueryVariables = Exact<{
@@ -6346,6 +6442,19 @@ export type SeriesActionCompleteMutationVariables = Exact<{
 
 
 export type SeriesActionCompleteMutation = { __typename?: 'Mutation', finishSeriesProgress: number };
+
+export type FollowedSeriesIdsQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type FollowedSeriesIdsQuery = { __typename?: 'Query', followedSeriesIds: Array<string> };
+
+export type FollowSeriesMutationVariables = Exact<{
+  id: Scalars['ID']['input'];
+  isFollowing: Scalars['Boolean']['input'];
+}>;
+
+
+export type FollowSeriesMutation = { __typename?: 'Mutation', followSeries: boolean };
 
 export type SeriesLayoutQueryVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -6987,6 +7096,11 @@ export type DeleteSmartListMutationVariables = Exact<{
 
 
 export type DeleteSmartListMutation = { __typename?: 'Mutation', deleteSmartList: { __typename: 'SmartList' } };
+
+export type UpdatesFeedQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type UpdatesFeedQuery = { __typename?: 'Query', updatesFeed: { __typename?: 'UpdatesFeed', capped: boolean, items: Array<{ __typename?: 'UpdateItem', mediaId: string, seriesName: string, mediaName: string, createdAt: string, isRead: boolean }> } };
 
 export type DirectoryListingQueryVariables = Exact<{
   input: DirectoryListingInput;
@@ -9240,6 +9354,21 @@ fragment BookMetadata on Media {
     number
   }
 }`) as unknown as TypedDocumentString<BookSearchSceneQuery, BookSearchSceneQueryVariables>;
+export const ReleaseCalendarDocument = new TypedDocumentString(`
+    query ReleaseCalendar($weekOffset: Int!, $scope: CalendarScope!) {
+  releaseCalendar(weekOffset: $weekOffset, scope: $scope) {
+    date
+    entries {
+      seriesId
+      seriesName
+      number
+      title
+      coverUrl
+      inLibrary
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<ReleaseCalendarQuery, ReleaseCalendarQueryVariables>;
 export const CharacterDetailSceneDocument = new TypedDocumentString(`
     query CharacterDetailScene($name: String!) {
   characterByName(name: $name) {
@@ -10140,6 +10269,16 @@ export const SeriesActionCompleteDocument = new TypedDocumentString(`
   finishSeriesProgress(id: $id)
 }
     `) as unknown as TypedDocumentString<SeriesActionCompleteMutation, SeriesActionCompleteMutationVariables>;
+export const FollowedSeriesIdsDocument = new TypedDocumentString(`
+    query FollowedSeriesIds {
+  followedSeriesIds
+}
+    `) as unknown as TypedDocumentString<FollowedSeriesIdsQuery, FollowedSeriesIdsQueryVariables>;
+export const FollowSeriesDocument = new TypedDocumentString(`
+    mutation FollowSeries($id: ID!, $isFollowing: Boolean!) {
+  followSeries(id: $id, isFollowing: $isFollowing)
+}
+    `) as unknown as TypedDocumentString<FollowSeriesMutation, FollowSeriesMutationVariables>;
 export const SeriesLayoutDocument = new TypedDocumentString(`
     query SeriesLayout($id: ID!) {
   seriesById(id: $id) {
@@ -11364,6 +11503,20 @@ export const DeleteSmartListDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<DeleteSmartListMutation, DeleteSmartListMutationVariables>;
+export const UpdatesFeedDocument = new TypedDocumentString(`
+    query UpdatesFeed {
+  updatesFeed {
+    items {
+      mediaId
+      seriesName
+      mediaName
+      createdAt
+      isRead
+    }
+    capped
+  }
+}
+    `) as unknown as TypedDocumentString<UpdatesFeedQuery, UpdatesFeedQueryVariables>;
 export const DirectoryListingDocument = new TypedDocumentString(`
     query DirectoryListing($input: DirectoryListingInput!, $pagination: Pagination!) {
   listDirectory(input: $input, pagination: $pagination) {

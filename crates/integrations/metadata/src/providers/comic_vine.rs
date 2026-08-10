@@ -9,6 +9,7 @@ use crate::{
 	types::{
 		ConfidenceFactor, ExternalMediaMetadata, ExternalSeriesMetadata, MatchCandidate,
 		MediaType, ProviderValidationResult, ProviderValidationStatus, SearchQuery,
+		UpcomingRelease,
 	},
 	ExternalMetadata, MetadataProvider, RateLimiter,
 };
@@ -215,6 +216,86 @@ impl ComicVineClient {
 impl MetadataProvider for ComicVineClient {
 	fn id(&self) -> &'static str {
 		"comicvine"
+	}
+
+	/// Windowed store-date sweep for the release-calendar oracle. Paginates
+	/// `/issues/` in 100-row pages (through the cache/budget runtime) until the
+	/// window is exhausted or `cap` is reached. Issues without a volume link
+	/// can't be matched to a series and are skipped.
+	async fn fetch_upcoming_releases(
+		&self,
+		start: NaiveDate,
+		end: NaiveDate,
+		cap: usize,
+	) -> Result<Vec<UpcomingRelease>, MetadataProviderError> {
+		const PAGE_SIZE: usize = 100;
+
+		#[derive(Deserialize)]
+		struct CvVolumeRef {
+			id: i64,
+		}
+		#[derive(Deserialize)]
+		struct CvWindowIssue {
+			id: i64,
+			#[serde(default)]
+			name: Option<String>,
+			#[serde(default)]
+			issue_number: Option<String>,
+			#[serde(default)]
+			store_date: Option<String>,
+			#[serde(default)]
+			cover_date: Option<String>,
+			#[serde(default)]
+			image: Option<CvImage>,
+			#[serde(default)]
+			volume: Option<CvVolumeRef>,
+		}
+
+		let mut releases: Vec<UpcomingRelease> = Vec::new();
+		let mut offset = 0usize;
+		loop {
+			let envelope = self
+				.request(
+					"issues",
+					&[
+						("filter", format!("store_date:{start}|{end}")),
+						("sort", "store_date:asc".to_string()),
+						(
+							"field_list",
+							"id,name,issue_number,store_date,cover_date,image,volume"
+								.to_string(),
+						),
+						("limit", PAGE_SIZE.to_string()),
+						("offset", offset.to_string()),
+					],
+				)
+				.await?;
+			let page: Vec<CvWindowIssue> = envelope.into_results()?;
+			let page_len = page.len();
+
+			for issue in page {
+				let Some(volume) = issue.volume else {
+					continue;
+				};
+				releases.push(UpcomingRelease {
+					series_external_id: volume.id.to_string(),
+					external_id: issue.id.to_string(),
+					number: issue.issue_number,
+					title: issue.name,
+					cover_url: issue.image.and_then(|i| i.medium_url.or(i.original_url)),
+					release_date: issue.store_date.or(issue.cover_date),
+				});
+				if releases.len() >= cap {
+					return Ok(releases);
+				}
+			}
+
+			if page_len < PAGE_SIZE {
+				break;
+			}
+			offset += PAGE_SIZE;
+		}
+		Ok(releases)
 	}
 
 	fn name(&self) -> &'static str {
@@ -773,8 +854,97 @@ mod tests {
 	};
 
 	fn client(base_url: String) -> ComicVineClient {
-		ComicVineClient::with_base_url("test-key".to_string(), None, base_url)
+		// High test-only rate limit: pagination tests make several requests and
+		// must not sleep through the production 3/min budget.
+		ComicVineClient::with_base_url("test-key".to_string(), Some(600), base_url)
 			.expect("valid key")
+	}
+
+	fn window_issue(id: i64, volume_id: Option<i64>) -> serde_json::Value {
+		let mut issue = json!({
+			"id": id,
+			"name": format!("Issue {id}"),
+			"issue_number": id.to_string(),
+			"store_date": "2026-08-12",
+			"cover_date": "2026-08-01",
+			"image": { "medium_url": format!("https://cv.example/{id}.jpg") },
+		});
+		if let Some(vid) = volume_id {
+			issue["volume"] = json!({ "id": vid, "name": "Saga" });
+		}
+		issue
+	}
+
+	#[tokio::test]
+	async fn upcoming_releases_paginate_and_skip_volumeless() {
+		use wiremock::matchers::query_param;
+
+		let server = MockServer::start().await;
+		// Page 1: a full 100-row page (99 with volumes + 1 without, which is
+		// skipped) forces a second request at offset=100.
+		let mut page_one: Vec<serde_json::Value> =
+			(1..=99).map(|i| window_issue(i, Some(1000 + i))).collect();
+		page_one.push(window_issue(500, None));
+		Mock::given(method("GET"))
+			.and(path("/issues/"))
+			.and(query_param("offset", "0"))
+			.respond_with(ResponseTemplate::new(200).set_body_json(json!({
+				"status_code": 1, "results": page_one,
+			})))
+			.expect(1)
+			.mount(&server)
+			.await;
+		Mock::given(method("GET"))
+			.and(path("/issues/"))
+			.and(query_param("offset", "100"))
+			.respond_with(ResponseTemplate::new(200).set_body_json(json!({
+				"status_code": 1, "results": [window_issue(200, Some(2000))],
+			})))
+			.expect(1)
+			.mount(&server)
+			.await;
+
+		let releases = client(server.uri())
+			.fetch_upcoming_releases(
+				NaiveDate::from_ymd_opt(2026, 7, 26).unwrap(),
+				NaiveDate::from_ymd_opt(2026, 11, 7).unwrap(),
+				3000,
+			)
+			.await
+			.expect("sweep succeeds");
+
+		assert_eq!(releases.len(), 100, "99 matched on page 1 + 1 on page 2");
+		let first = &releases[0];
+		assert_eq!(first.series_external_id, "1001");
+		assert_eq!(first.external_id, "1");
+		assert_eq!(first.number.as_deref(), Some("1"));
+		assert_eq!(first.release_date.as_deref(), Some("2026-08-12"));
+		assert!(first.cover_url.as_deref().unwrap().contains("cv.example"));
+	}
+
+	#[tokio::test]
+	async fn upcoming_releases_respect_the_cap() {
+		let server = MockServer::start().await;
+		let page: Vec<serde_json::Value> =
+			(1..=50).map(|i| window_issue(i, Some(1))).collect();
+		Mock::given(method("GET"))
+			.and(path("/issues/"))
+			.respond_with(ResponseTemplate::new(200).set_body_json(json!({
+				"status_code": 1, "results": page,
+			})))
+			.expect(1) // the cap must stop pagination after one page
+			.mount(&server)
+			.await;
+
+		let releases = client(server.uri())
+			.fetch_upcoming_releases(
+				NaiveDate::from_ymd_opt(2026, 7, 26).unwrap(),
+				NaiveDate::from_ymd_opt(2026, 11, 7).unwrap(),
+				10,
+			)
+			.await
+			.expect("sweep succeeds");
+		assert_eq!(releases.len(), 10);
 	}
 
 	#[test]

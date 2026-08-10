@@ -22,6 +22,7 @@ mod metadata_provider;
 mod notifier;
 mod organize;
 pub(crate) mod reading_list;
+mod release_calendar;
 mod series;
 mod server_config;
 mod smart_list_view;
@@ -53,6 +54,7 @@ use metadata_provider::MetadataProviderQuery;
 use notifier::NotifierQuery;
 use organize::OrganizeQuery;
 use reading_list::ReadingListQuery;
+use release_calendar::ReleaseCalendarQuery;
 use series::SeriesQuery;
 use server_config::ServerConfigQuery;
 use smart_list_view::SmartListViewQuery;
@@ -87,6 +89,7 @@ struct ContentQueries(
 	MediaMetadataOverviewQuery,
 	OrganizeQuery,
 	BookGroupQuery,
+	ReleaseCalendarQuery,
 );
 
 #[derive(async_graphql::MergedObject, Default)]

@@ -73,6 +73,8 @@ export function CreateOrEditScheduledJobDialog({
 				libraryIds: config && 'libraryIds' in config ? config.libraryIds : [],
 				statuses:
 					config && 'statuses' in config ? config.statuses : [MetadataFetchStatus.RateLimited],
+				comicvineEnabled: config && 'comicvineEnabled' in config ? config.comicvineEnabled : true,
+				metronEnabled: config && 'metronEnabled' in config ? config.metronEnabled : false,
 				enabled: data.enabled,
 			} satisfies ScheduledJobFormValues
 		}
@@ -82,6 +84,8 @@ export function CreateOrEditScheduledJobDialog({
 			kind: 'LIBRARY_SCAN',
 			libraryIds: [],
 			statuses: [MetadataFetchStatus.RateLimited],
+			comicvineEnabled: true,
+			metronEnabled: false,
 			enabled: true,
 		} satisfies ScheduledJobFormValues
 	}, [data])
@@ -91,10 +95,19 @@ export function CreateOrEditScheduledJobDialog({
 		resolver: zodResolver(scheduledJobFormSchema),
 	})
 
-	const [watchKind, schedule, libraryIds, statuses, enabled] = useWatch({
-		control: form.control,
-		name: ['kind', 'schedule', 'libraryIds', 'statuses', 'enabled'],
-	})
+	const [watchKind, schedule, libraryIds, statuses, enabled, comicvineEnabled, metronEnabled] =
+		useWatch({
+			control: form.control,
+			name: [
+				'kind',
+				'schedule',
+				'libraryIds',
+				'statuses',
+				'enabled',
+				'comicvineEnabled',
+				'metronEnabled',
+			],
+		})
 	const [cronPreset, setCronPreset] = useState('')
 	const { errors: formErrors } = useFormState({ control: form.control })
 
@@ -249,6 +262,22 @@ export function CreateOrEditScheduledJobDialog({
 									)
 								}
 							/>
+						)}
+
+						{watchKind === 'RELEASE_CALENDAR_SYNC' && (
+							<div className="gap-2 flex flex-col">
+								<CheckBox
+									label={t(getKey('fields.releaseCalendar.comicvine'))}
+									checked={comicvineEnabled}
+									onClick={() => form.setValue('comicvineEnabled', !comicvineEnabled)}
+								/>
+								<CheckBox
+									label={t(getKey('fields.releaseCalendar.metron'))}
+									description={t(getKey('fields.releaseCalendar.metronDescription'))}
+									checked={metronEnabled}
+									onClick={() => form.setValue('metronEnabled', !metronEnabled)}
+								/>
+							</div>
 						)}
 
 						<CheckBox
