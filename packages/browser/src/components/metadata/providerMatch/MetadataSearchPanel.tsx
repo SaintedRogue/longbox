@@ -4,6 +4,8 @@ import { useState } from 'react'
 
 import { ConfidenceBadge } from '@/components/metadata/metadataMatching/reviewDialog/ConfidenceBadge'
 
+import { SearchProgress } from './SearchProgress'
+
 // A single provider result, normalized just enough for the compare-grid to
 // key off `kind`. `metadata` is intentionally a loose bag (rather than a
 // GraphQL union) so this panel has no GraphQL dependency of its own — see
@@ -198,6 +200,9 @@ export function MetadataSearchPanel({
 					kind={kind}
 					results={results}
 					isSearching={isSearching}
+					providerLabel={
+						providers.find((option) => option.value === provider)?.label ?? 'the provider'
+					}
 					selectingIndex={selectingIndex ?? null}
 					onSelect={onSelect}
 				/>
@@ -210,21 +215,19 @@ function ResultsBody({
 	kind,
 	results,
 	isSearching,
+	providerLabel,
 	selectingIndex,
 	onSelect,
 }: {
 	kind: MetadataSearchPanelProps['kind']
 	results: SearchPanelCandidate[] | null
 	isSearching: boolean
+	providerLabel: string
 	selectingIndex: number | null
 	onSelect: (candidate: SearchPanelCandidate, index: number) => void
 }) {
 	if (isSearching) {
-		return (
-			<Text size="sm" variant="muted" className="py-10 text-center">
-				Searching the provider…
-			</Text>
-		)
+		return <SearchProgress providerLabel={providerLabel} />
 	}
 	if (results === null) {
 		return (
