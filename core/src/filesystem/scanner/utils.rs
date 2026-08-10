@@ -8,7 +8,9 @@ use std::{
 use chrono::{DateTime, Utc};
 use futures::{future::BoxFuture, stream::FuturesUnordered, StreamExt};
 use models::{
-	entity::{library_config, media, media_metadata, media_tag, series, tag},
+	entity::{
+		library_config, library_folder, media, media_metadata, media_tag, series, tag,
+	},
 	shared::enums::FileStatus,
 };
 use sea_orm::{
@@ -559,6 +561,144 @@ pub(crate) async fn safely_insert_series(
 	Ok(output)
 }
 
+/// Reconcile `library_folders` for a library against what the walk just saw.
+///
+/// Inserts any structural directory that isn't already recorded and links each
+/// one to its parent. Existing rows keep their ids, so `series.folder_id` and
+/// anything else pointing at a folder survives a rescan.
+///
+/// Sorting by depth first is load-bearing rather than tidiness: a folder's
+/// `parent_id` is resolved from a map built as we go, so a parent has to be
+/// inserted before any child asks for its id. `WalkDir` yields no ordering
+/// guarantee strong enough to rely on.
+///
+/// Returns the full `path -> id` map for the library, which the caller uses to
+/// backfill `series.folder_id`.
+pub(crate) async fn sync_library_folders(
+	library_id: &str,
+	library_path: &str,
+	structural_directories: Vec<PathBuf>,
+	conn: &DatabaseConnection,
+) -> Result<HashMap<String, String>, JobError> {
+	let mut folder_ids_by_path = library_folder::Entity::find()
+		.filter(library_folder::Column::LibraryId.eq(library_id))
+		.all(conn)
+		.await?
+		.into_iter()
+		.map(|folder| (folder.path, folder.id))
+		.collect::<HashMap<String, String>>();
+
+	let root = Path::new(library_path);
+	let mut sorted = structural_directories;
+	sorted.sort_by_key(|path| path.components().count());
+
+	for path in sorted {
+		let path_str = path.to_string_lossy().to_string();
+		if folder_ids_by_path.contains_key(&path_str) {
+			continue;
+		}
+
+		let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+			tracing::warn!(?path, "Skipping folder with an unreadable name");
+			continue;
+		};
+
+		// A parent that isn't in the map is the library root itself, or a
+		// directory that does hold media directly and is therefore a series rather
+		// than a folder. Either way this folder hangs off the root.
+		let parent_id = path
+			.parent()
+			.map(|parent| parent.to_string_lossy().to_string())
+			.and_then(|parent_path| folder_ids_by_path.get(&parent_path).cloned());
+
+		let depth = path
+			.strip_prefix(root)
+			.map(|relative| relative.components().count().saturating_sub(1))
+			.unwrap_or(0) as i32;
+
+		let model = library_folder::ActiveModel {
+			library_id: Set(library_id.to_string()),
+			parent_id: Set(parent_id),
+			name: Set(name.to_string()),
+			path: Set(path_str.clone()),
+			depth: Set(depth),
+			..Default::default()
+		};
+
+		match model.insert(conn).await {
+			Ok(inserted) => {
+				folder_ids_by_path.insert(path_str, inserted.id);
+			},
+			Err(error) => {
+				// Best-effort, like every other bookkeeping step in a scan: a folder
+				// that fails to insert costs a breadcrumb, not the library.
+				tracing::error!(?error, ?path, "Failed to insert library folder");
+			},
+		}
+	}
+
+	Ok(folder_ids_by_path)
+}
+
+/// Point each series at the folder that contains it.
+///
+/// Series whose parent directory has no folder row -- those sitting directly in
+/// the library root -- are left with `folder_id` NULL, which is the correct
+/// answer rather than a missing one.
+pub(crate) async fn link_series_to_folders(
+	library_id: &str,
+	folder_ids_by_path: &HashMap<String, String>,
+	conn: &DatabaseConnection,
+) -> Result<(), JobError> {
+	if folder_ids_by_path.is_empty() {
+		return Ok(());
+	}
+
+	let all_series = series::Entity::find()
+		.filter(series::Column::LibraryId.eq(library_id))
+		.all(conn)
+		.await?;
+
+	// Grouped so each folder costs one UPDATE rather than one per series.
+	let mut series_ids_by_folder: HashMap<String, Vec<String>> = HashMap::new();
+	for record in all_series {
+		let parent_path = Path::new(&record.path)
+			.parent()
+			.map(|parent| parent.to_string_lossy().to_string());
+
+		let folder_id = parent_path
+			.as_ref()
+			.and_then(|parent| folder_ids_by_path.get(parent));
+
+		if let Some(folder_id) = folder_id {
+			if record.folder_id.as_ref() != Some(folder_id) {
+				series_ids_by_folder
+					.entry(folder_id.clone())
+					.or_default()
+					.push(record.id);
+			}
+		}
+	}
+
+	for (folder_id, series_ids) in series_ids_by_folder {
+		for chunk in series_ids.chunks(SQLITE_BIND_LIMIT / 2) {
+			if let Err(error) = series::Entity::update_many()
+				.col_expr(
+					series::Column::FolderId,
+					Expr::value(Some(folder_id.clone())),
+				)
+				.filter(series::Column::Id.is_in(chunk.to_vec()))
+				.exec(conn)
+				.await
+			{
+				tracing::error!(?error, "Failed to link series to their folder");
+			}
+		}
+	}
+
+	Ok(())
+}
+
 // TODO(granular-scans): intake ScanOptions
 pub(crate) struct MediaBuildOperation {
 	pub series_id: String,
@@ -1051,3 +1191,179 @@ pub(crate) async fn visit_and_update_media(
 
 // TODO(tests): sort out tests later. I had to remove them for now because
 // mocking apalis state and all that was too much
+
+#[cfg(test)]
+mod folder_tests {
+	use super::*;
+	use ::tests::{db::test_database, fake_data};
+
+	const LIBRARY_PATH: &str = "/library";
+
+	fn paths(raw: &[&str]) -> Vec<PathBuf> {
+		raw.iter().map(PathBuf::from).collect()
+	}
+
+	async fn seeded_library(db: &DatabaseConnection) -> String {
+		fake_data::Library {
+			path: Some(LIBRARY_PATH.to_string()),
+			..Default::default()
+		}
+		.insert(db)
+		.await
+		.id
+	}
+
+	/// Parents must exist before children can point at them. The walk yields no
+	/// ordering guarantee, so the sort by depth is what makes this hold.
+	#[tokio::test]
+	async fn test_nested_folders_link_to_their_parent() {
+		let db = test_database().await;
+		let library_id = seeded_library(&db).await;
+
+		// Deliberately deepest-first, to prove the sort is doing the work.
+		let discovered = paths(&[
+			"/library/Marvel/Hulk/Collections",
+			"/library/Marvel/Hulk",
+			"/library/Marvel",
+		]);
+
+		let map = sync_library_folders(&library_id, LIBRARY_PATH, discovered, &db)
+			.await
+			.expect("sync_library_folders failed");
+
+		assert_eq!(map.len(), 3);
+
+		let marvel = library_folder::Entity::find()
+			.filter(library_folder::Column::Path.eq("/library/Marvel"))
+			.one(&db)
+			.await
+			.unwrap()
+			.expect("expected a Marvel folder");
+		let hulk = library_folder::Entity::find()
+			.filter(library_folder::Column::Path.eq("/library/Marvel/Hulk"))
+			.one(&db)
+			.await
+			.unwrap()
+			.expect("expected a Hulk folder");
+
+		assert_eq!(marvel.parent_id, None, "a top-level folder has no parent");
+		assert_eq!(marvel.depth, 0);
+		assert_eq!(marvel.name, "Marvel");
+
+		assert_eq!(hulk.parent_id, Some(marvel.id));
+		assert_eq!(hulk.depth, 1);
+		// The leaf segment only -- this is what keeps folder-name search from
+		// matching a library's mount point.
+		assert_eq!(hulk.name, "Hulk");
+	}
+
+	/// A rescan must not churn ids, or every `series.folder_id` would dangle.
+	#[tokio::test]
+	async fn test_rescan_is_idempotent() {
+		let db = test_database().await;
+		let library_id = seeded_library(&db).await;
+		let discovered = paths(&["/library/Marvel", "/library/Marvel/Hulk"]);
+
+		let first =
+			sync_library_folders(&library_id, LIBRARY_PATH, discovered.clone(), &db)
+				.await
+				.expect("first sync failed");
+		let second = sync_library_folders(&library_id, LIBRARY_PATH, discovered, &db)
+			.await
+			.expect("second sync failed");
+
+		assert_eq!(first, second, "a rescan must reuse the existing folder ids");
+		assert_eq!(
+			library_folder::Entity::find()
+				.count(&db)
+				.await
+				.expect("count failed"),
+			2,
+			"a rescan must not duplicate folders"
+		);
+	}
+
+	#[tokio::test]
+	async fn test_series_are_linked_to_their_containing_folder() {
+		let db = test_database().await;
+		let library_id = seeded_library(&db).await;
+
+		let nested = fake_data::Series {
+			library_id: Some(library_id.clone()),
+			path: Some("/library/Marvel/Hulk".to_string()),
+			..Default::default()
+		}
+		.insert(&db)
+		.await;
+		// Sits directly in the library root, so there is no folder to point at.
+		let root_level = fake_data::Series {
+			library_id: Some(library_id.clone()),
+			path: Some("/library/Loose".to_string()),
+			..Default::default()
+		}
+		.insert(&db)
+		.await;
+
+		let map = sync_library_folders(
+			&library_id,
+			LIBRARY_PATH,
+			paths(&["/library/Marvel"]),
+			&db,
+		)
+		.await
+		.expect("sync failed");
+		link_series_to_folders(&library_id, &map, &db)
+			.await
+			.expect("link failed");
+
+		let nested = series::Entity::find_by_id(nested.id)
+			.one(&db)
+			.await
+			.unwrap()
+			.expect("series missing");
+		let root_level = series::Entity::find_by_id(root_level.id)
+			.one(&db)
+			.await
+			.unwrap()
+			.expect("series missing");
+
+		assert_eq!(nested.folder_id, map.get("/library/Marvel").cloned());
+		assert_eq!(
+			root_level.folder_id, None,
+			"a series in the library root has no containing folder, which is an answer rather than a gap"
+		);
+	}
+
+	/// A directory can be both a series (it holds books directly) and an ancestor
+	/// (it also has media-bearing subdirectories). It is classified as a series,
+	/// so it never becomes a folder, and its children have nothing to point at.
+	#[tokio::test]
+	async fn test_series_under_a_series_directory_has_no_folder() {
+		let db = test_database().await;
+		let library_id = seeded_library(&db).await;
+
+		let child = fake_data::Series {
+			library_id: Some(library_id.clone()),
+			path: Some("/library/Marvel/Hulk".to_string()),
+			..Default::default()
+		}
+		.insert(&db)
+		.await;
+
+		// `/library/Marvel` holds books directly, so the walk classified it as a
+		// series and it is absent from the structural set.
+		let map = sync_library_folders(&library_id, LIBRARY_PATH, vec![], &db)
+			.await
+			.expect("sync failed");
+		link_series_to_folders(&library_id, &map, &db)
+			.await
+			.expect("link failed");
+
+		let child = series::Entity::find_by_id(child.id)
+			.one(&db)
+			.await
+			.unwrap()
+			.expect("series missing");
+		assert_eq!(child.folder_id, None);
+	}
+}

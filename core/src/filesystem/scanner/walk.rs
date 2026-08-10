@@ -54,6 +54,15 @@ pub struct WalkedLibrary {
 	pub series_to_visit: Vec<PathBuf>,
 	/// The paths for series that are missing from the filesystem
 	pub missing_series: Vec<PathBuf>,
+	/// Directories that hold no media of their own but sit above ones that do -
+	/// the grouping layers of an organised collection, e.g. `Marvel/` above
+	/// `Marvel/Hulk/`.
+	///
+	/// The walk already visits and classifies these; they were previously counted
+	/// and dropped. They become `library_folders` rows, which is what lets a
+	/// series report where it sits and what distinguishes two series that share a
+	/// leaf directory name.
+	pub structural_directories: Vec<PathBuf>,
 	/// Whether the library is missing from the filesystem
 	pub library_is_missing: bool,
 }
@@ -93,6 +102,9 @@ pub async fn walk_library(
 	);
 
 	let path_owned = path.to_string();
+	// The blocking closure takes ownership of the globset; structural-directory
+	// classification below needs it too.
+	let structural_ignore_rules = ignore_rules.clone();
 	let (valid_entries, ignored_entries): (Vec<DirEntry>, Vec<DirEntry>) =
 		tokio::task::spawn_blocking(move || {
 			let mut walkdir = WalkDir::new(&path_owned);
@@ -138,6 +150,25 @@ pub async fn walk_library(
 
 	let ignored_directories = ignored_entries.len() as u64;
 	let seen_directories = valid_entries.len() as u64 + ignored_directories;
+
+	// `ignored_entries` mixes two very different things: directories a rule or a
+	// dotfile convention says to skip, and directories that simply hold no media
+	// directly. Only the second kind is structure worth recording. The library
+	// root is excluded too - it is the tree, not a folder within it.
+	let structural_directories = ignored_entries
+		.iter()
+		.map(|entry| entry.path())
+		.filter(|entry_path| {
+			*entry_path != Path::new(path)
+				&& !structural_ignore_rules.is_match(entry_path)
+				&& !entry_path.is_hidden_file()
+		})
+		.map(|entry_path| entry_path.to_owned())
+		.collect::<Vec<PathBuf>>();
+	tracing::debug!(
+		count = structural_directories.len(),
+		"Found structural directories"
+	);
 
 	tracing::debug!(
 		seen_directories,
@@ -247,6 +278,7 @@ pub async fn walk_library(
 		recovered_series,
 		series_to_visit,
 		missing_series,
+		structural_directories,
 		library_is_missing,
 	})
 }

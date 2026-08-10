@@ -1287,6 +1287,44 @@ input LibraryFilterInput {
 	_or: [LibraryFilterInput!] = null
 }
 
+"""
+A grouping directory inside a library - the levels between the library root
+and the folders that actually hold books.
+"""
+type LibraryFolder {
+	id: String!
+	libraryId: String!
+	"`None` for a folder directly beneath the library root."
+	parentId: String
+	"""
+	The leaf directory name only. Deliberately not the accumulated path: a
+	substring match against this cannot hit a library's mount point, which is
+	exactly the failure mode that makes `series.path` unusable for folder
+	search.
+	"""
+	name: String!
+	"""
+	Absolute, and byte-identical to the string the walker produced, so it
+	compares directly against `series.path`.
+	"""
+	path: String!
+	"0 for a direct child of the library root."
+	depth: Int!
+	createdAt: DateTime!
+	"The folders directly inside this one."
+	children: [LibraryFolder!]!
+	"The series directly inside this folder, scoped to what the user may see."
+	series: [Series!]!
+	"""
+	This folder's ancestors, outermost first, excluding the folder itself.
+	
+	Walks the `parent_id` chain rather than issuing a recursive CTE: chains are
+	a handful of hops in practice, and nothing else in this schema uses
+	`WITH RECURSIVE`.
+	"""
+	ancestors: [LibraryFolder!]!
+}
+
 input LibraryModelOrderBy {
 	field: LibraryModelOrdering!
 	direction: OrderDirection!
@@ -3088,6 +3126,24 @@ type Query {
 		"Maximum results per entity type."
 		limitPerType: Int! = 5
 	): SearchAllResult!
+	"A single folder by id."
+	libraryFolder(id: ID!): LibraryFolder
+	"""
+	Browse or search folders.
+	
+	With `parentId`, returns that folder's direct children. Without it, and
+	with `libraryId`, returns the folders directly beneath that library's root.
+	`search` matches folder names only -- never paths -- so a library mounted
+	at `/mnt/comics` does not match every folder in it for the term "comics".
+	"""
+	libraryFolders(
+		"Restrict to one library."
+		libraryId: ID,
+		"Return the direct children of this folder. Without it, returns folders at the library root."
+		parentId: ID,
+		"Match against folder names. Terms are AND-ed."
+		search: String
+	): [LibraryFolder!]!
 	me: User!
 	userCount: Int!
 	topReaders(take: Int): [User!]!
@@ -3482,6 +3538,17 @@ type Series {
 	thumbnailMeta: ImageMetadata
 	thumbnailPath: String
 	libraryId: String
+	"""
+	The immediate parent folder, when this series sits under one rather than
+	directly beneath the library root.
+	
+	No database-level foreign key: this column was added to an existing table
+	and SQLite cannot cleanly add an enforced FK there, the same constraint
+	`media.book_group_id` lives with. The scan's folder-prune step keeps it
+	honest. A dangling value is harmless -- it only means a breadcrumb falls
+	back to the library.
+	"""
+	folderId: String
 	metadata: SeriesMetadata
 	isFavorite: Boolean!
 	"""
@@ -3495,6 +3562,22 @@ type Series {
 	of a breadcrumb while keeping the library part.
 	"""
 	isLooseRoot: Boolean!
+	"""
+	The folder that contains this series, if it sits under one rather than
+	directly in the library root.
+	"""
+	folder: LibraryFolder
+	"""
+	The folder names between the library root and this series, outermost
+	first - e.g. `["Marvel", "Hulk"]` for `/library/Marvel/Hulk/Vol 1`.
+	
+	Empty for a series directly in the library root, and empty when the
+	containing directory is itself a series (a directory that holds books *and*
+	has media-bearing subdirectories is classified as a series, so no folder
+	row exists for it). Both cases mean "no folder structure to show" rather
+	than an error.
+	"""
+	breadcrumb: [String!]!
 	resolvedName: String!
 	resolvedDescription: String
 	library: Library!
@@ -3660,6 +3743,7 @@ enum SeriesModelOrdering {
 	THUMBNAIL_META
 	THUMBNAIL_PATH
 	LIBRARY_ID
+	FOLDER_ID
 }
 
 input SeriesOrderBy @oneOf {

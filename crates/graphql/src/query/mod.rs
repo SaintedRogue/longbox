@@ -15,6 +15,7 @@ mod epub;
 mod filesystem;
 mod job;
 mod library;
+mod library_folder;
 mod log;
 pub(crate) mod media;
 mod media_metadata_overview;
@@ -48,6 +49,7 @@ use emailer::EmailerQuery;
 use epub::EpubQuery;
 use filesystem::FilesystemQuery;
 use library::LibraryQuery;
+use library_folder::LibraryFolderQuery;
 use log::LogQuery;
 use media::MediaQuery;
 use media_metadata_overview::MediaMetadataOverviewQuery;
@@ -93,6 +95,7 @@ struct ContentQueries(
 	BookGroupQuery,
 	ReleaseCalendarQuery,
 	SearchQuery,
+	LibraryFolderQuery,
 );
 
 #[derive(async_graphql::MergedObject, Default)]

@@ -1390,6 +1390,45 @@ export type LibraryFilterInput = {
   path?: InputMaybe<FieldFilterString>;
 };
 
+/**
+ * A grouping directory inside a library - the levels between the library root
+ * and the folders that actually hold books.
+ */
+export type LibraryFolder = {
+  __typename?: 'LibraryFolder';
+  /**
+   * This folder's ancestors, outermost first, excluding the folder itself.
+   *
+   * Walks the `parent_id` chain rather than issuing a recursive CTE: chains are
+   * a handful of hops in practice, and nothing else in this schema uses
+   * `WITH RECURSIVE`.
+   */
+  ancestors: Array<LibraryFolder>;
+  /** The folders directly inside this one. */
+  children: Array<LibraryFolder>;
+  createdAt: Scalars['DateTime']['output'];
+  /** 0 for a direct child of the library root. */
+  depth: Scalars['Int']['output'];
+  id: Scalars['String']['output'];
+  libraryId: Scalars['String']['output'];
+  /**
+   * The leaf directory name only. Deliberately not the accumulated path: a
+   * substring match against this cannot hit a library's mount point, which is
+   * exactly the failure mode that makes `series.path` unusable for folder
+   * search.
+   */
+  name: Scalars['String']['output'];
+  /** `None` for a folder directly beneath the library root. */
+  parentId?: Maybe<Scalars['String']['output']>;
+  /**
+   * Absolute, and byte-identical to the string the walker produced, so it
+   * compares directly against `series.path`.
+   */
+  path: Scalars['String']['output'];
+  /** The series directly inside this folder, scoped to what the user may see. */
+  series: Array<Series>;
+};
+
 export type LibraryModelOrderBy = {
   direction: OrderDirection;
   field: LibraryModelOrdering;
@@ -3975,6 +4014,17 @@ export type Query = {
   librariesAlphabet: Scalars['JSONObject']['output'];
   librariesStats: LibraryStats;
   libraryById?: Maybe<Library>;
+  /** A single folder by id. */
+  libraryFolder?: Maybe<LibraryFolder>;
+  /**
+   * Browse or search folders.
+   *
+   * With `parentId`, returns that folder's direct children. Without it, and
+   * with `libraryId`, returns the folders directly beneath that library's root.
+   * `search` matches folder names only -- never paths -- so a library mounted
+   * at `/mnt/comics` does not match every folder in it for the term "comics".
+   */
+  libraryFolders: Array<LibraryFolder>;
   libraryMissingEntities: PaginatedMissingEntityResponse;
   listDirectory: PaginatedDirectoryListingResponse;
   /**
@@ -4242,6 +4292,18 @@ export type QueryLibrariesArgs = {
 
 export type QueryLibraryByIdArgs = {
   id: Scalars['ID']['input'];
+};
+
+
+export type QueryLibraryFolderArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type QueryLibraryFoldersArgs = {
+  libraryId?: InputMaybe<Scalars['ID']['input']>;
+  parentId?: InputMaybe<Scalars['ID']['input']>;
+  search?: InputMaybe<Scalars['String']['input']>;
 };
 
 
@@ -4757,9 +4819,36 @@ export type SendToEmail = {
 
 export type Series = {
   __typename?: 'Series';
+  /**
+   * The folder names between the library root and this series, outermost
+   * first - e.g. `["Marvel", "Hulk"]` for `/library/Marvel/Hulk/Vol 1`.
+   *
+   * Empty for a series directly in the library root, and empty when the
+   * containing directory is itself a series (a directory that holds books *and*
+   * has media-bearing subdirectories is classified as a series, so no folder
+   * row exists for it). Both cases mean "no folder structure to show" rather
+   * than an error.
+   */
+  breadcrumb: Array<Scalars['String']['output']>;
   createdAt: Scalars['DateTime']['output'];
   deletedAt?: Maybe<Scalars['DateTime']['output']>;
   description?: Maybe<Scalars['String']['output']>;
+  /**
+   * The folder that contains this series, if it sits under one rather than
+   * directly in the library root.
+   */
+  folder?: Maybe<LibraryFolder>;
+  /**
+   * The immediate parent folder, when this series sits under one rather than
+   * directly beneath the library root.
+   *
+   * No database-level foreign key: this column was added to an existing table
+   * and SQLite cannot cleanly add an enforced FK there, the same constraint
+   * `media.book_group_id` lives with. The scan's folder-prune step keeps it
+   * honest. A dangling value is harmless -- it only means a breadcrumb falls
+   * back to the library.
+   */
+  folderId?: Maybe<Scalars['String']['output']>;
   id: Scalars['String']['output'];
   isComplete: Scalars['Boolean']['output'];
   isFavorite: Scalars['Boolean']['output'];
@@ -4956,6 +5045,7 @@ export enum SeriesModelOrdering {
   CreatedAt = 'CREATED_AT',
   DeletedAt = 'DELETED_AT',
   Description = 'DESCRIPTION',
+  FolderId = 'FOLDER_ID',
   Id = 'ID',
   LibraryId = 'LIBRARY_ID',
   Name = 'NAME',

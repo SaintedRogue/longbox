@@ -47,6 +47,16 @@ pub struct Model {
 	pub thumbnail_path: Option<String>,
 	#[sea_orm(column_type = "Text", nullable)]
 	pub library_id: Option<String>,
+	/// The immediate parent folder, when this series sits under one rather than
+	/// directly beneath the library root.
+	///
+	/// No database-level foreign key: this column was added to an existing table
+	/// and SQLite cannot cleanly add an enforced FK there, the same constraint
+	/// `media.book_group_id` lives with. The scan's folder-prune step keeps it
+	/// honest. A dangling value is harmless -- it only means a breadcrumb falls
+	/// back to the library.
+	#[sea_orm(column_type = "Text", nullable)]
+	pub folder_id: Option<String>,
 }
 
 pub fn get_age_restriction_filter(min_age: i32, restrict_on_unset: bool) -> Condition {

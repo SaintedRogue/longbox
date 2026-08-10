@@ -21,6 +21,7 @@ pub mod job;
 pub mod job_schedule_config;
 pub mod library;
 pub mod library_config;
+pub mod library_folder;
 pub mod library_scan_record;
 pub mod log;
 pub mod media;
