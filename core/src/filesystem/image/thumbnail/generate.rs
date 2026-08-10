@@ -262,6 +262,11 @@ pub async fn generate_book_thumbnail(
 		&thumbnails_dir,
 	)
 	.await;
+	// A regenerated base invalidates its `{id}@{width}` variants: stale-sized
+	// derivatives of the OLD image must not outlive it.
+	if did_generate {
+		super::utils::remove_thumbnail_variants(&thumbnails_dir, &book.id).await;
+	}
 
 	let thumbnail_metadata =
 		match generate_image_metadata_from_bytes(thumbnail.clone()).await {

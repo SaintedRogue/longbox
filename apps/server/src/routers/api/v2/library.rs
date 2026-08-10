@@ -5,7 +5,7 @@ use crate::{
 	utils::http::ImageResponse,
 };
 use axum::{
-	extract::{Path, State},
+	extract::{Path, Query as AxumQuery, State},
 	middleware,
 	routing::get,
 	Extension, Router,
@@ -21,6 +21,7 @@ use models::{
 };
 use sea_orm::{prelude::*, QueryOrder};
 
+use super::media::{apply_thumbnail_variant, ThumbnailQuery};
 use super::series::get_series_thumbnail;
 
 pub(crate) fn mount(app_state: AppState) -> Router<AppState> {
@@ -75,6 +76,7 @@ async fn get_library_thumbnail_handler(
 	Path(id): Path<String>,
 	State(ctx): State<AppState>,
 	Extension(req): Extension<AuthContext>,
+	AxumQuery(params): AxumQuery<ThumbnailQuery>,
 ) -> APIResult<ImageResponse> {
 	let user = req.user();
 	let (library, library_config) = library::Entity::find_for_user(&user)
@@ -118,7 +120,7 @@ async fn get_library_thumbnail_handler(
 
 	let image_options = library_config.and_then(|o| o.thumbnail_config);
 
-	get_library_thumbnail(
+	let response = get_library_thumbnail(
 		&library,
 		first_series,
 		first_book,
@@ -126,5 +128,6 @@ async fn get_library_thumbnail_handler(
 		ctx.config.as_ref(),
 		ctx.conn.as_ref(),
 	)
-	.await
+	.await?;
+	Ok(apply_thumbnail_variant(&ctx, &library.id, params.width, response).await)
 }

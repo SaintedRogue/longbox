@@ -1,5 +1,5 @@
 use axum::{
-	extract::{Path, State},
+	extract::{Path, Query as AxumQuery, State},
 	middleware,
 	routing::get,
 	Extension, Router,
@@ -15,6 +15,7 @@ use models::{
 };
 use sea_orm::{prelude::*, sea_query::Query, QueryOrder};
 
+use super::media::{apply_thumbnail_variant, ThumbnailQuery};
 use crate::{
 	config::state::AppState,
 	errors::{APIError, APIResult},
@@ -75,6 +76,7 @@ async fn get_series_thumbnail_handler(
 	Path(id): Path<String>,
 	State(ctx): State<AppState>,
 	Extension(req): Extension<AuthContext>,
+	AxumQuery(params): AxumQuery<ThumbnailQuery>,
 ) -> APIResult<ImageResponse> {
 	let user = req.user();
 	let series = series::Entity::find_for_user(&user)
@@ -118,12 +120,13 @@ async fn get_series_thumbnail_handler(
 		.await?;
 	let image_options = library_config.and_then(|o| o.thumbnail_config);
 
-	get_series_thumbnail(
+	let response = get_series_thumbnail(
 		&series,
 		first_book,
 		image_options,
 		ctx.config.as_ref(),
 		ctx.conn.as_ref(),
 	)
-	.await
+	.await?;
+	Ok(apply_thumbnail_variant(&ctx, &series.id, params.width, response).await)
 }

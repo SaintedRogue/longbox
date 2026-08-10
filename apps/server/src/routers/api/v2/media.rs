@@ -1,5 +1,5 @@
 use axum::{
-	extract::{Path, State},
+	extract::{Path, Query as AxumQuery, State},
 	http::HeaderMap,
 	middleware,
 	response::IntoResponse,
@@ -11,7 +11,7 @@ use longbox_core::{
 	config::LongboxConfig,
 	filesystem::{
 		get_saved_thumbnail, get_thumbnail,
-		image::{generate_book_thumbnail, GenerateThumbnailOptions},
+		image::{generate_book_thumbnail, thumbnail_variant, GenerateThumbnailOptions},
 		media::get_page_async,
 		ContentType, FileError,
 	},
@@ -27,8 +27,47 @@ use crate::{
 	config::state::AppState,
 	errors::{APIError, APIResult},
 	middleware::auth::auth_middleware,
-	utils::{http::ImageResponse, serve_media},
+	utils::{
+		http::{ImageCachePolicy, ImageResponse},
+		serve_media,
+	},
 };
+
+/// Optional sizing for thumbnail routes: `?width=` restricted to
+/// [`longbox_core::filesystem::image::THUMBNAIL_VARIANT_WIDTHS`]. Anything else
+/// serves the full thumbnail unchanged.
+#[derive(serde::Deserialize)]
+pub(crate) struct ThumbnailQuery {
+	pub width: Option<u32>,
+}
+
+/// Swap a thumbnail response for its width variant when one was requested and
+/// can be (or already is) derived. Failure stand-ins are never resized — they
+/// must stay no-store and be retried, not cached under a variant name.
+pub(crate) async fn apply_thumbnail_variant(
+	ctx: &Ctx,
+	entity_id: &str,
+	width: Option<u32>,
+	response: ImageResponse,
+) -> ImageResponse {
+	let Some(width) = width else {
+		return response;
+	};
+	if response.policy != ImageCachePolicy::Derived {
+		return response;
+	}
+	match thumbnail_variant(
+		&ctx.config.get_thumbnails_dir(),
+		entity_id,
+		width,
+		&response.data,
+	)
+	.await
+	{
+		Some(bytes) => ImageResponse::new(ContentType::WEBP, bytes),
+		None => response,
+	}
+}
 
 pub(crate) fn mount(app_state: AppState) -> Router<AppState> {
 	Router::new()
@@ -178,8 +217,10 @@ pub(crate) async fn get_media_thumbnail_handler(
 	Path(id): Path<String>,
 	State(ctx): State<AppState>,
 	Extension(req): Extension<AuthContext>,
+	AxumQuery(params): AxumQuery<ThumbnailQuery>,
 ) -> APIResult<ImageResponse> {
-	get_media_thumbnail_by_id(&ctx, &req.user(), id).await
+	let response = get_media_thumbnail_by_id(&ctx, &req.user(), id.clone()).await?;
+	Ok(apply_thumbnail_variant(&ctx, &id, params.width, response).await)
 }
 
 async fn get_media_page(
