@@ -7,7 +7,7 @@ import {
 	UserPermission,
 } from '@longbox/graphql'
 import { useLocaleContext } from '@longbox/i18n'
-import { Book, Home } from 'lucide-react'
+import { Book, BookCopy, Home } from 'lucide-react'
 import { Suspense, useCallback, useMemo } from 'react'
 import { useLocation } from 'react-router'
 import { useDimensionsRef } from 'rooks'
@@ -109,6 +109,16 @@ export default function TopNavigation() {
 					>
 						<Book className="mr-2 h-4 w-4 shrink-0" />
 						{t('sidebar.buttons.books')}
+					</TopBarNavLink>
+				))
+				.with(SystemArrangement.Series, () => (
+					<TopBarNavLink
+						key="series-topbar-navlink"
+						to={paths.series()}
+						isActive={location.pathname === paths.series()}
+					>
+						<BookCopy className="mr-2 h-4 w-4 shrink-0" />
+						{t('sidebar.buttons.series')}
 					</TopBarNavLink>
 				))
 				.with(SystemArrangement.Libraries, () => (

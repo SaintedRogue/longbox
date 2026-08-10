@@ -8,7 +8,7 @@ import {
 } from '@longbox/graphql'
 import { useLocaleContext } from '@longbox/i18n'
 import { motion } from 'framer-motion'
-import { Book, CalendarDays, Download, Home, Rss, Users } from 'lucide-react'
+import { Book, BookCopy, CalendarDays, Download, Home, Rss, Users } from 'lucide-react'
 import { Suspense, useCallback, useMemo } from 'react'
 import { useLocation } from 'react-router'
 import { useMediaMatch } from 'rooks'
@@ -128,6 +128,16 @@ export default function SideBar({ asChild, hidden }: Props) {
 					>
 						<Book className="mr-2 h-4 w-4 shrink-0" />
 						{t('sidebar.buttons.books')}
+					</SideBarButtonLink>
+				))
+				.with(SystemArrangement.Series, () => (
+					<SideBarButtonLink
+						key="series-sidebar-navlink"
+						to={paths.series()}
+						isActive={location.pathname === paths.series()}
+					>
+						<BookCopy className="mr-2 h-4 w-4 shrink-0" />
+						{t('sidebar.buttons.series')}
 					</SideBarButtonLink>
 				))
 				.with(SystemArrangement.Libraries, () => (

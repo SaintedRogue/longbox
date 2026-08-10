@@ -5298,6 +5298,7 @@ export enum SystemArrangement {
   Explore = 'EXPLORE',
   Home = 'HOME',
   Libraries = 'LIBRARIES',
+  Series = 'SERIES',
   SmartLists = 'SMART_LISTS'
 }
 
@@ -5649,6 +5650,11 @@ export type UserPreferences = {
   interfaceRoundness: InterfaceRoundness;
   layoutMaxWidthPx?: Maybe<Scalars['Int']['output']>;
   locale: Scalars['String']['output'];
+  /**
+   * A stored arrangement is reconciled against the current set of system
+   * sections on read, so a newly added one shows up for users who customised
+   * their navigation before it existed. Their order and visibility are kept.
+   */
   navigationArrangement: Arrangement;
   preferAccentColor: Scalars['Boolean']['output'];
   preferredLayoutMode: InterfaceLayout;
@@ -5769,7 +5775,7 @@ export type MediaFilterFormQueryVariables = Exact<{
 }>;
 
 
-export type MediaFilterFormQuery = { __typename?: 'Query', mediaMetadataOverview: { __typename?: 'MediaMetadataOverview', genres: Array<string>, writers: Array<string>, pencillers: Array<string>, colorists: Array<string>, letterers: Array<string>, inkers: Array<string>, publishers: Array<string>, editors: Array<string>, characters: Array<string> } };
+export type MediaFilterFormQuery = { __typename?: 'Query', mediaMetadataOverview: { __typename?: 'MediaMetadataOverview', genres: Array<string>, writers: Array<string>, pencillers: Array<string>, colorists: Array<string>, letterers: Array<string>, inkers: Array<string>, publishers: Array<string>, editors: Array<string>, characters: Array<string>, teams: Array<string>, coverArtists: Array<string>, series: Array<string> } };
 
 export type DeleteLibraryMutationVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -8262,6 +8268,9 @@ export const MediaFilterFormDocument = new TypedDocumentString(`
     publishers
     editors
     characters
+    teams
+    coverArtists
+    series
   }
 }
     `) as unknown as TypedDocumentString<MediaFilterFormQuery, MediaFilterFormQueryVariables>;

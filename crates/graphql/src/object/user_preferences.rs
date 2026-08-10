@@ -24,10 +24,14 @@ impl UserPreferences {
 			.unwrap_or(Arrangement::default_home())
 	}
 
+	/// A stored arrangement is reconciled against the current set of system
+	/// sections on read, so a newly added one shows up for users who customised
+	/// their navigation before it existed. Their order and visibility are kept.
 	async fn navigation_arrangement(&self) -> Arrangement {
 		self.model
 			.navigation_arrangement
 			.clone()
+			.map(Arrangement::with_missing_system_sections)
 			.unwrap_or(Arrangement::default_navigation())
 	}
 }

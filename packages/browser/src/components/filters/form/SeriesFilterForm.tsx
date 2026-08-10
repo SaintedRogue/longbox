@@ -8,6 +8,7 @@ import z from 'zod'
 import { useSeriesFilterContext } from '../context'
 import AgeRatingFilter from './AgeRatingFilter'
 import GenericFilterMultiselect from './GenericFilterMultiselect'
+import NumericRangeFilter, { numericRangeToFilter } from './NumericRangeFilter'
 
 const DEFAULT_STATUS_OPTIONS = [
 	{
@@ -20,6 +21,14 @@ const DEFAULT_STATUS_OPTIONS = [
 	},
 ]
 
+/**
+ * `metaType` used to be carried here -- in the schema, the defaults and the
+ * GraphQL mapping -- with no control ever rendered for it, so it read like a
+ * working filter that could never be set. It is removed rather than wired up:
+ * there is no overview query to source its options from, unlike the media form
+ * which has `mediaMetadataOverview`. The backend filter still exists and is
+ * reachable through smart lists and the API.
+ */
 const schema = z.object({
 	metadata: z
 		.object({
@@ -28,8 +37,9 @@ const schema = z.object({
 				.optional()
 				.nullable()
 				.refine((val) => val == null || (val >= 0 && val <= 18)),
-			metaType: z.array(z.string()).optional(),
 			status: z.array(z.string()).optional(),
+			yearFrom: z.number().optional().nullable(),
+			yearTo: z.number().optional().nullable(),
 		})
 		.optional(),
 })
@@ -43,8 +53,9 @@ export default function SeriesFilterForm() {
 			({
 				metadata: {
 					ageRating: filters?.metadata?.ageRating?.gte ?? null,
-					metaType: filters?.metadata?.metaType?.likeAnyOf ?? [],
 					status: filters?.metadata?.status?.likeAnyOf ?? [],
+					yearFrom: filters?.metadata?.year?.range?.from ?? filters?.metadata?.year?.gte ?? null,
+					yearTo: filters?.metadata?.year?.range?.to ?? filters?.metadata?.year?.lte ?? null,
 				},
 			}) satisfies SeriesFilterFormSchema,
 		[filters],
@@ -84,6 +95,13 @@ export default function SeriesFilterForm() {
 			/>
 
 			<AgeRatingFilter variant="series" />
+
+			<NumericRangeFilter
+				fromName="metadata.yearFrom"
+				toName="metadata.yearTo"
+				label="Publication year"
+				description="Leave either side blank for an open-ended range"
+			/>
 		</Form>
 	)
 }
@@ -96,15 +114,11 @@ const intoGraphql = (values: SeriesFilterFormSchema) =>
 						gte: values.metadata.ageRating,
 					}
 				: undefined,
-			metaType: values.metadata?.metaType
-				? {
-						likeAnyOf: values.metadata.metaType,
-					}
-				: undefined,
 			status: values.metadata?.status
 				? {
 						likeAnyOf: values.metadata.status,
 					}
 				: undefined,
+			year: numericRangeToFilter(values.metadata?.yearFrom, values.metadata?.yearTo),
 		},
 	}) as SeriesFilterInput

@@ -32,9 +32,29 @@ fn default_true() -> bool {
 pub enum SystemArrangement {
 	Home,
 	Explore,
+	Series,
 	Libraries,
 	SmartLists,
 	BookClubs,
+}
+
+impl SystemArrangement {
+	/// The quick-action links a section carries when it is first created.
+	///
+	/// Only the variants you can create something in get one - there is no
+	/// "create a series", they come from scanning a library.
+	pub fn default_links(&self) -> Vec<FilterableArrangementEntityLink> {
+		match self {
+			SystemArrangement::Libraries
+			| SystemArrangement::SmartLists
+			| SystemArrangement::BookClubs => {
+				vec![FilterableArrangementEntityLink::Create]
+			},
+			SystemArrangement::Home
+			| SystemArrangement::Explore
+			| SystemArrangement::Series => vec![],
+		}
+	}
 }
 
 #[derive(
@@ -247,6 +267,13 @@ impl Arrangement {
 				},
 				ArrangementSection {
 					config: ArrangementConfig::System(SystemArrangementConfig {
+						variant: SystemArrangement::Series,
+						links: vec![],
+					}),
+					visible: true,
+				},
+				ArrangementSection {
+					config: ArrangementConfig::System(SystemArrangementConfig {
 						variant: SystemArrangement::Libraries,
 						links: vec![FilterableArrangementEntityLink::Create],
 					}),
@@ -267,6 +294,166 @@ impl Arrangement {
 					visible: true,
 				},
 			],
+		}
+	}
+
+	/// Append any system sections this arrangement has never heard of.
+	///
+	/// A user's navigation arrangement is persisted the moment they reorder or
+	/// hide anything, which freezes the set of sections they had at the time.
+	/// Adding a `SystemArrangement` variant would otherwise be invisible to every
+	/// existing user forever - their stored JSON simply has no entry for it.
+	///
+	/// New sections are appended rather than inserted at their default position:
+	/// the stored order is a deliberate choice by the user, and shuffling it to
+	/// match a new default would be a worse surprise than a new item at the end.
+	/// Existing sections keep their order, visibility and links untouched.
+	pub fn with_missing_system_sections(mut self) -> Arrangement {
+		// sea-orm's `Iterable`, not strum's `IntoEnumIterator`: the `EnumIter`
+		// derive on `SystemArrangement` comes from sea-orm, and there is more than
+		// one strum version in the dependency graph.
+		use sea_orm::Iterable;
+
+		let present = self
+			.sections
+			.iter()
+			.filter_map(|section| match &section.config {
+				ArrangementConfig::System(config) => Some(config.variant),
+				_ => None,
+			})
+			.collect::<std::collections::HashSet<_>>();
+
+		for variant in SystemArrangement::iter() {
+			if !present.contains(&variant) {
+				self.sections.push(ArrangementSection {
+					config: ArrangementConfig::System(SystemArrangementConfig {
+						variant,
+						links: variant.default_links(),
+					}),
+					visible: true,
+				});
+			}
+		}
+
+		self
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	fn system_section(
+		variant: SystemArrangement,
+		visible: bool,
+		links: Vec<FilterableArrangementEntityLink>,
+	) -> ArrangementSection {
+		ArrangementSection {
+			config: ArrangementConfig::System(SystemArrangementConfig { variant, links }),
+			visible,
+		}
+	}
+
+	fn variants_of(arrangement: &Arrangement) -> Vec<SystemArrangement> {
+		arrangement
+			.sections
+			.iter()
+			.filter_map(|section| match &section.config {
+				ArrangementConfig::System(config) => Some(config.variant),
+				_ => None,
+			})
+			.collect()
+	}
+
+	/// The case that motivated this: a user customised their navigation before
+	/// `Series` existed, so their stored arrangement has no entry for it and
+	/// would never grow one.
+	#[test]
+	fn test_missing_system_section_is_appended() {
+		let stored = Arrangement {
+			locked: false,
+			sections: vec![
+				system_section(SystemArrangement::Libraries, true, vec![]),
+				system_section(SystemArrangement::Home, true, vec![]),
+			],
+		};
+
+		let reconciled = stored.with_missing_system_sections();
+		let variants = variants_of(&reconciled);
+
+		// The user's own order survives - Libraries before Home, not the default.
+		assert_eq!(variants[0], SystemArrangement::Libraries);
+		assert_eq!(variants[1], SystemArrangement::Home);
+		assert!(variants.contains(&SystemArrangement::Series));
+		assert!(variants.contains(&SystemArrangement::BookClubs));
+	}
+
+	#[test]
+	fn test_reconciliation_preserves_visibility_and_links() {
+		let stored = Arrangement {
+			locked: false,
+			sections: vec![
+				// Deliberately hidden, and stripped of its create link.
+				system_section(SystemArrangement::BookClubs, false, vec![]),
+			],
+		};
+
+		let reconciled = stored.with_missing_system_sections();
+		let book_clubs = reconciled
+			.sections
+			.iter()
+			.find(|section| match &section.config {
+				ArrangementConfig::System(c) => c.variant == SystemArrangement::BookClubs,
+				_ => false,
+			})
+			.expect("book clubs section missing");
+
+		assert!(!book_clubs.visible, "a hidden section must stay hidden");
+		match &book_clubs.config {
+			ArrangementConfig::System(c) => assert!(
+				c.links.is_empty(),
+				"reconciliation must not re-add links the user removed"
+			),
+			_ => panic!("expected a system section"),
+		}
+	}
+
+	#[test]
+	fn test_reconciliation_is_idempotent() {
+		let once = Arrangement::default_navigation().with_missing_system_sections();
+		let twice = once.clone().with_missing_system_sections();
+
+		assert_eq!(
+			once.sections.len(),
+			twice.sections.len(),
+			"running twice must not duplicate sections"
+		);
+	}
+
+	/// Newly added variants carry the links they would have had by default, so a
+	/// backfilled Libraries section still offers "create".
+	#[test]
+	fn test_backfilled_sections_get_their_default_links() {
+		let stored = Arrangement {
+			locked: false,
+			sections: vec![system_section(SystemArrangement::Home, true, vec![])],
+		};
+
+		let reconciled = stored.with_missing_system_sections();
+		let libraries = reconciled
+			.sections
+			.iter()
+			.find(|section| match &section.config {
+				ArrangementConfig::System(c) => c.variant == SystemArrangement::Libraries,
+				_ => false,
+			})
+			.expect("libraries section missing");
+
+		match &libraries.config {
+			ArrangementConfig::System(c) => {
+				assert_eq!(c.links, vec![FilterableArrangementEntityLink::Create])
+			},
+			_ => panic!("expected a system section"),
 		}
 	}
 }

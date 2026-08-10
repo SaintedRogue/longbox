@@ -89,9 +89,11 @@ export default function NavigationArrangementItem({
 		return null
 	}
 
-	const isConfigurableSection = ![SystemArrangement.Home, SystemArrangement.Explore].includes(
-		section.config.variant,
-	)
+	const isConfigurableSection = ![
+		SystemArrangement.Home,
+		SystemArrangement.Explore,
+		SystemArrangement.Series,
+	].includes(section.config.variant)
 
 	return (
 		<div
