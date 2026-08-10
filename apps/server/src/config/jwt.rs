@@ -1,5 +1,3 @@
-use std::sync::OnceLock;
-
 use chrono::{DateTime, Duration, FixedOffset, Utc};
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
 use longbox_core::config::LongboxConfig;
@@ -12,19 +10,16 @@ use crate::{
 	errors::{APIError, APIResult},
 };
 
-/// The secret used to sign the JWT tokens. If unset, will query the database
-/// for the value and cache it for consecutive calls
-static ACCESS_TOKEN_SECRET: OnceLock<String> = OnceLock::new();
-
-/// The secret used to sign the JWT refresh tokens. If unset, will query the database
-/// for the value and cache it for consecutive calls
-static REFRESH_TOKEN_SECRET: OnceLock<String> = OnceLock::new();
+// The secrets are read from the database on every call — deliberately UNCACHED.
+// They were once memoized in process-wide `OnceLock`s, but the process is not
+// the right scope: anything that runs multiple databases in one process (the
+// integration-test binary boots one per test, each with freshly generated
+// secrets) races the first read, and every loser signs tokens the winner's
+// cached secret can't validate — intermittent 401s that only reproduced under
+// CI load. A single-column point-read on the in-process database is microseconds
+// and buys correct scoping plus restart-free secret rotation.
 
 async fn get_access_token_secret(conn: &DatabaseConnection) -> APIResult<String> {
-	if let Some(secret) = ACCESS_TOKEN_SECRET.get() {
-		return Ok(secret.clone());
-	}
-
 	let Some(Some(secret)) = server_config::Entity::find()
 		.select_only()
 		.column(server_config::Column::JwtAccessSecret)
@@ -37,15 +32,10 @@ async fn get_access_token_secret(conn: &DatabaseConnection) -> APIResult<String>
 		));
 	};
 
-	let _ = ACCESS_TOKEN_SECRET.set(secret.clone());
 	Ok(secret)
 }
 
 async fn get_refresh_token_secret(conn: &DatabaseConnection) -> APIResult<String> {
-	if let Some(secret) = REFRESH_TOKEN_SECRET.get() {
-		return Ok(secret.clone());
-	}
-
 	let Some(Some(refresh_secret)) = server_config::Entity::find()
 		.select_only()
 		.column(server_config::Column::JwtRefreshSecret)
@@ -58,7 +48,6 @@ async fn get_refresh_token_secret(conn: &DatabaseConnection) -> APIResult<String
 		));
 	};
 
-	let _ = REFRESH_TOKEN_SECRET.set(refresh_secret.clone());
 	Ok(refresh_secret)
 }
 
@@ -251,8 +240,6 @@ mod tests {
 
 	use super::*;
 
-	// note that the once locks are static and won't reset between tests, so ordering matters here
-
 	async fn setup_db(
 		access_secret: Option<&str>,
 		refresh_secret: Option<&str>,
@@ -319,22 +306,31 @@ mod tests {
 	}
 
 	#[tokio::test]
-	async fn test_secrets_cached_after_first_retrieval() {
-		let db = setup_db(Some("access-secret-abc"), Some("refresh-secret-abc")).await;
+	async fn test_secrets_are_scoped_to_the_database() {
+		// Regression: secrets were once cached in process-wide statics, so two
+		// databases with different secrets in one process cross-validated each
+		// other's tokens (or spuriously 401'd, depending on who cached first).
+		let db_a = setup_db(Some("access-secret-a"), Some("refresh-secret-a")).await;
+		let db_b = setup_db(Some("access-secret-b"), Some("refresh-secret-b")).await;
 		let config = test_config();
-		let user = fake_data::User::new("test-user-cached").insert(&db).await;
+		let user_a = fake_data::User::new("user-a").insert(&db_a).await;
 
-		create_jwt_auth(&user.id, &db, &config)
+		let pair = create_jwt_auth(&user_a.id, &db_a, &config)
 			.await
 			.expect("Failed to create JWT pair");
 
+		// The issuing database validates its own token…
+		let extracted = extract_user_from_jwt(&pair.access_token, &db_a)
+			.await
+			.expect("own-database validation must succeed");
+		assert_eq!(extracted, user_a.id);
+		// …and a database with different secrets must reject it.
 		assert!(
-			ACCESS_TOKEN_SECRET.get().is_some(),
-			"ACCESS_TOKEN_SECRET should be cached after first use"
-		);
-		assert!(
-			REFRESH_TOKEN_SECRET.get().is_some(),
-			"REFRESH_TOKEN_SECRET should be cached after first use"
+			matches!(
+				extract_user_from_jwt(&pair.access_token, &db_b).await,
+				Err(APIError::Unauthorized)
+			),
+			"a foreign database's secret must not validate this token"
 		);
 	}
 
