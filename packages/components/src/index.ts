@@ -28,7 +28,7 @@ export {
 	type NewCardProps,
 	type NewCardRowProps,
 } from './card'
-export { Command, type CommandProps } from './command'
+export { Command, CommandPrompt, type CommandProps } from './command'
 export { Divider, Spacer, type SpacerProps } from './container'
 export { ContextMenu, type ContextMenuProps } from './context-menu'
 export {

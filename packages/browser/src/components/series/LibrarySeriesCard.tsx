@@ -1,17 +1,77 @@
-import { LibrarySeriesQuery } from '@longbox/graphql'
+import { FragmentType, graphql, useFragment } from '@longbox/graphql'
 import { memo, useEffect, useRef, useState } from 'react'
 
 import { StackedSeriesCard } from '@/components/series'
 
 import pluralizeStat from '../../utils/pluralize'
 
-export type LibrarySeriesCardData = LibrarySeriesQuery['series']['nodes'][number]
+/**
+ * Extracted so the library-scoped and global series scenes render the same card
+ * from the same selection. It previously read its shape straight off
+ * `LibrarySeriesQuery`, which is exactly why a second query could not reuse it.
+ *
+ * `library` is selected here rather than by the caller because
+ * `showLibraryBadge` needs it, and a series always has one.
+ */
+export const SeriesGridCardFragment = graphql(`
+	fragment SeriesGridCard on Series {
+		id
+		resolvedName
+		mediaCount
+		percentageCompleted
+		status
+		# We fetch 2 and skip 1 because the first thumbnail _might_ be the same as the series thumbnail.
+		# See https://github.com/stumpapp/stump/issues/899
+		media(take: 2, skip: 1) {
+			id
+			thumbnail {
+				url
+				metadata {
+					averageColor
+					colors {
+						color
+						percentage
+					}
+					thumbhash
+				}
+			}
+		}
+		thumbnail {
+			url
+			metadata {
+				averageColor
+				colors {
+					color
+					percentage
+				}
+				thumbhash
+			}
+		}
+		library {
+			id
+			name
+		}
+	}
+`)
 
 type Props = {
-	data: LibrarySeriesCardData
+	fragment: FragmentType<typeof SeriesGridCardFragment>
+	/**
+	 * Append the owning library to the subtitle.
+	 *
+	 * Series are named after their leaf directory, so `Marvel/Hulk` and `DC/Hulk`
+	 * are two rows both called "Hulk". Callers turn this on only for names that
+	 * actually collide in the current result set - showing it unconditionally
+	 * would add noise to the overwhelmingly common unique case.
+	 */
+	showLibraryBadge?: boolean
 }
 
-const LibrarySeriesCard = memo(function LibrarySeriesCard({ data }: Props) {
+const LibrarySeriesCard = memo(function LibrarySeriesCard({
+	fragment,
+	showLibraryBadge = false,
+}: Props) {
+	const data = useFragment(SeriesGridCardFragment, fragment)
 	const containerRef = useRef<HTMLDivElement>(null)
 	const [width, setWidth] = useState<number | null>(null)
 
@@ -37,6 +97,9 @@ const LibrarySeriesCard = memo(function LibrarySeriesCard({ data }: Props) {
 	}, [])
 
 	const thumbnailData = [data.thumbnail, ...data.media.map((m) => m.thumbnail)]
+	const bookCount = pluralizeStat('book', data.mediaCount)
+	const subtitle =
+		showLibraryBadge && data.library ? `${bookCount} · ${data.library.name}` : bookCount
 
 	return (
 		<div ref={containerRef}>
@@ -44,7 +107,7 @@ const LibrarySeriesCard = memo(function LibrarySeriesCard({ data }: Props) {
 				<StackedSeriesCard
 					id={data.id}
 					name={data.resolvedName}
-					subtitle={pluralizeStat('book', data.mediaCount)}
+					subtitle={subtitle}
 					isMissing={data.status === 'MISSING'}
 					width={width}
 					thumbnailData={thumbnailData}

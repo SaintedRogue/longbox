@@ -12,6 +12,7 @@ import { useMediaMatch, useWindowSize } from 'rooks'
 import { toast } from 'sonner'
 
 import BackgroundFetchIndicator from '@/components/BackgroundFetchIndicator'
+import AppCommandPrompt from '@/components/command/AppCommandPrompt'
 import JobOverlay from '@/components/jobs/JobOverlay'
 import { MobileTopBar, SideBar, TopBar } from '@/components/navigation'
 import { SIDEBAR_WIDTH } from '@/components/navigation/sidebar'
@@ -272,6 +273,13 @@ export function AppLayout({ navigationType }: AppLayoutProps) {
 						}}
 					/>
 				)}
+				{/*
+				 * Mounted once for the whole app: CommandPrompt registers its own Cmd+K
+				 * keydown listener, so a per-scene instance would stack duplicates.
+				 * Suppressed alongside the rest of the chrome (e.g. in the reader),
+				 * where a navigation palette would be an interruption.
+				 */}
+				{!hideAllNavigation && <AppCommandPrompt />}
 				{!hideAllNavigation && <MobileTopBar />}
 				{!hideTopBar && <TopBar />}
 				<div className={cx('flex h-full flex-1', { 'pb-12': preferTopBar && !hideTopBar })}>

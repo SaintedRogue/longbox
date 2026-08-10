@@ -1,12 +1,12 @@
 mod api_key;
-mod author;
+pub(crate) mod author;
 mod book_club;
 mod book_club_book;
 mod book_club_discussion;
 mod book_club_invitation;
 mod book_club_suggestion;
 mod book_group;
-mod character;
+pub(crate) mod character;
 mod config;
 mod custom_emoji;
 mod email_device;
@@ -23,6 +23,7 @@ mod notifier;
 mod organize;
 pub(crate) mod reading_list;
 mod release_calendar;
+mod search;
 mod series;
 mod server_config;
 mod smart_list_view;
@@ -55,6 +56,7 @@ use notifier::NotifierQuery;
 use organize::OrganizeQuery;
 use reading_list::ReadingListQuery;
 use release_calendar::ReleaseCalendarQuery;
+use search::SearchQuery;
 use series::SeriesQuery;
 use server_config::ServerConfigQuery;
 use smart_list_view::SmartListViewQuery;
@@ -90,6 +92,7 @@ struct ContentQueries(
 	OrganizeQuery,
 	BookGroupQuery,
 	ReleaseCalendarQuery,
+	SearchQuery,
 );
 
 #[derive(async_graphql::MergedObject, Default)]

@@ -21,7 +21,6 @@ import {
 import {
 	DEFAULT_MEDIA_ORDER_BY,
 	useMediaURLOrderBy,
-	useSearchMediaFilter,
 	useURLKeywordSearch,
 	useURLPageParams,
 } from '@/components/filters/useFilterScene'
@@ -40,10 +39,11 @@ import { useSeriesContext } from '../../context'
 const query = graphql(`
 	query SeriesBooksScene(
 		$filter: MediaFilterInput!
+		$search: String
 		$orderBy: [MediaOrderBy!]!
 		$pagination: Pagination!
 	) {
-		media(filter: $filter, orderBy: $orderBy, pagination: $pagination) {
+		media(filter: $filter, search: $search, orderBy: $orderBy, pagination: $pagination) {
 			nodes {
 				id
 				...BookCard
@@ -74,8 +74,6 @@ export const usePrefetchSeriesBooks = () => {
 	const { sdk } = useSDK()
 	const { pageSize } = useURLPageParams()
 	const { search } = useURLKeywordSearch()
-	const searchFilter = useSearchMediaFilter(search)
-
 	const client = useQueryClient()
 
 	const prefetch = useCallback(
@@ -99,8 +97,8 @@ export const usePrefetchSeriesBooks = () => {
 						filter: {
 							seriesId: { eq: id },
 							_and: params.filter,
-							_or: searchFilter,
 						},
+						search,
 						orderBy: params.orderBy,
 						pagination: {
 							offset: {
@@ -113,7 +111,7 @@ export const usePrefetchSeriesBooks = () => {
 				staleTime: PREFETCH_STALE_TIME,
 			})
 		},
-		[client, search, searchFilter, pageSize, sdk],
+		[client, search, pageSize, sdk],
 	)
 
 	return prefetch
@@ -154,8 +152,6 @@ function SeriesBooksScene() {
 	const pageSize = pageSizeMaybeUndefined || 20 // Fallback to 20 if pageSize is undefined, this should never happen since we set a default in the useFilterScene hook
 	const orderBy = useMediaURLOrderBy(ordering)
 	const { search } = useURLKeywordSearch()
-	const searchFilter = useSearchMediaFilter(search)
-
 	const [containerRef, isInView] = useIsInView<HTMLDivElement>()
 
 	const previous = usePrevious(search)
@@ -246,8 +242,8 @@ function SeriesBooksScene() {
 			filter: {
 				seriesId: { eq: series.id },
 				_and: resolvedFilters,
-				_or: searchFilter,
 			},
+			search,
 			orderBy,
 			pagination: {
 				offset: {

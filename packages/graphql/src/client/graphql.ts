@@ -170,6 +170,19 @@ export enum AuthorRole {
   Primary = 'PRIMARY'
 }
 
+/**
+ * One entity type's slice of a unified search.
+ *
+ * `total_count` is the number of matches across the whole server, not the
+ * length of `nodes` -- the caller uses it to decide whether to offer "N more"
+ * and to link into that type's own fully-paginated query.
+ */
+export type AuthorSearchGroup = {
+  __typename?: 'AuthorSearchGroup';
+  nodes: Array<Author>;
+  totalCount: Scalars['Int']['output'];
+};
+
 export type AuthorSeries = {
   __typename?: 'AuthorSeries';
   /** Authors who contributed to this series */
@@ -498,6 +511,19 @@ export enum CharacterOrdering {
   /** The character's name, compared case-insensitively */
   Name = 'NAME'
 }
+
+/**
+ * One entity type's slice of a unified search.
+ *
+ * `total_count` is the number of matches across the whole server, not the
+ * length of `nodes` -- the caller uses it to decide whether to offer "N more"
+ * and to link into that type's own fully-paginated query.
+ */
+export type CharacterSearchGroup = {
+  __typename?: 'CharacterSearchGroup';
+  nodes: Array<Character>;
+  totalCount: Scalars['Int']['output'];
+};
 
 export type CleanLibraryResponse = {
   __typename?: 'CleanLibraryResponse';
@@ -1430,6 +1456,19 @@ export type LibraryScanRecord = {
   timestamp: Scalars['DateTime']['output'];
 };
 
+/**
+ * One entity type's slice of a unified search.
+ *
+ * `total_count` is the number of matches across the whole server, not the
+ * length of `nodes` -- the caller uses it to decide whether to offer "N more"
+ * and to link into that type's own fully-paginated query.
+ */
+export type LibrarySearchGroup = {
+  __typename?: 'LibrarySearchGroup';
+  nodes: Array<Library>;
+  totalCount: Scalars['Int']['output'];
+};
+
 export type LibraryStats = {
   __typename?: 'LibraryStats';
   bookCount: Scalars['Int']['output'];
@@ -2009,6 +2048,19 @@ export type MediaOrderByField = {
 export type MediaProgressInput =
   { epub: EpubProgressInput; paged?: never; }
   |  { epub?: never; paged: PagedProgressInput; };
+
+/**
+ * One entity type's slice of a unified search.
+ *
+ * `total_count` is the number of matches across the whole server, not the
+ * length of `nodes` -- the caller uses it to decide whether to offer "N more"
+ * and to link into that type's own fully-paginated query.
+ */
+export type MediaSearchGroup = {
+  __typename?: 'MediaSearchGroup';
+  nodes: Array<Media>;
+  totalCount: Scalars['Int']['output'];
+};
 
 /** How to merge external metadata values onto existing entity metadata */
 export enum MergeStrategy {
@@ -3998,6 +4050,15 @@ export type Query = {
    */
   releaseCalendar: Array<CalendarDay>;
   scheduledJobs: Array<ScheduledJob>;
+  /**
+   * Search books, series, libraries, authors and characters in one request.
+   *
+   * This is a *preview* endpoint: each group is capped, and expanding one type
+   * means calling that type's own paginated query with the same search string
+   * rather than paginating here. That keeps the fan-out cheap and means
+   * expanding one group never refetches the others.
+   */
+  searchAll: SearchAllResult;
   series: PaginatedSeriesResponse;
   /** Returns the available alphabet for all series in the server */
   seriesAlphabet: Scalars['JSONObject']['output'];
@@ -4212,6 +4273,7 @@ export type QueryMediaArgs = {
   filter?: MediaFilterInput;
   orderBy?: Array<MediaOrderBy>;
   pagination?: Pagination;
+  search?: InputMaybe<Scalars['String']['input']>;
 };
 
 
@@ -4300,10 +4362,17 @@ export type QueryReleaseCalendarArgs = {
 };
 
 
+export type QuerySearchAllArgs = {
+  limitPerType?: Scalars['Int']['input'];
+  query: Scalars['String']['input'];
+};
+
+
 export type QuerySeriesArgs = {
   filter?: SeriesFilterInput;
   orderBy?: Array<SeriesOrderBy>;
   pagination?: Pagination;
+  search?: InputMaybe<Scalars['String']['input']>;
 };
 
 
@@ -4641,6 +4710,24 @@ export enum ScheduledJobKind {
   ReleaseCalendarSync = 'RELEASE_CALENDAR_SYNC'
 }
 
+/**
+ * The result of a unified search: one capped group per entity type.
+ *
+ * Grouped rather than a flat union of results, because the five sources cannot
+ * share a pagination scheme. Books, series and libraries paginate in SQL, while
+ * characters and authors are tallied from CSV metadata columns into a HashMap
+ * and paginated in memory. A single interleaved list would have to materialise
+ * all five on every page request to order them consistently.
+ */
+export type SearchAllResult = {
+  __typename?: 'SearchAllResult';
+  authors: AuthorSearchGroup;
+  characters: CharacterSearchGroup;
+  libraries: LibrarySearchGroup;
+  media: MediaSearchGroup;
+  series: SeriesSearchGroup;
+};
+
 export type SendAttachmentEmailOutput = {
   __typename?: 'SendAttachmentEmailOutput';
   errors: Array<Scalars['String']['output']>;
@@ -4903,6 +4990,19 @@ export type SeriesScanOutput = {
   totalFiles: Scalars['Int']['output'];
   /** The number of media entities that were updated */
   updatedMedia: Scalars['Int']['output'];
+};
+
+/**
+ * One entity type's slice of a unified search.
+ *
+ * `total_count` is the number of matches across the whole server, not the
+ * length of `nodes` -- the caller uses it to decide whether to offer "N more"
+ * and to link into that type's own fully-paginated query.
+ */
+export type SeriesSearchGroup = {
+  __typename?: 'SeriesSearchGroup';
+  nodes: Array<Series>;
+  totalCount: Scalars['Int']['output'];
 };
 
 export type SeriesStats = {
@@ -5481,7 +5581,7 @@ export type BookCardFragment = { __typename?: 'Media', id: string, resolvedName:
 
 export type BookSearchOverlayQueryVariables = Exact<{
   pagination?: InputMaybe<Pagination>;
-  filter: MediaFilterInput;
+  search?: InputMaybe<Scalars['String']['input']>;
 }>;
 
 
@@ -5599,6 +5699,8 @@ export type LibraryBooksAlphabetQueryVariables = Exact<{
 
 
 export type LibraryBooksAlphabetQuery = { __typename?: 'Query', libraryById?: { __typename?: 'Library', mediaAlphabet: any } | null };
+
+export type LibraryCardFragment = { __typename?: 'Library', id: string, name: string, emoji?: string | null, stats: { __typename?: 'LibraryStats', seriesCount: number, bookCount: number } } & { ' $fragmentName'?: 'LibraryCardFragment' };
 
 export type LibrarySeriesAlphabetQueryVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -5832,6 +5934,8 @@ export type DeleteBookmarkByEpubcfiMutationVariables = Exact<{
 
 export type DeleteBookmarkByEpubcfiMutation = { __typename?: 'Mutation', deleteBookmarkByEpubcfi: { __typename: 'Bookmark' } };
 
+export type SeriesGridCardFragment = { __typename?: 'Series', id: string, resolvedName: string, mediaCount: number, percentageCompleted: number, status: FileStatus, media: Array<{ __typename?: 'Media', id: string, thumbnail: { __typename?: 'ImageRef', url: string, metadata?: { __typename?: 'ImageMetadata', averageColor?: string | null, thumbhash?: string | null, colors: Array<{ __typename?: 'ImageColor', color: string, percentage: any }> } | null } }>, thumbnail: { __typename?: 'ImageRef', url: string, metadata?: { __typename?: 'ImageMetadata', averageColor?: string | null, thumbhash?: string | null, colors: Array<{ __typename?: 'ImageColor', color: string, percentage: any }> } | null }, library: { __typename?: 'Library', id: string, name: string } } & { ' $fragmentName'?: 'SeriesGridCardFragment' };
+
 export type SeriesBooksAlphabetQueryVariables = Exact<{
   id: Scalars['ID']['input'];
 }>;
@@ -6053,6 +6157,7 @@ export type RemoveBookClubMemberMutation = { __typename?: 'Mutation', removeBook
 
 export type BookSearchSceneQueryVariables = Exact<{
   filter: MediaFilterInput;
+  search?: InputMaybe<Scalars['String']['input']>;
   orderBy: Array<MediaOrderBy> | MediaOrderBy;
   pagination: Pagination;
 }>;
@@ -6186,6 +6291,7 @@ export type VisitLibraryMutation = { __typename?: 'Mutation', visitLibrary: { __
 
 export type LibraryBooksSceneQueryVariables = Exact<{
   filter: MediaFilterInput;
+  search?: InputMaybe<Scalars['String']['input']>;
   orderBy: Array<MediaOrderBy> | MediaOrderBy;
   pagination: Pagination;
 }>;
@@ -6222,12 +6328,16 @@ export type LibraryCollectionsDetectMutation = { __typename?: 'Mutation', detect
 
 export type LibrarySeriesQueryVariables = Exact<{
   filter: SeriesFilterInput;
+  search?: InputMaybe<Scalars['String']['input']>;
   orderBy: Array<SeriesOrderBy> | SeriesOrderBy;
   pagination: Pagination;
 }>;
 
 
-export type LibrarySeriesQuery = { __typename?: 'Query', series: { __typename?: 'PaginatedSeriesResponse', nodes: Array<{ __typename?: 'Series', id: string, resolvedName: string, mediaCount: number, percentageCompleted: number, status: FileStatus, media: Array<{ __typename?: 'Media', id: string, thumbnail: { __typename?: 'ImageRef', url: string, metadata?: { __typename?: 'ImageMetadata', averageColor?: string | null, thumbhash?: string | null, colors: Array<{ __typename?: 'ImageColor', color: string, percentage: any }> } | null } }>, thumbnail: { __typename?: 'ImageRef', url: string, metadata?: { __typename?: 'ImageMetadata', averageColor?: string | null, thumbhash?: string | null, colors: Array<{ __typename?: 'ImageColor', color: string, percentage: any }> } | null } }>, pageInfo: { __typename: 'CursorPaginationInfo' } | { __typename: 'OffsetPaginationInfo', totalPages: number, currentPage: number, pageSize: number, pageOffset: number, zeroBased: boolean } } };
+export type LibrarySeriesQuery = { __typename?: 'Query', series: { __typename?: 'PaginatedSeriesResponse', nodes: Array<(
+      { __typename?: 'Series', id: string, resolvedName: string, mediaCount: number, percentageCompleted: number, status: FileStatus }
+      & { ' $fragmentRefs'?: { 'SeriesGridCardFragment': SeriesGridCardFragment } }
+    )>, pageInfo: { __typename: 'CursorPaginationInfo' } | { __typename: 'OffsetPaginationInfo', totalPages: number, currentPage: number, pageSize: number, pageOffset: number, zeroBased: boolean } } };
 
 export type LibrarySeriesGridQueryVariables = Exact<{
   id: Scalars['String']['input'];
@@ -6436,6 +6546,37 @@ export type LibraryUploadSectionUploadBooksMutationVariables = Exact<{
 
 export type LibraryUploadSectionUploadBooksMutation = { __typename?: 'Mutation', uploadBooks: boolean };
 
+export type LibrarySearchSceneQueryVariables = Exact<{
+  search?: InputMaybe<Scalars['String']['input']>;
+  pagination: Pagination;
+}>;
+
+
+export type LibrarySearchSceneQuery = { __typename?: 'Query', libraries: { __typename?: 'PaginatedLibraryResponse', nodes: Array<(
+      { __typename?: 'Library', id: string }
+      & { ' $fragmentRefs'?: { 'LibraryCardFragment': LibraryCardFragment } }
+    )>, pageInfo: { __typename: 'CursorPaginationInfo' } | { __typename: 'OffsetPaginationInfo', currentPage: number, totalPages: number } } };
+
+export type GlobalSearchQueryVariables = Exact<{
+  query: Scalars['String']['input'];
+  limitPerType: Scalars['Int']['input'];
+}>;
+
+
+export type GlobalSearchQuery = { __typename?: 'Query', searchAll: { __typename?: 'SearchAllResult', media: { __typename?: 'MediaSearchGroup', totalCount: number, nodes: Array<(
+        { __typename?: 'Media', id: string }
+        & { ' $fragmentRefs'?: { 'BookCardFragment': BookCardFragment } }
+      )> }, series: { __typename?: 'SeriesSearchGroup', totalCount: number, nodes: Array<(
+        { __typename?: 'Series', id: string, resolvedName: string }
+        & { ' $fragmentRefs'?: { 'SeriesGridCardFragment': SeriesGridCardFragment } }
+      )> }, libraries: { __typename?: 'LibrarySearchGroup', totalCount: number, nodes: Array<(
+        { __typename?: 'Library', id: string }
+        & { ' $fragmentRefs'?: { 'LibraryCardFragment': LibraryCardFragment } }
+      )> }, characters: { __typename?: 'CharacterSearchGroup', totalCount: number, nodes: Array<(
+        { __typename?: 'Character', name: string }
+        & { ' $fragmentRefs'?: { 'CharacterCardFragment': CharacterCardFragment } }
+      )> }, authors: { __typename?: 'AuthorSearchGroup', totalCount: number, nodes: Array<{ __typename?: 'Author', name: string }> } } };
+
 export type SeriesActionCompleteMutationVariables = Exact<{
   id: Scalars['ID']['input'];
 }>;
@@ -6482,6 +6623,7 @@ export type SeriesOverviewSheetExtasQuery = { __typename?: 'Query', seriesById?:
 
 export type SeriesBooksSceneQueryVariables = Exact<{
   filter: MediaFilterInput;
+  search?: InputMaybe<Scalars['String']['input']>;
   orderBy: Array<MediaOrderBy> | MediaOrderBy;
   pagination: Pagination;
 }>;
@@ -6553,6 +6695,24 @@ export type SeriesThumbnailSelectorUploadMutationVariables = Exact<{
 
 
 export type SeriesThumbnailSelectorUploadMutation = { __typename?: 'Mutation', uploadSeriesThumbnail: { __typename?: 'Series', id: string, thumbnail: { __typename?: 'ImageRef', url: string } } };
+
+export type SeriesSearchAlphabetQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type SeriesSearchAlphabetQuery = { __typename?: 'Query', seriesAlphabet: any };
+
+export type SeriesSearchSceneQueryVariables = Exact<{
+  filter: SeriesFilterInput;
+  search?: InputMaybe<Scalars['String']['input']>;
+  orderBy: Array<SeriesOrderBy> | SeriesOrderBy;
+  pagination: Pagination;
+}>;
+
+
+export type SeriesSearchSceneQuery = { __typename?: 'Query', series: { __typename?: 'PaginatedSeriesResponse', nodes: Array<(
+      { __typename?: 'Series', id: string, resolvedName: string, mediaCount: number, percentageCompleted: number, status: FileStatus }
+      & { ' $fragmentRefs'?: { 'SeriesGridCardFragment': SeriesGridCardFragment } }
+    )>, pageInfo: { __typename: 'CursorPaginationInfo' } | { __typename: 'OffsetPaginationInfo', totalPages: number, currentPage: number, pageSize: number, pageOffset: number, zeroBased: boolean } } };
 
 export type ApiKeyTableQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -7250,6 +7410,17 @@ export const BookClubBookItemFragmentDoc = new TypedDocumentString(`
   addedAt
 }
     `, {"fragmentName":"BookClubBookItem"}) as unknown as TypedDocumentString<BookClubBookItemFragment, unknown>;
+export const LibraryCardFragmentDoc = new TypedDocumentString(`
+    fragment LibraryCard on Library {
+  id
+  name
+  emoji
+  stats {
+    seriesCount
+    bookCount
+  }
+}
+    `, {"fragmentName":"LibraryCard"}) as unknown as TypedDocumentString<LibraryCardFragment, unknown>;
 export const PendingMatchRecordFragmentDoc = new TypedDocumentString(`
     fragment PendingMatchRecord on MetadataFetchRecord {
   id
@@ -7344,6 +7515,44 @@ export const PendingMatchRecordFragmentDoc = new TypedDocumentString(`
   }
 }
     `, {"fragmentName":"PendingMatchRecord"}) as unknown as TypedDocumentString<PendingMatchRecordFragment, unknown>;
+export const SeriesGridCardFragmentDoc = new TypedDocumentString(`
+    fragment SeriesGridCard on Series {
+  id
+  resolvedName
+  mediaCount
+  percentageCompleted
+  status
+  media(take: 2, skip: 1) {
+    id
+    thumbnail {
+      url
+      metadata {
+        averageColor
+        colors {
+          color
+          percentage
+        }
+        thumbhash
+      }
+    }
+  }
+  thumbnail {
+    url
+    metadata {
+      averageColor
+      colors {
+        color
+        percentage
+      }
+      thumbhash
+    }
+  }
+  library {
+    id
+    name
+  }
+}
+    `, {"fragmentName":"SeriesGridCard"}) as unknown as TypedDocumentString<SeriesGridCardFragment, unknown>;
 export const SeriesMetadataEditorFragmentDoc = new TypedDocumentString(`
     fragment SeriesMetadataEditor on SeriesMetadata {
   ageRating
@@ -7670,8 +7879,8 @@ export const TagSelectQueryDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<TagSelectQueryQuery, TagSelectQueryQueryVariables>;
 export const BookSearchOverlayDocument = new TypedDocumentString(`
-    query BookSearchOverlay($pagination: Pagination, $filter: MediaFilterInput!) {
-  media(pagination: $pagination, filter: $filter) {
+    query BookSearchOverlay($pagination: Pagination, $search: String) {
+  media(pagination: $pagination, search: $search) {
     nodes {
       id
       ...BookCard
@@ -9278,8 +9487,13 @@ export const RemoveBookClubMemberDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<RemoveBookClubMemberMutation, RemoveBookClubMemberMutationVariables>;
 export const BookSearchSceneDocument = new TypedDocumentString(`
-    query BookSearchScene($filter: MediaFilterInput!, $orderBy: [MediaOrderBy!]!, $pagination: Pagination!) {
-  media(filter: $filter, orderBy: $orderBy, pagination: $pagination) {
+    query BookSearchScene($filter: MediaFilterInput!, $search: String, $orderBy: [MediaOrderBy!]!, $pagination: Pagination!) {
+  media(
+    filter: $filter
+    search: $search
+    orderBy: $orderBy
+    pagination: $pagination
+  ) {
     nodes {
       id
       ...BookCard
@@ -9759,8 +9973,13 @@ export const VisitLibraryDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<VisitLibraryMutation, VisitLibraryMutationVariables>;
 export const LibraryBooksSceneDocument = new TypedDocumentString(`
-    query LibraryBooksScene($filter: MediaFilterInput!, $orderBy: [MediaOrderBy!]!, $pagination: Pagination!) {
-  media(filter: $filter, orderBy: $orderBy, pagination: $pagination) {
+    query LibraryBooksScene($filter: MediaFilterInput!, $search: String, $orderBy: [MediaOrderBy!]!, $pagination: Pagination!) {
+  media(
+    filter: $filter
+    search: $search
+    orderBy: $orderBy
+    pagination: $pagination
+  ) {
     nodes {
       id
       ...BookCard
@@ -9918,39 +10137,20 @@ export const LibraryCollectionsDetectDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<LibraryCollectionsDetectMutation, LibraryCollectionsDetectMutationVariables>;
 export const LibrarySeriesDocument = new TypedDocumentString(`
-    query LibrarySeries($filter: SeriesFilterInput!, $orderBy: [SeriesOrderBy!]!, $pagination: Pagination!) {
-  series(filter: $filter, orderBy: $orderBy, pagination: $pagination) {
+    query LibrarySeries($filter: SeriesFilterInput!, $search: String, $orderBy: [SeriesOrderBy!]!, $pagination: Pagination!) {
+  series(
+    filter: $filter
+    search: $search
+    orderBy: $orderBy
+    pagination: $pagination
+  ) {
     nodes {
       id
       resolvedName
       mediaCount
       percentageCompleted
       status
-      media(take: 2, skip: 1) {
-        id
-        thumbnail {
-          url
-          metadata {
-            averageColor
-            colors {
-              color
-              percentage
-            }
-            thumbhash
-          }
-        }
-      }
-      thumbnail {
-        url
-        metadata {
-          averageColor
-          colors {
-            color
-            percentage
-          }
-          thumbhash
-        }
-      }
+      ...SeriesGridCard
     }
     pageInfo {
       __typename
@@ -9964,7 +10164,42 @@ export const LibrarySeriesDocument = new TypedDocumentString(`
     }
   }
 }
-    `) as unknown as TypedDocumentString<LibrarySeriesQuery, LibrarySeriesQueryVariables>;
+    fragment SeriesGridCard on Series {
+  id
+  resolvedName
+  mediaCount
+  percentageCompleted
+  status
+  media(take: 2, skip: 1) {
+    id
+    thumbnail {
+      url
+      metadata {
+        averageColor
+        colors {
+          color
+          percentage
+        }
+        thumbhash
+      }
+    }
+  }
+  thumbnail {
+    url
+    metadata {
+      averageColor
+      colors {
+        color
+        percentage
+      }
+      thumbhash
+    }
+  }
+  library {
+    id
+    name
+  }
+}`) as unknown as TypedDocumentString<LibrarySeriesQuery, LibrarySeriesQueryVariables>;
 export const LibrarySeriesGridDocument = new TypedDocumentString(`
     query LibrarySeriesGrid($id: String!, $pagination: Pagination) {
   series(filter: {libraryId: {eq: $id}}, pagination: $pagination) {
@@ -10264,6 +10499,155 @@ export const LibraryUploadSectionUploadBooksDocument = new TypedDocumentString(`
   uploadBooks(input: $input)
 }
     `) as unknown as TypedDocumentString<LibraryUploadSectionUploadBooksMutation, LibraryUploadSectionUploadBooksMutationVariables>;
+export const LibrarySearchSceneDocument = new TypedDocumentString(`
+    query LibrarySearchScene($search: String, $pagination: Pagination!) {
+  libraries(search: $search, pagination: $pagination) {
+    nodes {
+      id
+      ...LibraryCard
+    }
+    pageInfo {
+      __typename
+      ... on OffsetPaginationInfo {
+        currentPage
+        totalPages
+      }
+    }
+  }
+}
+    fragment LibraryCard on Library {
+  id
+  name
+  emoji
+  stats {
+    seriesCount
+    bookCount
+  }
+}`) as unknown as TypedDocumentString<LibrarySearchSceneQuery, LibrarySearchSceneQueryVariables>;
+export const GlobalSearchDocument = new TypedDocumentString(`
+    query GlobalSearch($query: String!, $limitPerType: Int!) {
+  searchAll(query: $query, limitPerType: $limitPerType) {
+    media {
+      totalCount
+      nodes {
+        id
+        ...BookCard
+      }
+    }
+    series {
+      totalCount
+      nodes {
+        id
+        resolvedName
+        ...SeriesGridCard
+      }
+    }
+    libraries {
+      totalCount
+      nodes {
+        id
+        ...LibraryCard
+      }
+    }
+    characters {
+      totalCount
+      nodes {
+        name
+        ...CharacterCard
+      }
+    }
+    authors {
+      totalCount
+      nodes {
+        name
+      }
+    }
+  }
+}
+    fragment BookCard on Media {
+  id
+  resolvedName
+  extension
+  pages
+  size
+  status
+  thumbnail {
+    url
+    metadata {
+      averageColor
+      colors {
+        color
+        percentage
+      }
+      thumbhash
+    }
+    height
+    width
+  }
+  readProgress {
+    percentageCompleted
+    epubcfi
+    page
+    updatedAt
+  }
+  readHistory {
+    __typename
+    completedAt
+  }
+  createdAt
+  libraryConfig {
+    skipBookOverview
+  }
+}
+fragment LibraryCard on Library {
+  id
+  name
+  emoji
+  stats {
+    seriesCount
+    bookCount
+  }
+}
+fragment SeriesGridCard on Series {
+  id
+  resolvedName
+  mediaCount
+  percentageCompleted
+  status
+  media(take: 2, skip: 1) {
+    id
+    thumbnail {
+      url
+      metadata {
+        averageColor
+        colors {
+          color
+          percentage
+        }
+        thumbhash
+      }
+    }
+  }
+  thumbnail {
+    url
+    metadata {
+      averageColor
+      colors {
+        color
+        percentage
+      }
+      thumbhash
+    }
+  }
+  library {
+    id
+    name
+  }
+}
+fragment CharacterCard on Character {
+  name
+  bookCount
+}`) as unknown as TypedDocumentString<GlobalSearchQuery, GlobalSearchQueryVariables>;
 export const SeriesActionCompleteDocument = new TypedDocumentString(`
     mutation SeriesActionComplete($id: ID!) {
   finishSeriesProgress(id: $id)
@@ -10358,8 +10742,13 @@ export const SeriesOverviewSheetExtasDocument = new TypedDocumentString(`
   }
 }`) as unknown as TypedDocumentString<SeriesOverviewSheetExtasQuery, SeriesOverviewSheetExtasQueryVariables>;
 export const SeriesBooksSceneDocument = new TypedDocumentString(`
-    query SeriesBooksScene($filter: MediaFilterInput!, $orderBy: [MediaOrderBy!]!, $pagination: Pagination!) {
-  media(filter: $filter, orderBy: $orderBy, pagination: $pagination) {
+    query SeriesBooksScene($filter: MediaFilterInput!, $search: String, $orderBy: [MediaOrderBy!]!, $pagination: Pagination!) {
+  media(
+    filter: $filter
+    search: $search
+    orderBy: $orderBy
+    pagination: $pagination
+  ) {
     nodes {
       id
       ...BookCard
@@ -10546,6 +10935,75 @@ export const SeriesThumbnailSelectorUploadDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<SeriesThumbnailSelectorUploadMutation, SeriesThumbnailSelectorUploadMutationVariables>;
+export const SeriesSearchAlphabetDocument = new TypedDocumentString(`
+    query SeriesSearchAlphabet {
+  seriesAlphabet
+}
+    `) as unknown as TypedDocumentString<SeriesSearchAlphabetQuery, SeriesSearchAlphabetQueryVariables>;
+export const SeriesSearchSceneDocument = new TypedDocumentString(`
+    query SeriesSearchScene($filter: SeriesFilterInput!, $search: String, $orderBy: [SeriesOrderBy!]!, $pagination: Pagination!) {
+  series(
+    filter: $filter
+    search: $search
+    orderBy: $orderBy
+    pagination: $pagination
+  ) {
+    nodes {
+      id
+      resolvedName
+      mediaCount
+      percentageCompleted
+      status
+      ...SeriesGridCard
+    }
+    pageInfo {
+      __typename
+      ... on OffsetPaginationInfo {
+        totalPages
+        currentPage
+        pageSize
+        pageOffset
+        zeroBased
+      }
+    }
+  }
+}
+    fragment SeriesGridCard on Series {
+  id
+  resolvedName
+  mediaCount
+  percentageCompleted
+  status
+  media(take: 2, skip: 1) {
+    id
+    thumbnail {
+      url
+      metadata {
+        averageColor
+        colors {
+          color
+          percentage
+        }
+        thumbhash
+      }
+    }
+  }
+  thumbnail {
+    url
+    metadata {
+      averageColor
+      colors {
+        color
+        percentage
+      }
+      thumbhash
+    }
+  }
+  library {
+    id
+    name
+  }
+}`) as unknown as TypedDocumentString<SeriesSearchSceneQuery, SeriesSearchSceneQueryVariables>;
 export const ApiKeyTableDocument = new TypedDocumentString(`
     query APIKeyTable {
   apiKeys {

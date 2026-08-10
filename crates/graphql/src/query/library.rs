@@ -18,6 +18,7 @@ use sea_orm::{
 
 use crate::{
 	data::{AuthContext, CoreContext},
+	filter::library::library_keyword_condition,
 	object::{library::Library, missing_entity::MissingEntity, stats::LibraryStats},
 	pagination::{
 		CursorPaginationInfo, OffsetPaginationInfo, PaginatedResponse, Pagination,
@@ -53,13 +54,10 @@ impl LibraryQuery {
 
 		let query = LibraryModelOrderBy::add_order_by(
 			&order_by,
-			library::Entity::find_for_user(user).apply_if(search, |query, search| {
-				query.filter(
-					library::Column::Name
-						.contains(search.clone())
-						.or(library::Column::Path.contains(search)),
-				)
-			}),
+			library::Entity::find_for_user(user).apply_if(
+				library_keyword_condition(search.as_deref()),
+				|query, condition| query.filter(condition),
+			),
 		)?;
 
 		match pagination.resolve() {

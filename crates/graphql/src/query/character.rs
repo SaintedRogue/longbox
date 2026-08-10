@@ -9,6 +9,7 @@ use sea_orm::prelude::*;
 
 use crate::{
 	data::{AuthContext, CoreContext},
+	filter::keyword::matches_all_terms,
 	object::character::Character,
 	order::{CharacterOrderBy, CharacterOrdering},
 	pagination::{
@@ -138,6 +139,50 @@ async fn fetch_all_characters(
 	}
 
 	Ok(unique_characters)
+}
+
+/// A capped preview of characters matching `query`, for the unified search
+/// fan-out. Returns the page plus the total match count so the caller can show
+/// "N more" and link into the fully-paginated `characters` query.
+///
+/// Uses the same AND-across-terms rule the SQL keyword search uses, so a query
+/// does not quietly mean two different things depending on which entity answers
+/// it.
+pub(crate) async fn search_characters(
+	conn: &DatabaseConnection,
+	auth_user: &AuthUser,
+	query: &str,
+	limit: usize,
+) -> Result<(Vec<Character>, u64)> {
+	let all_characters = fetch_all_characters(conn, None, auth_user).await?;
+
+	let mut matches = all_characters
+		.into_iter()
+		.filter(|(key, _)| matches_all_terms(key, query))
+		.map(|(_, (name, book_count))| (name, book_count))
+		.collect::<Vec<_>>();
+
+	// Most-appearances first, name as the tiebreaker - the same default ordering
+	// the `characters` query uses, so the preview is a true prefix of the full list.
+	matches.sort_by(|left, right| {
+		right
+			.1
+			.cmp(&left.1)
+			.then_with(|| left.0.to_lowercase().cmp(&right.0.to_lowercase()))
+	});
+
+	let total_count = matches.len() as u64;
+	let nodes = matches
+		.into_iter()
+		.take(limit)
+		.map(|(name, book_count)| Character {
+			name,
+			book_count: Some(book_count),
+			library_id: None,
+		})
+		.collect();
+
+	Ok((nodes, total_count))
 }
 
 #[derive(Default)]

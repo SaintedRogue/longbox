@@ -9,7 +9,14 @@ use axum::{
 	Extension, Router,
 };
 use chrono::Utc;
-use graphql::{data::AuthContext, pagination::OffsetPagination};
+use graphql::{
+	data::AuthContext,
+	filter::{
+		library::library_keyword_condition, media::media_keyword_condition,
+		series::series_keyword_condition,
+	},
+	pagination::OffsetPagination,
+};
 use longbox_core::{
 	config::LongboxConfig,
 	filesystem::{
@@ -32,7 +39,7 @@ use longbox_core::{
 };
 use models::{
 	domain::reading_progress::compute_page_based_percentage,
-	entity::{library, media, media_metadata, reading_session, series, series_metadata},
+	entity::{library, media, reading_session, series, series_metadata},
 	services::reading_progress::{upsert_reading_session, NormalizedProgression},
 	shared::image_processor_options::{ImageProcessorOptions, SupportedImageFormat},
 };
@@ -322,9 +329,10 @@ async fn get_libraries(
 	let user = req.user();
 
 	let libraries = library::Entity::find_for_user(&user)
-		.apply_if(search, |query, search| {
-			query.filter(library::Column::Name.contains(search))
-		})
+		.apply_if(
+			library_keyword_condition(search.as_deref()),
+			|query, condition| query.filter(condition),
+		)
 		.order_by_asc(library::Column::Name)
 		.all(ctx.conn.as_ref())
 		.await?;
@@ -428,13 +436,10 @@ async fn get_series(
 	let user = req.user();
 	let search_cpy = search.clone();
 	let series = series::Entity::find_for_user(&user)
-		.apply_if(search_cpy, |query, search| {
-			query.left_join(series_metadata::Entity).filter(
-				series::Column::Name
-					.contains(search.clone())
-					.or(series_metadata::Column::Title.contains(search)),
-			)
-		})
+		.apply_if(
+			series_keyword_condition(search_cpy.as_deref()),
+			|query, condition| query.left_join(series_metadata::Entity).filter(condition),
+		)
 		.order_by_asc(series::Column::Name)
 		.offset(pagination.offset())
 		.limit(pagination.limit())
@@ -442,13 +447,10 @@ async fn get_series(
 		.await?;
 	let search_cpy = search.clone();
 	let count = series::Entity::find_for_user(&user)
-		.apply_if(search_cpy, |query, search| {
-			query.left_join(series_metadata::Entity).filter(
-				series::Column::Name
-					.contains(search.clone())
-					.or(series_metadata::Column::Title.contains(search)),
-			)
-		})
+		.apply_if(
+			series_keyword_condition(search_cpy.as_deref()),
+			|query, condition| query.left_join(series_metadata::Entity).filter(condition),
+		)
 		.count(ctx.conn.as_ref())
 		.await?;
 
@@ -603,7 +605,10 @@ async fn search_feed(
 
 	// Search libraries
 	let libraries = library::Entity::find_for_user(&user)
-		.filter(library::Column::Name.contains(&search))
+		.apply_if(
+			library_keyword_condition(Some(&search)),
+			|query, condition| query.filter(condition),
+		)
 		.order_by_asc(library::Column::Name)
 		.all(ctx.conn.as_ref())
 		.await?;
@@ -616,10 +621,9 @@ async fn search_feed(
 	// Search series
 	let series = series::Entity::find_for_user(&user)
 		.left_join(series_metadata::Entity)
-		.filter(
-			series::Column::Name
-				.contains(&search)
-				.or(series_metadata::Column::Title.contains(&search)),
+		.apply_if(
+			series_keyword_condition(Some(&search)),
+			|query, condition| query.filter(condition),
 		)
 		.order_by_asc(series::Column::Name)
 		.all(ctx.conn.as_ref())
@@ -630,14 +634,11 @@ async fn search_feed(
 		);
 	}
 
-	// Search books by name, metadata title, summary, and writers
+	// Search books across the shared keyword field set
 	let books = OPDSPublicationEntity::find_for_user(&user)
-		.filter(
-			media::Column::Name
-				.contains(&search)
-				.or(media_metadata::Column::Title.contains(&search))
-				.or(media_metadata::Column::Summary.contains(&search))
-				.or(media_metadata::Column::Writers.contains(&search)),
+		.apply_if(
+			media_keyword_condition(Some(&search)),
+			|query, condition| query.filter(condition),
 		)
 		.order_by_asc(media::Column::Name)
 		.into_model::<OPDSPublicationEntity>()
@@ -682,15 +683,10 @@ async fn get_books(
 	let search_cpy = search.clone();
 
 	let books = OPDSPublicationEntity::find_for_user(&user)
-		.apply_if(search_cpy, |query, search| {
-			query.filter(
-				media::Column::Name
-					.contains(search.clone())
-					.or(media_metadata::Column::Title.contains(search.clone()))
-					.or(media_metadata::Column::Summary.contains(search.clone()))
-					.or(media_metadata::Column::Writers.contains(search)),
-			)
-		})
+		.apply_if(
+			media_keyword_condition(search_cpy.as_deref()),
+			|query, condition| query.filter(condition),
+		)
 		.order_by_asc(media::Column::Name)
 		.offset(pagination.offset())
 		.limit(pagination.limit())
@@ -700,15 +696,10 @@ async fn get_books(
 
 	let search_cpy = search.clone();
 	let count = OPDSPublicationEntity::find_for_user(&user)
-		.apply_if(search_cpy, |query, search| {
-			query.filter(
-				media::Column::Name
-					.contains(search.clone())
-					.or(media_metadata::Column::Title.contains(search.clone()))
-					.or(media_metadata::Column::Summary.contains(search.clone()))
-					.or(media_metadata::Column::Writers.contains(search)),
-			)
-		})
+		.apply_if(
+			media_keyword_condition(search_cpy.as_deref()),
+			|query, condition| query.filter(condition),
+		)
 		.count(ctx.conn.as_ref())
 		.await?;
 

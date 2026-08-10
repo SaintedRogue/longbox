@@ -6,12 +6,15 @@ use sea_orm::{
 };
 use serde::{Deserialize, Serialize};
 
+pub mod keyword;
 pub mod library;
 pub mod log;
 pub mod media;
 pub mod media_metadata;
 pub mod series;
 pub mod series_metadata;
+
+use keyword::{like_contains, like_ends_with, like_starts_with};
 
 // TODO: This probably needs a rewrite to make it more compatible with async-graphql. The big issue is generics
 // with input objects. Look at and yoink from seaography for how they are doing things
@@ -60,24 +63,39 @@ where
 		StringLikeFilter::NoneOf(values) => {
 			Condition::all().add(column.is_not_in(values))
 		},
+		// `Like` is the deliberate escape hatch: the caller supplies the whole
+		// pattern, wildcards included, so it must not be escaped here.
 		StringLikeFilter::Like(value) => Condition::all().add(column.like(value)),
-		StringLikeFilter::Contains(value) => Condition::all().add(column.contains(value)),
-		StringLikeFilter::Excludes(value) => Condition::all().add(column.not_like(value)),
+		StringLikeFilter::Contains(value) => {
+			let value: String = value.into();
+			Condition::all().add(column.like(like_contains(&value)))
+		},
+		// The inverse of `Contains`, not of `Eq`: this previously passed the raw
+		// value to `not_like`, which made it an exact-match negation and left
+		// any `%` the user typed acting as a wildcard.
+		StringLikeFilter::Excludes(value) => {
+			let value: String = value.into();
+			Condition::all().add(column.not_like(like_contains(&value)))
+		},
 		StringLikeFilter::StartsWith(value) => {
-			Condition::all().add(column.starts_with(value))
+			let value: String = value.into();
+			Condition::all().add(column.like(like_starts_with(&value)))
 		},
 		StringLikeFilter::EndsWith(value) => {
-			Condition::all().add(column.ends_with(value))
+			let value: String = value.into();
+			Condition::all().add(column.like(like_ends_with(&value)))
 		},
 		StringLikeFilter::LikeAnyOf(values) => {
 			values.into_iter().fold(Condition::any(), |acc, value| {
-				acc.add(column.contains(value))
+				let value: String = value.into();
+				acc.add(column.like(like_contains(&value)))
 			})
 		},
 		StringLikeFilter::LikeNoneOf(values) => values
 			.into_iter()
 			.fold(Condition::any(), |acc, value| {
-				acc.add(column.contains(value))
+				let value: String = value.into();
+				acc.add(column.like(like_contains(&value)))
 			})
 			.not(),
 	}
@@ -186,7 +204,7 @@ mod tests {
 
 		assert_eq!(
 			sql,
-			r#"SELECT  FROM "media" WHERE "media"."name" LIKE '%test%' OR "media"."name" LIKE '%example%'"#
+			r#"SELECT  FROM "media" WHERE "media"."name" LIKE '%test%' ESCAPE '\' OR "media"."name" LIKE '%example%' ESCAPE '\'"#
 		);
 	}
 
@@ -203,7 +221,76 @@ mod tests {
 
 		assert_eq!(
 			sql,
-			r#"SELECT  FROM "media" WHERE NOT ("media"."name" LIKE '%test%' OR "media"."name" LIKE '%example%')"#
+			r#"SELECT  FROM "media" WHERE NOT ("media"."name" LIKE '%test%' ESCAPE '\' OR "media"."name" LIKE '%example%' ESCAPE '\')"#
+		);
+	}
+
+	/// `%` and `_` typed by a user are data, not wildcards. Before escaping,
+	/// `Contains("50%")` built the pattern `%50%%`, which collapses to `%50%`
+	/// and matches "500 Page Special".
+	#[test]
+	fn test_contains_escapes_wildcards_in_the_pattern() {
+		let sql = media::Entity::find()
+			.filter(apply_string_filter(
+				media::Column::Name,
+				StringLikeFilter::Contains("50%".to_string()),
+			))
+			.select_only()
+			.into_query()
+			.to_string(SqliteQueryBuilder);
+
+		assert_eq!(
+			sql,
+			r#"SELECT  FROM "media" WHERE "media"."name" LIKE '%50\%%' ESCAPE '\'"#
+		);
+	}
+
+	#[test]
+	fn test_starts_and_ends_with_escape_wildcards() {
+		let starts = media::Entity::find()
+			.filter(apply_string_filter(
+				media::Column::Name,
+				StringLikeFilter::StartsWith("file_".to_string()),
+			))
+			.select_only()
+			.into_query()
+			.to_string(SqliteQueryBuilder);
+		assert_eq!(
+			starts,
+			r#"SELECT  FROM "media" WHERE "media"."name" LIKE 'file\_%' ESCAPE '\'"#
+		);
+
+		let ends = media::Entity::find()
+			.filter(apply_string_filter(
+				media::Column::Name,
+				StringLikeFilter::EndsWith("_v1".to_string()),
+			))
+			.select_only()
+			.into_query()
+			.to_string(SqliteQueryBuilder);
+		assert_eq!(
+			ends,
+			r#"SELECT  FROM "media" WHERE "media"."name" LIKE '%\_v1' ESCAPE '\'"#
+		);
+	}
+
+	/// `Excludes` is the inverse of `Contains`, so it must wrap the value in
+	/// wildcards. It previously passed the value through raw, which silently
+	/// made it an exact-match negation.
+	#[test]
+	fn test_excludes_is_a_substring_negation() {
+		let sql = media::Entity::find()
+			.filter(apply_string_filter(
+				media::Column::Name,
+				StringLikeFilter::Excludes("annual".to_string()),
+			))
+			.select_only()
+			.into_query()
+			.to_string(SqliteQueryBuilder);
+
+		assert_eq!(
+			sql,
+			r#"SELECT  FROM "media" WHERE "media"."name" NOT LIKE '%annual%' ESCAPE '\'"#
 		);
 	}
 }

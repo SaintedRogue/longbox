@@ -113,6 +113,8 @@ const pathsInternal = {
 	notFound: () => '/404',
 	notifications: () => '/notifications',
 	offlineReader: (id: string) => `/downloads/${id}/read`,
+	search: () => '/search',
+	series: () => '/series',
 	seriesManagement: (id: string) => `/series/${id}/manage`,
 	seriesOverview: (id: string, page?: number) => {
 		if (page != undefined) {
@@ -181,6 +183,8 @@ export function usePaths() {
 		notFound: () => `${basePath}${pathsInternal.notFound()}`,
 		notifications: () => `${basePath}${pathsInternal.notifications()}`,
 		offlineReader: (id: string) => `${basePath}${pathsInternal.offlineReader(id)}`,
+		search: () => `${basePath}${pathsInternal.search()}`,
+		series: () => `${basePath}${pathsInternal.series()}`,
 		seriesManagement: (id: string) => `${basePath}${pathsInternal.seriesManagement(id)}`,
 		seriesOverview: (id: string, page?: number) =>
 			`${basePath}${pathsInternal.seriesOverview(id, page)}`,

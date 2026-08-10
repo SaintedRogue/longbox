@@ -20,7 +20,6 @@ import { FilterContext, FilterInput } from '@/components/filters/context'
 import {
 	DEFAULT_MEDIA_ORDER_BY,
 	useMediaURLOrderBy,
-	useSearchMediaFilter,
 	useURLKeywordSearch,
 	useURLPageParams,
 } from '@/components/filters/useFilterScene'
@@ -36,10 +35,11 @@ import BooksAlphabet from '../book/BooksAlphabet'
 const query = graphql(`
 	query BookSearchScene(
 		$filter: MediaFilterInput!
+		$search: String
 		$orderBy: [MediaOrderBy!]!
 		$pagination: Pagination!
 	) {
-		media(filter: $filter, orderBy: $orderBy, pagination: $pagination) {
+		media(filter: $filter, search: $search, orderBy: $orderBy, pagination: $pagination) {
 			nodes {
 				id
 				...BookCard
@@ -70,7 +70,6 @@ export const usePrefetchBookSearch = () => {
 	const { sdk } = useSDK()
 	const { pageSize } = useURLPageParams()
 	const { search } = useURLKeywordSearch()
-	const searchFilter = useSearchMediaFilter(search)
 
 	const client = useQueryClient()
 
@@ -89,8 +88,8 @@ export const usePrefetchBookSearch = () => {
 					const response = await sdk.execute(query, {
 						filter: {
 							_and: params.filter,
-							_or: searchFilter,
 						},
+						search,
 						orderBy: params.orderBy,
 						pagination: {
 							offset: {
@@ -103,7 +102,7 @@ export const usePrefetchBookSearch = () => {
 				staleTime: PREFETCH_STALE_TIME,
 			})
 		},
-		[client, search, searchFilter, pageSize, sdk],
+		[client, search, pageSize, sdk],
 	)
 
 	return prefetch
@@ -138,7 +137,6 @@ function BookSearchScene() {
 	} = useFilterScene()
 	const filters = mediaFilters as MediaFilterInput
 	const { search } = useURLKeywordSearch()
-	const searchFilter = useSearchMediaFilter(search)
 
 	const previous = usePrevious(search)
 	const differentSearch = previous != null && previous !== search
@@ -223,8 +221,8 @@ function BookSearchScene() {
 	} = useSuspenseGraphQL(query, getQueryKey(page, pageSize, search, resolvedFilters, orderBy), {
 		filter: {
 			_and: resolvedFilters,
-			_or: searchFilter,
 		},
+		search,
 		orderBy: orderBy,
 		pagination: {
 			offset: {

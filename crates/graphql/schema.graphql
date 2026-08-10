@@ -123,6 +123,18 @@ enum AuthorRole {
 	CO_AUTHOR
 }
 
+"""
+One entity type's slice of a unified search.
+
+`total_count` is the number of matches across the whole server, not the
+length of `nodes` -- the caller uses it to decide whether to offer "N more"
+and to link into that type's own fully-paginated query.
+"""
+type AuthorSearchGroup {
+	nodes: [Author!]!
+	totalCount: Int!
+}
+
 type AuthorSeries {
 	title: String!
 	books: [Media!]!
@@ -438,6 +450,18 @@ enum CharacterOrdering {
 	NAME
 	"The number of books the character appears in"
 	BOOK_COUNT
+}
+
+"""
+One entity type's slice of a unified search.
+
+`total_count` is the number of matches across the whole server, not the
+length of `nodes` -- the caller uses it to decide whether to offer "N more"
+and to link into that type's own fully-paginated query.
+"""
+type CharacterSearchGroup {
+	nodes: [Character!]!
+	totalCount: Int!
 }
 
 type CleanLibraryResponse {
@@ -1327,6 +1351,18 @@ type LibraryScanRecord {
 	options: JSON
 }
 
+"""
+One entity type's slice of a unified search.
+
+`total_count` is the number of matches across the whole server, not the
+length of `nodes` -- the caller uses it to decide whether to offer "N more"
+and to link into that type's own fully-paginated query.
+"""
+type LibrarySearchGroup {
+	nodes: [Library!]!
+	totalCount: Int!
+}
+
 type LibraryStats {
 	seriesCount: Int!
 	bookCount: Int!
@@ -1890,6 +1926,18 @@ input MediaOrderByField {
 input MediaProgressInput @oneOf {
 	epub: EpubProgressInput
 	paged: PagedProgressInput
+}
+
+"""
+One entity type's slice of a unified search.
+
+`total_count` is the number of matches across the whole server, not the
+length of `nodes` -- the caller uses it to decide whether to offer "N more"
+and to link into that type's own fully-paginated query.
+"""
+type MediaSearchGroup {
+	nodes: [Media!]!
+	totalCount: Int!
 }
 
 "How to merge external metadata values onto existing entity metadata"
@@ -2955,7 +3003,10 @@ type Query {
 	finishedReadingSessionCount: Int!
 	activeReadingSessionCount: Int!
 	mediaDiskUsage: Int!
-	media(filter: MediaFilterInput! = {id: null, name: null, size: null, extension: null, createdAt: null, updatedAt: null, seriesId: null, bookGroupId: null, isStandalone: null, status: null, path: null, pages: null, readingStatus: null, metadata: null, series: null, tags: null, _and: null, _not: null, _or: null}, orderBy: [MediaOrderBy!]! = [{media: {field: NAME, direction: ASC}}], pagination: Pagination! = {offset: {page: 1, pageSize: 20, zeroBased: false}}): PaginatedMediaResponse!
+	media(		filter: MediaFilterInput! = {id: null, name: null, size: null, extension: null, createdAt: null, updatedAt: null, seriesId: null, bookGroupId: null, isStandalone: null, status: null, path: null, pages: null, readingStatus: null, metadata: null, series: null, tags: null, _and: null, _not: null, _or: null},
+		"Free-text search. Terms are AND-ed, and each term is matched against the book's name, its metadata title, summary, publisher, series, writers, characters and story arc, and its tags. A term that parses as a number also matches the issue number exactly. AND-ed with `filter` rather than replacing it."
+		search: String,		orderBy: [MediaOrderBy!]! = [{media: {field: NAME, direction: ASC}}],		pagination: Pagination! = {offset: {page: 1, pageSize: 20, zeroBased: false}}
+	): PaginatedMediaResponse!
 	mediaById(id: ID!): Media
 	mediaByPath(path: String!): Media
 	"Returns the available alphabet for all media in the server"
@@ -2972,7 +3023,10 @@ type Query {
 	numberOfLibraries: Int!
 	lastVisitedLibrary: Library
 	libraryMissingEntities(libraryId: ID!, pagination: Pagination! = {offset: {page: 1, pageSize: 20, zeroBased: false}}): PaginatedMissingEntityResponse!
-	series(filter: SeriesFilterInput! = {name: null, path: null, libraryId: null, readingStatus: null, libraryType: null, metadata: null, library: null, _and: null, _not: null, _or: null}, orderBy: [SeriesOrderBy!]! = [{series: {field: NAME, direction: ASC}}], pagination: Pagination! = {offset: {page: 1, pageSize: 20, zeroBased: false}}): PaginatedSeriesResponse!
+	series(		filter: SeriesFilterInput! = {name: null, path: null, libraryId: null, readingStatus: null, libraryType: null, metadata: null, library: null, _and: null, _not: null, _or: null},
+		"Free-text search. Terms are AND-ed, and each term is matched against the series name and its metadata title, summary, publisher, imprint, writers and characters. AND-ed with `filter` rather than replacing it."
+		search: String,		orderBy: [SeriesOrderBy!]! = [{series: {field: NAME, direction: ASC}}],		pagination: Pagination! = {offset: {page: 1, pageSize: 20, zeroBased: false}}
+	): PaginatedSeriesResponse!
 	seriesById(id: ID!): Series
 	"Returns the available alphabet for all series in the server"
 	seriesAlphabet: JSONObject!
@@ -3020,6 +3074,20 @@ type Query {
 	releaseCalendar(weekOffset: Int! = 0, scope: CalendarScope! = FOLLOWED): [CalendarDay!]!
 	"New books in followed series, newest first — 30-day window, hard cap."
 	updatesFeed(days: Int! = 30, cap: Int! = 500): UpdatesFeed!
+	"""
+	Search books, series, libraries, authors and characters in one request.
+	
+	This is a *preview* endpoint: each group is capped, and expanding one type
+	means calling that type's own paginated query with the same search string
+	rather than paginating here. That keeps the fan-out cheap and means
+	expanding one group never refetches the others.
+	"""
+	searchAll(
+		"The search string. Terms are AND-ed, as they are for the per-entity `search` arguments."
+		query: String!,
+		"Maximum results per entity type."
+		limitPerType: Int! = 5
+	): SearchAllResult!
 	me: User!
 	userCount: Int!
 	topReaders(take: Int): [User!]!
@@ -3359,6 +3427,23 @@ enum ScheduledJobKind {
 	RELEASE_CALENDAR_SYNC
 }
 
+"""
+The result of a unified search: one capped group per entity type.
+
+Grouped rather than a flat union of results, because the five sources cannot
+share a pagination scheme. Books, series and libraries paginate in SQL, while
+characters and authors are tallied from CSV metadata columns into a HashMap
+and paginated in memory. A single interleaved list would have to materialise
+all five on every page request to order them consistently.
+"""
+type SearchAllResult {
+	media: MediaSearchGroup!
+	series: SeriesSearchGroup!
+	libraries: LibrarySearchGroup!
+	authors: AuthorSearchGroup!
+	characters: CharacterSearchGroup!
+}
+
 type SendAttachmentEmailOutput {
 	sentCount: Int!
 	errors: [String!]!
@@ -3601,6 +3686,18 @@ type SeriesScanOutput {
 	createdMedia: Int!
 	"The number of media entities that were updated"
 	updatedMedia: Int!
+}
+
+"""
+One entity type's slice of a unified search.
+
+`total_count` is the number of matches across the whole server, not the
+length of `nodes` -- the caller uses it to decide whether to offer "N more"
+and to link into that type's own fully-paginated query.
+"""
+type SeriesSearchGroup {
+	nodes: [Series!]!
+	totalCount: Int!
 }
 
 type SeriesStats {

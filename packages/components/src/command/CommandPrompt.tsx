@@ -59,8 +59,16 @@ export function CommandPrompt({
 			const key = `command-item-${itemIndex}-${item.label}`
 
 			const Container = item.href ? Link : React.Fragment
+			// `Link` only routes when handed `to`; given `href` it falls back to a
+			// plain anchor, which full-page-reloads an SPA. External destinations
+			// still want a real anchor, so they keep `href`.
+			const isExternal = item.href?.startsWith('http') ?? false
 			const containerProps = item.href
-				? { className: 'hover:no-underline', href: item.href, underline: false }
+				? {
+						className: 'hover:no-underline',
+						underline: false,
+						...(isExternal ? { href: item.href } : { to: item.href }),
+					}
 				: {}
 
 			return (

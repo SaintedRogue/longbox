@@ -1,27 +1,17 @@
 import { useGraphQL, useSDK } from '@longbox/client'
-import {
-	ButtonOrLink,
-	Heading,
-	InputGroup,
-	ProgressSpinner,
-	ScrollArea,
-	Text,
-	usePreviousIsDifferent,
-} from '@longbox/components'
+import { ButtonOrLink, Heading, ScrollArea, Text } from '@longbox/components'
 import { graphql, SmartListsInput } from '@longbox/graphql'
 import { useLocaleContext } from '@longbox/i18n'
-import { Search } from 'lucide-react'
 import pluralize from 'pluralize'
-import { useEffect, useState } from 'react'
-import { useDebouncedValue } from 'rooks'
 
 import { SceneContainer } from '@/components/container'
+import { Search } from '@/components/filters'
+import { useURLKeywordSearch } from '@/components/filters/useFilterScene'
 import GenericEmptyState from '@/components/GenericEmptyState'
 import paths from '@/paths'
 
 import SmartListCard from './SmartListCard'
 
-// TODO: move filter to URL params
 // TODO(cleanup): this scene lowkey ugly
 
 const LOCALE_BASE_KEY = `userSmartListsScene`
@@ -45,27 +35,10 @@ const query = graphql(`
 
 export default function UserSmartListsScene() {
 	const { t } = useLocaleContext()
-	/**
-	 * The local value state for the search input
-	 */
-	const [value, setValue] = useState<string>()
-	/**
-	 * The debounced value of the local value state
-	 */
-	const [debouncedValue] = useDebouncedValue(value, 500)
-
-	const [search, setSearch] = useState<string>()
-
-	const shouldUpdate = usePreviousIsDifferent(debouncedValue)
-
-	/**
-	 * An effect that updates the search state only when the debounced value *actually* changes
-	 */
-	useEffect(() => {
-		if (shouldUpdate) {
-			setSearch(debouncedValue)
-		}
-	}, [debouncedValue, setSearch, shouldUpdate])
+	// The URL is the source of truth, matching every other browse surface, so a
+	// filtered list is shareable and survives a back-navigation. `Search` owns
+	// the debounce.
+	const { search, setSearch } = useURLKeywordSearch()
 
 	const { sdk } = useSDK()
 	const {
@@ -74,7 +47,7 @@ export default function UserSmartListsScene() {
 		isRefetching,
 	} = useGraphQL(query, [sdk.cacheKeys.smartLists, search], {
 		input: {
-			search,
+			search: search || undefined,
 		} as SmartListsInput,
 	})
 
@@ -132,23 +105,12 @@ export default function UserSmartListsScene() {
 			<SceneContainer className="relative h-full overflow-hidden">
 				<div className="top-0 min-h-10 py-2 backdrop-blur-sm sticky z-10 bg-background">
 					<div className="gap-x-2 pr-3 md:w-2/3 lg:max-w-xl flex w-full flex-row items-center justify-between">
-						<InputGroup>
-							<InputGroup.Addon align="inline-start">
-								<Search className="h-4 w-4 text-muted-foreground" />
-							</InputGroup.Addon>
-
-							<InputGroup.Input
-								placeholder={t(withLocaleKey('searchPlaceholder'))}
-								value={value}
-								onChange={(e) => setValue(e.target.value)}
-							/>
-
-							{isRefetching && (
-								<InputGroup.Addon align="inline-end">
-									<ProgressSpinner size="sm" />
-								</InputGroup.Addon>
-							)}
-						</InputGroup>
+						<Search
+							initialValue={search}
+							placeholder={t(withLocaleKey('searchPlaceholder'))}
+							onChange={setSearch}
+							isLoading={isRefetching}
+						/>
 
 						<ButtonOrLink href={paths.smartListCreate()} variant="ghost">
 							{t(withLocaleKey('buttons.createSmartList'))}

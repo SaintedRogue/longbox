@@ -1,9 +1,7 @@
 import {
-	MediaFilterInput,
 	MediaModelOrdering,
 	MediaOrderBy,
 	OrderDirection,
-	SeriesFilterInput,
 	SeriesModelOrdering,
 	SeriesOrderBy,
 } from '@longbox/graphql'
@@ -107,47 +105,16 @@ export const useURLKeywordSearch = () => {
 	return { search, setSearch, removeSearch }
 }
 
-export function useSearchMediaFilter(search: string | undefined): MediaFilterInput[] | undefined {
-	return useMemo(() => {
-		if (!search) return undefined
-		return [
-			{
-				name: { contains: search },
-			},
-			{
-				metadata: {
-					summary: { contains: search },
-				},
-			},
-			{
-				metadata: {
-					title: { contains: search },
-				},
-			},
-		] as MediaFilterInput[]
-	}, [search])
-}
-
-export function useSearchSeriesFilter(search: string | undefined): SeriesFilterInput[] | undefined {
-	return useMemo(() => {
-		if (!search) return undefined
-		return [
-			{
-				name: { contains: search },
-			},
-			{
-				metadata: {
-					summary: { contains: search },
-				},
-			},
-			{
-				metadata: {
-					title: { contains: search },
-				},
-			},
-		] as SeriesFilterInput[]
-	}, [search])
-}
+/**
+ * Keyword search is a server concern now, not a filter the client assembles.
+ *
+ * `useSearchMediaFilter`/`useSearchSeriesFilter` used to build an `_or` array of
+ * three `contains` clauses here. Scenes pass the raw term to the `search`
+ * argument on `media`/`series` instead, which covers far more fields, escapes
+ * LIKE wildcards, and treats a multi-word query as separate terms. It is also
+ * the only way OPDS and the web client can agree on what a match means -- they
+ * previously drifted, with three different field sets between them.
+ */
 
 export function useFilterScene(): Return {
 	const [searchParams, setSearchParams] = useSearchParams()

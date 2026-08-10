@@ -21,7 +21,6 @@ import { FilterInput } from '@/components/filters/context'
 import {
 	DEFAULT_MEDIA_ORDER_BY,
 	useMediaURLOrderBy,
-	useSearchMediaFilter,
 	useURLKeywordSearch,
 	useURLPageParams,
 } from '@/components/filters/useFilterScene'
@@ -40,10 +39,11 @@ import { useLibraryContext } from '../../context'
 const query = graphql(`
 	query LibraryBooksScene(
 		$filter: MediaFilterInput!
+		$search: String
 		$orderBy: [MediaOrderBy!]!
 		$pagination: Pagination!
 	) {
-		media(filter: $filter, orderBy: $orderBy, pagination: $pagination) {
+		media(filter: $filter, search: $search, orderBy: $orderBy, pagination: $pagination) {
 			nodes {
 				id
 				...BookCard
@@ -74,8 +74,6 @@ export const usePrefetchLibraryBooks = () => {
 	const { sdk } = useSDK()
 	const { pageSize } = useURLPageParams()
 	const { search } = useURLKeywordSearch()
-	const searchFilter = useSearchMediaFilter(search)
-
 	const client = useQueryClient()
 	const prefetchAlphabet = usePrefetchLibraryBooksAlphabet()
 
@@ -103,8 +101,8 @@ export const usePrefetchLibraryBooks = () => {
 									libraryId: { eq: id },
 								},
 								_and: params.filter,
-								_or: searchFilter,
 							},
+							search,
 							orderBy: params.orderBy,
 							pagination: {
 								offset: {
@@ -119,7 +117,7 @@ export const usePrefetchLibraryBooks = () => {
 				prefetchAlphabet(id),
 			])
 		},
-		[client, pageSize, search, searchFilter, sdk, prefetchAlphabet],
+		[client, pageSize, search, sdk, prefetchAlphabet],
 	)
 
 	return prefetch
@@ -162,8 +160,6 @@ function LibraryBooksScene() {
 	const pageSize = pageSizeMaybeUndefined || 20 // Fallback to 20 if pageSize is undefined, this should never happen since we set a default in the useFilterScene hook
 	const orderBy = useMediaURLOrderBy(ordering)
 	const { search } = useURLKeywordSearch()
-	const searchFilter = useSearchMediaFilter(search)
-
 	// Guarded on there being a previous value, matching LibrarySeriesScene and SeriesBooksScene.
 	// `usePreviousIsDifferent` is `value != null && value !== previous`, and `useURLKeywordSearch`
 	// reports "no search" as an empty string -- which is not nullish. So on first render ('' against
@@ -263,8 +259,8 @@ function LibraryBooksScene() {
 					libraryId: { eq: library.id },
 				},
 				_and: resolvedFilters,
-				_or: searchFilter,
 			},
+			search,
 			orderBy,
 			pagination: {
 				offset: {
