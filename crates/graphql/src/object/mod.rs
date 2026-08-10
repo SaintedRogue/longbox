@@ -36,6 +36,7 @@ pub mod reading_list_item;
 pub mod reading_session;
 pub mod readthrough_record;
 pub mod resume_reading_cursor;
+pub mod search;
 pub mod series;
 pub mod series_metadata;
 pub mod smart_list_item;

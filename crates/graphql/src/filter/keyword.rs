@@ -64,6 +64,24 @@ pub fn multi_term_condition(
 	)
 }
 
+/// The in-memory counterpart of [`multi_term_condition`], for the entities that
+/// are tallied in Rust rather than queried: characters and authors both build a
+/// `HashMap` from CSV metadata columns and have no row to filter in SQL.
+///
+/// `haystack` is expected to already be lowercased, matching how those tallies
+/// key themselves. Terms are AND-ed, so the same query behaves the same way
+/// whether it ends up in a `WHERE` clause or a `.filter()`.
+pub fn matches_all_terms(haystack: &str, raw_query: &str) -> bool {
+	let terms = split_terms(raw_query);
+	if terms.is_empty() {
+		return true;
+	}
+
+	terms
+		.iter()
+		.all(|term| haystack.contains(&term.to_lowercase()))
+}
+
 /// Escapes the LIKE metacharacters `%` and `_`, plus the escape character
 /// itself, so a user-supplied fragment is matched literally.
 ///
@@ -119,6 +137,20 @@ mod tests {
 		assert_eq!(split_terms("  spaced   out \t"), vec!["spaced", "out"]);
 		assert!(split_terms("   ").is_empty());
 		assert_eq!(split_terms("a b c d e f g h i j").len(), MAX_TERMS);
+	}
+
+	#[test]
+	fn test_matches_all_terms_ands_the_query() {
+		// Same rule the SQL path applies, so a query means one thing regardless of
+		// which entity answers it.
+		assert!(matches_all_terms("grant morrison", "grant morrison"));
+		assert!(matches_all_terms("grant morrison", "morrison grant"));
+		assert!(matches_all_terms("grant morrison", "gra rison"));
+		assert!(!matches_all_terms("grant morrison", "grant ellis"));
+		// Callers lowercase their keys; the query is lowercased for them.
+		assert!(matches_all_terms("grant morrison", "GRANT"));
+		// A blank query filters nothing out rather than excluding everything.
+		assert!(matches_all_terms("grant morrison", "   "));
 	}
 
 	#[test]

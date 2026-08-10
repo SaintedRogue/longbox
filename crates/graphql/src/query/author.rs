@@ -6,6 +6,7 @@ use sea_orm::{prelude::*, QuerySelect};
 
 use crate::{
 	data::{AuthContext, CoreContext},
+	filter::keyword::matches_all_terms,
 	object::author::{Author, AuthorSeries},
 	pagination::{
 		OffsetPaginationInfo, PaginatedResponse, Pagination, PaginationValidator,
@@ -52,6 +53,38 @@ async fn fetch_all_authors(
 	}
 
 	Ok(unique_authors)
+}
+
+/// A capped preview of authors matching `query`, for the unified search fan-out.
+/// Mirrors [`crate::query::character::search_characters`] -- same AND-across-terms
+/// rule, same "return the total so the caller can offer to show the rest" shape.
+pub(crate) async fn search_authors(
+	conn: &DatabaseConnection,
+	auth_user: &AuthUser,
+	query: &str,
+	limit: usize,
+) -> Result<(Vec<Author>, u64)> {
+	let all_authors = fetch_all_authors(conn, None, auth_user).await?;
+
+	let mut matches = all_authors
+		.into_iter()
+		.filter(|(key, _)| matches_all_terms(key, query))
+		.map(|(_, name)| name)
+		.collect::<Vec<_>>();
+	matches.sort_by_key(|name| name.to_lowercase());
+
+	let total_count = matches.len() as u64;
+	let nodes = matches
+		.into_iter()
+		.take(limit)
+		.map(|name| Author {
+			name,
+			role: None,
+			library_id: None,
+		})
+		.collect();
+
+	Ok((nodes, total_count))
 }
 
 #[derive(Default)]
@@ -336,6 +369,83 @@ mod tests {
 		// The writer of a book rated above this user's age restriction must not
 		// be discoverable through the authors list either.
 		assert!(!authors.contains_key("garth ennis"));
+	}
+
+	/// `search_all` claims its author group is scoped like every other branch.
+	/// It inherits that from `fetch_all_authors`, so prove it rather than assume it.
+	#[tokio::test]
+	async fn test_search_authors_excludes_hidden_library_and_caps_results() {
+		let db = test_database().await;
+
+		let visible_library = fake_data::Library::default().insert(&db).await;
+		let hidden_library = fake_data::Library::default().insert(&db).await;
+
+		let visible_series = fake_data::Series {
+			library_id: Some(visible_library.id.clone()),
+			..Default::default()
+		}
+		.insert(&db)
+		.await;
+		let hidden_series = fake_data::Series {
+			library_id: Some(hidden_library.id.clone()),
+			..Default::default()
+		}
+		.insert(&db)
+		.await;
+
+		insert_media_with_writers(&db, &visible_series.id, "Grant Morrison").await;
+		insert_media_with_writers(&db, &visible_series.id, "Grant Ellis").await;
+		insert_media_with_writers(&db, &visible_series.id, "Grant Wood").await;
+		insert_media_with_writers(&db, &hidden_series.id, "Grant Hidden").await;
+
+		let user_model = fake_data::User::new("search-user").insert(&db).await;
+		let user = auth_user(&user_model.id);
+
+		library_exclusion::ActiveModel {
+			user_id: sea_orm::Set(user.id.clone()),
+			library_id: sea_orm::Set(hidden_library.id.clone()),
+			..Default::default()
+		}
+		.insert(&db)
+		.await
+		.expect("failed to insert library exclusion");
+
+		let (nodes, total_count) = search_authors(&db, &user, "grant", 2)
+			.await
+			.expect("search_authors failed");
+
+		// Three visible matches, not four - the hidden library's writer is excluded
+		// from the count as well as the page.
+		assert_eq!(total_count, 3);
+		assert_eq!(nodes.len(), 2, "the page is capped at the requested limit");
+		assert!(nodes.iter().all(|author| author.name != "Grant Hidden"));
+	}
+
+	/// Multi-term queries behave the same here as they do in SQL.
+	#[tokio::test]
+	async fn test_search_authors_ands_terms() {
+		let db = test_database().await;
+
+		let library = fake_data::Library::default().insert(&db).await;
+		let series = fake_data::Series {
+			library_id: Some(library.id.clone()),
+			..Default::default()
+		}
+		.insert(&db)
+		.await;
+
+		insert_media_with_writers(&db, &series.id, "Grant Morrison, Grant Ellis").await;
+
+		let user = auth_user("search-user-2");
+		let (nodes, total_count) = search_authors(&db, &user, "grant morrison", 10)
+			.await
+			.expect("search_authors failed");
+
+		assert_eq!(total_count, 1);
+		assert_eq!(
+			nodes.first().map(|author| author.name.as_str()),
+			Some("Grant Morrison")
+		);
 	}
 
 	#[tokio::test]

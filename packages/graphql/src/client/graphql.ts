@@ -170,6 +170,19 @@ export enum AuthorRole {
   Primary = 'PRIMARY'
 }
 
+/**
+ * One entity type's slice of a unified search.
+ *
+ * `total_count` is the number of matches across the whole server, not the
+ * length of `nodes` -- the caller uses it to decide whether to offer "N more"
+ * and to link into that type's own fully-paginated query.
+ */
+export type AuthorSearchGroup = {
+  __typename?: 'AuthorSearchGroup';
+  nodes: Array<Author>;
+  totalCount: Scalars['Int']['output'];
+};
+
 export type AuthorSeries = {
   __typename?: 'AuthorSeries';
   /** Authors who contributed to this series */
@@ -498,6 +511,19 @@ export enum CharacterOrdering {
   /** The character's name, compared case-insensitively */
   Name = 'NAME'
 }
+
+/**
+ * One entity type's slice of a unified search.
+ *
+ * `total_count` is the number of matches across the whole server, not the
+ * length of `nodes` -- the caller uses it to decide whether to offer "N more"
+ * and to link into that type's own fully-paginated query.
+ */
+export type CharacterSearchGroup = {
+  __typename?: 'CharacterSearchGroup';
+  nodes: Array<Character>;
+  totalCount: Scalars['Int']['output'];
+};
 
 export type CleanLibraryResponse = {
   __typename?: 'CleanLibraryResponse';
@@ -1430,6 +1456,19 @@ export type LibraryScanRecord = {
   timestamp: Scalars['DateTime']['output'];
 };
 
+/**
+ * One entity type's slice of a unified search.
+ *
+ * `total_count` is the number of matches across the whole server, not the
+ * length of `nodes` -- the caller uses it to decide whether to offer "N more"
+ * and to link into that type's own fully-paginated query.
+ */
+export type LibrarySearchGroup = {
+  __typename?: 'LibrarySearchGroup';
+  nodes: Array<Library>;
+  totalCount: Scalars['Int']['output'];
+};
+
 export type LibraryStats = {
   __typename?: 'LibraryStats';
   bookCount: Scalars['Int']['output'];
@@ -2009,6 +2048,19 @@ export type MediaOrderByField = {
 export type MediaProgressInput =
   { epub: EpubProgressInput; paged?: never; }
   |  { epub?: never; paged: PagedProgressInput; };
+
+/**
+ * One entity type's slice of a unified search.
+ *
+ * `total_count` is the number of matches across the whole server, not the
+ * length of `nodes` -- the caller uses it to decide whether to offer "N more"
+ * and to link into that type's own fully-paginated query.
+ */
+export type MediaSearchGroup = {
+  __typename?: 'MediaSearchGroup';
+  nodes: Array<Media>;
+  totalCount: Scalars['Int']['output'];
+};
 
 /** How to merge external metadata values onto existing entity metadata */
 export enum MergeStrategy {
@@ -3998,6 +4050,15 @@ export type Query = {
    */
   releaseCalendar: Array<CalendarDay>;
   scheduledJobs: Array<ScheduledJob>;
+  /**
+   * Search books, series, libraries, authors and characters in one request.
+   *
+   * This is a *preview* endpoint: each group is capped, and expanding one type
+   * means calling that type's own paginated query with the same search string
+   * rather than paginating here. That keeps the fan-out cheap and means
+   * expanding one group never refetches the others.
+   */
+  searchAll: SearchAllResult;
   series: PaginatedSeriesResponse;
   /** Returns the available alphabet for all series in the server */
   seriesAlphabet: Scalars['JSONObject']['output'];
@@ -4298,6 +4359,12 @@ export type QueryRecentlyAddedSeriesArgs = {
 export type QueryReleaseCalendarArgs = {
   scope?: CalendarScope;
   weekOffset?: Scalars['Int']['input'];
+};
+
+
+export type QuerySearchAllArgs = {
+  limitPerType?: Scalars['Int']['input'];
+  query: Scalars['String']['input'];
 };
 
 
@@ -4643,6 +4710,24 @@ export enum ScheduledJobKind {
   ReleaseCalendarSync = 'RELEASE_CALENDAR_SYNC'
 }
 
+/**
+ * The result of a unified search: one capped group per entity type.
+ *
+ * Grouped rather than a flat union of results, because the five sources cannot
+ * share a pagination scheme. Books, series and libraries paginate in SQL, while
+ * characters and authors are tallied from CSV metadata columns into a HashMap
+ * and paginated in memory. A single interleaved list would have to materialise
+ * all five on every page request to order them consistently.
+ */
+export type SearchAllResult = {
+  __typename?: 'SearchAllResult';
+  authors: AuthorSearchGroup;
+  characters: CharacterSearchGroup;
+  libraries: LibrarySearchGroup;
+  media: MediaSearchGroup;
+  series: SeriesSearchGroup;
+};
+
 export type SendAttachmentEmailOutput = {
   __typename?: 'SendAttachmentEmailOutput';
   errors: Array<Scalars['String']['output']>;
@@ -4905,6 +4990,19 @@ export type SeriesScanOutput = {
   totalFiles: Scalars['Int']['output'];
   /** The number of media entities that were updated */
   updatedMedia: Scalars['Int']['output'];
+};
+
+/**
+ * One entity type's slice of a unified search.
+ *
+ * `total_count` is the number of matches across the whole server, not the
+ * length of `nodes` -- the caller uses it to decide whether to offer "N more"
+ * and to link into that type's own fully-paginated query.
+ */
+export type SeriesSearchGroup = {
+  __typename?: 'SeriesSearchGroup';
+  nodes: Array<Series>;
+  totalCount: Scalars['Int']['output'];
 };
 
 export type SeriesStats = {
@@ -6458,6 +6556,26 @@ export type LibrarySearchSceneQuery = { __typename?: 'Query', libraries: { __typ
       { __typename?: 'Library', id: string }
       & { ' $fragmentRefs'?: { 'LibraryCardFragment': LibraryCardFragment } }
     )>, pageInfo: { __typename: 'CursorPaginationInfo' } | { __typename: 'OffsetPaginationInfo', currentPage: number, totalPages: number } } };
+
+export type GlobalSearchQueryVariables = Exact<{
+  query: Scalars['String']['input'];
+  limitPerType: Scalars['Int']['input'];
+}>;
+
+
+export type GlobalSearchQuery = { __typename?: 'Query', searchAll: { __typename?: 'SearchAllResult', media: { __typename?: 'MediaSearchGroup', totalCount: number, nodes: Array<(
+        { __typename?: 'Media', id: string }
+        & { ' $fragmentRefs'?: { 'BookCardFragment': BookCardFragment } }
+      )> }, series: { __typename?: 'SeriesSearchGroup', totalCount: number, nodes: Array<(
+        { __typename?: 'Series', id: string, resolvedName: string }
+        & { ' $fragmentRefs'?: { 'SeriesGridCardFragment': SeriesGridCardFragment } }
+      )> }, libraries: { __typename?: 'LibrarySearchGroup', totalCount: number, nodes: Array<(
+        { __typename?: 'Library', id: string }
+        & { ' $fragmentRefs'?: { 'LibraryCardFragment': LibraryCardFragment } }
+      )> }, characters: { __typename?: 'CharacterSearchGroup', totalCount: number, nodes: Array<(
+        { __typename?: 'Character', name: string }
+        & { ' $fragmentRefs'?: { 'CharacterCardFragment': CharacterCardFragment } }
+      )> }, authors: { __typename?: 'AuthorSearchGroup', totalCount: number, nodes: Array<{ __typename?: 'Author', name: string }> } } };
 
 export type SeriesActionCompleteMutationVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -10406,6 +10524,130 @@ export const LibrarySearchSceneDocument = new TypedDocumentString(`
     bookCount
   }
 }`) as unknown as TypedDocumentString<LibrarySearchSceneQuery, LibrarySearchSceneQueryVariables>;
+export const GlobalSearchDocument = new TypedDocumentString(`
+    query GlobalSearch($query: String!, $limitPerType: Int!) {
+  searchAll(query: $query, limitPerType: $limitPerType) {
+    media {
+      totalCount
+      nodes {
+        id
+        ...BookCard
+      }
+    }
+    series {
+      totalCount
+      nodes {
+        id
+        resolvedName
+        ...SeriesGridCard
+      }
+    }
+    libraries {
+      totalCount
+      nodes {
+        id
+        ...LibraryCard
+      }
+    }
+    characters {
+      totalCount
+      nodes {
+        name
+        ...CharacterCard
+      }
+    }
+    authors {
+      totalCount
+      nodes {
+        name
+      }
+    }
+  }
+}
+    fragment BookCard on Media {
+  id
+  resolvedName
+  extension
+  pages
+  size
+  status
+  thumbnail {
+    url
+    metadata {
+      averageColor
+      colors {
+        color
+        percentage
+      }
+      thumbhash
+    }
+    height
+    width
+  }
+  readProgress {
+    percentageCompleted
+    epubcfi
+    page
+    updatedAt
+  }
+  readHistory {
+    __typename
+    completedAt
+  }
+  createdAt
+  libraryConfig {
+    skipBookOverview
+  }
+}
+fragment LibraryCard on Library {
+  id
+  name
+  emoji
+  stats {
+    seriesCount
+    bookCount
+  }
+}
+fragment SeriesGridCard on Series {
+  id
+  resolvedName
+  mediaCount
+  percentageCompleted
+  status
+  media(take: 2, skip: 1) {
+    id
+    thumbnail {
+      url
+      metadata {
+        averageColor
+        colors {
+          color
+          percentage
+        }
+        thumbhash
+      }
+    }
+  }
+  thumbnail {
+    url
+    metadata {
+      averageColor
+      colors {
+        color
+        percentage
+      }
+      thumbhash
+    }
+  }
+  library {
+    id
+    name
+  }
+}
+fragment CharacterCard on Character {
+  name
+  bookCount
+}`) as unknown as TypedDocumentString<GlobalSearchQuery, GlobalSearchQueryVariables>;
 export const SeriesActionCompleteDocument = new TypedDocumentString(`
     mutation SeriesActionComplete($id: ID!) {
   finishSeriesProgress(id: $id)
