@@ -5,7 +5,7 @@ use async_graphql::{
 };
 
 use models::{
-	entity::{library, media, reading_session, series, series_tag, tag},
+	entity::{library, library_folder, media, reading_session, series, series_tag, tag},
 	shared::{
 		alphabet::{AvailableAlphabet, EntityLetter},
 		enums::ReadingStatus,
@@ -30,7 +30,12 @@ use crate::{
 	object::{series_metadata::SeriesMetadata, stats::SeriesStats},
 };
 
-use super::{library::Library, media::Media, tag::Tag};
+use super::{
+	library::Library,
+	library_folder::{collect_ancestors, LibraryFolder},
+	media::Media,
+	tag::Tag,
+};
 
 #[derive(Clone, Debug, SimpleObject)]
 #[graphql(complex)]
@@ -79,6 +84,54 @@ impl Series {
 			.load_one(self.model.id.clone())
 			.await?
 			.unwrap_or(false))
+	}
+
+	/// The folder that contains this series, if it sits under one rather than
+	/// directly in the library root.
+	async fn folder(&self, ctx: &Context<'_>) -> Result<Option<LibraryFolder>> {
+		let conn = ctx.data::<CoreContext>()?.conn.as_ref();
+
+		let Some(folder_id) = self.model.folder_id.clone() else {
+			return Ok(None);
+		};
+
+		Ok(library_folder::Entity::find_by_id(folder_id)
+			.one(conn)
+			.await?
+			.map(LibraryFolder::from))
+	}
+
+	/// The folder names between the library root and this series, outermost
+	/// first - e.g. `["Marvel", "Hulk"]` for `/library/Marvel/Hulk/Vol 1`.
+	///
+	/// Empty for a series directly in the library root, and empty when the
+	/// containing directory is itself a series (a directory that holds books *and*
+	/// has media-bearing subdirectories is classified as a series, so no folder
+	/// row exists for it). Both cases mean "no folder structure to show" rather
+	/// than an error.
+	async fn breadcrumb(&self, ctx: &Context<'_>) -> Result<Vec<String>> {
+		let conn = ctx.data::<CoreContext>()?.conn.as_ref();
+
+		let Some(folder_id) = self.model.folder_id.clone() else {
+			return Ok(vec![]);
+		};
+
+		let Some(folder) = library_folder::Entity::find_by_id(folder_id)
+			.one(conn)
+			.await?
+		else {
+			// The folder was pruned. A breadcrumb is decoration, so degrade to none.
+			return Ok(vec![]);
+		};
+
+		let mut names = collect_ancestors(conn, folder.parent_id.clone())
+			.await?
+			.into_iter()
+			.map(|ancestor| ancestor.name)
+			.collect::<Vec<_>>();
+		names.push(folder.name);
+
+		Ok(names)
 	}
 
 	async fn resolved_name(&self) -> String {

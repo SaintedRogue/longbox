@@ -7,8 +7,8 @@ use std::{
 use async_graphql::SimpleObject;
 use models::{
 	entity::{
-		library, library_config, library_scan_record, media, metadata_provider_config,
-		scanned_directory, series,
+		library, library_config, library_folder, library_scan_record, media,
+		metadata_provider_config, scanned_directory, series,
 	},
 	shared::{enums::FileStatus, image_processor_options::ImageProcessorOptions},
 };
@@ -43,8 +43,9 @@ use super::{
 	series_scan_job::SeriesScanTask,
 	utils::{
 		handle_missing_media, handle_missing_series, handle_restored_media,
-		safely_build_and_insert_media, safely_build_series, visit_and_update_media,
-		MediaBuildOperation, MediaOperationOutput, MissingSeriesOutput,
+		link_series_to_folders, safely_build_and_insert_media, safely_build_series,
+		sync_library_folders, visit_and_update_media, MediaBuildOperation,
+		MediaOperationOutput, MissingSeriesOutput,
 	},
 	walk_library, walk_series, ScanOptions, WalkedLibrary, WalkedSeries, WalkerCtx,
 };
@@ -67,6 +68,9 @@ pub struct InitTaskInput {
 	series_to_create: Vec<PathBuf>,
 	missing_series: Vec<PathBuf>,
 	recovered_series: Vec<String>,
+	/// Grouping directories seen during the walk, reconciled into
+	/// `library_folders` when the init task runs.
+	structural_directories: Vec<PathBuf>,
 }
 
 /// A job that scans a library and updates the database with the results
@@ -210,6 +214,7 @@ impl JobLifecycle for LibraryScanJob {
 			recovered_series,
 			series_to_visit,
 			missing_series,
+			structural_directories,
 			library_is_missing,
 			ignored_directories,
 			seen_directories,
@@ -257,6 +262,7 @@ impl JobLifecycle for LibraryScanJob {
 			series_to_create: series_to_create.clone(),
 			missing_series,
 			recovered_series,
+			structural_directories,
 		};
 
 		let series_to_visit = series_to_visit
@@ -454,6 +460,34 @@ impl JobLifecycle for LibraryScanJob {
 			}
 		}
 
+		// Same sweep for folders. Ordering does not matter: a folder only goes
+		// stale when its directory is gone from disk, which means everything nested
+		// under it is gone too and lands in the same stale set. The self-referential
+		// cascade is a backstop, not the mechanism.
+		let stale_folder_ids = library_folder::Entity::find()
+			.filter(library_folder::Column::LibraryId.eq(self.id.as_str()))
+			.all(ctx.conn())
+			.await
+			.unwrap_or_default()
+			.into_iter()
+			.filter(|folder| !std::path::Path::new(&folder.path).exists())
+			.map(|folder| folder.id)
+			.collect::<Vec<_>>();
+
+		if !stale_folder_ids.is_empty() {
+			let count = stale_folder_ids.len();
+			for chunk in stale_folder_ids.chunks(SQLITE_BIND_LIMIT) {
+				if let Err(err) = library_folder::Entity::delete_many()
+					.filter(library_folder::Column::Id.is_in(chunk.to_vec()))
+					.exec(ctx.conn())
+					.await
+				{
+					tracing::error!(error = ?err, "Failed to clean up stale library_folder rows");
+				}
+			}
+			tracing::debug!(count, "Cleaned up stale library_folder rows");
+		}
+
 		Ok(())
 	}
 
@@ -474,6 +508,7 @@ impl JobLifecycle for LibraryScanJob {
 					series_to_create,
 					missing_series,
 					recovered_series,
+					structural_directories,
 				} = input;
 
 				let recovered_series_step_count =
@@ -678,6 +713,43 @@ impl JobLifecycle for LibraryScanJob {
 					));
 				} else {
 					tracing::trace!("No series to create");
+				}
+
+				// Runs on every scan, not only when series were created: a library
+				// whose series are all already known still needs its folder rows
+				// refreshed after a directory is added, renamed or moved. Runs after
+				// series insertion so newly created rows get linked in the same pass.
+				ctx.report_progress(JobProgress::msg("Recording folder structure"));
+				match sync_library_folders(
+					&self.id,
+					&self.path,
+					structural_directories,
+					ctx.conn(),
+				)
+				.await
+				{
+					Ok(folder_ids_by_path) => {
+						if let Err(error) = link_series_to_folders(
+							&self.id,
+							&folder_ids_by_path,
+							ctx.conn(),
+						)
+						.await
+						{
+							tracing::error!(?error, "Failed to link series to folders");
+							logs.push(JobExecuteLog::warn(&format!(
+								"Failed to link series to their folders: {error}"
+							)));
+						}
+					},
+					Err(error) => {
+						// Best-effort, like the rest of the scan's bookkeeping: losing
+						// folder rows costs breadcrumbs, not books.
+						tracing::error!(?error, "Failed to sync library folders");
+						logs.push(JobExecuteLog::warn(&format!(
+							"Failed to record folder structure: {error}"
+						)));
+					},
 				}
 			},
 			LibraryScanTask::WalkSeries(path_buf) => {

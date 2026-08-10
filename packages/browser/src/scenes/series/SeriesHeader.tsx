@@ -58,6 +58,7 @@ export default function SeriesHeader() {
 			resolvedName,
 			path,
 			stats,
+			breadcrumb,
 			library: { id: libraryId, name: libraryName },
 		},
 	} = useSeriesContext()
@@ -254,6 +255,11 @@ export default function SeriesHeader() {
 					segments={[
 						{ label: 'Libraries', to: paths.libraries(), noShrink: true },
 						{ label: libraryName, to: libraryReturnPath, noShrink: true },
+						// The folder chain between the library and this series. These are
+						// not links: folder browse does not exist yet, so they orient
+						// rather than navigate -- which is the whole point for two series
+						// that share a leaf directory name.
+						...breadcrumb.map((folder) => ({ label: folder })),
 						{ label: resolvedName },
 					]}
 				/>

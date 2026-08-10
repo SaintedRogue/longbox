@@ -20,6 +20,9 @@ const query = graphql(`
 				id
 				name
 			}
+			# The folder names between the library root and this series. Empty for a
+			# series sitting directly in the library root.
+			breadcrumb
 			resolvedName
 			resolvedDescription
 			stats {
