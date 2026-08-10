@@ -24,6 +24,8 @@ const SeriesRouter = lazy(() => import('./scenes/series/SeriesRouter'))
 const SettingsRouter = lazy(() => import('./scenes/settings/SettingsRouter'))
 const SmartListRouter = lazy(() => import('./scenes/smartList/SmartListRouter'))
 const DownloadsRouter = lazy(() => import('./scenes/downloads/DownloadsRouter'))
+const CalendarScene = lazy(() => import('./scenes/calendar'))
+const UpdatesScene = lazy(() => import('./scenes/updates'))
 const FourOhFour = lazy(() => import('./scenes/error/FourOhFour.tsx'))
 const ServerConnectionErrorScene = lazy(
 	() => import('./scenes/error/ServerConnectionErrorScene.tsx'),
@@ -61,6 +63,8 @@ export function AppRouter({ basePath }: AppRouterProps = {}) {
 						<Route path="books/*" element={<BookRouter />} />
 						<Route path="clubs/*" element={<BookClubRouter />} />
 						<Route path="/smart-lists/*" element={<SmartListRouter />} />
+						<Route path="calendar" element={<CalendarScene />} />
+						<Route path="updates" element={<UpdatesScene />} />
 						<Route path="downloads/*" element={<DownloadsRouter />} />
 						<Route path="settings/*" element={<SettingsRouter />} />
 					</Route>

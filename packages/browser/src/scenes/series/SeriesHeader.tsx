@@ -1,4 +1,4 @@
-import { useGraphQLMutation, usePrefetchFiles } from '@longbox/client'
+import { useGraphQL, useGraphQLMutation, usePrefetchFiles } from '@longbox/client'
 import { formatBytesSeparate } from '@longbox/client'
 import { Breadcrumbs } from '@longbox/components'
 import { DropdownItemGroup } from '@longbox/components/dropdown/DropdownMenu'
@@ -7,6 +7,8 @@ import { formatHumanDurationSeparate, useLocaleContext } from '@longbox/i18n'
 import { useQueryClient } from '@tanstack/react-query'
 import {
 	ArrowUpRight,
+	Bell,
+	BellOff,
 	BookCheck,
 	BookOpen,
 	BookOpenCheck,
@@ -33,6 +35,18 @@ import { usePrefetchSeriesBooks } from './tabs/books/SeriesBooksScene'
 const completeSeriesMutation = graphql(`
 	mutation SeriesActionComplete($id: ID!) {
 		finishSeriesProgress(id: $id)
+	}
+`)
+
+const followedSeriesQuery = graphql(`
+	query FollowedSeriesIds {
+		followedSeriesIds
+	}
+`)
+
+const followSeriesMutation = graphql(`
+	mutation FollowSeries($id: ID!, $isFollowing: Boolean!) {
+		followSeries(id: $id, isFollowing: $isFollowing)
 	}
 `)
 
@@ -77,6 +91,20 @@ export default function SeriesHeader() {
 		client.invalidateQueries({ queryKey: ['seriesBooks', id], exact: false })
 	}
 
+	const { data: followedData } = useGraphQL(followedSeriesQuery, ['followedSeriesIds'])
+	const isFollowing = (followedData?.followedSeriesIds ?? []).some((fid) => String(fid) === id)
+	const { mutate: followSeries } = useGraphQLMutation(followSeriesMutation, {
+		onSuccess: () => {
+			client.invalidateQueries({ queryKey: ['followedSeriesIds'] })
+			client.invalidateQueries({ queryKey: ['releaseCalendar'], exact: false })
+			client.invalidateQueries({ queryKey: ['updatesFeed'] })
+		},
+		onError: (error) => {
+			console.error(error)
+			toast.error('Failed to update follow', { description: extractErrorMessage(error) })
+		},
+	})
+
 	const { mutate: completeSeries } = useGraphQLMutation(completeSeriesMutation, {
 		onSuccess,
 		onError: (error) => {
@@ -90,6 +118,17 @@ export default function SeriesHeader() {
 	const actions = [
 		{
 			items: [
+				{
+					label: isFollowing ? 'Unfollow series' : 'Follow series',
+					leftIcon: isFollowing ? (
+						<BellOff className="mr-2 h-4 w-4" />
+					) : (
+						<Bell className="mr-2 h-4 w-4" />
+					),
+					onClick: () => {
+						followSeries({ id, isFollowing: !isFollowing })
+					},
+				},
 				{
 					label: t('seriesHeader.actions.markAsRead'),
 					leftIcon: <BookOpenCheck className="mr-2 h-4 w-4" />,

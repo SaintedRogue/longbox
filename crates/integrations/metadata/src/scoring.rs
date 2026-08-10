@@ -97,7 +97,8 @@ fn token_overlap_score(query_title: &str, candidate_title: &str) -> f64 {
 
 /// Compare two issue-number strings, tolerating numeric formatting differences
 /// ("1" == "1.0") while still matching non-numeric numbers ("1.MU") case-insensitively.
-fn issue_numbers_match(a: &str, b: &str) -> bool {
+/// Public: the release calendar's "in library" check shares these semantics.
+pub fn issue_numbers_match(a: &str, b: &str) -> bool {
 	let (a, b) = (a.trim(), b.trim());
 	if let (Ok(na), Ok(nb)) = (a.parse::<f32>(), b.parse::<f32>()) {
 		return (na - nb).abs() < f32::EPSILON;

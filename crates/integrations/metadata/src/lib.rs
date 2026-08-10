@@ -18,12 +18,12 @@ pub use filename::{parse_comic_filename, ParsedComicName};
 pub use merge::{AutoApplyConfig, FieldMerger, MergeStrategy, MetadataFieldOverride};
 pub use provider::MetadataProvider;
 pub use rate_limit::RateLimiter;
-pub use scoring::MatchScorer;
+pub use scoring::{issue_numbers_match, MatchScorer};
 pub use title::compose_comic_title;
 pub use types::{
 	ConfidenceFactor, ExternalMediaMetadata, ExternalMetadata, ExternalSeriesMetadata,
 	MatchCandidate, MediaType, MetadataField, ProviderValidationResult,
-	ProviderValidationStatus, PublicationStatus, SearchQuery,
+	ProviderValidationStatus, PublicationStatus, SearchQuery, UpcomingRelease,
 };
 
 use providers::{ComicVineClient, HardcoverClient, MetronClient};

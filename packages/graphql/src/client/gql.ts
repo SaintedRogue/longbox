@@ -100,6 +100,7 @@ type Documents = {
     "\n\tquery BookClubMembersTable($id: ID!) {\n\t\tbookClubById(id: $id) {\n\t\t\tid\n\t\t\tmembers {\n\t\t\t\tid\n\t\t\t\tavatarUrl\n\t\t\t\tisCreator\n\t\t\t\tdisplayName\n\t\t\t\trole\n\t\t\t\tuserId\n\t\t\t}\n\t\t}\n\t}\n": typeof types.BookClubMembersTableDocument,
     "\n\tmutation RemoveBookClubMember($bookClubId: ID!, $memberId: ID!) {\n\t\tremoveBookClubMember(bookClubId: $bookClubId, memberId: $memberId) {\n\t\t\tid\n\t\t}\n\t}\n": typeof types.RemoveBookClubMemberDocument,
     "\n\tquery BookSearchScene(\n\t\t$filter: MediaFilterInput!\n\t\t$orderBy: [MediaOrderBy!]!\n\t\t$pagination: Pagination!\n\t) {\n\t\tmedia(filter: $filter, orderBy: $orderBy, pagination: $pagination) {\n\t\t\tnodes {\n\t\t\t\tid\n\t\t\t\t...BookCard\n\t\t\t\t...BookMetadata\n\t\t\t}\n\t\t\tpageInfo {\n\t\t\t\t__typename\n\t\t\t\t... on OffsetPaginationInfo {\n\t\t\t\t\tcurrentPage\n\t\t\t\t\ttotalPages\n\t\t\t\t\tpageSize\n\t\t\t\t\tpageOffset\n\t\t\t\t\tzeroBased\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t}\n": typeof types.BookSearchSceneDocument,
+    "\n\tquery ReleaseCalendar($weekOffset: Int!, $scope: CalendarScope!) {\n\t\treleaseCalendar(weekOffset: $weekOffset, scope: $scope) {\n\t\t\tdate\n\t\t\tentries {\n\t\t\t\tseriesId\n\t\t\t\tseriesName\n\t\t\t\tnumber\n\t\t\t\ttitle\n\t\t\t\tcoverUrl\n\t\t\t\tinLibrary\n\t\t\t}\n\t\t}\n\t}\n": typeof types.ReleaseCalendarDocument,
     "\n\tfragment CharacterCard on Character {\n\t\tname\n\t\tbookCount\n\t}\n": typeof types.CharacterCardFragmentDoc,
     "\n\tquery CharacterDetailScene($name: String!) {\n\t\tcharacterByName(name: $name) {\n\t\t\tname\n\t\t\tbookCount\n\t\t\tbooks {\n\t\t\t\tid\n\t\t\t\t...BookCard\n\t\t\t\t...BookMetadata\n\t\t\t}\n\t\t}\n\t}\n": typeof types.CharacterDetailSceneDocument,
     "\n\tquery CharactersScene($search: String, $orderBy: [CharacterOrderBy!]!, $pagination: Pagination!) {\n\t\tcharacters(search: $search, orderBy: $orderBy, pagination: $pagination) {\n\t\t\tnodes {\n\t\t\t\tname\n\t\t\t\t...CharacterCard\n\t\t\t}\n\t\t\tpageInfo {\n\t\t\t\t__typename\n\t\t\t\t... on OffsetPaginationInfo {\n\t\t\t\t\tcurrentPage\n\t\t\t\t\ttotalPages\n\t\t\t\t\tpageSize\n\t\t\t\t\tpageOffset\n\t\t\t\t\tzeroBased\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t}\n": typeof types.CharactersSceneDocument,
@@ -152,6 +153,8 @@ type Documents = {
     "\n\tmutation RegenerateThumbnails($id: ID!, $forceRegenerate: Boolean!) {\n\t\tgenerateLibraryThumbnails(id: $id, forceRegenerate: $forceRegenerate)\n\t}\n": typeof types.RegenerateThumbnailsDocument,
     "\n\tmutation LibraryUploadSectionUploadBooks($input: UploadBooksInput!) {\n\t\tuploadBooks(input: $input)\n\t}\n": typeof types.LibraryUploadSectionUploadBooksDocument,
     "\n\tmutation SeriesActionComplete($id: ID!) {\n\t\tfinishSeriesProgress(id: $id)\n\t}\n": typeof types.SeriesActionCompleteDocument,
+    "\n\tquery FollowedSeriesIds {\n\t\tfollowedSeriesIds\n\t}\n": typeof types.FollowedSeriesIdsDocument,
+    "\n\tmutation FollowSeries($id: ID!, $isFollowing: Boolean!) {\n\t\tfollowSeries(id: $id, isFollowing: $isFollowing)\n\t}\n": typeof types.FollowSeriesDocument,
     "\n\tquery SeriesLayout($id: ID!) {\n\t\tseriesById(id: $id) {\n\t\t\tid\n\t\t\tpath\n\t\t\tlibrary {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t}\n\t\t\tresolvedName\n\t\t\tresolvedDescription\n\t\t\tstats {\n\t\t\t\tbookCount\n\t\t\t\tcompletedBooks\n\t\t\t\tinProgressBooks\n\t\t\t\ttotalBytes\n\t\t\t\ttotalReadingTimeSeconds\n\t\t\t}\n\t\t\ttags {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t}\n\t\t\tthumbnail {\n\t\t\t\turl\n\t\t\t\tmetadata {\n\t\t\t\t\taverageColor\n\t\t\t\t\tthumbhash\n\t\t\t\t\tcolors {\n\t\t\t\t\t\tcolor\n\t\t\t\t\t\tpercentage\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t\tcreatedAt\n\t\t\tupdatedAt\n\t\t}\n\t}\n": typeof types.SeriesLayoutDocument,
     "\n\tquery SeriesLibrayLink($id: ID!) {\n\t\tlibraryById(id: $id) {\n\t\t\tid\n\t\t\tname\n\t\t}\n\t}\n": typeof types.SeriesLibrayLinkDocument,
     "\n\tquery SeriesOverviewSheetExtas($id: ID!) {\n\t\tseriesById(id: $id) {\n\t\t\tid\n\t\t\tmetadata {\n\t\t\t\tpublisher\n\t\t\t\tyear\n\t\t\t\tsummary\n\t\t\t\tlinks\n\t\t\t}\n\t\t\tupNext(take: 10) {\n\t\t\t\tid\n\t\t\t\t...SimpleBookCard\n\t\t\t}\n\t\t}\n\t}\n": typeof types.SeriesOverviewSheetExtasDocument,
@@ -240,6 +243,7 @@ type Documents = {
     "\n\tmutation DeleteSmartListView($id: ID!, $name: String!) {\n\t\tdeleteSmartListView(id: $id, name: $name) {\n\t\t\tid\n\t\t\tname\n\t\t}\n\t}\n": typeof types.DeleteSmartListViewDocument,
     "\n\tquery SmartListBasicSettingsScene {\n\t\tsmartLists(input: { mine: true }) {\n\t\t\tname\n\t\t}\n\t}\n": typeof types.SmartListBasicSettingsSceneDocument,
     "\n\tmutation DeleteSmartList($id: ID!) {\n\t\tdeleteSmartList(id: $id) {\n\t\t\t__typename\n\t\t}\n\t}\n": typeof types.DeleteSmartListDocument,
+    "\n\tquery UpdatesFeed {\n\t\tupdatesFeed {\n\t\t\titems {\n\t\t\t\tmediaId\n\t\t\t\tseriesName\n\t\t\t\tmediaName\n\t\t\t\tcreatedAt\n\t\t\t\tisRead\n\t\t\t}\n\t\t\tcapped\n\t\t}\n\t}\n": typeof types.UpdatesFeedDocument,
     "\n\tquery DirectoryListing($input: DirectoryListingInput!, $pagination: Pagination!) {\n\t\tlistDirectory(input: $input, pagination: $pagination) {\n\t\t\tnodes {\n\t\t\t\tparent\n\t\t\t\tfiles {\n\t\t\t\t\tname\n\t\t\t\t\tpath\n\t\t\t\t\tisDirectory\n\t\t\t\t\tmedia {\n\t\t\t\t\t\tid\n\t\t\t\t\t\tresolvedName\n\t\t\t\t\t\tthumbnail {\n\t\t\t\t\t\t\turl\n\t\t\t\t\t\t}\n\t\t\t\t\t\textension\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t\tpageInfo {\n\t\t\t\t__typename\n\t\t\t\t... on OffsetPaginationInfo {\n\t\t\t\t\tcurrentPage\n\t\t\t\t\ttotalPages\n\t\t\t\t\tpageSize\n\t\t\t\t\tpageOffset\n\t\t\t\t\tzeroBased\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t}\n": typeof types.DirectoryListingDocument,
     "\n\tquery UploadConfig {\n\t\tuploadConfig {\n\t\t\tenabled\n\t\t\tmaxFileUploadSize\n\t\t}\n\t}\n": typeof types.UploadConfigDocument,
 };
@@ -329,6 +333,7 @@ const documents: Documents = {
     "\n\tquery BookClubMembersTable($id: ID!) {\n\t\tbookClubById(id: $id) {\n\t\t\tid\n\t\t\tmembers {\n\t\t\t\tid\n\t\t\t\tavatarUrl\n\t\t\t\tisCreator\n\t\t\t\tdisplayName\n\t\t\t\trole\n\t\t\t\tuserId\n\t\t\t}\n\t\t}\n\t}\n": types.BookClubMembersTableDocument,
     "\n\tmutation RemoveBookClubMember($bookClubId: ID!, $memberId: ID!) {\n\t\tremoveBookClubMember(bookClubId: $bookClubId, memberId: $memberId) {\n\t\t\tid\n\t\t}\n\t}\n": types.RemoveBookClubMemberDocument,
     "\n\tquery BookSearchScene(\n\t\t$filter: MediaFilterInput!\n\t\t$orderBy: [MediaOrderBy!]!\n\t\t$pagination: Pagination!\n\t) {\n\t\tmedia(filter: $filter, orderBy: $orderBy, pagination: $pagination) {\n\t\t\tnodes {\n\t\t\t\tid\n\t\t\t\t...BookCard\n\t\t\t\t...BookMetadata\n\t\t\t}\n\t\t\tpageInfo {\n\t\t\t\t__typename\n\t\t\t\t... on OffsetPaginationInfo {\n\t\t\t\t\tcurrentPage\n\t\t\t\t\ttotalPages\n\t\t\t\t\tpageSize\n\t\t\t\t\tpageOffset\n\t\t\t\t\tzeroBased\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t}\n": types.BookSearchSceneDocument,
+    "\n\tquery ReleaseCalendar($weekOffset: Int!, $scope: CalendarScope!) {\n\t\treleaseCalendar(weekOffset: $weekOffset, scope: $scope) {\n\t\t\tdate\n\t\t\tentries {\n\t\t\t\tseriesId\n\t\t\t\tseriesName\n\t\t\t\tnumber\n\t\t\t\ttitle\n\t\t\t\tcoverUrl\n\t\t\t\tinLibrary\n\t\t\t}\n\t\t}\n\t}\n": types.ReleaseCalendarDocument,
     "\n\tfragment CharacterCard on Character {\n\t\tname\n\t\tbookCount\n\t}\n": types.CharacterCardFragmentDoc,
     "\n\tquery CharacterDetailScene($name: String!) {\n\t\tcharacterByName(name: $name) {\n\t\t\tname\n\t\t\tbookCount\n\t\t\tbooks {\n\t\t\t\tid\n\t\t\t\t...BookCard\n\t\t\t\t...BookMetadata\n\t\t\t}\n\t\t}\n\t}\n": types.CharacterDetailSceneDocument,
     "\n\tquery CharactersScene($search: String, $orderBy: [CharacterOrderBy!]!, $pagination: Pagination!) {\n\t\tcharacters(search: $search, orderBy: $orderBy, pagination: $pagination) {\n\t\t\tnodes {\n\t\t\t\tname\n\t\t\t\t...CharacterCard\n\t\t\t}\n\t\t\tpageInfo {\n\t\t\t\t__typename\n\t\t\t\t... on OffsetPaginationInfo {\n\t\t\t\t\tcurrentPage\n\t\t\t\t\ttotalPages\n\t\t\t\t\tpageSize\n\t\t\t\t\tpageOffset\n\t\t\t\t\tzeroBased\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t}\n": types.CharactersSceneDocument,
@@ -381,6 +386,8 @@ const documents: Documents = {
     "\n\tmutation RegenerateThumbnails($id: ID!, $forceRegenerate: Boolean!) {\n\t\tgenerateLibraryThumbnails(id: $id, forceRegenerate: $forceRegenerate)\n\t}\n": types.RegenerateThumbnailsDocument,
     "\n\tmutation LibraryUploadSectionUploadBooks($input: UploadBooksInput!) {\n\t\tuploadBooks(input: $input)\n\t}\n": types.LibraryUploadSectionUploadBooksDocument,
     "\n\tmutation SeriesActionComplete($id: ID!) {\n\t\tfinishSeriesProgress(id: $id)\n\t}\n": types.SeriesActionCompleteDocument,
+    "\n\tquery FollowedSeriesIds {\n\t\tfollowedSeriesIds\n\t}\n": types.FollowedSeriesIdsDocument,
+    "\n\tmutation FollowSeries($id: ID!, $isFollowing: Boolean!) {\n\t\tfollowSeries(id: $id, isFollowing: $isFollowing)\n\t}\n": types.FollowSeriesDocument,
     "\n\tquery SeriesLayout($id: ID!) {\n\t\tseriesById(id: $id) {\n\t\t\tid\n\t\t\tpath\n\t\t\tlibrary {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t}\n\t\t\tresolvedName\n\t\t\tresolvedDescription\n\t\t\tstats {\n\t\t\t\tbookCount\n\t\t\t\tcompletedBooks\n\t\t\t\tinProgressBooks\n\t\t\t\ttotalBytes\n\t\t\t\ttotalReadingTimeSeconds\n\t\t\t}\n\t\t\ttags {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t}\n\t\t\tthumbnail {\n\t\t\t\turl\n\t\t\t\tmetadata {\n\t\t\t\t\taverageColor\n\t\t\t\t\tthumbhash\n\t\t\t\t\tcolors {\n\t\t\t\t\t\tcolor\n\t\t\t\t\t\tpercentage\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t\tcreatedAt\n\t\t\tupdatedAt\n\t\t}\n\t}\n": types.SeriesLayoutDocument,
     "\n\tquery SeriesLibrayLink($id: ID!) {\n\t\tlibraryById(id: $id) {\n\t\t\tid\n\t\t\tname\n\t\t}\n\t}\n": types.SeriesLibrayLinkDocument,
     "\n\tquery SeriesOverviewSheetExtas($id: ID!) {\n\t\tseriesById(id: $id) {\n\t\t\tid\n\t\t\tmetadata {\n\t\t\t\tpublisher\n\t\t\t\tyear\n\t\t\t\tsummary\n\t\t\t\tlinks\n\t\t\t}\n\t\t\tupNext(take: 10) {\n\t\t\t\tid\n\t\t\t\t...SimpleBookCard\n\t\t\t}\n\t\t}\n\t}\n": types.SeriesOverviewSheetExtasDocument,
@@ -469,6 +476,7 @@ const documents: Documents = {
     "\n\tmutation DeleteSmartListView($id: ID!, $name: String!) {\n\t\tdeleteSmartListView(id: $id, name: $name) {\n\t\t\tid\n\t\t\tname\n\t\t}\n\t}\n": types.DeleteSmartListViewDocument,
     "\n\tquery SmartListBasicSettingsScene {\n\t\tsmartLists(input: { mine: true }) {\n\t\t\tname\n\t\t}\n\t}\n": types.SmartListBasicSettingsSceneDocument,
     "\n\tmutation DeleteSmartList($id: ID!) {\n\t\tdeleteSmartList(id: $id) {\n\t\t\t__typename\n\t\t}\n\t}\n": types.DeleteSmartListDocument,
+    "\n\tquery UpdatesFeed {\n\t\tupdatesFeed {\n\t\t\titems {\n\t\t\t\tmediaId\n\t\t\t\tseriesName\n\t\t\t\tmediaName\n\t\t\t\tcreatedAt\n\t\t\t\tisRead\n\t\t\t}\n\t\t\tcapped\n\t\t}\n\t}\n": types.UpdatesFeedDocument,
     "\n\tquery DirectoryListing($input: DirectoryListingInput!, $pagination: Pagination!) {\n\t\tlistDirectory(input: $input, pagination: $pagination) {\n\t\t\tnodes {\n\t\t\t\tparent\n\t\t\t\tfiles {\n\t\t\t\t\tname\n\t\t\t\t\tpath\n\t\t\t\t\tisDirectory\n\t\t\t\t\tmedia {\n\t\t\t\t\t\tid\n\t\t\t\t\t\tresolvedName\n\t\t\t\t\t\tthumbnail {\n\t\t\t\t\t\t\turl\n\t\t\t\t\t\t}\n\t\t\t\t\t\textension\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t\tpageInfo {\n\t\t\t\t__typename\n\t\t\t\t... on OffsetPaginationInfo {\n\t\t\t\t\tcurrentPage\n\t\t\t\t\ttotalPages\n\t\t\t\t\tpageSize\n\t\t\t\t\tpageOffset\n\t\t\t\t\tzeroBased\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t}\n": types.DirectoryListingDocument,
     "\n\tquery UploadConfig {\n\t\tuploadConfig {\n\t\t\tenabled\n\t\t\tmaxFileUploadSize\n\t\t}\n\t}\n": types.UploadConfigDocument,
 };
@@ -816,6 +824,10 @@ export function graphql(source: "\n\tquery BookSearchScene(\n\t\t$filter: MediaF
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
+export function graphql(source: "\n\tquery ReleaseCalendar($weekOffset: Int!, $scope: CalendarScope!) {\n\t\treleaseCalendar(weekOffset: $weekOffset, scope: $scope) {\n\t\t\tdate\n\t\t\tentries {\n\t\t\t\tseriesId\n\t\t\t\tseriesName\n\t\t\t\tnumber\n\t\t\t\ttitle\n\t\t\t\tcoverUrl\n\t\t\t\tinLibrary\n\t\t\t}\n\t\t}\n\t}\n"): typeof import('./graphql').ReleaseCalendarDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
 export function graphql(source: "\n\tfragment CharacterCard on Character {\n\t\tname\n\t\tbookCount\n\t}\n"): typeof import('./graphql').CharacterCardFragmentDoc;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
@@ -1021,6 +1033,14 @@ export function graphql(source: "\n\tmutation LibraryUploadSectionUploadBooks($i
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n\tmutation SeriesActionComplete($id: ID!) {\n\t\tfinishSeriesProgress(id: $id)\n\t}\n"): typeof import('./graphql').SeriesActionCompleteDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\tquery FollowedSeriesIds {\n\t\tfollowedSeriesIds\n\t}\n"): typeof import('./graphql').FollowedSeriesIdsDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\tmutation FollowSeries($id: ID!, $isFollowing: Boolean!) {\n\t\tfollowSeries(id: $id, isFollowing: $isFollowing)\n\t}\n"): typeof import('./graphql').FollowSeriesDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1373,6 +1393,10 @@ export function graphql(source: "\n\tquery SmartListBasicSettingsScene {\n\t\tsm
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n\tmutation DeleteSmartList($id: ID!) {\n\t\tdeleteSmartList(id: $id) {\n\t\t\t__typename\n\t\t}\n\t}\n"): typeof import('./graphql').DeleteSmartListDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\tquery UpdatesFeed {\n\t\tupdatesFeed {\n\t\t\titems {\n\t\t\t\tmediaId\n\t\t\t\tseriesName\n\t\t\t\tmediaName\n\t\t\t\tcreatedAt\n\t\t\t\tisRead\n\t\t\t}\n\t\t\tcapped\n\t\t}\n\t}\n"): typeof import('./graphql').UpdatesFeedDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
