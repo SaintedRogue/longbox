@@ -2127,7 +2127,8 @@
 						"kind": {
 							"label": "Job type",
 							"libraryScan": "Library Scan",
-							"metadataRetry": "Metadata Retry"
+							"metadataRetry": "Metadata Retry",
+							"releaseCalendarSync": "Release calendar sync"
 						},
 						"libraryIds": {
 							"label": "Libraries to scan",
@@ -2140,7 +2141,12 @@
 							"failed": "Failed",
 							"noMatch": "No Match Found"
 						},
-						"enabled": "Enabled"
+						"enabled": "Enabled",
+						"releaseCalendar": {
+							"comicvine": "Sweep ComicVine releases",
+							"metron": "Sweep Metron releases",
+							"metronDescription": "Leave off unless Metron is reachable from this server (verify before enabling)."
+						}
 					},
 					"row": {
 						"enabled": "Enabled",
@@ -2720,6 +2726,8 @@
 			"createSmartlist": "Create smart list",
 			"seeAll": "See all",
 			"downloads": "Downloads",
+			"calendar": "Calendar",
+			"updates": "Updates",
 			"characters": "Characters",
 			"goToSettings": "Go to settings",
 			"openNavigation": "Open navigation",

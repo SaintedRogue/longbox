@@ -43,6 +43,12 @@ export function ScheduledJobRow({ job, libraries, onEdit, onDelete }: Props) {
 			return statuses.length > 0
 				? statuses.map((s) => s.replace(/_/g, ' ').toLowerCase()).join(', ')
 				: t(`${LOCALE_BASE}.row.rateLimited`)
+		} else if ('comicvineEnabled' in config) {
+			const providers = [
+				config.comicvineEnabled ? 'ComicVine' : null,
+				config.metronEnabled ? 'Metron' : null,
+			].filter(Boolean)
+			return providers.length > 0 ? providers.join(', ') : t(`${LOCALE_BASE}.row.disabled`)
 		}
 		return ''
 	}, [data, libraries, t])

@@ -3249,6 +3249,13 @@ type RegisteredEmailDevice {
 	sendHistory: [EmailerSendRecord!]!
 }
 
+input ReleaseCalendarConfigInput {
+	"Sweep ComicVine's store-date window"
+	comicvineEnabled: Boolean!
+	"Sweep Metron's store-date window (leave off until verified reachable)"
+	metronEnabled: Boolean!
+}
+
 """
 the current reading position for a book, derived from the latest session
 with the highest `readthrough_number`
@@ -3339,6 +3346,7 @@ type ScheduledJob {
 input ScheduledJobConfigInput @oneOf {
 	libraryScan: LibraryScanConfigInput
 	metadataRetry: MetadataRetryConfigInput
+	releaseCalendar: ReleaseCalendarConfigInput
 }
 
 "The kind of a scheduled job, aligned with the config variants"

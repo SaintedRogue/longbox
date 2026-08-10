@@ -4528,6 +4528,13 @@ export type RegisteredEmailDevice = {
   sendHistory: Array<EmailerSendRecord>;
 };
 
+export type ReleaseCalendarConfigInput = {
+  /** Sweep ComicVine's store-date window */
+  comicvineEnabled: Scalars['Boolean']['input'];
+  /** Sweep Metron's store-date window (leave off until verified reachable) */
+  metronEnabled: Scalars['Boolean']['input'];
+};
+
 /**
  * the current reading position for a book, derived from the latest session
  * with the highest `readthrough_number`
@@ -4620,8 +4627,9 @@ export type ScheduledJob = {
 
 /** A oneOf input for the schedule config */
 export type ScheduledJobConfigInput =
-  { libraryScan: LibraryScanConfigInput; metadataRetry?: never; }
-  |  { libraryScan?: never; metadataRetry: MetadataRetryConfigInput; };
+  { libraryScan: LibraryScanConfigInput; metadataRetry?: never; releaseCalendar?: never; }
+  |  { libraryScan?: never; metadataRetry: MetadataRetryConfigInput; releaseCalendar?: never; }
+  |  { libraryScan?: never; metadataRetry?: never; releaseCalendar: ReleaseCalendarConfigInput; };
 
 /** The kind of a scheduled job, aligned with the config variants */
 export enum ScheduledJobKind {
@@ -6055,6 +6063,14 @@ export type BookSearchSceneQuery = { __typename?: 'Query', media: { __typename?:
       & { ' $fragmentRefs'?: { 'BookCardFragment': BookCardFragment;'BookMetadataFragment': BookMetadataFragment } }
     )>, pageInfo: { __typename: 'CursorPaginationInfo' } | { __typename: 'OffsetPaginationInfo', currentPage: number, totalPages: number, pageSize: number, pageOffset: number, zeroBased: boolean } } };
 
+export type ReleaseCalendarQueryVariables = Exact<{
+  weekOffset: Scalars['Int']['input'];
+  scope: CalendarScope;
+}>;
+
+
+export type ReleaseCalendarQuery = { __typename?: 'Query', releaseCalendar: Array<{ __typename?: 'CalendarDay', date: string, entries: Array<{ __typename?: 'CalendarEntry', seriesId: string, seriesName: string, number?: string | null, title?: string | null, coverUrl?: string | null, inLibrary: boolean }> }> };
+
 export type CharacterCardFragment = { __typename?: 'Character', name: string, bookCount?: number | null } & { ' $fragmentName'?: 'CharacterCardFragment' };
 
 export type CharacterDetailSceneQueryVariables = Exact<{
@@ -6426,6 +6442,19 @@ export type SeriesActionCompleteMutationVariables = Exact<{
 
 
 export type SeriesActionCompleteMutation = { __typename?: 'Mutation', finishSeriesProgress: number };
+
+export type FollowedSeriesIdsQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type FollowedSeriesIdsQuery = { __typename?: 'Query', followedSeriesIds: Array<string> };
+
+export type FollowSeriesMutationVariables = Exact<{
+  id: Scalars['ID']['input'];
+  isFollowing: Scalars['Boolean']['input'];
+}>;
+
+
+export type FollowSeriesMutation = { __typename?: 'Mutation', followSeries: boolean };
 
 export type SeriesLayoutQueryVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -7067,6 +7096,11 @@ export type DeleteSmartListMutationVariables = Exact<{
 
 
 export type DeleteSmartListMutation = { __typename?: 'Mutation', deleteSmartList: { __typename: 'SmartList' } };
+
+export type UpdatesFeedQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type UpdatesFeedQuery = { __typename?: 'Query', updatesFeed: { __typename?: 'UpdatesFeed', capped: boolean, items: Array<{ __typename?: 'UpdateItem', mediaId: string, seriesName: string, mediaName: string, createdAt: string, isRead: boolean }> } };
 
 export type DirectoryListingQueryVariables = Exact<{
   input: DirectoryListingInput;
@@ -9320,6 +9354,21 @@ fragment BookMetadata on Media {
     number
   }
 }`) as unknown as TypedDocumentString<BookSearchSceneQuery, BookSearchSceneQueryVariables>;
+export const ReleaseCalendarDocument = new TypedDocumentString(`
+    query ReleaseCalendar($weekOffset: Int!, $scope: CalendarScope!) {
+  releaseCalendar(weekOffset: $weekOffset, scope: $scope) {
+    date
+    entries {
+      seriesId
+      seriesName
+      number
+      title
+      coverUrl
+      inLibrary
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<ReleaseCalendarQuery, ReleaseCalendarQueryVariables>;
 export const CharacterDetailSceneDocument = new TypedDocumentString(`
     query CharacterDetailScene($name: String!) {
   characterByName(name: $name) {
@@ -10220,6 +10269,16 @@ export const SeriesActionCompleteDocument = new TypedDocumentString(`
   finishSeriesProgress(id: $id)
 }
     `) as unknown as TypedDocumentString<SeriesActionCompleteMutation, SeriesActionCompleteMutationVariables>;
+export const FollowedSeriesIdsDocument = new TypedDocumentString(`
+    query FollowedSeriesIds {
+  followedSeriesIds
+}
+    `) as unknown as TypedDocumentString<FollowedSeriesIdsQuery, FollowedSeriesIdsQueryVariables>;
+export const FollowSeriesDocument = new TypedDocumentString(`
+    mutation FollowSeries($id: ID!, $isFollowing: Boolean!) {
+  followSeries(id: $id, isFollowing: $isFollowing)
+}
+    `) as unknown as TypedDocumentString<FollowSeriesMutation, FollowSeriesMutationVariables>;
 export const SeriesLayoutDocument = new TypedDocumentString(`
     query SeriesLayout($id: ID!) {
   seriesById(id: $id) {
@@ -11444,6 +11503,20 @@ export const DeleteSmartListDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<DeleteSmartListMutation, DeleteSmartListMutationVariables>;
+export const UpdatesFeedDocument = new TypedDocumentString(`
+    query UpdatesFeed {
+  updatesFeed {
+    items {
+      mediaId
+      seriesName
+      mediaName
+      createdAt
+      isRead
+    }
+    capped
+  }
+}
+    `) as unknown as TypedDocumentString<UpdatesFeedQuery, UpdatesFeedQueryVariables>;
 export const DirectoryListingDocument = new TypedDocumentString(`
     query DirectoryListing($input: DirectoryListingInput!, $pagination: Pagination!) {
   listDirectory(input: $input, pagination: $pagination) {

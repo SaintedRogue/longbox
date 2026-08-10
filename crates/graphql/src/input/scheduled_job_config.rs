@@ -8,6 +8,7 @@ use serde::Serialize;
 pub enum ScheduledJobConfigInput {
 	LibraryScan(LibraryScanConfigInput),
 	MetadataRetry(MetadataRetryConfigInput),
+	ReleaseCalendar(ReleaseCalendarConfigInput),
 }
 
 #[derive(InputObject, Serialize)]
@@ -20,6 +21,17 @@ pub struct LibraryScanConfigInput {
 pub struct MetadataRetryConfigInput {
 	/// Which metadata fetch statuses to retry (e.g. RATE_LIMITED, FAILED)
 	pub statuses: Vec<MetadataFetchStatus>,
+}
+
+// camelCase so the stored JSON round-trips through core's ReleaseCalendarConfig
+// (which deserializes camelCase keys).
+#[derive(InputObject, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReleaseCalendarConfigInput {
+	/// Sweep ComicVine's store-date window
+	pub comicvine_enabled: bool,
+	/// Sweep Metron's store-date window (leave off until verified reachable)
+	pub metron_enabled: bool,
 }
 
 #[derive(InputObject)]

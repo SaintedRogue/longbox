@@ -86,7 +86,9 @@ const pathsInternal = {
 	createEmailer: () => pathsInternal.settings('email/new'),
 	docs: (topic?: DocTopic, section?: string) =>
 		`https://github.com/SaintedRogue/longbox/tree/main/docs/content/docs/guides/${topic || ''}${section ? `#${section}` : ''}`,
+	calendar: () => '/calendar',
 	downloads: () => '/downloads',
+	updates: () => '/updates',
 	editEmailer: (id: number) => pathsInternal.settings('email') + `/${id}/edit`,
 	home: () => '/',
 	libraries: () => '/libraries',
@@ -159,7 +161,9 @@ export function usePaths() {
 		characters: () => `${basePath}${pathsInternal.characters()}`,
 		createEmailer: () => `${basePath}${pathsInternal.createEmailer()}`,
 		docs: pathsInternal.docs, // Don't prefix external URLs
+		calendar: () => `${basePath}${pathsInternal.calendar()}`,
 		downloads: () => `${basePath}${pathsInternal.downloads()}`,
+		updates: () => `${basePath}${pathsInternal.updates()}`,
 		editEmailer: (id: number) => `${basePath}${pathsInternal.editEmailer(id)}`,
 		home: () => `${basePath}${pathsInternal.home()}`,
 		libraries: () => `${basePath}${pathsInternal.libraries()}`,
