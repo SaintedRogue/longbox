@@ -57,12 +57,14 @@ pub(crate) async fn get_media_thumbnail(
 	image_options: Option<ImageProcessorOptions>,
 	config: &LongboxConfig,
 	conn: &DatabaseConnection,
-) -> APIResult<(ContentType, Vec<u8>)> {
+) -> APIResult<ImageResponse> {
 	// Note: This doesn't hard-fail because if the saved thumbnail is missing or corrupt, we want
 	// to just pull something else instead of erroring out entirely.
 	if let Some(path) = &book.thumbnail_path {
 		match get_saved_thumbnail(std::path::Path::new(path)).await {
-			Ok(result) => return Ok(result),
+			Ok(result) => {
+				return Ok(ImageResponse::from(result).with_source_file(path).await)
+			},
 			Err(_) => {
 				tracing::warn!(path = ?path, "Failed to get saved thumbnail");
 			},
@@ -83,7 +85,7 @@ pub(crate) async fn get_media_thumbnail(
 	.await?;
 
 	if let Some((content_type, bytes)) = generated_thumb {
-		return Ok((content_type, bytes));
+		return Ok(ImageResponse::new(content_type, bytes));
 	}
 
 	let adjusted_config = LongboxConfig {
@@ -101,14 +103,21 @@ pub(crate) async fn get_media_thumbnail(
 		filename: None,
 	};
 	match generate_book_thumbnail(book, conn, generate_options).await {
-		Ok((bytes, ..)) => Ok((ContentType::from(image_options.format), bytes)),
+		Ok((bytes, ..)) => Ok(ImageResponse::new(
+			ContentType::from(image_options.format),
+			bytes,
+		)),
 		Err(error) => {
 			tracing::warn!(
 				?error,
 				book_id = %book.id,
 				"Failed to self-heal missing thumbnail; falling back to raw page"
 			);
-			Ok(get_page_async(&book.path, 1, &adjusted_config).await?)
+			// A failure stand-in: no-store, so the next request retries the real
+			// thumbnail instead of this fallback being cached for its max-age.
+			let (content_type, bytes) =
+				get_page_async(&book.path, 1, &adjusted_config).await?;
+			Ok(ImageResponse::uncacheable(content_type, bytes))
 		},
 	}
 }
@@ -163,7 +172,6 @@ pub(crate) async fn get_media_thumbnail_by_id(
 
 	get_media_thumbnail(&book, image_options, ctx.config.as_ref(), ctx.conn.as_ref())
 		.await
-		.map(ImageResponse::from)
 }
 
 pub(crate) async fn get_media_thumbnail_handler(

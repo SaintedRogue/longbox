@@ -53,6 +53,11 @@ pub enum ImageCachePolicy {
 	Derived,
 	/// A page read out of a book file, immutable unless that file changes.
 	SourcePage,
+	/// A stand-in served because the real image could not be produced (e.g.
+	/// thumbnail generation failed mid-scan and the handler fell back to a raw
+	/// page). `no-store`: caching a failure pins it — the next request must
+	/// retry the real thing.
+	Uncacheable,
 }
 
 impl ImageCachePolicy {
@@ -60,6 +65,7 @@ impl ImageCachePolicy {
 		match self {
 			Self::Derived => HeaderValue::from_static(DERIVED_IMAGE_CACHE_CONTROL),
 			Self::SourcePage => HeaderValue::from_static(SOURCE_PAGE_CACHE_CONTROL),
+			Self::Uncacheable => HeaderValue::from_static("no-store"),
 		}
 	}
 }
@@ -108,6 +114,15 @@ impl ImageResponse {
 		}
 	}
 
+	/// A stand-in for an image that could not be produced. See
+	/// [`ImageCachePolicy::Uncacheable`].
+	pub fn uncacheable(content_type: ContentType, data: Vec<u8>) -> Self {
+		Self {
+			policy: ImageCachePolicy::Uncacheable,
+			..Self::new(content_type, data)
+		}
+	}
+
 	/// Record the modification time of the file the bytes were read from, so the response can
 	/// carry a `Last-Modified`.
 	///
@@ -132,8 +147,11 @@ impl From<(ContentType, Vec<u8>)> for ImageResponse {
 
 impl IntoResponse for ImageResponse {
 	fn into_response(self) -> Response {
-		let etag = entity_tag(&self.data);
 		let cache_control = self.policy.cache_control();
+		// A no-store response must not carry validators: an ETag invites the
+		// client to revalidate a body we've told it never to keep.
+		let etag = (self.policy != ImageCachePolicy::Uncacheable)
+			.then(|| entity_tag(&self.data));
 		let last_modified = self.last_modified.map(format_http_date);
 		let content_type = HeaderValue::from_str(self.content_type.to_string().as_str())
 			.unwrap_or_else(|err| {
@@ -147,11 +165,13 @@ impl IntoResponse for ImageResponse {
 		headers.insert(header::CONTENT_TYPE, content_type);
 		headers.insert(header::CACHE_CONTROL, cache_control);
 
-		match HeaderValue::from_str(&etag) {
-			Ok(value) => {
-				headers.insert(header::ETAG, value);
-			},
-			Err(err) => error!(?err, "Failed to build ETag header"),
+		if let Some(etag) = etag {
+			match HeaderValue::from_str(&etag) {
+				Ok(value) => {
+					headers.insert(header::ETAG, value);
+				},
+				Err(err) => error!(?err, "Failed to build ETag header"),
+			}
 		}
 
 		if let Some(last_modified) = last_modified {
@@ -327,6 +347,23 @@ mod tests {
 		assert_eq!(
 			axum_response.headers().get(header::CONTENT_TYPE),
 			Some(&HeaderValue::from_static("image/jpeg"))
+		);
+	}
+
+	#[test]
+	fn uncacheable_images_are_no_store_without_validators() {
+		let response =
+			ImageResponse::uncacheable(ContentType::JPEG, b"stand-in".to_vec())
+				.into_response();
+
+		assert_eq!(
+			header(&response, header::CACHE_CONTROL),
+			Some("no-store"),
+			"a failure stand-in must never be cached"
+		);
+		assert!(
+			header(&response, header::ETAG).is_none(),
+			"no-store must not invite revalidation with an ETag"
 		);
 	}
 
