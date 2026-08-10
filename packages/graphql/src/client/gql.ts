@@ -222,6 +222,7 @@ type Documents = {
     "\n\tfragment ExistingProviderCard on MetadataProviderConfigModel {\n\t\tid\n\t\tproviderType\n\t\tenabled\n\t\tapiTokenExpiresAt\n\t\tautoApplyConfig\n\t\tcreatedAt\n\t\tupdatedAt\n\t}\n": typeof types.ExistingProviderCardFragmentDoc,
     "\n\tquery ProvidersSectionGetProviders {\n\t\tmetadataProviderConfigs {\n\t\t\tid\n\t\t\tproviderType\n\t\t\tposition\n\t\t\t...ExistingProviderCard\n\t\t}\n\t}\n": typeof types.ProvidersSectionGetProvidersDocument,
     "\n\tmutation ProvidersSectionSetPreferred($id: Int!, $input: PatchMetadataProviderConfigInput!) {\n\t\tupdateMetadataProvider(id: $id, input: $input) {\n\t\t\tid\n\t\t\tposition\n\t\t}\n\t}\n": typeof types.ProvidersSectionSetPreferredDocument,
+    "\n\tmutation TestMetadataProvider($id: Int!) {\n\t\ttestMetadataProvider(id: $id) {\n\t\t\tstatus\n\t\t\tmessage\n\t\t}\n\t}\n": typeof types.TestMetadataProviderDocument,
     "\n\tmutation CreateTagModal($tags: [String!]!) {\n\t\tcreateTags(tags: $tags) {\n\t\t\tid\n\t\t\tname\n\t\t}\n\t}\n": typeof types.CreateTagModalDocument,
     "\n\tmutation DeleteTagConfirmModal($tags: [String!]!) {\n\t\tdeleteTags(tags: $tags) {\n\t\t\tid\n\t\t\tname\n\t\t}\n\t}\n": typeof types.DeleteTagConfirmModalDocument,
     "\n\tmutation RenameTagModal($id: Int!, $name: String!) {\n\t\trenameTag(id: $id, name: $name) {\n\t\t\tid\n\t\t\tname\n\t\t}\n\t}\n": typeof types.RenameTagModalDocument,
@@ -461,6 +462,7 @@ const documents: Documents = {
     "\n\tfragment ExistingProviderCard on MetadataProviderConfigModel {\n\t\tid\n\t\tproviderType\n\t\tenabled\n\t\tapiTokenExpiresAt\n\t\tautoApplyConfig\n\t\tcreatedAt\n\t\tupdatedAt\n\t}\n": types.ExistingProviderCardFragmentDoc,
     "\n\tquery ProvidersSectionGetProviders {\n\t\tmetadataProviderConfigs {\n\t\t\tid\n\t\t\tproviderType\n\t\t\tposition\n\t\t\t...ExistingProviderCard\n\t\t}\n\t}\n": types.ProvidersSectionGetProvidersDocument,
     "\n\tmutation ProvidersSectionSetPreferred($id: Int!, $input: PatchMetadataProviderConfigInput!) {\n\t\tupdateMetadataProvider(id: $id, input: $input) {\n\t\t\tid\n\t\t\tposition\n\t\t}\n\t}\n": types.ProvidersSectionSetPreferredDocument,
+    "\n\tmutation TestMetadataProvider($id: Int!) {\n\t\ttestMetadataProvider(id: $id) {\n\t\t\tstatus\n\t\t\tmessage\n\t\t}\n\t}\n": types.TestMetadataProviderDocument,
     "\n\tmutation CreateTagModal($tags: [String!]!) {\n\t\tcreateTags(tags: $tags) {\n\t\t\tid\n\t\t\tname\n\t\t}\n\t}\n": types.CreateTagModalDocument,
     "\n\tmutation DeleteTagConfirmModal($tags: [String!]!) {\n\t\tdeleteTags(tags: $tags) {\n\t\t\tid\n\t\t\tname\n\t\t}\n\t}\n": types.DeleteTagConfirmModalDocument,
     "\n\tmutation RenameTagModal($id: Int!, $name: String!) {\n\t\trenameTag(id: $id, name: $name) {\n\t\t\tid\n\t\t\tname\n\t\t}\n\t}\n": types.RenameTagModalDocument,
@@ -1321,6 +1323,10 @@ export function graphql(source: "\n\tquery ProvidersSectionGetProviders {\n\t\tm
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n\tmutation ProvidersSectionSetPreferred($id: Int!, $input: PatchMetadataProviderConfigInput!) {\n\t\tupdateMetadataProvider(id: $id, input: $input) {\n\t\t\tid\n\t\t\tposition\n\t\t}\n\t}\n"): typeof import('./graphql').ProvidersSectionSetPreferredDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\tmutation TestMetadataProvider($id: Int!) {\n\t\ttestMetadataProvider(id: $id) {\n\t\t\tstatus\n\t\t\tmessage\n\t\t}\n\t}\n"): typeof import('./graphql').TestMetadataProviderDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

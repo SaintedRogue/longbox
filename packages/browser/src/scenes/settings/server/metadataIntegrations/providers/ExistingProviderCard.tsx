@@ -9,6 +9,7 @@ import { useAppContext } from '@/context'
 import { PROVIDER_LABELS } from './constants'
 import { EditProviderDialog } from './EditProviderDialog'
 import { ProviderLogo } from './ProviderLogo'
+import { TestProviderButton } from './TestProviderButton'
 
 const fragment = graphql(`
 	fragment ExistingProviderCard on MetadataProviderConfigModel {
@@ -86,6 +87,12 @@ export function ExistingProviderCard({ data }: Props) {
 					{t(provider.autoApplyConfig?.enabled ? getKey('autoApplyOn') : getKey('autoApplyOff'))}
 				</Badge>
 			</div>
+
+			{/*
+			 * Gated on manage rather than read: a test decrypts and uses the stored
+			 * credential, so it is not a view-only action.
+			 */}
+			{canEdit && <TestProviderButton id={provider.id} provider={provider.providerType} />}
 		</Card>
 	)
 }
