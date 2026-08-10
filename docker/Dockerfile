@@ -15,13 +15,13 @@ ARG TARGETARCH
 # process 0" -- in whichever stage loses. Locking serializes them while keeping the cache.
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    for attempt in 1 2 3; do \
+    for attempt in 1 2 3 4 5; do \
         apt-get update && apt-get install -y curl tar && break; \
-        echo "apt-get failed (attempt ${attempt}/3), retrying..." >&2; \
-        sleep $((attempt * 5)); \
+        echo "apt-get failed (attempt ${attempt}/5), retrying..." >&2; \
+        sleep $((attempt * 10)); \
     done; \
     command -v curl >/dev/null 2>&1 && command -v tar >/dev/null 2>&1 \
-        || { echo "curl/tar unavailable after 3 attempts" >&2; exit 1; }
+        || { echo "curl/tar unavailable after 5 attempts" >&2; exit 1; }
 
 # Download and extract the PDFium binaries
 #
@@ -32,9 +32,9 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 RUN set -ex; \
     mkdir -p pdfium; \
     if [ "$TARGETARCH" = "amd64" ]; then \
-        curl --fail --retry 3 --retry-delay 5 --retry-all-errors -sLo pdfium.tgz https://github.com/bblanchon/pdfium-binaries/releases/download/chromium/7763/pdfium-linux-x64.tgz; \
+        curl --fail --retry 5 --retry-delay 10 --retry-all-errors -sLo pdfium.tgz https://github.com/bblanchon/pdfium-binaries/releases/download/chromium/7763/pdfium-linux-x64.tgz; \
     elif [ "$TARGETARCH" = "arm64" ]; then \
-        curl --fail --retry 3 --retry-delay 5 --retry-all-errors -sLo pdfium.tgz https://github.com/bblanchon/pdfium-binaries/releases/download/chromium/7763/pdfium-linux-arm64.tgz; \
+        curl --fail --retry 5 --retry-delay 10 --retry-all-errors -sLo pdfium.tgz https://github.com/bblanchon/pdfium-binaries/releases/download/chromium/7763/pdfium-linux-arm64.tgz; \
     fi; \
     tar -xzvf pdfium.tgz -C ./pdfium; \
     rm pdfium.tgz
@@ -82,12 +82,12 @@ COPY . .
 #
 # The loop's exit status is not trusted -- `command -v` confirms the package
 # actually landed, so a silent partial failure cannot masquerade as success.
-RUN for attempt in 1 2 3; do \
+RUN for attempt in 1 2 3 4 5; do \
         apk add --no-cache git && break; \
-        echo "apk add git failed (attempt ${attempt}/3), retrying..." >&2; \
-        sleep $((attempt * 5)); \
+        echo "apk add git failed (attempt ${attempt}/5), retrying..." >&2; \
+        sleep $((attempt * 10)); \
     done; \
-    command -v git >/dev/null 2>&1 || { echo "git unavailable after 3 attempts" >&2; exit 1; }
+    command -v git >/dev/null 2>&1 || { echo "git unavailable after 5 attempts" >&2; exit 1; }
 
 RUN --mount=type=cache,target=/usr/local/yarn/.cache,id=${TARGETARCH} \ 
     # https://github.com/nodejs/docker-node/issues/1335
@@ -119,7 +119,7 @@ ENV BUILD_CHANNEL=${BUILD_CHANNEL}
 # package index is exactly what makes the subsequent install fail.
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    for attempt in 1 2 3; do \
+    for attempt in 1 2 3 4 5; do \
         apt-get update && apt-get install -y \
             build-essential \
             cmake \
@@ -129,10 +129,10 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
             pkg-config \
             curl \
             libsqlite3-dev && break; \
-        echo "apt-get failed (attempt ${attempt}/3), retrying..." >&2; \
-        sleep $((attempt * 5)); \
+        echo "apt-get failed (attempt ${attempt}/5), retrying..." >&2; \
+        sleep $((attempt * 10)); \
     done; \
-    dpkg -s build-essential >/dev/null 2>&1 || { echo "build deps unavailable after 3 attempts" >&2; exit 1; }
+    dpkg -s build-essential >/dev/null 2>&1 || { echo "build deps unavailable after 5 attempts" >&2; exit 1; }
 
 # Cargo build for longbox
 WORKDIR /app

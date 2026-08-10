@@ -18,6 +18,7 @@ jobs:
       frontend-changed: ${{ steps.filter.outputs.frontend == 'true' }}
       rust-changed: ${{ steps.filter.outputs.rust == 'true' }}
       docs-changed: ${{ steps.filter.outputs.docs == 'true' }}
+      docker-changed: ${{ steps.filter.outputs.docker == 'true' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4
@@ -43,6 +44,44 @@ jobs:
               - './crates/**'
               - './.github/actions/setup-rust/action.yml'
             docker: ./docker/**
+
+  # A `docker/**` change previously ran nothing at all: the `docker` filter below
+  # was declared but no job consumed it, so a broken Dockerfile merged green and
+  # failed later in the publish workflow -- where the only visible symptom is
+  # `latest` quietly not moving.
+  #
+  # The Rust builder stage is deliberately not built here. It is by far the most
+  # expensive stage, and the code inside it is already covered by `check-rust`;
+  # what this job exists to catch is breakage in the Dockerfile itself.
+  check-docker:
+    needs: code-changes-check
+    if: "!contains(github.event.pull_request.head.ref, 'release/v') && needs.code-changes-check.outputs.docker-changed == 'true'"
+    name: Docker checks
+    runs-on: [self-hosted]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      # Dockerfile-level lint only (casing, deprecated syntax, and so on). Measured
+      # against a Dockerfile with a deliberately unbalanced quote inside a RUN, this
+      # still exits 0 -- it does not read shell. It is kept because it costs a couple
+      # of seconds and covers every stage, but the steps below are the real check.
+      - name: Lint Dockerfile
+        run: docker build --check -f docker/Dockerfile .
+
+      # Executing the stages is what actually catches a malformed RUN script: the
+      # same broken Dockerfile that `--check` passed fails here. Between them these
+      # two cover three of the four network-dependent steps.
+      #
+      # The builder stage is excluded on purpose -- it is a full Rust release
+      # compile, which is far too expensive to run per PR, and its code is already
+      # covered by `check-rust`. A broken RUN *in that stage alone* will therefore
+      # still get through to the publish workflow.
+      - name: Build pdfium stage
+        run: docker build -f docker/Dockerfile --target pdfium .
+
+      - name: Build frontend stage
+        run: docker build -f docker/Dockerfile --target frontend .
 
   check-rust:
     needs: code-changes-check
