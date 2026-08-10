@@ -62,7 +62,21 @@ WORKDIR /app
 COPY . .
 
 # We need to install git for yarn to work (we have git dependencies)
-RUN apk add --no-cache git
+#
+# Retried because this is the single most fragile instruction in the build: one
+# uncached call to a public CDN, which has failed twice in a day on the
+# self-hosted runner with "temporary error (try again later)" from
+# dl-cdn.alpinelinux.org, failing the whole image publish. A re-run always fixed
+# it, which is the definition of worth retrying in place.
+#
+# The loop's exit status is not trusted -- `command -v` confirms the package
+# actually landed, so a silent partial failure cannot masquerade as success.
+RUN for attempt in 1 2 3; do \
+        apk add --no-cache git && break; \
+        echo "apk add git failed (attempt ${attempt}/3), retrying..." >&2; \
+        sleep $((attempt * 5)); \
+    done; \
+    command -v git >/dev/null 2>&1 || { echo "git unavailable after 3 attempts" >&2; exit 1; }
 
 RUN --mount=type=cache,target=/usr/local/yarn/.cache,id=${TARGETARCH} \ 
     # https://github.com/nodejs/docker-node/issues/1335
@@ -87,17 +101,27 @@ ENV BUILD_CHANNEL=${BUILD_CHANNEL}
 
 # sharing=locked for the same reason as the pdfium stage above -- these two stages run
 # in parallel and share this cache.
+#
+# Retried for the same reason as the `apk add` in the frontend stage: a transient
+# mirror failure here fails the whole publish, and a re-run has always fixed it.
+# `apt-get update` is inside the loop deliberately -- a stale or half-fetched
+# package index is exactly what makes the subsequent install fail.
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    apt-get update && apt-get install -y \
-        build-essential \
-        cmake \
-        wget \
-        git \
-        libssl-dev \
-        pkg-config \
-        curl \
-        libsqlite3-dev;
+    for attempt in 1 2 3; do \
+        apt-get update && apt-get install -y \
+            build-essential \
+            cmake \
+            wget \
+            git \
+            libssl-dev \
+            pkg-config \
+            curl \
+            libsqlite3-dev && break; \
+        echo "apt-get failed (attempt ${attempt}/3), retrying..." >&2; \
+        sleep $((attempt * 5)); \
+    done; \
+    dpkg -s build-essential >/dev/null 2>&1 || { echo "build deps unavailable after 3 attempts" >&2; exit 1; }
 
 # Cargo build for longbox
 WORKDIR /app
