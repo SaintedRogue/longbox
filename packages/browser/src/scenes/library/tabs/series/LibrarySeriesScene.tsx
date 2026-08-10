@@ -26,7 +26,6 @@ import {
 import { Ordering } from '@/components/filters/context'
 import {
 	DEFAULT_SERIES_ORDER_BY,
-	useSearchSeriesFilter,
 	useURLKeywordSearch,
 	useURLPageParams,
 } from '@/components/filters/useFilterScene'
@@ -49,43 +48,20 @@ import SeriesViewToggle from './SeriesViewToggle'
 const query = graphql(`
 	query LibrarySeries(
 		$filter: SeriesFilterInput!
+		$search: String
 		$orderBy: [SeriesOrderBy!]!
 		$pagination: Pagination!
 	) {
-		series(filter: $filter, orderBy: $orderBy, pagination: $pagination) {
+		series(filter: $filter, search: $search, orderBy: $orderBy, pagination: $pagination) {
 			nodes {
 				id
+				# Also selected flat, not only via the fragment: fragment masking hides
+				# these from the query result, and the table view reads them directly.
 				resolvedName
 				mediaCount
 				percentageCompleted
 				status
-				# We fetch 2 and skip 1 because the first thumbnail _might_ be the same as the series thumbnail.
-				# See https://github.com/stumpapp/stump/issues/899
-				media(take: 2, skip: 1) {
-					id
-					thumbnail {
-						url
-						metadata {
-							averageColor
-							colors {
-								color
-								percentage
-							}
-							thumbhash
-						}
-					}
-				}
-				thumbnail {
-					url
-					metadata {
-						averageColor
-						colors {
-							color
-							percentage
-						}
-						thumbhash
-					}
-				}
+				...SeriesGridCard
 			}
 			pageInfo {
 				__typename
@@ -112,8 +88,6 @@ export const usePrefetchLibrarySeries = () => {
 	const { sdk } = useSDK()
 	const { pageSize } = useURLPageParams()
 	const { search } = useURLKeywordSearch()
-	const searchFilter = useSearchSeriesFilter(search)
-
 	const client = useQueryClient()
 	const prefetchAlphabet = usePrefetchLibrarySeriesAlphabet()
 
@@ -139,8 +113,8 @@ export const usePrefetchLibrarySeries = () => {
 							filter: {
 								libraryId: { eq: libraryId },
 								_and: params.filter,
-								_or: searchFilter,
 							},
+							search,
 							orderBy: params.orderBy,
 							pagination: {
 								offset: {
@@ -155,7 +129,7 @@ export const usePrefetchLibrarySeries = () => {
 				prefetchAlphabet(libraryId),
 			])
 		},
-		[pageSize, search, searchFilter, sdk, client, prefetchAlphabet],
+		[pageSize, search, sdk, client, prefetchAlphabet],
 	)
 }
 
@@ -228,8 +202,6 @@ export default function LibrarySeriesScene() {
 	const filters = seriesFilters as SeriesFilterInput
 	const orderBy = useSeriesURLOrderBy(ordering)
 	const { search } = useURLKeywordSearch()
-	const searchFilter = useSearchSeriesFilter(search)
-
 	const previous = usePrevious(search)
 	const differentSearch = previous != null && search !== previous
 	useEffect(() => {
@@ -310,8 +282,8 @@ export default function LibrarySeriesScene() {
 			filter: {
 				libraryId: { eq: id },
 				_and: resolvedFilters,
-				_or: searchFilter,
 			},
+			search,
 			orderBy,
 			pagination: {
 				offset: {
@@ -372,7 +344,7 @@ export default function LibrarySeriesScene() {
 							<DynamicCardGrid
 								count={nodes.length}
 								renderItem={(index) => (
-									<LibrarySeriesCard key={nodes[index]!.id} data={nodes[index]!} />
+									<LibrarySeriesCard key={nodes[index]!.id} fragment={nodes[index]!} />
 								)}
 							/>
 						)}

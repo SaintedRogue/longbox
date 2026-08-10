@@ -15,8 +15,8 @@ type Props = {
 // TODO(bookclub): Refactor this component
 
 const query = graphql(`
-	query BookSearchOverlay($pagination: Pagination, $filter: MediaFilterInput!) {
-		media(pagination: $pagination, filter: $filter) {
+	query BookSearchOverlay($pagination: Pagination, $search: String) {
+		media(pagination: $pagination, search: $search) {
 			nodes {
 				id
 				...BookCard
@@ -41,24 +41,14 @@ export default function BookSearch({ onBookSelect }: Props) {
 	const [search, setSearch] = useState('')
 	const [debouncedValue] = useDebouncedValue(search, 500)
 
+	// Local state rather than the URL, deliberately: this is a transient picker
+	// opened from a modal, so putting its term in the URL would leave history
+	// entries behind for a search the user never navigated to.
 	const { data, isLoading, fetchNextPage } = useInfiniteGraphQL(
 		query,
 		['bookOverlay', debouncedValue],
 		{
-			filter: {
-				_or: [
-					{
-						name: {
-							like: `%${debouncedValue}%`,
-						},
-						metadata: {
-							title: {
-								like: `%${debouncedValue}%`,
-							},
-						},
-					},
-				],
-			},
+			search: debouncedValue,
 		},
 		{
 			enabled: !!debouncedValue,
