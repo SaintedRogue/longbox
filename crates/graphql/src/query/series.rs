@@ -9,12 +9,13 @@ use models::{
 	},
 };
 use sea_orm::{
-	prelude::*, DatabaseBackend, FromQueryResult, QueryOrder, QuerySelect, Statement,
+	prelude::*, DatabaseBackend, FromQueryResult, QueryOrder, QuerySelect, QueryTrait,
+	Statement,
 };
 
 use crate::{
 	data::{AuthContext, CoreContext},
-	filter::series::SeriesFilterInput,
+	filter::series::{series_keyword_condition, SeriesFilterInput},
 	object::series::Series,
 	order::SeriesOrderBy,
 	pagination::{
@@ -49,6 +50,10 @@ impl SeriesQuery {
 		&self,
 		ctx: &Context<'_>,
 		#[graphql(default)] filter: SeriesFilterInput,
+		#[graphql(
+			desc = "Free-text search. Terms are AND-ed, and each term is matched against the series name and its metadata title, summary, publisher, imprint, writers and characters. AND-ed with `filter` rather than replacing it."
+		)]
+		search: Option<String>,
 		#[graphql(default_with = "SeriesOrderBy::default_vec()")] order_by: Vec<
 			SeriesOrderBy,
 		>,
@@ -62,7 +67,12 @@ impl SeriesQuery {
 		let query = SeriesOrderBy::add_order_by(
 			&order_by,
 			exclude_loose_root(
-				series::ModelWithMetadata::find_for_user(user).filter(conditions),
+				series::ModelWithMetadata::find_for_user(user)
+					.filter(conditions)
+					.apply_if(
+						series_keyword_condition(search.as_deref()),
+						|query, condition| query.filter(condition),
+					),
 			),
 		)?;
 

@@ -13,12 +13,15 @@ use sea_orm::{
 	prelude::*,
 	sea_query::{ExprTrait, Query},
 	Condition, DatabaseBackend, FromQueryResult, JoinType, QueryOrder, QuerySelect,
-	Statement,
+	QueryTrait, Statement,
 };
 
 use crate::{
 	data::{AuthContext, CoreContext},
-	filter::{media::MediaFilterInput, IntoFilter},
+	filter::{
+		media::{media_keyword_condition, MediaFilterInput},
+		IntoFilter,
+	},
 	guard::{PermissionGuard, ServerOwnerGuard},
 	object::media::Media,
 	order::MediaOrderBy,
@@ -142,6 +145,10 @@ impl MediaQuery {
 		&self,
 		ctx: &Context<'_>,
 		#[graphql(default)] filter: MediaFilterInput,
+		#[graphql(
+			desc = "Free-text search. Terms are AND-ed, and each term is matched against the book's name, its metadata title, summary, publisher, series, writers, characters and story arc, and its tags. A term that parses as a number also matches the issue number exactly. AND-ed with `filter` rather than replacing it."
+		)]
+		search: Option<String>,
 		#[graphql(default_with = "MediaOrderBy::default_vec()")] order_by: Vec<
 			MediaOrderBy,
 		>,
@@ -155,7 +162,11 @@ impl MediaQuery {
 		query = MediaOrderBy::add_order_by(&order_by, query)?;
 		query = add_sessions_join_for_filter(user, &filter, query)
 			.filter(filter.into_filter())
-			.filter(media::Column::DeletedAt.is_null());
+			.filter(media::Column::DeletedAt.is_null())
+			.apply_if(
+				media_keyword_condition(search.as_deref()),
+				|query, condition| query.filter(condition),
+			);
 
 		match pagination.resolve() {
 			Pagination::Cursor(info) => {

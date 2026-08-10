@@ -1,6 +1,6 @@
 use async_graphql::InputObject;
 use models::{
-	entity::{media, media_tag, reading_session, series, tag},
+	entity::{media, media_metadata, media_tag, reading_session, series, tag},
 	shared::enums::{FileStatus, ReadingStatus},
 };
 use sea_orm::{
@@ -12,9 +12,11 @@ use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
 use super::{
-	apply_numeric_filter, apply_string_filter, media_metadata::MediaMetadataFilterInput,
-	series::SeriesFilterInput, ConceptualFilter, IntoFilter, NumericFilter,
-	StringLikeFilter,
+	apply_numeric_filter, apply_string_filter,
+	keyword::{like_contains, multi_term_condition},
+	media_metadata::MediaMetadataFilterInput,
+	series::SeriesFilterInput,
+	ConceptualFilter, IntoFilter, NumericFilter, StringLikeFilter,
 };
 
 fn apply_reading_status_filter(
@@ -62,6 +64,50 @@ fn media_tag_name_subquery(filter: StringLikeFilter<String>) -> SelectStatement 
 		.from(media_tag::Entity)
 		.and_where(Expr::col(media_tag::Column::TagId).in_subquery(tag_id_subquery))
 		.to_owned()
+}
+
+/// The columns one term of a bare keyword search fans out across for a book.
+///
+/// Everything here except `tags` lives on `media` or `media_metadata`, both of
+/// which `ModelWithMetadata::find_for_user` already joins, so widening this list
+/// costs predicates rather than joins. Tags go through the existing
+/// [`media_tag_name_subquery`] rather than a join, so a book carrying two
+/// matching tags still comes back once.
+///
+/// Deliberately absent: `path` (an absolute path carries its library's mount
+/// prefix, so matching it would return every book in a library called
+/// `/mnt/comics` for the term "comics"), and the noisier credit fields -
+/// `genres`, `colorists`, `teams` and friends stay reachable through the
+/// explicit `filter` argument, where the user has asked for them by name.
+fn media_keyword_term_condition(term: &str) -> Condition {
+	let condition = Condition::any()
+		.add(media::Column::Name.like(like_contains(term)))
+		.add(media_metadata::Column::Title.like(like_contains(term)))
+		.add(media_metadata::Column::Summary.like(like_contains(term)))
+		.add(media_metadata::Column::Publisher.like(like_contains(term)))
+		.add(media_metadata::Column::Series.like(like_contains(term)))
+		.add(media_metadata::Column::Writers.like(like_contains(term)))
+		.add(media_metadata::Column::Characters.like(like_contains(term)))
+		.add(media_metadata::Column::StoryArc.like(like_contains(term)))
+		.add(media::Column::Id.in_subquery(media_tag_name_subquery(
+			StringLikeFilter::Contains(term.to_string()),
+		)));
+
+	// Issue numbers are matched by equality, never substring: the column is
+	// numeric, and `LIKE '%1%'` would pull in #10, #11 and #21 for a search of
+	// "1". A term that is not a number simply does not consider this field.
+	match term.parse::<Decimal>() {
+		Ok(number) => condition.add(media_metadata::Column::Number.eq(number)),
+		Err(_) => condition,
+	}
+}
+
+/// Turns a free-text search string into a condition over books.
+///
+/// `None` when there is nothing to search for, so callers can thread it through
+/// `apply_if` and treat an absent or blank query as a no-op.
+pub fn media_keyword_condition(search: Option<&str>) -> Option<Condition> {
+	multi_term_condition(search?, media_keyword_term_condition)
 }
 
 #[skip_serializing_none]
@@ -222,6 +268,225 @@ impl IntoFilter for MediaFilterInput {
 			}))
 			.add_option(self.metadata.map(|f| f.into_filter()))
 			.add_option(self.series.map(|f| f.into_filter()))
+	}
+}
+
+#[cfg(test)]
+mod keyword_tests {
+	use super::*;
+	use ::tests::{db::test_database, fake_data};
+	use models::entity::user::AuthUser;
+
+	fn auth_user() -> AuthUser {
+		AuthUser {
+			id: "keyword-user".to_string(),
+			username: "keyword-user".to_string(),
+			is_server_owner: true,
+			..Default::default()
+		}
+	}
+
+	/// Inserts a book plus the metadata row the keyword search reads from.
+	async fn insert_book(
+		db: &DatabaseConnection,
+		series_id: &str,
+		name: &str,
+		metadata: media_metadata::ActiveModel,
+	) -> String {
+		let media = fake_data::Media {
+			series_id: series_id.to_string(),
+			name: Some(name.to_string()),
+			..Default::default()
+		}
+		.insert(db)
+		.await;
+
+		media_metadata::ActiveModel {
+			media_id: sea_orm::Set(Some(media.id.clone())),
+			..metadata
+		}
+		.insert(db)
+		.await
+		.expect("failed to insert media metadata");
+
+		media.id
+	}
+
+	async fn search_names(db: &DatabaseConnection, query: &str) -> Vec<String> {
+		let condition =
+			media_keyword_condition(Some(query)).expect("expected a condition");
+
+		let mut names = media::ModelWithMetadata::find_for_user(&auth_user())
+			.filter(condition)
+			.into_model::<media::ModelWithMetadata>()
+			.all(db)
+			.await
+			.expect("keyword query failed")
+			.into_iter()
+			.map(|m| m.media.name)
+			.collect::<Vec<_>>();
+		names.sort();
+		names
+	}
+
+	async fn seeded_series(db: &DatabaseConnection) -> String {
+		let library = fake_data::Library::default().insert(db).await;
+		fake_data::Series {
+			library_id: Some(library.id.clone()),
+			..Default::default()
+		}
+		.insert(db)
+		.await
+		.id
+	}
+
+	/// The reason multi-term search exists: no single column contains
+	/// "batman year", but one book has "Batman" in its characters and "Year One"
+	/// in its title. Single-phrase matching could never find it.
+	#[tokio::test]
+	async fn test_terms_may_match_different_fields() {
+		let db = test_database().await;
+		let series_id = seeded_series(&db).await;
+
+		insert_book(
+			&db,
+			&series_id,
+			"book-a",
+			media_metadata::ActiveModel {
+				title: sea_orm::Set(Some("Year One".to_string())),
+				characters: sea_orm::Set(Some("Batman, Jim Gordon".to_string())),
+				..Default::default()
+			},
+		)
+		.await;
+
+		// Matches "batman" only - must not satisfy a two-term query.
+		insert_book(
+			&db,
+			&series_id,
+			"book-b",
+			media_metadata::ActiveModel {
+				title: sea_orm::Set(Some("The Killing Joke".to_string())),
+				characters: sea_orm::Set(Some("Batman".to_string())),
+				..Default::default()
+			},
+		)
+		.await;
+
+		assert_eq!(search_names(&db, "batman year").await, vec!["book-a"]);
+		assert_eq!(
+			search_names(&db, "batman").await,
+			vec!["book-a", "book-b"],
+			"a single term should still match both books"
+		);
+	}
+
+	/// Fields that were previously unreachable from the search box entirely.
+	#[tokio::test]
+	async fn test_widened_fields_are_searchable() {
+		let db = test_database().await;
+		let series_id = seeded_series(&db).await;
+
+		insert_book(
+			&db,
+			&series_id,
+			"publisher-book",
+			media_metadata::ActiveModel {
+				publisher: sea_orm::Set(Some("Dark Horse".to_string())),
+				..Default::default()
+			},
+		)
+		.await;
+		insert_book(
+			&db,
+			&series_id,
+			"arc-book",
+			media_metadata::ActiveModel {
+				story_arc: sea_orm::Set(Some("Knightfall".to_string())),
+				..Default::default()
+			},
+		)
+		.await;
+		insert_book(
+			&db,
+			&series_id,
+			"writer-book",
+			media_metadata::ActiveModel {
+				writers: sea_orm::Set(Some("Grant Morrison".to_string())),
+				..Default::default()
+			},
+		)
+		.await;
+
+		assert_eq!(
+			search_names(&db, "dark horse").await,
+			vec!["publisher-book"]
+		);
+		assert_eq!(search_names(&db, "knightfall").await, vec!["arc-book"]);
+		assert_eq!(search_names(&db, "morrison").await, vec!["writer-book"]);
+	}
+
+	/// Issue numbers match by equality. Substring matching a numeric column
+	/// would make a search for "1" return #10, #11 and #21.
+	#[tokio::test]
+	async fn test_issue_number_matches_exactly_not_by_substring() {
+		let db = test_database().await;
+		let series_id = seeded_series(&db).await;
+
+		// Names deliberately carry no digits, so the only thing a numeric term can
+		// match here is the issue number itself.
+		insert_book(
+			&db,
+			&series_id,
+			"alpha",
+			media_metadata::ActiveModel {
+				number: sea_orm::Set(Some(Decimal::from(1))),
+				..Default::default()
+			},
+		)
+		.await;
+		insert_book(
+			&db,
+			&series_id,
+			"beta",
+			media_metadata::ActiveModel {
+				number: sea_orm::Set(Some(Decimal::from(10))),
+				..Default::default()
+			},
+		)
+		.await;
+
+		assert_eq!(search_names(&db, "1").await, vec!["alpha"]);
+		assert_eq!(search_names(&db, "10").await, vec!["beta"]);
+	}
+
+	/// End-to-end proof of the escaping fix through the keyword path.
+	#[tokio::test]
+	async fn test_wildcards_in_a_query_are_matched_literally() {
+		let db = test_database().await;
+		let series_id = seeded_series(&db).await;
+
+		insert_book(
+			&db,
+			&series_id,
+			"50% Off",
+			media_metadata::ActiveModel {
+				..Default::default()
+			},
+		)
+		.await;
+		insert_book(
+			&db,
+			&series_id,
+			"500 Page Special",
+			media_metadata::ActiveModel {
+				..Default::default()
+			},
+		)
+		.await;
+
+		// Unescaped, the pattern `%50%%` collapses to `%50%` and matches both.
+		assert_eq!(search_names(&db, "50%").await, vec!["50% Off"]);
 	}
 }
 

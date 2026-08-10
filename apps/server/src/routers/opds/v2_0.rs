@@ -8,7 +8,14 @@ use axum::{
 	routing::get,
 	Extension, Json, Router,
 };
-use graphql::{data::AuthContext, pagination::OffsetPagination};
+use graphql::{
+	data::AuthContext,
+	filter::{
+		library::library_keyword_condition, media::media_keyword_condition,
+		series::series_keyword_condition,
+	},
+	pagination::OffsetPagination,
+};
 use longbox_core::{
 	filesystem::media::get_page_async,
 	opds::v2_0::{
@@ -450,13 +457,18 @@ async fn search(
 		"Query parameter is required".to_string(),
 	))?;
 
+	let library_condition = library_keyword_condition(Some(&query));
 	let libraries = library::Entity::find_for_user(&user)
-		.filter(library::Column::Name.contains(query.clone()))
+		.apply_if(library_condition.clone(), |query, condition| {
+			query.filter(condition)
+		})
 		.limit(DEFAULT_LIMIT)
 		.all(ctx.conn.as_ref())
 		.await?;
 	let library_count = library::Entity::find_for_user(&user)
-		.filter(library::Column::Name.contains(query.clone()))
+		.apply_if(library_condition, |query, condition| {
+			query.filter(condition)
+		})
 		.count(ctx.conn.as_ref())
 		.await?;
 
@@ -488,18 +500,18 @@ async fn search(
 		)
 		.build()?;
 
-	let series_condition = Condition::any()
-		.add(series::Column::Name.contains(query.clone()))
-		.add(series_metadata::Column::Title.contains(query.clone()));
+	let series_condition = series_keyword_condition(Some(&query));
 	let series = series::Entity::find_for_user(&user)
 		.left_join(series_metadata::Entity)
-		.filter(series_condition.clone())
+		.apply_if(series_condition.clone(), |query, condition| {
+			query.filter(condition)
+		})
 		.limit(DEFAULT_LIMIT)
 		.all(ctx.conn.as_ref())
 		.await?;
 	let series_count = series::Entity::find_for_user(&user)
 		.left_join(series_metadata::Entity)
-		.filter(series_condition)
+		.apply_if(series_condition, |query, condition| query.filter(condition))
 		.count(ctx.conn.as_ref())
 		.await?;
 
@@ -531,18 +543,18 @@ async fn search(
 		)
 		.build()?;
 
-	let book_condition = Condition::any()
-		.add(media::Column::Name.contains(query.clone()))
-		.add(media_metadata::Column::Title.contains(query.clone()));
+	let book_condition = media_keyword_condition(Some(&query));
 	let books = OPDSPublicationEntity::find_for_user(&user)
-		.filter(book_condition.clone())
+		.apply_if(book_condition.clone(), |query, condition| {
+			query.filter(condition)
+		})
 		.order_by_asc(media::Column::Name)
 		.limit(DEFAULT_LIMIT)
 		.into_model::<OPDSPublicationEntity>()
 		.all(ctx.conn.as_ref())
 		.await?;
 	let books_count = OPDSPublicationEntity::find_for_user(&user)
-		.filter(book_condition)
+		.apply_if(book_condition, |query, condition| query.filter(condition))
 		.count(ctx.conn.as_ref())
 		.await?;
 

@@ -4212,6 +4212,7 @@ export type QueryMediaArgs = {
   filter?: MediaFilterInput;
   orderBy?: Array<MediaOrderBy>;
   pagination?: Pagination;
+  search?: InputMaybe<Scalars['String']['input']>;
 };
 
 
@@ -4304,6 +4305,7 @@ export type QuerySeriesArgs = {
   filter?: SeriesFilterInput;
   orderBy?: Array<SeriesOrderBy>;
   pagination?: Pagination;
+  search?: InputMaybe<Scalars['String']['input']>;
 };
 
 

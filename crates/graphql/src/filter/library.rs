@@ -1,11 +1,35 @@
 use async_graphql::InputObject;
 use models::entity::library;
+use sea_orm::{prelude::*, Condition};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
-use super::{apply_string_filter, IntoFilter, StringLikeFilter};
+use super::{
+	apply_string_filter,
+	keyword::{like_contains, multi_term_condition},
+	IntoFilter, StringLikeFilter,
+};
 
 // TODO: Support filter by tags (requires join logic)
+
+/// The columns one term of a bare keyword search fans out across for a library.
+///
+/// Unlike books and series, `path` *is* searched here. The reason the other two
+/// exclude it does not apply: a library is its path, so a match returns the one
+/// row that owns that directory rather than fanning out across everything that
+/// merely inherits the prefix. This also preserves the behaviour the `libraries`
+/// resolver already had.
+fn library_keyword_term_condition(term: &str) -> Condition {
+	Condition::any()
+		.add(library::Column::Name.like(like_contains(term)))
+		.add(library::Column::Path.like(like_contains(term)))
+		.add(library::Column::Description.like(like_contains(term)))
+}
+
+/// Turns a free-text search string into a condition over libraries.
+pub fn library_keyword_condition(search: Option<&str>) -> Option<Condition> {
+	multi_term_condition(search?, library_keyword_term_condition)
+}
 
 #[skip_serializing_none]
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]

@@ -1,6 +1,6 @@
 use async_graphql::InputObject;
 use models::{
-	entity::{library, library_config, media, reading_session, series},
+	entity::{library, library_config, media, reading_session, series, series_metadata},
 	shared::enums::{LibraryType, ReadingStatus},
 };
 use sea_orm::{
@@ -12,12 +12,39 @@ use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
 use super::{
-	apply_string_filter, library::LibraryFilterInput,
-	series_metadata::SeriesMetadataFilterInput, ConceptualFilter, IntoFilter,
-	StringLikeFilter,
+	apply_string_filter,
+	keyword::{like_contains, multi_term_condition},
+	library::LibraryFilterInput,
+	series_metadata::SeriesMetadataFilterInput,
+	ConceptualFilter, IntoFilter, StringLikeFilter,
 };
 
 // TODO: Support filter by tags (requires join logic)
+
+/// The columns one term of a bare keyword search fans out across for a series.
+///
+/// Safe to reference `series_metadata` because the `series` resolver builds on
+/// `series::ModelWithMetadata::find_for_user`, which left-joins it
+/// unconditionally. Note that `series::Entity::find_for_user` joins it only when
+/// the user has an age restriction, so this must not be used on that query.
+///
+/// `path` is deliberately absent for the same reason as books: it is absolute,
+/// so it carries the library's mount prefix into every row.
+fn series_keyword_term_condition(term: &str) -> Condition {
+	Condition::any()
+		.add(series::Column::Name.like(like_contains(term)))
+		.add(series_metadata::Column::Title.like(like_contains(term)))
+		.add(series_metadata::Column::Summary.like(like_contains(term)))
+		.add(series_metadata::Column::Publisher.like(like_contains(term)))
+		.add(series_metadata::Column::Imprint.like(like_contains(term)))
+		.add(series_metadata::Column::Writers.like(like_contains(term)))
+		.add(series_metadata::Column::Characters.like(like_contains(term)))
+}
+
+/// Turns a free-text search string into a condition over series.
+pub fn series_keyword_condition(search: Option<&str>) -> Option<Condition> {
+	multi_term_condition(search?, series_keyword_term_condition)
+}
 
 #[skip_serializing_none]
 #[derive(InputObject, Clone, Debug, Default, Serialize, Deserialize)]
