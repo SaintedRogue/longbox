@@ -15,15 +15,26 @@ ARG TARGETARCH
 # process 0" -- in whichever stage loses. Locking serializes them while keeping the cache.
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    apt-get update && apt-get install -y curl tar
+    for attempt in 1 2 3; do \
+        apt-get update && apt-get install -y curl tar && break; \
+        echo "apt-get failed (attempt ${attempt}/3), retrying..." >&2; \
+        sleep $((attempt * 5)); \
+    done; \
+    command -v curl >/dev/null 2>&1 && command -v tar >/dev/null 2>&1 \
+        || { echo "curl/tar unavailable after 3 attempts" >&2; exit 1; }
 
 # Download and extract the PDFium binaries
+#
+# `--fail` matters as much as the retries: without it curl writes an HTTP error
+# body into pdfium.tgz on a 4xx/5xx, and the failure surfaces as a confusing tar
+# error rather than a download problem. `--retry-all-errors` covers the
+# connection-level failures that `--retry` alone ignores.
 RUN set -ex; \
     mkdir -p pdfium; \
     if [ "$TARGETARCH" = "amd64" ]; then \
-        curl -sLo pdfium.tgz https://github.com/bblanchon/pdfium-binaries/releases/download/chromium/7763/pdfium-linux-x64.tgz; \
+        curl --fail --retry 3 --retry-delay 5 --retry-all-errors -sLo pdfium.tgz https://github.com/bblanchon/pdfium-binaries/releases/download/chromium/7763/pdfium-linux-x64.tgz; \
     elif [ "$TARGETARCH" = "arm64" ]; then \
-        curl -sLo pdfium.tgz https://github.com/bblanchon/pdfium-binaries/releases/download/chromium/7763/pdfium-linux-arm64.tgz; \
+        curl --fail --retry 3 --retry-delay 5 --retry-all-errors -sLo pdfium.tgz https://github.com/bblanchon/pdfium-binaries/releases/download/chromium/7763/pdfium-linux-arm64.tgz; \
     fi; \
     tar -xzvf pdfium.tgz -C ./pdfium; \
     rm pdfium.tgz
