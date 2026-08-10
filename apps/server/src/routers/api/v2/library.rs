@@ -5,7 +5,7 @@ use crate::{
 	utils::http::ImageResponse,
 };
 use axum::{
-	extract::{Path, State},
+	extract::{Path, Query as AxumQuery, State},
 	middleware,
 	routing::get,
 	Extension, Router,
@@ -13,7 +13,7 @@ use axum::{
 use graphql::data::AuthContext;
 use longbox_core::{
 	config::LongboxConfig,
-	filesystem::{get_saved_thumbnail, get_thumbnail, ContentType},
+	filesystem::{get_saved_thumbnail, get_thumbnail},
 };
 use models::{
 	entity::{library, library_config, media, series},
@@ -21,6 +21,7 @@ use models::{
 };
 use sea_orm::{prelude::*, QueryOrder};
 
+use super::media::{apply_thumbnail_variant, ThumbnailQuery};
 use super::series::get_series_thumbnail;
 
 pub(crate) fn mount(app_state: AppState) -> Router<AppState> {
@@ -39,12 +40,14 @@ pub(crate) async fn get_library_thumbnail(
 	image_options: Option<ImageProcessorOptions>,
 	config: &LongboxConfig,
 	conn: &DatabaseConnection,
-) -> APIResult<(ContentType, Vec<u8>)> {
+) -> APIResult<ImageResponse> {
 	// Note: This doesn't hard-fail because if the saved thumbnail is missing or corrupt, we want
 	// to just pull something else instead of erroring out entirely.
 	if let Some(path) = &library.thumbnail_path {
 		match get_saved_thumbnail(std::path::Path::new(path)).await {
-			Ok(result) => return Ok(result),
+			Ok(result) => {
+				return Ok(ImageResponse::from(result).with_source_file(path).await)
+			},
 			Err(_) => {
 				tracing::warn!(path = ?path, "Failed to get saved thumbnail");
 			},
@@ -59,7 +62,7 @@ pub(crate) async fn get_library_thumbnail(
 	.await?;
 
 	match (generated_thumb, first_series) {
-		(Some(result), _) => Ok(result),
+		(Some(result), _) => Ok(ImageResponse::from(result)),
 		(None, Some(series)) => {
 			get_series_thumbnail(&series, first_book, image_options, config, conn).await
 		},
@@ -73,6 +76,7 @@ async fn get_library_thumbnail_handler(
 	Path(id): Path<String>,
 	State(ctx): State<AppState>,
 	Extension(req): Extension<AuthContext>,
+	AxumQuery(params): AxumQuery<ThumbnailQuery>,
 ) -> APIResult<ImageResponse> {
 	let user = req.user();
 	let (library, library_config) = library::Entity::find_for_user(&user)
@@ -116,7 +120,7 @@ async fn get_library_thumbnail_handler(
 
 	let image_options = library_config.and_then(|o| o.thumbnail_config);
 
-	let (content_type, bytes) = get_library_thumbnail(
+	let response = get_library_thumbnail(
 		&library,
 		first_series,
 		first_book,
@@ -125,6 +129,5 @@ async fn get_library_thumbnail_handler(
 		ctx.conn.as_ref(),
 	)
 	.await?;
-
-	Ok(ImageResponse::new(content_type, bytes))
+	Ok(apply_thumbnail_variant(&ctx, &library.id, params.width, response).await)
 }

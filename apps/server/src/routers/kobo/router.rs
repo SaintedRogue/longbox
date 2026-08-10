@@ -294,7 +294,14 @@ async fn book_thumbnail(
 		Ok::<Vec<u8>, APIError>(converted)
 	})?;
 
-	Ok(ImageResponse::new(ContentType::JPEG, jpeg_buffer))
+	// Preserve the source's cache policy: a no-store failure stand-in must stay
+	// no-store after the JPEG re-encode.
+	Ok(ImageResponse {
+		content_type: ContentType::JPEG,
+		data: jpeg_buffer,
+		policy: result.policy,
+		last_modified: None,
+	})
 }
 
 async fn book_download(
