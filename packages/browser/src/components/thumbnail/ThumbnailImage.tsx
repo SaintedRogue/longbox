@@ -84,8 +84,18 @@ export const ThumbnailImage = forwardRef<HTMLDivElement, ThumbnailImageProps>(
 		// here and loads normally, with repeat loads served by the browser's own HTTP cache.
 		const offlineSrc = useOfflineImageSrc(src)
 
-		const [isLoaded, setIsLoaded] = useState(false)
-		const [hasError, setHasError] = useState(false)
+		// Load/error state is tracked *by src* rather than as a bare boolean, because this
+		// component outlives its `src`: the same instance is reused when a list re-renders and
+		// when one book route replaces another. A boolean would carry over -- `isLoaded` left
+		// true meant the incoming cover faded straight in while the browser still held the
+		// previous book's bitmap, and `hasError` left true meant one broken cover suppressed
+		// the <img> for every book rendered through that instance afterwards. Comparing
+		// against the current src makes both self-resetting with no effect to synchronize.
+		const [loadedSrc, setLoadedSrc] = useState<string | null>(null)
+		const [erroredSrc, setErroredSrc] = useState<string | null>(null)
+
+		const isLoaded = loadedSrc === src
+		const hasError = erroredSrc === src
 
 		const imageRef = useRef<HTMLImageElement | null>(null)
 
@@ -93,7 +103,7 @@ export const ThumbnailImage = forwardRef<HTMLDivElement, ThumbnailImageProps>(
 		// so this should help prevent that
 		useLayoutEffect(() => {
 			if (imageRef.current?.complete && imageRef.current.naturalWidth > 0) {
-				setIsLoaded(true)
+				setLoadedSrc(src)
 			}
 		}, [src])
 
@@ -104,7 +114,7 @@ export const ThumbnailImage = forwardRef<HTMLDivElement, ThumbnailImageProps>(
 					const img = imageRef.current
 					// Note: Apparently naturalWidth is 0 if returning after tab was suspended
 					if (isLoaded && (!img.complete || img.naturalWidth === 0)) {
-						setIsLoaded(false)
+						setLoadedSrc(null)
 					}
 				}
 			}
@@ -155,12 +165,12 @@ export const ThumbnailImage = forwardRef<HTMLDivElement, ThumbnailImageProps>(
 		}, [gradient, computedStyles.borderRadius])
 
 		const handleLoad = () => {
-			setIsLoaded(true)
+			setLoadedSrc(src)
 			onLoad?.()
 		}
 
 		const handleError = () => {
-			setHasError(true)
+			setErroredSrc(src)
 			onError?.()
 		}
 

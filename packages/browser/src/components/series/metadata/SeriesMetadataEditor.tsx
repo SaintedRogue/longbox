@@ -93,7 +93,13 @@ type Props = {
 
 // TODO(ux): Improve error states within form
 
-export default function SeriesMetadataEditor({ seriesId, data }: Props) {
+/**
+ * `data` is snapshotted into state so a successful save can swap in the mutation's own
+ * response without waiting for the parent query to refetch. That snapshot is mount-only,
+ * so the editor MUST NOT outlive the entity it was mounted for -- hence the keyed
+ * wrapper exported below.
+ */
+function SeriesMetadataEditor({ seriesId, data }: Props) {
 	const [_data, setData] = useState(() => data)
 
 	const metadata = useFragment(fragment, _data)
@@ -205,14 +211,8 @@ export default function SeriesMetadataEditor({ seriesId, data }: Props) {
 					isGrow: true,
 				},
 			}),
-			columnHelper.display({
-				id: 'actions',
-				header: () =>
-					checkPermission(UserPermission.EditMetadata) ? <MetadataEditorHeader /> : null,
-				cell: () => null,
-			}),
 		],
-		[metadata, paths, checkPermission],
+		[metadata, paths],
 	) as ColumnDef<SeriesMetadataEditorRow>[]
 
 	const items = useMemo(
@@ -303,6 +303,16 @@ export default function SeriesMetadataEditor({ seriesId, data }: Props) {
 				}}
 			>
 				<form onSubmit={form.handleSubmit(onSaveMetadata)}>
+					{/*
+					 * Above the table, not inside it. These used to be the header of a right-pinned
+					 * `actions` column sized to 0px, so the buttons overflowed a zero-width sticky
+					 * cell and painted over the field values at narrow widths.
+					 */}
+					{checkPermission(UserPermission.EditMetadata) && (
+						<div className="gap-2 pb-2 flex items-center justify-end">
+							<MetadataEditorHeader />
+						</div>
+					)}
 					<MetadataEditorTable<SeriesMetadataEditorRow>
 						columns={columns}
 						items={items}
@@ -312,6 +322,15 @@ export default function SeriesMetadataEditor({ seriesId, data }: Props) {
 			</MetadataEditorContext.Provider>
 		</FormProvider>
 	)
+}
+
+/**
+ * Keyed wrapper: remounts the editor whenever the series changes, so its mount-only
+ * snapshot state (the metadata rows, the locked-field set, and the react-hook-form
+ * default values) can never carry over from a previously-viewed series.
+ */
+export default function SeriesMetadataEditorContainer(props: Props) {
+	return <SeriesMetadataEditor key={props.seriesId} {...props} />
 }
 
 const columnHelper = createColumnHelper<SeriesMetadataEditorRow>()

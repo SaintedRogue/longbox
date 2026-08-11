@@ -5,7 +5,7 @@ use serde::Deserialize;
 use crate::{
 	client::{build_client_with_retry, default_metadata_client, RetryClientConfig},
 	error::MetadataProviderError,
-	runtime::{cached_get_json, noop_runtime, RuntimeHandle},
+	runtime::{always_cacheable, cached_get_json, noop_runtime, RuntimeHandle},
 	types::{
 		ConfidenceFactor, ExternalMediaMetadata, ExternalSeriesMetadata, MatchCandidate,
 		MediaType, ProviderValidationResult, ProviderValidationStatus, SearchQuery,
@@ -107,6 +107,9 @@ impl MetronClient {
 			&self.rate_limiter,
 			"metron",
 			request,
+			// Metron reports failures with HTTP status codes, so anything that reached
+			// here under a 2xx is a real result.
+			always_cacheable,
 		)
 		.await?;
 		Ok(serde_json::from_value(body)?)

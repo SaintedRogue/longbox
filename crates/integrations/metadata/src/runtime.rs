@@ -54,18 +54,38 @@ pub fn noop_runtime() -> RuntimeHandle {
 	Arc::new(NoopRuntime)
 }
 
+/// Whether a 2xx body is worth caching. Providers that report API-level failures
+/// *inside* a successful HTTP response supply their own; see [`always_cacheable`].
+pub type BodyCachePolicy = fn(&serde_json::Value) -> bool;
+
+/// The default policy: any body that arrived under a 2xx is cacheable. Correct for
+/// providers (Metron) that signal errors with HTTP status codes.
+pub fn always_cacheable(_body: &serde_json::Value) -> bool {
+	true
+}
+
 /// Execute a provider GET through the cache and ledger: a fresh cache hit costs
 /// neither a rate-limit permit nor budget; a miss waits for the limiter, records
 /// exactly one ledger row, and offers the body back to the cache.
 ///
 /// The retry middleware inside `client` may issue more physical attempts than
 /// the single row recorded here — the budget *reserve* absorbs that slack.
+///
+/// `body_policy` is what keeps a provider's *error envelope* out of the cache.
+/// ComicVine answers "rate limit exceeded" (`status_code` 107), "invalid API key"
+/// (100) and "object not found" (101) with HTTP 200 and the failure in the body, so
+/// an unconditional `cache_put` stored those under the requested URL's key and served
+/// them back for the whole TTL — 12 hours for a search, 7 days for a detail lookup.
+/// A single burst of 107s during a bulk match run therefore poisoned exactly the
+/// lookups that were mid-flight, and no amount of waiting for the hourly window to
+/// reset would clear them.
 pub async fn cached_get_json(
 	client: &ClientWithMiddleware,
 	runtime: &dyn ProviderRuntime,
 	limiter: &RateLimiter,
 	provider: &str,
 	request: reqwest::Request,
+	body_policy: BodyCachePolicy,
 ) -> Result<serde_json::Value, MetadataProviderError> {
 	let url = request.url().to_string();
 
@@ -78,7 +98,14 @@ pub async fn cached_get_json(
 	runtime.record_call(provider, &url).await;
 	let response = response.error_for_status()?;
 	let body: serde_json::Value = response.json().await?;
-	runtime.cache_put(provider, &url, &body).await;
+	if body_policy(&body) {
+		runtime.cache_put(provider, &url, &body).await;
+	} else {
+		tracing::debug!(
+			provider,
+			"provider returned an error envelope; not caching the response"
+		);
+	}
 	Ok(body)
 }
 
@@ -150,9 +177,16 @@ mod tests {
 
 		for _ in 0..2 {
 			let request = client.get(&url).build().expect("request builds");
-			let body = cached_get_json(&client, &runtime, &limiter, "metron", request)
-				.await
-				.expect("request succeeds");
+			let body = cached_get_json(
+				&client,
+				&runtime,
+				&limiter,
+				"metron",
+				request,
+				always_cacheable,
+			)
+			.await
+			.expect("request succeeds");
 			assert_eq!(body["id"], 9910);
 		}
 
@@ -183,9 +217,16 @@ mod tests {
 		for key in ["first", "second"] {
 			let url = format!("{}/api/search/?api_key={key}&query=saga", server.uri());
 			let request = client.get(&url).build().expect("request builds");
-			cached_get_json(&client, &runtime, &limiter, "comic_vine", request)
-				.await
-				.expect("request succeeds");
+			cached_get_json(
+				&client,
+				&runtime,
+				&limiter,
+				"comic_vine",
+				request,
+				always_cacheable,
+			)
+			.await
+			.expect("request succeeds");
 		}
 
 		assert_eq!(runtime.calls.load(Ordering::SeqCst), 1);
