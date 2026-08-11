@@ -30,8 +30,17 @@ const overview = {
 	series: [],
 }
 
+const seriesOverview = {
+	publishers: ['DC', 'Image', 'Marvel'],
+	imprints: ['Black Label', 'Vertigo'],
+	bookTypes: ['Print', 'TPB'],
+	statuses: ['Continuing', 'Ended'],
+}
+
 jest.mock('@longbox/client', () => ({
-	useGraphQL: () => ({ data: { mediaMetadataOverview: overview } }),
+	useGraphQL: () => ({
+		data: { mediaMetadataOverview: overview, seriesMetadataOverview: seriesOverview },
+	}),
 }))
 
 const setFilters = jest.fn()
@@ -233,9 +242,44 @@ describe('FilterPicker (series)', () => {
 		renderSeriesPicker()
 		open()
 
+		expect(screen.getByText('Publisher')).toBeInTheDocument()
+		expect(screen.getByText('Imprint')).toBeInTheDocument()
+		expect(screen.getByText('Book type')).toBeInTheDocument()
 		expect(screen.getByText('Status')).toBeInTheDocument()
+		expect(screen.getByText('Read status')).toBeInTheDocument()
 		expect(screen.getByText('Publication year')).toBeInTheDocument()
+		expect(screen.getByText('Volume')).toBeInTheDocument()
 		expect(screen.getByText('Age rating')).toBeInTheDocument()
+	})
+
+	/** Its options come from `seriesMetadataOverview`, not from the media one. */
+	it('draws series values from the series overview', () => {
+		renderSeriesPicker()
+		open()
+		fireEvent.click(screen.getByText('Imprint'))
+
+		expect(screen.getByText('Vertigo')).toBeInTheDocument()
+		expect(screen.getByText('Black Label')).toBeInTheDocument()
+	})
+
+	it('applies a publisher', () => {
+		renderSeriesPicker()
+		open()
+		fireEvent.click(screen.getByText('Publisher'))
+		fireEvent.click(screen.getByText('Image'))
+
+		expect(setFilters).toHaveBeenCalledWith({
+			metadata: { publisher: { likeAnyOf: ['Image'] } },
+		})
+	})
+
+	it('applies a read status', () => {
+		renderSeriesPicker()
+		open()
+		fireEvent.click(screen.getByText('Read status'))
+		fireEvent.click(screen.getByText('Unread'))
+
+		expect(setFilters).toHaveBeenCalledWith({ readingStatus: { isAnyOf: ['NOT_STARTED'] } })
 	})
 
 	it('does not offer media-only fields', () => {
@@ -243,9 +287,11 @@ describe('FilterPicker (series)', () => {
 		open()
 
 		expect(screen.queryByText('Genre')).not.toBeInTheDocument()
-		expect(screen.queryByText('Read status')).not.toBeInTheDocument()
+		expect(screen.queryByText('File type')).not.toBeInTheDocument()
+		expect(screen.queryByText('Cover artist')).not.toBeInTheDocument()
 	})
 
+	/** Sourced from the server now, so the value keeps the casing the data actually has. */
 	it('applies a status', () => {
 		renderSeriesPicker()
 		open()
@@ -253,7 +299,7 @@ describe('FilterPicker (series)', () => {
 		fireEvent.click(screen.getByText('Continuing'))
 
 		expect(setFilters).toHaveBeenCalledWith({
-			metadata: { status: { likeAnyOf: ['continuing'] } },
+			metadata: { status: { likeAnyOf: ['Continuing'] } },
 		})
 	})
 })

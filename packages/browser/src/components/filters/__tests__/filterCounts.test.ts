@@ -152,3 +152,64 @@ describe('picker fields', () => {
 		expect(fieldsForEntity('library')).toEqual([])
 	})
 })
+
+describe('series picker fields', () => {
+	const seriesField = (key: string) => {
+		const field = fieldsForEntity('series').find((candidate) => candidate.key === key)
+		if (!field) throw new Error(`no series field ${key}`)
+		return field
+	}
+
+	/**
+	 * Series offered three fields against the media picker's fourteen, which read as a broken
+	 * control rather than a thin one. These are the columns `series_metadata` actually carries.
+	 */
+	it('offers the series columns worth narrowing a shelf by', () => {
+		expect(fieldsForEntity('series').map((field) => field.key)).toEqual([
+			'publisher',
+			'imprint',
+			'bookType',
+			'status',
+			'readStatus',
+			'year',
+			'volume',
+			'ageRating',
+		])
+	})
+
+	/** The entity column is `booktype`, one word, unlike the camel-cased field key. */
+	it('writes book type through the entity column name', () => {
+		const bookType = seriesField('bookType')
+		if (bookType.kind !== 'values') throw new Error('expected a values field')
+
+		const filters = bookType.write({}, ['TPB']) as { metadata?: Record<string, unknown> }
+		expect(filters.metadata).toHaveProperty('booktype')
+		expect(bookType.read(filters as FilterInput)).toEqual(['TPB'])
+	})
+
+	it('round-trips a series read status at the top level, not under metadata', () => {
+		const readStatus = seriesField('readStatus')
+		if (readStatus.kind !== 'values') throw new Error('expected a values field')
+
+		const filters = readStatus.write({}, [ReadingStatus.Finished])
+		expect(filters).toEqual({ readingStatus: { isAnyOf: ['FINISHED'] } })
+		expect(readStatus.read(filters)).toEqual(['FINISHED'])
+	})
+
+	it('round-trips a volume range', () => {
+		const volume = seriesField('volume')
+		if (volume.kind !== 'range') throw new Error('expected a range field')
+
+		const filters = volume.write({}, { from: 1, to: 5 })
+		expect(volume.read(filters)).toEqual({ from: 1, to: 5 })
+	})
+
+	it('counts series fields individually', () => {
+		const publisher = seriesField('publisher')
+		const imprint = seriesField('imprint')
+		if (publisher.kind !== 'values' || imprint.kind !== 'values') throw new Error('expected values')
+
+		const filters = imprint.write(publisher.write({}, ['DC', 'Image']), ['Vertigo'])
+		expect(getActiveFilterCount(filters as Record<string, unknown>)).toBe(2)
+	})
+})

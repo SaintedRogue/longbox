@@ -26,6 +26,7 @@ pub(crate) mod reading_list;
 mod release_calendar;
 mod search;
 mod series;
+mod series_metadata_overview;
 mod server_config;
 mod smart_list_view;
 mod smart_lists;
@@ -60,6 +61,7 @@ use reading_list::ReadingListQuery;
 use release_calendar::ReleaseCalendarQuery;
 use search::SearchQuery;
 use series::SeriesQuery;
+use series_metadata_overview::SeriesMetadataOverviewQuery;
 use server_config::ServerConfigQuery;
 use smart_list_view::SmartListViewQuery;
 use smart_lists::SmartListsQuery;
@@ -91,6 +93,7 @@ struct ContentQueries(
 	EpubQuery,
 	TagQuery,
 	MediaMetadataOverviewQuery,
+	SeriesMetadataOverviewQuery,
 	OrganizeQuery,
 	BookGroupQuery,
 	ReleaseCalendarQuery,

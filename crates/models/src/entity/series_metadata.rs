@@ -4,7 +4,7 @@ use crate::shared::{
 };
 use async_graphql::SimpleObject;
 use filter_gen::Ordering;
-use sea_orm::{entity::prelude::*, QueryOrder};
+use sea_orm::{entity::prelude::*, QueryOrder, QuerySelect};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, SimpleObject, Ordering)]
 #[graphql(name = "SeriesMetadataModel")]
@@ -100,3 +100,35 @@ impl Related<super::series::Entity> for Entity {
 }
 
 impl ActiveModelBehavior for ActiveModel {}
+
+impl Entity {
+	/// The distinct, non-null values of one column, ordered.
+	///
+	/// Mirrors the same helper on `media_metadata`; it is what the metadata overviews are
+	/// built from, so filter controls can offer only values that actually exist.
+	pub fn find_for_column(col: Column) -> Select<Entity> {
+		Self::find()
+			.select_only()
+			.columns(vec![col])
+			.filter(col.is_not_null())
+			.order_by_asc(col)
+			.distinct()
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use sea_orm::{sea_query::SqliteQueryBuilder, QueryTrait};
+
+	#[test]
+	fn test_find_for_column() {
+		let actual = Entity::find_for_column(Column::Publisher)
+			.into_query()
+			.to_string(SqliteQueryBuilder);
+		assert_eq!(
+			actual,
+			r#"SELECT DISTINCT "series_metadata"."publisher" FROM "series_metadata" WHERE "series_metadata"."publisher" IS NOT NULL ORDER BY "series_metadata"."publisher" ASC"#.to_string()
+		);
+	}
+}

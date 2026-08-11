@@ -48,6 +48,18 @@ const optionsQuery = graphql(`
 	}
 `)
 
+/** The series equivalent. Series metadata is one value per column, so there is less of it. */
+const seriesOptionsQuery = graphql(`
+	query FilterPickerSeriesOptions($libraryId: ID) {
+		seriesMetadataOverview(libraryId: $libraryId) {
+			publishers
+			imprints
+			bookTypes
+			statuses
+		}
+	}
+`)
+
 type Props = {
 	entity: FilterableEntity
 }
@@ -88,15 +100,35 @@ export default function FilterPicker({ entity }: Props) {
 	}, [libraryContext, seriesContext])
 
 	/*
-	 * Only media fields draw their options from the server; the series fields all have a
-	 * fixed vocabulary. The query is also held until the popover is opened, so a browse
-	 * page does not pay for option lists nobody has asked to see yet.
+	 * Both queries are held until the popover is opened, so a browse page does not pay for
+	 * option lists nobody has asked to see yet, and only the one matching the entity runs.
 	 */
-	const { data: overview } = useGraphQL(optionsQuery, ['filterPickerOptions', params], params, {
-		enabled: isOpen && entity === 'media',
-		placeholderData: (prev) => prev,
-	})
-	const overviewValues = overview?.mediaMetadataOverview
+	const { data: mediaOverview } = useGraphQL(
+		optionsQuery,
+		['filterPickerOptions', params],
+		params,
+		{
+			enabled: isOpen && entity === 'media',
+			placeholderData: (prev) => prev,
+		},
+	)
+	const seriesParams = useMemo(
+		() => (params.libraryId ? { libraryId: params.libraryId } : {}),
+		[params],
+	)
+	const { data: seriesOverview } = useGraphQL(
+		seriesOptionsQuery,
+		['filterPickerSeriesOptions', seriesParams],
+		seriesParams,
+		{
+			enabled: isOpen && entity === 'series',
+			placeholderData: (prev) => prev,
+		},
+	)
+	const overviewValues =
+		entity === 'series'
+			? seriesOverview?.seriesMetadataOverview
+			: mediaOverview?.mediaMetadataOverview
 
 	/*
 	 * The shared counter rather than a walk over this picker's own fields: a URL can carry

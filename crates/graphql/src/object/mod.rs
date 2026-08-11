@@ -40,6 +40,7 @@ pub mod resume_reading_cursor;
 pub mod search;
 pub mod series;
 pub mod series_metadata;
+pub mod series_metadata_overview;
 pub mod smart_list_item;
 pub mod smart_list_view;
 pub mod smart_lists;
