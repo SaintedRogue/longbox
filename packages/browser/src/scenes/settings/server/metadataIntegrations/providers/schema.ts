@@ -33,7 +33,16 @@ export type CreateProviderConfigSchema = z.infer<typeof createConfig>
 export const patchConfig = z
 	.object({
 		enabled: z.boolean().nullish(),
-		apiToken: z.string().min(1).nullish(),
+		/*
+		 * Blank means "keep the credential you already have", not "set an empty one". The server
+		 * never returns a stored token, so this field always renders empty on an edit; anything
+		 * stricter turns changing an unrelated setting into re-typing an API key. Empty and null
+		 * both collapse to `undefined` so the key is omitted from the patch entirely.
+		 */
+		apiToken: z
+			.string()
+			.nullish()
+			.transform((value) => value || undefined),
 		apiTokenExpiresAt: z.date().nullish(),
 		autoApplyConfig: autoApplyConfig.nullish(),
 	})
@@ -59,7 +68,9 @@ export const getPatchDefaults = (
 	provider: ExistingProviderCardFragment,
 ): PatchProviderConfigSchema & { providerType: MetadataProvider } => ({
 	enabled: provider.enabled,
-	apiToken: null,
+	// Empty rather than null: this is what the password field actually holds while untouched,
+	// and both mean "leave the stored credential alone".
+	apiToken: '',
 	apiTokenExpiresAt: provider.apiTokenExpiresAt,
 	autoApplyConfig: {
 		enabled: provider.autoApplyConfig?.enabled ?? false,

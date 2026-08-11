@@ -17,7 +17,12 @@ import { useFormContext, useFormState, useWatch } from 'react-hook-form'
 import { ProviderApiKeyInput } from './ProviderApiKeyInput'
 import { PatchProviderConfigSchema } from './schema'
 
-export default function ProviderForm() {
+type Props = {
+	/** Set when editing a saved provider, whose credential the server already holds. */
+	hasStoredCredential?: boolean
+}
+
+export default function ProviderForm({ hasStoredCredential }: Props) {
 	const form = useFormContext<PatchProviderConfigSchema>()
 	const { t } = useLocaleContext()
 	const { errors } = useFormState({ control: form.control })
@@ -44,7 +49,7 @@ export default function ProviderForm() {
 
 	return (
 		<>
-			<ProviderApiKeyInput />
+			<ProviderApiKeyInput hasStoredCredential={hasStoredCredential} />
 
 			<div className="gap-2 flex flex-col">
 				<Label>{t(getKey('apiTokenExpiresAt.label'))}</Label>
