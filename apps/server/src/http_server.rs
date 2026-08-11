@@ -51,8 +51,10 @@ pub async fn run_http_server(config: LongboxConfig) -> ServerResult<()> {
 		.await
 		.map_err(|e| ServerError::ServerStartError(e.to_string()))?;
 
-	// Initialize the scheduler
-	core.init_scheduler()
+	// Initialize the scheduler. The binding must live as long as the server:
+	// dropping a JobScheduler aborts every cron loop it spawned.
+	let _scheduler = core
+		.init_scheduler()
 		.await
 		.map_err(|e| ServerError::ServerStartError(e.to_string()))?;
 

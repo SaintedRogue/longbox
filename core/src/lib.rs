@@ -288,10 +288,13 @@ impl LongboxCore {
 		}
 	}
 
-	pub async fn init_scheduler(&self) -> Result<Arc<JobScheduler>, CoreError> {
+	/// Initialize the cron scheduler. The returned handle must be kept alive for
+	/// as long as scheduled jobs should run — dropping it aborts every cron loop.
+	/// (`JobScheduler` is `#[must_use]` so a discarded handle fails the lint.)
+	pub async fn init_scheduler(&self) -> Result<JobScheduler, CoreError> {
 		let ctx = self.ctx.arced();
 		let scheduler = JobScheduler::init(ctx).await?;
-		Ok(Arc::new(scheduler))
+		Ok(scheduler)
 	}
 
 	pub async fn init_library_watcher(&self) -> CoreResult<()> {

@@ -11,7 +11,11 @@ use crate::filesystem::metadata::MetadataFetchJobParams;
 use crate::job::longbox_job::LongboxJob;
 use crate::{CoreError, CoreResult, Ctx};
 
-/// A scheduler that loads cron-based jobs and spawns them accordingly
+/// A scheduler that loads cron-based jobs and spawns them accordingly.
+///
+/// The instance owns its spawned cron loops: dropping it aborts them all, so it
+/// must be held for as long as scheduled jobs should keep firing.
+#[must_use = "dropping the JobScheduler aborts all scheduled job loops"]
 pub struct JobScheduler {
 	handles: Vec<tokio::task::JoinHandle<()>>,
 }
@@ -224,4 +228,58 @@ async fn dispatch_metadata_retry(
 	}
 
 	Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+	use migrations::{Migrator, MigratorTrait};
+	use sea_orm::{ActiveModelTrait, Database, Set};
+
+	use super::*;
+
+	/// Regression test for the drop-abort bug: `JobScheduler`'s `Drop` aborts
+	/// every cron loop, so a caller that discards the handle (as the server once
+	/// did) kills all scheduled jobs microseconds after boot. This proves a held
+	/// scheduler actually fires.
+	#[tokio::test]
+	async fn held_scheduler_fires_scheduled_jobs() {
+		let conn = Database::connect("sqlite::memory:")
+			.await
+			.expect("connects");
+		Migrator::up(&conn, None).await.expect("migrates");
+
+		scheduled_job::ActiveModel {
+			name: Set("test calendar sync".to_string()),
+			kind: Set(ScheduledJobKind::ReleaseCalendarSync),
+			schedule: Set("* * * * * *".to_string()),
+			enabled: Set(true),
+			..Default::default()
+		}
+		.insert(&conn)
+		.await
+		.expect("job inserts");
+
+		let ctx = Arc::new(crate::Ctx::for_testing(conn));
+		let scheduler = JobScheduler::init(ctx.clone()).await.expect("inits");
+		assert_eq!(scheduler.job_count(), 1);
+
+		// The every-second cron fires within ~1s and the sweep is a no-op (no
+		// provider configs), so `last_run_at` lands right after. Poll up to 5s.
+		let mut fired = false;
+		for _ in 0..50 {
+			tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+			let job = scheduled_job::Entity::find()
+				.one(ctx.conn.as_ref())
+				.await
+				.expect("queries")
+				.expect("job exists");
+			if job.last_run_at.is_some() {
+				fired = true;
+				break;
+			}
+		}
+		drop(scheduler);
+
+		assert!(fired, "cron loop never fired while the scheduler was held");
+	}
 }
