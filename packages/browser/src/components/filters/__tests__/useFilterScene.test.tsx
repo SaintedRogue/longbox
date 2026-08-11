@@ -33,6 +33,7 @@ function Harness() {
 			<button onClick={() => setFilters({ extension: { eq: 'cbz' } } as FilterInput)}>
 				set filters
 			</button>
+			<button onClick={() => setFilters({} as FilterInput)}>clear filters</button>
 		</div>
 	)
 }
@@ -98,6 +99,58 @@ describe('useFilterScene', () => {
 			renderAt('/libraries/1/books?page=5')
 
 			expect(screen.getByTestId('search-is-undefined')).toHaveTextContent('true')
+		})
+	})
+
+	describe('applying filters', () => {
+		/**
+		 * The page reset has to happen *inside* this write. A caller that set filters and then
+		 * called `setPage(1)` lost the filters outright: both calls build their URL from the
+		 * location of the render they were made in, so the second navigate overwrote the first.
+		 * That is what stopped the filter picker applying anything at all.
+		 */
+		it('resets to the first page when filters change', () => {
+			renderAt('/libraries/1/books?page=5')
+
+			fireEvent.click(screen.getByText('set filters'))
+
+			expect(screen.getByTestId('page')).toHaveTextContent('1')
+		})
+
+		it('keeps the filters it was given', () => {
+			renderAt('/libraries/1/books?page=5')
+
+			fireEvent.click(screen.getByText('set filters'))
+
+			expect(screen.getByTestId('query').textContent).toContain('extension')
+		})
+
+		/**
+		 * Rebuilding the params from scratch dropped every key this function has no opinion
+		 * about, so picking a filter silently cleared the search box.
+		 */
+		it('keeps an active search', () => {
+			renderAt('/libraries/1/books?search=batman')
+
+			fireEvent.click(screen.getByText('set filters'))
+
+			expect(screen.getByTestId('search')).toHaveTextContent('batman')
+		})
+
+		it('keeps the page size', () => {
+			renderAt('/libraries/1/books?pageSize=40')
+
+			fireEvent.click(screen.getByText('set filters'))
+
+			expect(screen.getByTestId('query').textContent).toContain('pageSize=40')
+		})
+
+		it('drops the filters param entirely when filters are cleared', () => {
+			renderAt('/libraries/1/books?filters=%7B%22extension%22%3A%7B%22eq%22%3A%22cbz%22%7D%7D')
+
+			fireEvent.click(screen.getByText('clear filters'))
+
+			expect(screen.getByTestId('query').textContent).not.toContain('filters')
 		})
 	})
 })

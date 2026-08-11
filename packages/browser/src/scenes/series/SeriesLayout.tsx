@@ -59,7 +59,7 @@ export const usePrefetchSeries = () => {
 	const client = useQueryClient()
 	return (id: string) =>
 		client.prefetchQuery({
-			queryKey: ['seriesById', id],
+			queryKey: sdk.cacheKey('seriesById', [id]),
 			queryFn: async () => {
 				const response = await sdk.execute(query, {
 					id,
@@ -72,11 +72,18 @@ export const usePrefetchSeries = () => {
 
 export default function SeriesLayout() {
 	const navigate = useNavigate()
+	const { sdk } = useSDK()
 
 	const { id } = useParams()
+	/*
+	 * The id has to be *in* the cache key. Keyed on a bare `['seriesById']`, every series in the
+	 * app shared one cache entry: the first series you opened was cached under that key, and
+	 * opening any other one afterwards re-rendered the first series' data. `usePrefetchSeries`
+	 * below already keyed by id, so the prefetch and the read were not even the same entry.
+	 */
 	const {
 		data: { seriesById: series },
-	} = useSuspenseGraphQL(query, ['seriesById'], { id: id || '' })
+	} = useSuspenseGraphQL(query, sdk.cacheKey('seriesById', [id]), { id: id || '' })
 	const {
 		preferences: { enableHideScrollbar },
 	} = usePreferences()
