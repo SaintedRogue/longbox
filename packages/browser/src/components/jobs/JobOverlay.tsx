@@ -86,7 +86,13 @@ export default function JobOverlay() {
 				) : (
 					<motion.div
 						// @ts-expect-error: It does have className actually?
-						className="right-4 w-72 h-28 p-4 shadow fixed relative z-50 flex flex-col items-start justify-between rounded-xl border border-border bg-muted"
+						// `fixed` only -- this carried `fixed relative` together. Tailwind emits both
+						// declarations for the same property and `relative` is ordered last, so the
+						// expanded card actually resolved to `position: relative`: it dropped into the
+						// document flow at the end of the shell, shifted up by its `bottom` offset, and
+						// painted over the page content beneath it at `z-50`. The minimized pill above
+						// never had the extra class, which is why only the expanded state misbehaved.
+						className="right-4 w-72 h-28 p-4 shadow fixed z-50 flex flex-col items-start justify-between rounded-xl border border-border bg-muted"
 						initial={{ opacity: 0, scale: 0.9, y: 100 }}
 						animate={{ opacity: 1, scale: 1, y: 0 }}
 						exit={{ opacity: 0, scale: 0.9, y: 100 }}

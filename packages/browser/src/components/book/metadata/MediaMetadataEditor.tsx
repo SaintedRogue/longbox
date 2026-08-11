@@ -105,7 +105,14 @@ type Props = {
 
 // TODO(ux): Improve error states within form
 
-export default function MediaMetadataEditor({ mediaId, data }: Props) {
+/**
+ * `data` is snapshotted into state so a successful save can swap in the mutation's own
+ * response without waiting for the parent query to refetch. That snapshot is mount-only,
+ * so the editor MUST NOT outlive the entity it was mounted for -- callers key it by id
+ * (see `MediaMetadataEditorContainer` below), which is what keeps a book-to-book
+ * navigation from leaving the previous book's metadata on screen.
+ */
+function MediaMetadataEditor({ mediaId, data }: Props) {
 	const [_data, setData] = useState(() => data)
 
 	const metadata = useFragment(fragment, _data)
@@ -260,15 +267,8 @@ export default function MediaMetadataEditor({ mediaId, data }: Props) {
 					isGrow: true,
 				},
 			}),
-			columnHelper.display({
-				id: 'actions',
-				header: () =>
-					checkPermission(UserPermission.EditMetadata) ? <MetadataEditorHeader /> : null,
-				cell: () => null,
-				size: 0,
-			}),
 		],
-		[metadata, paths, checkPermission],
+		[metadata, paths],
 	) as ColumnDef<MediaMetadataEditorRow>[]
 
 	const items = useMemo(
@@ -361,6 +361,16 @@ export default function MediaMetadataEditor({ mediaId, data }: Props) {
 				}}
 			>
 				<form onSubmit={form.handleSubmit(onSaveMetadata)}>
+					{/*
+					 * Above the table, not inside it. These used to be the header of a right-pinned
+					 * `actions` column sized to 0px, so the buttons overflowed a zero-width sticky
+					 * cell and painted over the field values at narrow widths.
+					 */}
+					{checkPermission(UserPermission.EditMetadata) && (
+						<div className="gap-2 pb-2 flex items-center justify-end">
+							<MetadataEditorHeader />
+						</div>
+					)}
 					<MetadataEditorTable<MediaMetadataEditorRow>
 						columns={columns}
 						items={items}
@@ -370,6 +380,15 @@ export default function MediaMetadataEditor({ mediaId, data }: Props) {
 			</MetadataEditorContext.Provider>
 		</FormProvider>
 	)
+}
+
+/**
+ * Keyed wrapper: remounts the editor whenever the book changes, so its mount-only
+ * snapshot state (the metadata rows, the locked-field set, and the react-hook-form
+ * default values) can never carry over from a previously-viewed book.
+ */
+export default function MediaMetadataEditorContainer(props: Props) {
+	return <MediaMetadataEditor key={props.mediaId} {...props} />
 }
 
 const columnHelper = createColumnHelper<MediaMetadataEditorRow>()

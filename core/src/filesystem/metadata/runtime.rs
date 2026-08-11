@@ -11,17 +11,40 @@ use metadata_integrations::response_cache::{
 };
 use models::entity::{metadata_api_usage, metadata_response_cache};
 use sea_orm::{
-	prelude::*, sea_query::OnConflict, ActiveValue::Set, DatabaseConnection,
-	PaginatorTrait, QueryFilter,
+	prelude::*, sea_query::OnConflict, ActiveValue::Set, DatabaseConnection, QueryFilter,
 };
 
-/// Per-provider rolling budget: stop at `limit - reserve` calls per window. The
+/// How a provider's published limit is scoped.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum BudgetScope {
+	/// One pool for everything the provider serves (Metron's 5,000/day).
+	Provider,
+	/// A separate pool per resource — ComicVine's limit is documented as 200
+	/// requests *per resource* per hour, so `/issues/` and `/volumes/` do not
+	/// draw down each other's allowance. Counting them together (what this did
+	/// before) declares the budget spent at a fraction of the real ceiling: a
+	/// match run that touches volumes, issues and issue details across three
+	/// resources used to hit "exhausted" after ~170 total calls instead of ~170
+	/// against each.
+	Resource,
+}
+
+/// Per-provider rolling budget: stop at `limit - reserve` calls per window,
+/// counted over whatever [`BudgetScope`] the provider's limit applies to. The
 /// reserve absorbs retry-middleware attempts (one ledger row per logical call)
 /// and leaves headroom for interactive searches.
 struct BudgetPolicy {
 	window_ms: i64,
 	limit: u64,
 	reserve: u64,
+	scope: BudgetScope,
+}
+
+impl BudgetPolicy {
+	/// The point at which the provider should stop spending.
+	fn ceiling(&self) -> u64 {
+		self.limit.saturating_sub(self.reserve)
+	}
 }
 
 /// Providers are keyed by their [`MetadataProvider::id`] strings. Unknown ids
@@ -29,20 +52,55 @@ struct BudgetPolicy {
 /// never ledgered.
 fn budget_policy(provider: &str) -> Option<BudgetPolicy> {
 	match provider {
-		// ComicVine: 200 requests/resource/hour; stop at 170.
+		// ComicVine: 200 requests/resource/hour; stop at 170 per resource.
 		"comicvine" => Some(BudgetPolicy {
 			window_ms: 3_600_000,
 			limit: 200,
 			reserve: 30,
+			scope: BudgetScope::Resource,
 		}),
 		// Metron: 5,000 requests/day; stop at 4,500.
 		"metron" => Some(BudgetPolicy {
 			window_ms: 86_400_000,
 			limit: 5_000,
 			reserve: 500,
+			scope: BudgetScope::Provider,
 		}),
 		_ => None,
 	}
+}
+
+/// The resource an endpoint draws its budget from — the first path segment after
+/// `/api/`, with ComicVine's singular detail endpoints folded onto their list
+/// counterparts (`/issue/4000-123/` and `/issues/` are the same "issue" resource
+/// as far as the published limit is concerned).
+fn budget_resource(endpoint_key: &str) -> String {
+	let segment = endpoint_key
+		.split('/')
+		.filter(|s| !s.is_empty() && *s != "api" && *s != "{id}")
+		.map(str::to_ascii_lowercase)
+		.next()
+		.unwrap_or_default();
+	// `issue`/`issues`, `volume`/`volumes`, ... are one resource.
+	segment.strip_suffix('s').unwrap_or(&segment).to_string()
+}
+
+/// A provider's remaining allowance for the current rolling window.
+///
+/// ComicVine publishes no rate-limit headers — no `X-RateLimit-Remaining`, no
+/// `-Reset`; a breach is reported only after the fact as `status_code` 107 in an
+/// otherwise-200 body. So "how much is left and when does it come back" has to be
+/// derived locally, from the ledger: `used` is the rows inside the window, and
+/// `resets_in_ms` is how long until the *oldest* of them falls out of it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BudgetStatus {
+	pub resource: String,
+	pub limit: u64,
+	pub used: u64,
+	pub remaining: u64,
+	/// Milliseconds until the window rolls far enough to free at least one call.
+	/// `0` when nothing is currently counted against the budget.
+	pub resets_in_ms: i64,
 }
 
 /// URL path with numeric segments folded to `{id}` — keeps the ledger readable
@@ -185,18 +243,75 @@ impl metadata_integrations::runtime::ProviderRuntime for DbProviderRuntime {
 			.await;
 	}
 
+	/// Exhausted when *every* pool the provider draws from is at its ceiling.
+	///
+	/// For a provider-scoped budget that is the single pool. For a resource-scoped one
+	/// (ComicVine) it is deliberately "all resources spent", not "any": burning through
+	/// `/issues/` says nothing about whether a `/volumes/` lookup may proceed, and the
+	/// callers (`fetch_job`, the release-calendar sweep) use this as a global stop
+	/// signal that abandons the whole run. Counting every resource into one 200-call
+	/// pool made that signal fire at roughly a third of ComicVine's real ceiling.
 	async fn budget_exhausted(&self, provider: &str) -> bool {
-		let Some(policy) = budget_policy(provider) else {
+		if budget_policy(provider).is_none() {
 			return false;
+		}
+		let statuses = self.budget_status(provider).await;
+		// Nothing recorded in the window: definitively not exhausted.
+		!statuses.is_empty() && statuses.iter().all(|status| status.remaining == 0)
+	}
+}
+
+impl DbProviderRuntime {
+	/// Remaining allowance per pool for the current rolling window.
+	///
+	/// Returns one entry for a provider-scoped budget, and one per resource touched
+	/// this window for a resource-scoped one. Empty when the provider has no policy,
+	/// or has made no calls inside the window.
+	pub async fn budget_status(&self, provider: &str) -> Vec<BudgetStatus> {
+		let Some(policy) = budget_policy(provider) else {
+			return Vec::new();
 		};
-		let window_start = Self::now_ms() - policy.window_ms;
-		let calls = metadata_api_usage::Entity::find()
+		let now = Self::now_ms();
+		let window_start = now - policy.window_ms;
+
+		let rows = metadata_api_usage::Entity::find()
 			.filter(metadata_api_usage::Column::Provider.eq(provider))
 			.filter(metadata_api_usage::Column::CalledAt.gte(window_start))
-			.count(self.conn.as_ref())
+			.all(self.conn.as_ref())
 			.await
-			.unwrap_or(0);
-		calls + policy.reserve >= policy.limit
+			.unwrap_or_default();
+
+		if rows.is_empty() {
+			return Vec::new();
+		}
+
+		// (used, oldest call) per pool.
+		let mut pools: std::collections::HashMap<String, (u64, i64)> =
+			std::collections::HashMap::new();
+		for row in &rows {
+			let pool = match policy.scope {
+				BudgetScope::Provider => provider.to_string(),
+				BudgetScope::Resource => budget_resource(&row.endpoint_key),
+			};
+			let entry = pools.entry(pool).or_insert((0, row.called_at));
+			entry.0 += 1;
+			entry.1 = entry.1.min(row.called_at);
+		}
+
+		let ceiling = policy.ceiling();
+		let mut statuses: Vec<BudgetStatus> = pools
+			.into_iter()
+			.map(|(resource, (used, oldest))| BudgetStatus {
+				resource,
+				limit: ceiling,
+				used,
+				remaining: ceiling.saturating_sub(used),
+				// The window is rolling, so capacity returns as the oldest call ages out.
+				resets_in_ms: (oldest + policy.window_ms - now).max(0),
+			})
+			.collect();
+		statuses.sort_by(|a, b| a.resource.cmp(&b.resource));
+		statuses
 	}
 }
 
@@ -204,7 +319,11 @@ impl metadata_integrations::runtime::ProviderRuntime for DbProviderRuntime {
 mod tests {
 	use metadata_integrations::runtime::ProviderRuntime;
 	use migrations::{Migrator, MigratorTrait};
-	use sea_orm::Database;
+	// `PaginatorTrait` is test-only now: `budget_status` reads the rows themselves
+	// (it needs their `called_at` to compute the window reset), so the lib no longer
+	// counts. Importing it at module scope would be an unused import in a lib build,
+	// which CI's `clippy -D warnings` rejects.
+	use sea_orm::{Database, PaginatorTrait};
 
 	use super::*;
 
@@ -286,6 +405,73 @@ mod tests {
 		);
 		// Unknown providers never exhaust.
 		assert!(!runtime.budget_exhausted("hardcover").await);
+	}
+
+	/// ComicVine's limit is per resource, so spending the issue allowance must not
+	/// abandon a run that still has volume lookups it is allowed to make.
+	#[tokio::test]
+	async fn comicvine_budget_is_tracked_per_resource() {
+		let runtime = mem_runtime().await;
+		let issues = "https://comicvine.gamespot.com/api/issues/?filter=volume:1";
+		let volumes = "https://comicvine.gamespot.com/api/volumes/?filter=name:Saga";
+
+		for _ in 0..170 {
+			runtime.record_call("comicvine", issues).await;
+		}
+		runtime.record_call("comicvine", volumes).await;
+
+		assert!(
+			!runtime.budget_exhausted("comicvine").await,
+			"the issue pool is spent but the volume pool has headroom, so the run continues"
+		);
+
+		let status = runtime.budget_status("comicvine").await;
+		assert_eq!(status.len(), 2, "one pool per resource: {status:?}");
+		let issue_pool = status
+			.iter()
+			.find(|s| s.resource == "issue")
+			.expect("issue");
+		assert_eq!(issue_pool.used, 170);
+		assert_eq!(issue_pool.remaining, 0);
+		let volume_pool = status
+			.iter()
+			.find(|s| s.resource == "volume")
+			.expect("volume");
+		assert_eq!(volume_pool.used, 1);
+		assert_eq!(volume_pool.remaining, 169);
+		assert!(
+			volume_pool.resets_in_ms > 0 && volume_pool.resets_in_ms <= 3_600_000,
+			"reset must fall inside the 1h window, got {}",
+			volume_pool.resets_in_ms
+		);
+	}
+
+	/// Singular detail endpoints draw from the same pool as their list counterpart --
+	/// `/issue/4000-123/` and `/issues/` are one ComicVine resource.
+	#[test]
+	fn budget_resources_fold_singular_and_plural() {
+		assert_eq!(budget_resource("/api/issue/{id}"), "issue");
+		assert_eq!(budget_resource("/api/issues"), "issue");
+		assert_eq!(budget_resource("/api/volume/{id}"), "volume");
+		assert_eq!(budget_resource("/api/volumes"), "volume");
+		assert_eq!(budget_resource("/api/search"), "search");
+	}
+
+	/// Metron's limit is a single daily pool, so every endpoint shares it.
+	#[tokio::test]
+	async fn metron_budget_is_a_single_pool() {
+		let runtime = mem_runtime().await;
+		runtime
+			.record_call("metron", "https://metron.cloud/api/issue/1/")
+			.await;
+		runtime
+			.record_call("metron", "https://metron.cloud/api/series/2/")
+			.await;
+
+		let status = runtime.budget_status("metron").await;
+		assert_eq!(status.len(), 1, "provider-scoped: one pool, got {status:?}");
+		assert_eq!(status[0].used, 2);
+		assert_eq!(status[0].remaining, 4_498);
 	}
 
 	#[tokio::test]

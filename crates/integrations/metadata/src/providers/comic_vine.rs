@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use chrono::{Datelike, NaiveDate};
 use reqwest_middleware::ClientWithMiddleware;
 use serde::{de::DeserializeOwned, Deserialize};
@@ -6,6 +8,7 @@ use crate::{
 	client::{build_client_with_retry, default_metadata_client, RetryClientConfig},
 	error::MetadataProviderError,
 	runtime::{cached_get_json, noop_runtime, RuntimeHandle},
+	scoring::issue_numbers_match,
 	types::{
 		ConfidenceFactor, ExternalMediaMetadata, ExternalSeriesMetadata, MatchCandidate,
 		MediaType, ProviderValidationResult, ProviderValidationStatus, SearchQuery,
@@ -15,10 +18,55 @@ use crate::{
 };
 
 const COMIC_VINE_API_URL: &str = "https://comicvine.gamespot.com/api";
-/// ComicVine allows 200 requests per resource per hour plus velocity detection.
-/// The shared [`RateLimiter`] only models a per-minute window, so we pick a
-/// conservative default (~180/hr) that also softens the velocity heuristic.
-const COMIC_VINE_RATE_LIMIT_PER_MINUTE: u32 = 3;
+
+/// ComicVine's published allowance: 200 requests per resource, per hour, on a rolling
+/// window.
+///
+/// There is no header to read this from. Unlike providers that send
+/// `X-RateLimit-Remaining`/`-Reset`, ComicVine reports a breach only after the fact —
+/// `status_code` 107 ("Rate limit exceeded. Slow down cowboy.") inside an HTTP 200
+/// body — so remaining budget cannot be observed, only modelled. It is tracked locally
+/// in the host's `metadata_api_usage` ledger; see `budget_policy` in core, which counts
+/// per resource as the real limit does and can answer both "how much is left" and "when
+/// does it come back".
+///
+/// This limiter deliberately applies the figure **provider-wide** rather than per
+/// resource, which is the conservative reading: a run spanning volumes, issues and
+/// issue details actually has ~3× this to spend, and the ledger is what allows it to
+/// keep going. Splitting the limiter per resource (a keyed governor) is the next step
+/// if provider-wide pacing turns out to be the binding constraint — but the velocity
+/// detection below is per API user, not per resource, so some provider-wide floor has
+/// to stay regardless.
+const COMIC_VINE_REQUESTS_PER_HOUR: u32 = 200;
+
+/// How much of the hourly allowance may be spent back-to-back. Sized to cover a
+/// realistic interactive burst — opening a book and matching it costs a volume search,
+/// a handful of issue-number lookups and their detail fetches — without putting the
+/// whole hour at risk in one go. The remainder refills at the sustained rate
+/// (one permit per 18s at 200/hour).
+const COMIC_VINE_BURST: u32 = 30;
+
+/// ComicVine asks that requests arrive no faster than one per second per API user, and
+/// enforces it with undocumented velocity detection that temporarily blocks a client
+/// well before the hourly budget is spent. This is the floor the burst drains at.
+const COMIC_VINE_MIN_REQUEST_INTERVAL: Duration = Duration::from_millis(1_100);
+
+/// `status_code` in a ComicVine response envelope meaning "OK". Every other value is
+/// an API-level error delivered under an HTTP 200 — see [`comic_vine_body_cacheable`].
+const CV_STATUS_OK: i32 = 1;
+
+/// Page size for the volume issue index. ComicVine's list cap is 100 rows.
+const VOLUME_INDEX_PAGE_SIZE: usize = 100;
+
+/// Largest volume worth indexing whole, in issues.
+///
+/// The index costs `ceil(count / 100)` calls where the per-number filter costs 1, so it
+/// only pays for itself once several books from the same volume are matched. At 200 the
+/// worst case is 2 pages per volume (6 for the three volumes a search may consider)
+/// against 1 (3) — a bounded, one-time premium on the *first* book that every later book
+/// in the series then rides for free. Long-running titles above this (Detective Comics
+/// and friends) fall back to the targeted query, where the index would never amortize.
+const VOLUME_INDEX_MAX_ISSUES: usize = 200;
 
 /// ComicVine resource-type-id prefixes used by the singular detail endpoints,
 /// e.g. `GET /issue/4000-{id}/`, `GET /volume/4050-{id}/`.
@@ -45,6 +93,12 @@ pub struct ComicVineClient {
 }
 
 impl ComicVineClient {
+	/// `rate_limit` is the sustained allowance in **requests per hour**, defaulting to
+	/// [`COMIC_VINE_REQUESTS_PER_HOUR`]. It used to be read as requests per *minute*,
+	/// which is what made the default a flat 3/min: the hourly figure smeared out with
+	/// its burst discarded. Nothing in the app passes a value today (see
+	/// `metadata_provider` construction in `lib.rs`), so there is no stored config to
+	/// reinterpret.
 	pub fn new(
 		api_key: String,
 		rate_limit: Option<u32>,
@@ -64,6 +118,23 @@ impl ComicVineClient {
 		rate_limit: Option<u32>,
 		base_url: String,
 	) -> Result<Self, MetadataProviderError> {
+		Self::build(
+			api_key,
+			rate_limit,
+			base_url,
+			COMIC_VINE_MIN_REQUEST_INTERVAL,
+		)
+	}
+
+	/// `min_interval` is split out so tests can build an unpaced client: the
+	/// production velocity floor would otherwise make every multi-request test sleep
+	/// through it for no coverage.
+	fn build(
+		api_key: String,
+		rate_limit: Option<u32>,
+		base_url: String,
+		min_interval: Duration,
+	) -> Result<Self, MetadataProviderError> {
 		if api_key.trim().is_empty() {
 			return Err(MetadataProviderError::MissingToken);
 		}
@@ -74,8 +145,13 @@ impl ComicVineClient {
 			),
 			api_key,
 			base_url,
-			rate_limiter: RateLimiter::per_minute(
-				rate_limit.unwrap_or(COMIC_VINE_RATE_LIMIT_PER_MINUTE),
+			// `rate_limit` is the configured *hourly* allowance. It used to be read as a
+			// per-minute figure, which smeared the hour flat and made every match run crawl
+			// at 3 requests/minute even with the whole hour untouched.
+			rate_limiter: RateLimiter::per_hour_with_burst(
+				rate_limit.unwrap_or(COMIC_VINE_REQUESTS_PER_HOUR),
+				COMIC_VINE_BURST,
+				min_interval,
 			),
 			runtime: noop_runtime(),
 		})
@@ -108,6 +184,7 @@ impl ComicVineClient {
 			&self.rate_limiter,
 			"comicvine",
 			request,
+			comic_vine_body_cacheable,
 		)
 		.await?;
 		Ok(serde_json::from_value(body)?)
@@ -146,7 +223,7 @@ impl ComicVineClient {
 					// Batman") returns many "…: Subtitle" volumes; fetch the max page so
 					// the exact-name volume is present for the client-side filter below.
 					("filter", format!("name:{series}")),
-					("field_list", "id,name".to_string()),
+					("field_list", "id,name,count_of_issues".to_string()),
 					("limit", "100".to_string()),
 				],
 			)
@@ -167,24 +244,10 @@ impl ComicVineClient {
 			exact.into_iter().take(3).collect()
 		};
 
-		// 3. For each selected volume, fetch the issue(s) matching the number.
+		// 3. For each selected volume, resolve the issue(s) matching the number.
 		let mut issue_ids: Vec<i64> = Vec::new();
 		for volume in &selected {
-			let envelope = self
-				.request(
-					"issues",
-					&[
-						(
-							"filter",
-							format!("volume:{},issue_number:{number}", volume.id),
-						),
-						("field_list", "id".to_string()),
-						("limit", "5".to_string()),
-					],
-				)
-				.await?;
-			let hits: Vec<CvSearchHit> = envelope.into_results().unwrap_or_default();
-			issue_ids.extend(hits.into_iter().map(|h| h.id));
+			issue_ids.extend(self.issue_ids_in_volume(volume, number).await?);
 		}
 		issue_ids.sort_unstable();
 		issue_ids.dedup();
@@ -209,6 +272,91 @@ impl ComicVineClient {
 			}
 		}
 		Ok(candidates)
+	}
+
+	/// Resolve the ids of the issue(s) in `volume` carrying `number`.
+	///
+	/// Prefers a **shared volume index**: one unfiltered `/issues/?filter=volume:{id}`
+	/// listing per volume, matched against `number` client-side. The point is cache
+	/// reuse across a batch. The per-number filter this replaces produces a distinct URL
+	/// for every issue number, so matching 50 books from one series meant 50 distinct
+	/// cache keys and 50 live calls; the index URL is byte-identical for all 50, so the
+	/// first book pays for it and the other 49 are served from
+	/// `metadata_response_cache` without touching the API.
+	///
+	/// Falls back to the targeted filter for volumes larger than
+	/// [`VOLUME_INDEX_MAX_ISSUES`], where paging the whole index would cost more calls
+	/// than it saves.
+	async fn issue_ids_in_volume(
+		&self,
+		volume: &CvVolumeHit,
+		number: &str,
+	) -> Result<Vec<i64>, MetadataProviderError> {
+		let too_large = volume
+			.count_of_issues
+			.is_some_and(|count| count as usize > VOLUME_INDEX_MAX_ISSUES);
+		if too_large {
+			return self.issue_ids_by_number_filter(volume.id, number).await;
+		}
+
+		let mut ids = Vec::new();
+		let mut offset = 0usize;
+		loop {
+			let envelope = self
+				.request(
+					"issues",
+					&[
+						// Deliberately *not* narrowed by issue_number: the whole value here
+						// is that this URL is the same for every book in the volume.
+						("filter", format!("volume:{}", volume.id)),
+						("field_list", "id,issue_number".to_string()),
+						("limit", VOLUME_INDEX_PAGE_SIZE.to_string()),
+						("offset", offset.to_string()),
+					],
+				)
+				.await?;
+			let page: Vec<CvVolumeIndexIssue> =
+				envelope.into_results().unwrap_or_default();
+			let page_len = page.len();
+
+			ids.extend(page.into_iter().filter_map(|issue| {
+				issue
+					.issue_number
+					.as_deref()
+					.filter(|candidate| issue_numbers_match(candidate, number))
+					.map(|_| issue.id)
+			}));
+
+			offset += page_len;
+			if page_len < VOLUME_INDEX_PAGE_SIZE || offset >= VOLUME_INDEX_MAX_ISSUES {
+				break;
+			}
+		}
+		Ok(ids)
+	}
+
+	/// The targeted per-number lookup: one call, one issue number. Used for volumes too
+	/// large to index whole.
+	async fn issue_ids_by_number_filter(
+		&self,
+		volume_id: i64,
+		number: &str,
+	) -> Result<Vec<i64>, MetadataProviderError> {
+		let envelope = self
+			.request(
+				"issues",
+				&[
+					(
+						"filter",
+						format!("volume:{volume_id},issue_number:{number}"),
+					),
+					("field_list", "id".to_string()),
+					("limit", "5".to_string()),
+				],
+			)
+			.await?;
+		let hits: Vec<CvSearchHit> = envelope.into_results().unwrap_or_default();
+		Ok(hits.into_iter().map(|h| h.id).collect())
 	}
 }
 
@@ -514,7 +662,7 @@ impl MetadataProvider for ComicVineClient {
 		};
 
 		Ok(match envelope.status_code {
-			1 => ProviderValidationResult::new(
+			CV_STATUS_OK => ProviderValidationResult::new(
 				ProviderValidationStatus::Valid,
 				"Credentials verified.",
 			),
@@ -735,11 +883,24 @@ struct CvEnvelope {
 
 impl CvEnvelope {
 	fn into_results<T: DeserializeOwned>(self) -> Result<T, MetadataProviderError> {
-		if self.status_code != 1 {
+		if self.status_code != CV_STATUS_OK {
 			return Err(cv_status_error(self.status_code, &self.error));
 		}
 		serde_json::from_value(self.results).map_err(MetadataProviderError::from)
 	}
+}
+
+/// Only a successful envelope is worth storing.
+///
+/// ComicVine puts API-level failures in the *body* of an HTTP 200: 107 for the rate
+/// limit, 100 for a rejected key, 101 for a missing object. Without this check those
+/// envelopes were cached under the requested URL and replayed for the full TTL — 12
+/// hours for a search, 7 days for a detail lookup — so a brief rate-limit blip during
+/// a bulk match run turned into a day of "rate limit exceeded" for exactly the books
+/// that were being matched, long after the real window had reset.
+fn comic_vine_body_cacheable(body: &serde_json::Value) -> bool {
+	body.get("status_code").and_then(serde_json::Value::as_i64)
+		== Some(CV_STATUS_OK as i64)
 }
 
 fn cv_status_error(status_code: i32, error: &str) -> MetadataProviderError {
@@ -765,6 +926,20 @@ struct CvVolumeHit {
 	id: i64,
 	#[serde(default)]
 	name: Option<String>,
+	/// Requested in the same `field_list` as `id`/`name`, so it costs no extra call.
+	/// Decides whether the volume is small enough to index whole — see
+	/// [`ComicVineClient::issue_ids_in_volume`].
+	#[serde(default)]
+	count_of_issues: Option<i64>,
+}
+
+/// One row of a volume's issue index: enough to match an issue number client-side
+/// without fetching per-issue detail.
+#[derive(Debug, Deserialize)]
+struct CvVolumeIndexIssue {
+	id: i64,
+	#[serde(default)]
+	issue_number: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -846,6 +1021,8 @@ struct CvNamedRef {
 
 #[cfg(test)]
 mod tests {
+	use std::sync::Arc;
+
 	use super::*;
 	use serde_json::json;
 	use wiremock::{
@@ -854,10 +1031,241 @@ mod tests {
 	};
 
 	fn client(base_url: String) -> ComicVineClient {
-		// High test-only rate limit: pagination tests make several requests and
-		// must not sleep through the production 3/min budget.
-		ComicVineClient::with_base_url("test-key".to_string(), Some(600), base_url)
-			.expect("valid key")
+		// A large hourly allowance and no velocity floor: pagination tests make several
+		// requests back to back and must not sleep through production pacing.
+		ComicVineClient::build(
+			"test-key".to_string(),
+			Some(100_000),
+			base_url,
+			Duration::ZERO,
+		)
+		.expect("valid key")
+	}
+
+	/// A runtime that caches every offered body, so the test can observe exactly what
+	/// the provider chose to store.
+	#[derive(Default)]
+	struct RecordingRuntime {
+		store: tokio::sync::Mutex<std::collections::HashMap<String, serde_json::Value>>,
+	}
+
+	#[async_trait::async_trait]
+	impl crate::runtime::ProviderRuntime for RecordingRuntime {
+		async fn cache_get(
+			&self,
+			_provider: &str,
+			url: &str,
+		) -> Option<serde_json::Value> {
+			self.store
+				.lock()
+				.await
+				.get(&crate::response_cache::cache_key(url))
+				.cloned()
+		}
+		async fn cache_put(&self, _provider: &str, url: &str, body: &serde_json::Value) {
+			self.store
+				.lock()
+				.await
+				.insert(crate::response_cache::cache_key(url), body.clone());
+		}
+		async fn record_call(&self, _provider: &str, _url: &str) {}
+		async fn budget_exhausted(&self, _provider: &str) -> bool {
+			false
+		}
+	}
+
+	/// A rate-limit envelope must never be cached.
+	///
+	/// ComicVine answers a breached limit with HTTP 200 and `status_code: 107`. Caching
+	/// that body stored "Rate limit exceeded" under the requested URL's key and replayed
+	/// it for the whole TTL — 7 days for a detail lookup — so a blip during a bulk match
+	/// run outlived the hourly window that caused it by days.
+	#[tokio::test]
+	async fn rate_limit_envelope_is_not_cached() {
+		let server = MockServer::start().await;
+		// First call is rate limited, the second succeeds. If the 107 were cached, the
+		// second call would be served from the cache and never reach this second mock.
+		Mock::given(method("GET"))
+			.and(path("/issue/4000-42/"))
+			.respond_with(ResponseTemplate::new(200).set_body_json(json!({
+				"status_code": 107,
+				"error": "Rate limit exceeded. Slow down cowboy.",
+				"results": [],
+			})))
+			.up_to_n_times(1)
+			.expect(1)
+			.mount(&server)
+			.await;
+		Mock::given(method("GET"))
+			.and(path("/issue/4000-42/"))
+			.respond_with(ResponseTemplate::new(200).set_body_json(json!({
+				"status_code": 1,
+				"results": { "id": 42, "name": "After the window reset" },
+			})))
+			.expect(1)
+			.mount(&server)
+			.await;
+
+		let runtime: RuntimeHandle = Arc::new(RecordingRuntime::default());
+		let cv = client(server.uri()).with_runtime(runtime.clone());
+
+		let limited = cv.fetch_media_metadata("42").await;
+		assert!(
+			matches!(limited, Err(MetadataProviderError::RateLimited)),
+			"a 107 envelope must surface as RateLimited, got {limited:?}"
+		);
+
+		let recovered = cv
+			.fetch_media_metadata("42")
+			.await
+			.expect("the retry must reach the network, not a cached 107");
+		assert_eq!(recovered.title.as_deref(), Some("After the window reset"));
+	}
+
+	/// The counterpart: a *successful* envelope still gets cached, so the fix above did
+	/// not simply disable caching for ComicVine.
+	#[tokio::test]
+	async fn successful_envelope_is_still_cached() {
+		let server = MockServer::start().await;
+		Mock::given(method("GET"))
+			.and(path("/issue/4000-7/"))
+			.respond_with(ResponseTemplate::new(200).set_body_json(json!({
+				"status_code": 1,
+				"results": { "id": 7, "name": "Cached" },
+			})))
+			.expect(1) // exactly one network hit for two lookups
+			.mount(&server)
+			.await;
+
+		let runtime: RuntimeHandle = Arc::new(RecordingRuntime::default());
+		let cv = client(server.uri()).with_runtime(runtime.clone());
+
+		for _ in 0..2 {
+			let issue = cv.fetch_media_metadata("7").await.expect("lookup succeeds");
+			assert_eq!(issue.title.as_deref(), Some("Cached"));
+		}
+	}
+
+	/// Bulk matching must not re-query per issue number.
+	///
+	/// Matching a run of books from one series used to issue a
+	/// `filter=volume:X,issue_number:N` query per book. Every number produced a
+	/// different URL, so the response cache — which keys on the normalized URL — could
+	/// never serve the second book, and 50 omnibuses cost 50 live calls against a
+	/// 200/hour budget. Pulling the volume's issue index once gives all of them the same
+	/// URL, so only the first book pays.
+	#[tokio::test]
+	async fn volume_issue_index_is_shared_across_issue_numbers() {
+		use wiremock::matchers::query_param;
+
+		let server = MockServer::start().await;
+		Mock::given(method("GET"))
+			.and(path("/volumes/"))
+			.respond_with(ResponseTemplate::new(200).set_body_json(json!({
+				"status_code": 1,
+				"results": [{ "id": 900, "name": "Spider-Man", "count_of_issues": 3 }],
+			})))
+			.mount(&server)
+			.await;
+		// One unfiltered index call serves every issue number in the volume. `expect(1)`
+		// is the assertion: a second call here means the per-number URLs came back.
+		Mock::given(method("GET"))
+			.and(path("/issues/"))
+			.and(query_param("filter", "volume:900"))
+			.respond_with(ResponseTemplate::new(200).set_body_json(json!({
+				"status_code": 1,
+				"results": [
+					{ "id": 11, "issue_number": "1" },
+					{ "id": 12, "issue_number": "2" },
+					{ "id": 13, "issue_number": "3" },
+				],
+			})))
+			.expect(1)
+			.mount(&server)
+			.await;
+		for id in [11, 12, 13] {
+			Mock::given(method("GET"))
+				.and(path(format!("/issue/4000-{id}/")))
+				.respond_with(ResponseTemplate::new(200).set_body_json(json!({
+					"status_code": 1,
+					"results": { "id": id, "name": format!("Issue {id}") },
+				})))
+				.mount(&server)
+				.await;
+		}
+
+		let runtime: RuntimeHandle = Arc::new(RecordingRuntime::default());
+		let cv = client(server.uri()).with_runtime(runtime.clone());
+
+		for (number, expected_id) in [("1", "11"), ("2", "12"), ("3", "13")] {
+			let query = SearchQuery {
+				title: "Spider-Man".to_string(),
+				series_name: Some("Spider-Man".to_string()),
+				number: Some(number.to_string()),
+				..Default::default()
+			};
+			let candidates = cv.search_media(&query).await.expect("search succeeds");
+			assert_eq!(
+				candidates.first().map(|c| c.external_id.as_str()),
+				Some(expected_id),
+				"issue {number} must resolve through the shared index"
+			);
+		}
+		// MockServer verifies expect(1) on the index call at drop.
+	}
+
+	/// A volume too large to index whole still resolves through the targeted filter,
+	/// so the optimization above never turns a one-call lookup into a five-page crawl.
+	#[tokio::test]
+	async fn oversized_volume_falls_back_to_the_number_filter() {
+		use wiremock::matchers::query_param;
+
+		let server = MockServer::start().await;
+		Mock::given(method("GET"))
+			.and(path("/volumes/"))
+			.respond_with(ResponseTemplate::new(200).set_body_json(json!({
+				"status_code": 1,
+				"results": [{
+					"id": 901,
+					"name": "Detective Comics",
+					"count_of_issues": VOLUME_INDEX_MAX_ISSUES + 1,
+				}],
+			})))
+			.mount(&server)
+			.await;
+		Mock::given(method("GET"))
+			.and(path("/issues/"))
+			.and(query_param("filter", "volume:901,issue_number:27"))
+			.respond_with(ResponseTemplate::new(200).set_body_json(json!({
+				"status_code": 1,
+				"results": [{ "id": 27 }],
+			})))
+			.expect(1)
+			.mount(&server)
+			.await;
+		Mock::given(method("GET"))
+			.and(path("/issue/4000-27/"))
+			.respond_with(ResponseTemplate::new(200).set_body_json(json!({
+				"status_code": 1,
+				"results": { "id": 27, "name": "The Case of the Chemical Syndicate" },
+			})))
+			.mount(&server)
+			.await;
+
+		let query = SearchQuery {
+			title: "Detective Comics".to_string(),
+			series_name: Some("Detective Comics".to_string()),
+			number: Some("27".to_string()),
+			..Default::default()
+		};
+		let candidates = client(server.uri())
+			.search_media(&query)
+			.await
+			.expect("search succeeds");
+		assert_eq!(
+			candidates.first().map(|c| c.external_id.as_str()),
+			Some("27")
+		);
 	}
 
 	fn window_issue(id: i64, volume_id: Option<i64>) -> serde_json::Value {
@@ -1138,12 +1546,15 @@ mod tests {
 			})))
 			.mount(&server)
 			.await;
-		// Issue lookup by (volume, issue_number) resolves the exact issue id.
+		// The volume's issue index resolves the exact issue id. `issue_number` is part of
+		// the row because the number is matched client-side now -- the request is the
+		// volume's whole index rather than a per-number filter, so that every book in the
+		// volume shares one cache entry (see volume_issue_index_is_shared_across_issue_numbers).
 		Mock::given(method("GET"))
 			.and(path("/issues/"))
 			.respond_with(ResponseTemplate::new(200).set_body_json(json!({
 				"status_code": 1,
-				"results": [ { "id": 78901 } ]
+				"results": [ { "id": 78901, "issue_number": "1" } ]
 			})))
 			.mount(&server)
 			.await;

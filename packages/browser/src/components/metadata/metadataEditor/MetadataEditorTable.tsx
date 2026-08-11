@@ -9,7 +9,6 @@ import {
 import { useCallback, useLayoutEffect, useRef } from 'react'
 import { useWindowSize } from 'rooks'
 
-import { getCommonPinningStyles } from '../../table/Table'
 import { calculateOptimalColumnWidth, calculateTableSizing } from './utils'
 
 type Props<Item> = {
@@ -18,8 +17,12 @@ type Props<Item> = {
 	showMissing: boolean
 }
 
-// FIXME: This looks not great on mobile. It might be better to just have a separate, read-only
-// table rendered on mobile which looks more like the mobile app
+// The editor controls (Edit / Save / Cancel) deliberately live *outside* this table, rendered
+// above it by the owning editor. They used to be the header of a right-pinned `actions` column
+// declared `size: 0`: a zero-width `position: sticky` cell with a real button inside it, whose
+// content therefore overflowed its own box at `z-index: 1` and painted on top of the adjacent
+// cells. On a desktop viewport the slack in the width arithmetic hid that; at phone and tablet
+// widths the buttons landed squarely on the field values.
 
 export default function MetadataEditorTable<Item extends RowData>({
 	columns,
@@ -34,9 +37,6 @@ export default function MetadataEditorTable<Item extends RowData>({
 		state: {
 			expanded: {
 				missing: showMissing,
-			},
-			columnPinning: {
-				right: ['actions'],
 			},
 		},
 		defaultColumn: {
@@ -97,7 +97,10 @@ export default function MetadataEditorTable<Item extends RowData>({
 
 	return (
 		<Card
-			className="overflow-hidden rounded-xl border-border bg-background"
+			// `overflow-x-auto`, not `overflow-hidden`: when the resolved column widths exceed the
+			// container (a narrow viewport, or a value that refuses to wrap) the overflow has to be
+			// reachable. Clipping it silently truncated the right-hand column instead.
+			className="overflow-x-auto rounded-xl border-border bg-background"
 			ref={tableContainerRef}
 			style={{
 				direction: table.options.columnResizeDirection,
@@ -112,7 +115,7 @@ export default function MetadataEditorTable<Item extends RowData>({
 				ref={tableRef}
 			>
 				<thead>
-					<tr className="relative flex">
+					<tr className="relative flex w-full">
 						{table.getFlatHeaders().map((header) => (
 							<th
 								key={header.id}
@@ -120,10 +123,9 @@ export default function MetadataEditorTable<Item extends RowData>({
 									colSpan: header.colSpan,
 									style: {
 										width: header.getSize(),
-										...getCommonPinningStyles(header.column),
 									},
 								}}
-								className="min-h-10 relative bg-card/70"
+								className="min-h-10 min-w-0 relative bg-card/70"
 							>
 								{flexRender(header.column.columnDef.header, header.getContext())}
 
@@ -153,14 +155,20 @@ export default function MetadataEditorTable<Item extends RowData>({
 
 				<tbody className="divide-y divide-border">
 					{rows.map((row) => (
-						<tr key={row.id} className="group/row flex w-fit">
+						// `w-full`, not `w-fit`: a `w-fit` row sizes to its content, so any cell
+						// whose value did not fit made that row wider than the header row and
+						// knocked the two out of alignment.
+						<tr key={row.id} className="group/row flex w-full">
 							{row.getVisibleCells().map((cell) => (
 								<td
-									className="py-2 pl-1.5 pr-1.5 first:pl-4 last:pl-0 last:pr-0 first:border-r first:border-border"
+									// `min-w-0` matters: these are flex items, which default to
+									// `min-width: auto` and so refuse to shrink below their content's
+									// intrinsic width -- one long identifier or URL was enough to push
+									// the row past the table width.
+									className="py-2 pl-1.5 pr-1.5 first:pl-4 min-w-0 break-words first:border-r first:border-border"
 									key={cell.id}
 									style={{
 										width: cell.column.getSize(),
-										...getCommonPinningStyles(cell.column),
 									}}
 								>
 									{flexRender(cell.column.columnDef.cell, cell.getContext())}
