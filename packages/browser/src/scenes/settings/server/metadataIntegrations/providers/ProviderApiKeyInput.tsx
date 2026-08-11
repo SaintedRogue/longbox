@@ -19,7 +19,16 @@ import { ProviderValidationFeedback } from './ProviderValidationFeedback'
 import { composeMetronToken, type Feedback } from './providerValidationFeedback'
 import { CreateProviderConfigSchema } from './schema'
 
-export function ProviderApiKeyInput() {
+type Props = {
+	/**
+	 * Whether a credential is already stored for this provider, i.e. we are editing rather
+	 * than creating. The server never sends the token back, so an empty field means
+	 * "unchanged" and has to say so -- otherwise it reads as "no credential set".
+	 */
+	hasStoredCredential?: boolean
+}
+
+export function ProviderApiKeyInput({ hasStoredCredential = false }: Props) {
 	const form = useFormContext<CreateProviderConfigSchema>()
 	const { t } = useLocaleContext()
 	const { errors } = useFormState({ control: form.control })
@@ -141,11 +150,21 @@ export function ProviderApiKeyInput() {
 					<Text size="xs" variant="muted">
 						Credentials aren&apos;t validated in-app — save them, then verify manually.
 					</Text>
+					{hasStoredCredential && (
+						<Text size="xs" variant="muted">
+							Credentials are already saved. Leave both fields blank to keep them.
+						</Text>
+					)}
 				</>
 			) : (
 				<PasswordInput
 					label={t(getKey('apiToken.label'))}
-					description={t(getKey('apiToken.description'))}
+					description={
+						hasStoredCredential
+							? 'A key is already saved. Leave this blank to keep it, or enter a new one to replace it.'
+							: t(getKey('apiToken.description'))
+					}
+					placeholder={hasStoredCredential ? '••••••••••••' : undefined}
 					type="password"
 					{...form.register('apiToken')}
 					errorMessage={errors.apiToken?.message}
