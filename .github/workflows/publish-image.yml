@@ -55,13 +55,52 @@ jobs:
             -t ghcr.io/saintedrogue/longbox:${{ steps.vars.outputs.sha }} \
             .
 
+      # The push is retried because the runner's egress DNS is not dependable. A push that
+      # has already uploaded every layer still fails the job if the *manifest* request
+      # can't resolve the registry:
+      #
+      #   Head "https://ghcr.io/v2/saintedrogue/longbox/blobs/sha256:42a5...":
+      #     dial tcp: lookup ghcr.io on 8.8.8.8:53: read udp ...->8.8.8.8:53: i/o timeout
+      #
+      # Docker retries individual blob uploads on its own (the same run logged
+      # "Retrying in 5 seconds" and recovered), but nothing retries the manifest, and one
+      # failed step discards a build that took minutes. `docker push` is idempotent —
+      # already-uploaded layers come back as "Layer already exists" — so re-running it is
+      # cheap and safe. This does not fix the underlying resolver flakiness on the Unraid
+      # host; it stops a momentary one from costing a publish.
       - name: Push image
         id: push
+        env:
+          IMAGE: ghcr.io/saintedrogue/longbox
+          SHA_TAG: ${{ steps.vars.outputs.sha }}
         run: |
-          docker push ghcr.io/saintedrogue/longbox:latest
-          docker push ghcr.io/saintedrogue/longbox:${{ steps.vars.outputs.sha }}
-          digest=$(docker inspect --format='{{index .RepoDigests 0}}' \
-            ghcr.io/saintedrogue/longbox:${{ steps.vars.outputs.sha }} | cut -d@ -f2)
+          set -euo pipefail
+
+          push_with_retry() {
+            local ref="$1" attempt=1 delay=10
+            local max=5
+            until docker push "$ref"; do
+              if [ "$attempt" -ge "$max" ]; then
+                echo "::error::docker push $ref failed after $max attempts"
+                return 1
+              fi
+              echo "::warning::docker push $ref failed (attempt $attempt/$max); retrying in ${delay}s"
+              sleep "$delay"
+              attempt=$((attempt + 1))
+              delay=$((delay * 2))
+            done
+          }
+
+          push_with_retry "$IMAGE:latest"
+          push_with_retry "$IMAGE:$SHA_TAG"
+
+          digest=$(docker inspect --format='{{index .RepoDigests 0}}' "$IMAGE:$SHA_TAG" | cut -d@ -f2)
+          # An empty digest here would surface as a confusing failure inside the
+          # attestation action instead of at its actual cause.
+          if [ -z "$digest" ]; then
+            echo "::error::could not resolve the pushed digest for $IMAGE:$SHA_TAG"
+            exit 1
+          fi
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
 
       - name: Attest build provenance
