@@ -7196,6 +7196,14 @@ export type DeleteProviderDialogMutation = { __typename?: 'Mutation', deleteMeta
 
 export type ExistingProviderCardFragment = { __typename?: 'MetadataProviderConfigModel', id: number, providerType: MetadataProvider, enabled: boolean, apiTokenExpiresAt?: any | null, autoApplyConfig?: any | null, createdAt: any, updatedAt?: any | null } & { ' $fragmentName'?: 'ExistingProviderCardFragment' };
 
+export type ToggleProviderEnabledMutationVariables = Exact<{
+  id: Scalars['Int']['input'];
+  enabled: Scalars['Boolean']['input'];
+}>;
+
+
+export type ToggleProviderEnabledMutation = { __typename?: 'Mutation', updateMetadataProvider: { __typename?: 'MetadataProviderConfigModel', id: number, enabled: boolean } };
+
 export type ProvidersSectionGetProvidersQueryVariables = Exact<{ [key: string]: never; }>;
 
 
@@ -11755,6 +11763,14 @@ export const DeleteProviderDialogDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<DeleteProviderDialogMutation, DeleteProviderDialogMutationVariables>;
+export const ToggleProviderEnabledDocument = new TypedDocumentString(`
+    mutation ToggleProviderEnabled($id: Int!, $enabled: Boolean!) {
+  updateMetadataProvider(id: $id, input: {enabled: $enabled}) {
+    id
+    enabled
+  }
+}
+    `) as unknown as TypedDocumentString<ToggleProviderEnabledMutation, ToggleProviderEnabledMutationVariables>;
 export const ProvidersSectionGetProvidersDocument = new TypedDocumentString(`
     query ProvidersSectionGetProviders {
   metadataProviderConfigs {

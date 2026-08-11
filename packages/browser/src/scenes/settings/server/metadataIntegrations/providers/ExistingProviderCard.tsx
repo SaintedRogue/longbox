@@ -1,4 +1,4 @@
-import { Badge, Card, Text, ToolTip } from '@longbox/components'
+import { Badge, Card, cn, Text, ToolTip } from '@longbox/components'
 import { FragmentType, graphql, useFragment, UserPermission } from '@longbox/graphql'
 import { useLocaleContext } from '@longbox/i18n'
 import { intlFormat } from 'date-fns'
@@ -8,6 +8,7 @@ import { useAppContext } from '@/context'
 
 import { PROVIDER_LABELS } from './constants'
 import { EditProviderDialog } from './EditProviderDialog'
+import { ProviderEnabledSwitch } from './ProviderEnabledSwitch'
 import { ProviderLogo } from './ProviderLogo'
 import { TestProviderButton } from './TestProviderButton'
 
@@ -60,18 +61,37 @@ export function ExistingProviderCard({ data }: Props) {
 						</ToolTip>
 					)}
 
-					{provider.enabled && (
-						<ToolTip content={t(getKey('providerEnabled'))} align="end" size="xs">
-							<div className="h-7 w-7 flex items-center justify-center rounded-full border border-success/10 bg-success/15">
-								<BadgeCheck className="h-4 w-4 text-primary" strokeWidth={1} />
-							</div>
-						</ToolTip>
-					)}
-
-					{!provider.enabled && (
-						<ToolTip content={t(getKey('providerDisabled'))} align="end" size="xs">
-							<div className="h-7 w-7 border-sky-500/10 bg-sky-500/15 flex items-center justify-center rounded-full border">
-								<BadgeX className="h-4 w-4 text-primary" strokeWidth={1} />
+					{/*
+					 * A switch rather than the badge that used to sit here: the badge said which
+					 * state the provider was in, but changing it meant opening the edit dialog and
+					 * saving a form. Read-only viewers still get the badge, since a control they
+					 * cannot use is worse than a label.
+					 */}
+					{canEdit ? (
+						<ProviderEnabledSwitch
+							id={provider.id}
+							provider={provider.providerType}
+							enabled={provider.enabled}
+						/>
+					) : (
+						<ToolTip
+							content={t(getKey(provider.enabled ? 'providerEnabled' : 'providerDisabled'))}
+							align="end"
+							size="xs"
+						>
+							<div
+								className={cn(
+									'h-7 w-7 flex items-center justify-center rounded-full border',
+									provider.enabled
+										? 'border-success/10 bg-success/15'
+										: 'border-sky-500/10 bg-sky-500/15',
+								)}
+							>
+								{provider.enabled ? (
+									<BadgeCheck className="h-4 w-4 text-primary" strokeWidth={1} />
+								) : (
+									<BadgeX className="h-4 w-4 text-primary" strokeWidth={1} />
+								)}
 							</div>
 						</ToolTip>
 					)}
