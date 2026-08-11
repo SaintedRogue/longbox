@@ -4120,6 +4120,13 @@ export type Query = {
   /** Returns the available alphabet for all series in the server */
   seriesAlphabet: Scalars['JSONObject']['output'];
   seriesById?: Maybe<Series>;
+  /**
+   * Distinct metadata values across series, for building filter controls.
+   *
+   * Passing `library_id` is what makes a library view's filter options describe that
+   * library rather than the whole server.
+   */
+  seriesMetadataOverview: SeriesMetadataOverview;
   serverConfig: ServerConfigModel;
   smartListById?: Maybe<SmartList>;
   smartListItems: SmartListItems;
@@ -4448,6 +4455,11 @@ export type QuerySeriesArgs = {
 
 export type QuerySeriesByIdArgs = {
   id: Scalars['ID']['input'];
+};
+
+
+export type QuerySeriesMetadataOverviewArgs = {
+  libraryId?: InputMaybe<Scalars['ID']['input']>;
 };
 
 
@@ -5047,6 +5059,19 @@ export enum SeriesMetadataModelOrdering {
 export type SeriesMetadataOrderByField = {
   direction: OrderDirection;
   field: SeriesMetadataModelOrdering;
+};
+
+export type SeriesMetadataOverview = {
+  __typename?: 'SeriesMetadataOverview';
+  /** Print, OneShot, TPB or GN. */
+  bookTypes: Array<Scalars['String']['output']>;
+  imprints: Array<Scalars['String']['output']>;
+  publishers: Array<Scalars['String']['output']>;
+  /**
+   * Sourced rather than hard-coded: the column is free text, and providers do not agree
+   * on it as reliably as the "Continuing or Ended" comment suggests.
+   */
+  statuses: Array<Scalars['String']['output']>;
 };
 
 export enum SeriesModelOrdering {
@@ -5793,6 +5818,13 @@ export type FilterPickerOptionsQueryVariables = Exact<{
 
 
 export type FilterPickerOptionsQuery = { __typename?: 'Query', mediaMetadataOverview: { __typename?: 'MediaMetadataOverview', genres: Array<string>, writers: Array<string>, pencillers: Array<string>, colorists: Array<string>, letterers: Array<string>, inkers: Array<string>, publishers: Array<string>, editors: Array<string>, characters: Array<string>, teams: Array<string>, coverArtists: Array<string>, series: Array<string> } };
+
+export type FilterPickerSeriesOptionsQueryVariables = Exact<{
+  libraryId?: InputMaybe<Scalars['ID']['input']>;
+}>;
+
+
+export type FilterPickerSeriesOptionsQuery = { __typename?: 'Query', seriesMetadataOverview: { __typename?: 'SeriesMetadataOverview', publishers: Array<string>, imprints: Array<string>, bookTypes: Array<string>, statuses: Array<string> } };
 
 export type DeleteLibraryMutationVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -8316,6 +8348,16 @@ export const FilterPickerOptionsDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<FilterPickerOptionsQuery, FilterPickerOptionsQueryVariables>;
+export const FilterPickerSeriesOptionsDocument = new TypedDocumentString(`
+    query FilterPickerSeriesOptions($libraryId: ID) {
+  seriesMetadataOverview(libraryId: $libraryId) {
+    publishers
+    imprints
+    bookTypes
+    statuses
+  }
+}
+    `) as unknown as TypedDocumentString<FilterPickerSeriesOptionsQuery, FilterPickerSeriesOptionsQueryVariables>;
 export const DeleteLibraryDocument = new TypedDocumentString(`
     mutation DeleteLibrary($id: ID!) {
   deleteLibrary(id: $id) {

@@ -24,7 +24,7 @@ export type NumericBounds = {
  * union rather than `string` so a typo in a field descriptor is a type error instead
  * of a field that silently renders no options.
  */
-export type OverviewKey =
+export type MediaOverviewKey =
 	| 'genres'
 	| 'writers'
 	| 'pencillers'
@@ -37,6 +37,11 @@ export type OverviewKey =
 	| 'teams'
 	| 'coverArtists'
 	| 'series'
+
+/** The same, for `seriesMetadataOverview`. */
+export type SeriesOverviewKey = 'publishers' | 'imprints' | 'bookTypes' | 'statuses'
+
+export type OverviewKey = MediaOverviewKey | SeriesOverviewKey
 
 type BaseField = {
 	/** Stable identifier, used to address the field's screen and as a React key. */
@@ -167,11 +172,6 @@ const EXTENSION_OPTIONS: FilterFieldOption[] = [
 	{ label: 'PDF', value: 'pdf' },
 ]
 
-const SERIES_STATUS_OPTIONS: FilterFieldOption[] = [
-	{ label: 'Continuing', value: 'continuing' },
-	{ label: 'Ended', value: 'ended' },
-]
-
 const MEDIA_FIELDS: FilterField[] = [
 	metadataValuesField('genre', 'Genre', 'genres', 'genres'),
 	metadataValuesField('writer', 'Writer', 'writers', 'writers'),
@@ -225,20 +225,35 @@ const MEDIA_FIELDS: FilterField[] = [
 	metadataRangeField('ageRating', 'Age rating', 'ageRating', { from: '0', to: '18' }),
 ]
 
+/*
+ * Series had three fields -- status, year, age rating -- while books had fourteen, which
+ * made the control look broken rather than thin. These are the columns `series_metadata`
+ * actually carries that are worth narrowing a shelf by; their vocabularies come from
+ * `seriesMetadataOverview` for the same reason the media ones do, so only values that
+ * exist are offered.
+ */
 const SERIES_FIELDS: FilterField[] = [
+	metadataValuesField('publisher', 'Publisher', 'publisher', 'publishers'),
+	metadataValuesField('imprint', 'Imprint', 'imprint', 'imprints'),
+	metadataValuesField('bookType', 'Book type', 'booktype', 'bookTypes'),
+	/*
+	 * Sourced from the server rather than a hard-coded Continuing/Ended pair: the column is
+	 * free text, and a fixed list silently offers values no series in the library has.
+	 */
+	metadataValuesField('status', 'Status', 'status', 'statuses'),
 	{
 		kind: 'values',
-		key: 'status',
-		label: 'Status',
-		options: SERIES_STATUS_OPTIONS,
-		read: (filters) => {
-			const status = (filters as SeriesFilterInput).metadata?.status
-			return status && 'likeAnyOf' in status ? status.likeAnyOf || [] : []
-		},
+		key: 'readStatus',
+		label: 'Read status',
+		options: READ_STATUS_OPTIONS,
+		read: (filters) => (filters as SeriesFilterInput).readingStatus?.isAnyOf || [],
 		write: (filters, values) =>
-			writeMetadata(filters, { status: values.length ? { likeAnyOf: values } : undefined }),
+			writeRoot(filters, {
+				readingStatus: values.length ? { isAnyOf: values as ReadingStatus[] } : undefined,
+			}),
 	},
 	metadataRangeField('year', 'Publication year', 'year', { from: '1987', to: '2026' }),
+	metadataRangeField('volume', 'Volume', 'volume', { from: '1', to: '5' }),
 	metadataRangeField('ageRating', 'Age rating', 'ageRating', { from: '0', to: '18' }),
 ]
 

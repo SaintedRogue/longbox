@@ -3086,6 +3086,13 @@ type Query {
 	library rather than the whole server.
 	"""
 	mediaMetadataOverview(seriesId: ID, libraryId: ID): MediaMetadataOverview!
+	"""
+	Distinct metadata values across series, for building filter controls.
+	
+	Passing `library_id` is what makes a library view's filter options describe that
+	library rather than the whole server.
+	"""
+	seriesMetadataOverview(libraryId: ID): SeriesMetadataOverview!
 	"The latest computed organize preview for a library, if any."
 	organizePreview(libraryId: ID!): OrganizePreview
 	"""
@@ -3736,6 +3743,18 @@ enum SeriesMetadataModelOrdering {
 input SeriesMetadataOrderByField {
 	field: SeriesMetadataModelOrdering!
 	direction: OrderDirection!
+}
+
+type SeriesMetadataOverview {
+	publishers: [String!]!
+	imprints: [String!]!
+	"Print, OneShot, TPB or GN."
+	bookTypes: [String!]!
+	"""
+	Sourced rather than hard-coded: the column is free text, and providers do not agree
+	on it as reliably as the "Continuing or Ended" comment suggests.
+	"""
+	statuses: [String!]!
 }
 
 enum SeriesModelOrdering {
