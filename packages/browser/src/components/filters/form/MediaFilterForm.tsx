@@ -12,6 +12,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { FieldValues, useForm } from 'react-hook-form'
 import z from 'zod'
 
+import { useLibraryContextSafe } from '@/scenes/library/context'
 import { useSeriesContextSafe } from '@/scenes/series'
 
 import { useFilterContext } from '..'
@@ -22,8 +23,8 @@ import NumericRangeFilter, { numericRangeToFilter } from './NumericRangeFilter'
 import ReadStatusSelect from './ReadStatusSelect'
 
 const query = graphql(`
-	query MediaFilterForm($seriesId: ID) {
-		mediaMetadataOverview(seriesId: $seriesId) {
+	query MediaFilterForm($seriesId: ID, $libraryId: ID) {
+		mediaMetadataOverview(seriesId: $seriesId, libraryId: $libraryId) {
 			genres
 			writers
 			pencillers
@@ -74,16 +75,23 @@ export default function MediaFilterForm() {
 	const filters = useMemo(() => (filtersInput || {}) as MediaFilterInput, [filtersInput])
 
 	const seriesContext = useSeriesContextSafe()
+	const libraryContext = useLibraryContextSafe()
 	const [onlyFromSeries, setOnlyFromSeries] = useState(false)
 
+	/**
+	 * A library view's options have to describe *that* library, so the scope is applied
+	 * whenever there is one -- unscoped, a library with no manga in it still offered
+	 * every manga genre on the server, and picking one returned nothing. Series scoping
+	 * stays opt-in: it narrows further, inside a view that already lists one series.
+	 */
 	const params = useMemo(() => {
-		if (onlyFromSeries && !!seriesContext?.series.id) {
-			return {
-				seriesId: seriesContext.series.id,
-			}
+		const libraryId = libraryContext?.library.id
+		const seriesId = onlyFromSeries ? seriesContext?.series.id : undefined
+		return {
+			...(libraryId ? { libraryId } : {}),
+			...(seriesId ? { seriesId } : {}),
 		}
-		return {}
-	}, [onlyFromSeries, seriesContext])
+	}, [onlyFromSeries, seriesContext, libraryContext])
 
 	const { data: _data, isPending } = useGraphQL(query, ['mediaFilterForm', params], params, {
 		placeholderData: (prev) => prev,

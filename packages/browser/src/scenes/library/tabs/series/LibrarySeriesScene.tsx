@@ -18,8 +18,8 @@ import { DynamicCardGrid, GridSizeSlider } from '@/components/container'
 import {
 	FilterContext,
 	FilterHeader,
+	FilterPicker,
 	URLFilterContainer,
-	URLFilterDrawer,
 	URLOrdering,
 	useFilterScene,
 } from '@/components/filters'
@@ -427,7 +427,7 @@ export default function LibrarySeriesScene() {
 						)
 					}
 					orderControls={isCollectionsView ? undefined : <URLOrdering entity="series" />}
-					filterControls={isCollectionsView ? undefined : <URLFilterDrawer entity="series" />}
+					filterControls={isCollectionsView ? undefined : <FilterPicker entity="series" />}
 					viewControls={
 						<SeriesViewToggle
 							value={isCollectionsView ? 'collections' : 'series'}

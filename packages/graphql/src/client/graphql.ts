@@ -4044,6 +4044,13 @@ export type Query = {
   mediaByPath?: Maybe<Media>;
   mediaCount: Scalars['Int']['output'];
   mediaDiskUsage: Scalars['Int']['output'];
+  /**
+   * Distinct metadata values across books, for building filter controls.
+   *
+   * `series_id` and `library_id` are both optional and compose. Passing
+   * `library_id` is what makes a library view's filter options describe that
+   * library rather than the whole server.
+   */
   mediaMetadataOverview: MediaMetadataOverview;
   metadataFetchRecord?: Maybe<MetadataFetchRecord>;
   metadataProviderConfigById?: Maybe<MetadataProviderConfigModel>;
@@ -4350,6 +4357,7 @@ export type QueryMediaByPathArgs = {
 
 
 export type QueryMediaMetadataOverviewArgs = {
+  libraryId?: InputMaybe<Scalars['ID']['input']>;
   seriesId?: InputMaybe<Scalars['ID']['input']>;
 };
 
@@ -5772,10 +5780,19 @@ export type UploadLibrarySeriesMutation = { __typename?: 'Mutation', uploadSerie
 
 export type MediaFilterFormQueryVariables = Exact<{
   seriesId?: InputMaybe<Scalars['ID']['input']>;
+  libraryId?: InputMaybe<Scalars['ID']['input']>;
 }>;
 
 
 export type MediaFilterFormQuery = { __typename?: 'Query', mediaMetadataOverview: { __typename?: 'MediaMetadataOverview', genres: Array<string>, writers: Array<string>, pencillers: Array<string>, colorists: Array<string>, letterers: Array<string>, inkers: Array<string>, publishers: Array<string>, editors: Array<string>, characters: Array<string>, teams: Array<string>, coverArtists: Array<string>, series: Array<string> } };
+
+export type FilterPickerOptionsQueryVariables = Exact<{
+  seriesId?: InputMaybe<Scalars['ID']['input']>;
+  libraryId?: InputMaybe<Scalars['ID']['input']>;
+}>;
+
+
+export type FilterPickerOptionsQuery = { __typename?: 'Query', mediaMetadataOverview: { __typename?: 'MediaMetadataOverview', genres: Array<string>, writers: Array<string>, pencillers: Array<string>, colorists: Array<string>, letterers: Array<string>, inkers: Array<string>, publishers: Array<string>, editors: Array<string>, characters: Array<string>, teams: Array<string>, coverArtists: Array<string>, series: Array<string> } };
 
 export type DeleteLibraryMutationVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -8264,8 +8281,8 @@ export const UploadLibrarySeriesDocument = new TypedDocumentString(`
 }
     `) as unknown as TypedDocumentString<UploadLibrarySeriesMutation, UploadLibrarySeriesMutationVariables>;
 export const MediaFilterFormDocument = new TypedDocumentString(`
-    query MediaFilterForm($seriesId: ID) {
-  mediaMetadataOverview(seriesId: $seriesId) {
+    query MediaFilterForm($seriesId: ID, $libraryId: ID) {
+  mediaMetadataOverview(seriesId: $seriesId, libraryId: $libraryId) {
     genres
     writers
     pencillers
@@ -8281,6 +8298,24 @@ export const MediaFilterFormDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<MediaFilterFormQuery, MediaFilterFormQueryVariables>;
+export const FilterPickerOptionsDocument = new TypedDocumentString(`
+    query FilterPickerOptions($seriesId: ID, $libraryId: ID) {
+  mediaMetadataOverview(seriesId: $seriesId, libraryId: $libraryId) {
+    genres
+    writers
+    pencillers
+    colorists
+    letterers
+    inkers
+    publishers
+    editors
+    characters
+    teams
+    coverArtists
+    series
+  }
+}
+    `) as unknown as TypedDocumentString<FilterPickerOptionsQuery, FilterPickerOptionsQueryVariables>;
 export const DeleteLibraryDocument = new TypedDocumentString(`
     mutation DeleteLibrary($id: ID!) {
   deleteLibrary(id: $id) {

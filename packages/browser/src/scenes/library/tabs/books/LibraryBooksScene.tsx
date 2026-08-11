@@ -12,8 +12,8 @@ import { DynamicCardGrid, GridSizeSlider } from '@/components/container'
 import {
 	FilterContext,
 	FilterHeader,
+	FilterPicker,
 	URLFilterContainer,
-	URLFilterDrawer,
 	URLOrdering,
 	useFilterScene,
 } from '@/components/filters'
@@ -395,7 +395,7 @@ function LibraryBooksScene() {
 					isSearching={isLoading}
 					layoutControls={<TableOrGridLayout layout={layoutMode} setLayout={setLayout} />}
 					orderControls={<URLOrdering entity="media" />}
-					filterControls={<URLFilterDrawer entity="media" />}
+					filterControls={<FilterPicker entity="media" />}
 					sizeControls={layoutMode === InterfaceLayout.Grid ? <GridSizeSlider /> : undefined}
 					navOffset
 				/>

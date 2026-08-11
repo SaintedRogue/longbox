@@ -3078,7 +3078,14 @@ type Query {
 	annotationsByMediaId(id: ID!): [MediaAnnotation!]!
 	"Returns a list of all tags."
 	tags: [Tag!]!
-	mediaMetadataOverview(seriesId: ID): MediaMetadataOverview!
+	"""
+	Distinct metadata values across books, for building filter controls.
+	
+	`series_id` and `library_id` are both optional and compose. Passing
+	`library_id` is what makes a library view's filter options describe that
+	library rather than the whole server.
+	"""
+	mediaMetadataOverview(seriesId: ID, libraryId: ID): MediaMetadataOverview!
 	"The latest computed organize preview for a library, if any."
 	organizePreview(libraryId: ID!): OrganizePreview
 	"""
