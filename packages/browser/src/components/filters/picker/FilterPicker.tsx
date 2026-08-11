@@ -63,7 +63,7 @@ type Props = {
  */
 export default function FilterPicker({ entity }: Props) {
 	const { t } = useLocaleContext()
-	const { filters, setFilters, setPage } = useFilterContext()
+	const { filters, setFilters } = useFilterContext()
 	const isMobile = useMediaMatch('(max-width: 768px)')
 
 	const [isOpen, setIsOpen] = useState(false)
@@ -105,17 +105,12 @@ export default function FilterPicker({ entity }: Props) {
 	 */
 	const totalActive = useMemo(() => getActiveFilterCount(filters), [filters])
 
-	/**
-	 * Applying a filter from page 5 of a list would otherwise leave the view on page 5 of a
-	 * result set that may now be one page long, which reads as "my filter returned nothing".
+	/*
+	 * `setFilters` resets to the first page itself. Doing it here as a second `setPage(1)` is
+	 * what broke applying a filter outright: both writes start from the pre-click URL, so the
+	 * page reset navigated over the filter that had just been set.
 	 */
-	const applyFilters = useCallback(
-		(next: FilterInput) => {
-			setFilters(next)
-			setPage(1)
-		},
-		[setFilters, setPage],
-	)
+	const applyFilters = setFilters
 
 	const handleClear = useCallback(
 		() => applyFilters(clearFilters(filters) as FilterInput),

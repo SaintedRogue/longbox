@@ -197,24 +197,33 @@ export function useFilterScene(): Return {
 	)
 
 	/**
-	 * Replace the current filters with the provided filters
+	 * Replace the current filters with the provided filters, and go back to the first page.
+	 *
+	 * The page reset belongs *here*, in the same write, rather than in a `setPage(1)` next to
+	 * the call. `setSearchParams` builds its next URL from the location of the render it was
+	 * created in, so two calls in one click both start from the pre-click params and the second
+	 * navigate discards the first -- filters were set and then immediately thrown away by the
+	 * page reset. One write, one navigate.
+	 *
+	 * Written as an updater over the existing params rather than a fresh object, so everything
+	 * this function has no opinion about survives: `pageSize`, the collections `view` toggle,
+	 * and in particular `search`, which a rebuilt-from-scratch param set used to drop -- picking
+	 * a filter would silently clear the search box.
 	 */
 	const handleSetFilters = useCallback(
 		(newFilters: FilterInput) => {
-			setSearchParams(
-				toUrlParams(
-					{
-						...ordering,
-						...pagination,
-						filters: JSON.stringify(newFilters),
-					},
-					undefined,
-					{ removeEmpty: true },
-				),
-				REPLACE_ENTRY,
-			)
+			setSearchParams((prev) => {
+				const next = new URLSearchParams(prev)
+				if (Object.keys(newFilters).length) {
+					next.set('filters', JSON.stringify(newFilters))
+				} else {
+					next.delete('filters')
+				}
+				next.set('page', '1')
+				return next
+			}, REPLACE_ENTRY)
 		},
-		[ordering, pagination, setSearchParams],
+		[setSearchParams],
 	)
 
 	/**

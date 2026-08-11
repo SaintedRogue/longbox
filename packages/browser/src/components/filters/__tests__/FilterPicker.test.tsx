@@ -37,7 +37,10 @@ jest.mock('@longbox/client', () => ({
 const setFilters = jest.fn()
 const setPage = jest.fn()
 
-const renderPicker = (filters: IFilterContext['filters'] = {}) => {
+const renderPicker = (
+	filters: IFilterContext['filters'] = {},
+	entity: 'media' | 'series' = 'media',
+) => {
 	const value = {
 		filters,
 		ordering: {},
@@ -52,7 +55,7 @@ const renderPicker = (filters: IFilterContext['filters'] = {}) => {
 
 	return render(
 		<FilterContext.Provider value={value}>
-			<FilterPicker entity="media" />
+			<FilterPicker entity={entity} />
 		</FilterContext.Provider>,
 	)
 }
@@ -98,14 +101,23 @@ describe('FilterPicker', () => {
 		expect(screen.queryByText('Horror')).not.toBeInTheDocument()
 	})
 
-	it('applies a value immediately, and resets to the first page', () => {
+	/**
+	 * One write, not two. The picker used to follow `setFilters` with `setPage(1)`, and because
+	 * both build their URL from the pre-click location the page reset navigated straight over
+	 * the filter -- nothing applied. The page reset lives in `setFilters` now, so the picker
+	 * must not call `setPage` at all; `useFilterScene` covers that the reset still happens.
+	 *
+	 * Mocking the two separately is exactly why this suite stayed green while the feature was
+	 * broken, so the assertion is that `setPage` is *not* called.
+	 */
+	it('applies a value in a single write', () => {
 		renderPicker()
 		open()
 		fireEvent.click(screen.getByText('Genre'))
 		fireEvent.click(screen.getByText('Horror'))
 
 		expect(setFilters).toHaveBeenCalledWith({ metadata: { genres: { likeAnyOf: ['Horror'] } } })
-		expect(setPage).toHaveBeenCalledWith(1)
+		expect(setPage).not.toHaveBeenCalled()
 	})
 
 	it('adds to the selection rather than replacing it, for any-of semantics', () => {
@@ -200,5 +212,48 @@ describe('FilterPicker', () => {
 		open()
 		fireEvent.click(screen.getByText('Clear filters'))
 		expect(setFilters).toHaveBeenCalledWith({})
+	})
+})
+
+/**
+ * The series tab of a library gets the same control. Its fields have a fixed vocabulary
+ * rather than coming from `mediaMetadataOverview`, so nothing here depends on the query.
+ */
+describe('FilterPicker (series)', () => {
+	const renderSeriesPicker = (filters: IFilterContext['filters'] = {}) =>
+		renderPicker(filters, 'series')
+
+	it('renders its trigger', () => {
+		renderSeriesPicker()
+
+		expect(screen.getByRole('button', { name: 'filters.buttons.filters' })).toBeInTheDocument()
+	})
+
+	it('lists the series fields', () => {
+		renderSeriesPicker()
+		open()
+
+		expect(screen.getByText('Status')).toBeInTheDocument()
+		expect(screen.getByText('Publication year')).toBeInTheDocument()
+		expect(screen.getByText('Age rating')).toBeInTheDocument()
+	})
+
+	it('does not offer media-only fields', () => {
+		renderSeriesPicker()
+		open()
+
+		expect(screen.queryByText('Genre')).not.toBeInTheDocument()
+		expect(screen.queryByText('Read status')).not.toBeInTheDocument()
+	})
+
+	it('applies a status', () => {
+		renderSeriesPicker()
+		open()
+		fireEvent.click(screen.getByText('Status'))
+		fireEvent.click(screen.getByText('Continuing'))
+
+		expect(setFilters).toHaveBeenCalledWith({
+			metadata: { status: { likeAnyOf: ['continuing'] } },
+		})
 	})
 })
