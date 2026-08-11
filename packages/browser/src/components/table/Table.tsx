@@ -114,8 +114,14 @@ export default function Table<T, V>({
 	const pageCount = options.pageCount ?? table.getPageCount()
 	const dataCount = data.length
 	const viewBounds = useMemo(() => {
-		// always prioritize provided totalCount
-		const actualTotalCount = totalCount ?? pageCount * pageSize
+		/*
+		 * Always prioritize provided totalCount. Failing that, `pageCount * pageSize` is only
+		 * right for a server-paginated table, where `data` holds one page and its length says
+		 * nothing about the total. A client-paginated table has every row in hand, and the
+		 * old fallback rounded up to a full page -- a list of one read "1 to 10 of 10".
+		 */
+		const actualTotalCount =
+			totalCount ?? (options.pageCount != null ? pageCount * pageSize : dataCount)
 
 		const expectedLastIndex = (pageIndex + 1) * pageSize
 		const expectedFirstIndex = expectedLastIndex - (pageSize - 1)
@@ -127,7 +133,7 @@ export default function Table<T, V>({
 			lastIndex: actualLastIndex,
 			totalCount: actualTotalCount,
 		}
-	}, [pageCount, pageSize, pageIndex, totalCount])
+	}, [pageCount, pageSize, pageIndex, totalCount, dataCount, options.pageCount])
 
 	const handleFilter = (value?: string) => {
 		const filterCol = filterColRef.current?.value

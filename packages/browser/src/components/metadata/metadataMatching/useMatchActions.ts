@@ -123,6 +123,7 @@ export function useMatchActions() {
 		fieldOverrides,
 		nextRecord,
 		close,
+		dropCandidate,
 	} = useMatchReviewStore()
 
 	const record = records[currentRecordIndex]
@@ -184,14 +185,31 @@ export function useMatchActions() {
 		},
 	)
 
+	/*
+	 * Rejecting discards one *candidate*, not the record: the server drops it from the
+	 * record's list and the record stays awaiting review while it still has others. This used
+	 * to advance to the next record regardless, which is why a rejected row never disappeared
+	 * and later came back showing a different match -- the remaining candidates were never
+	 * reviewed, just skipped.
+	 *
+	 * So: stay on the record, drop the candidate from the list on screen, and move on only
+	 * once there is nothing left to choose from.
+	 */
+	const onRejectSuccess = () => {
+		const remaining = dropCandidate(currentCandidateIndex)
+		invalidateQueries()
+		if (remaining > 0) {
+			toast.success('Candidate rejected')
+		} else {
+			toast.success('All candidates rejected')
+			advance()
+		}
+	}
+
 	const { mutate: rejectMedia, isPending: isRejectingMedia } = useGraphQLMutation(
 		rejectMediaMatchMutation,
 		{
-			onSuccess: () => {
-				toast.success('Match rejected')
-				invalidateQueries()
-				advance()
-			},
+			onSuccess: () => onRejectSuccess(),
 			onError: () => toast.error('Failed to reject match'),
 		},
 	)
@@ -199,11 +217,7 @@ export function useMatchActions() {
 	const { mutate: rejectSeries, isPending: isRejectingSeries } = useGraphQLMutation(
 		rejectSeriesMatchMutation,
 		{
-			onSuccess: () => {
-				toast.success('Match rejected')
-				invalidateQueries()
-				advance()
-			},
+			onSuccess: () => onRejectSuccess(),
 			onError: () => toast.error('Failed to reject match'),
 		},
 	)

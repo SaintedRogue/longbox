@@ -19,6 +19,9 @@ export type MatchReviewState = {
 	prevRecord: () => void
 	nextCandidate: () => void
 	prevCandidate: () => void
+	selectCandidate: (index: number) => void
+	/** Drop a rejected candidate from the record in place. Returns what is left. */
+	dropCandidate: (index: number) => number
 	toggleField: (field: MetadataField) => void
 	resetExcludedFields: () => void
 	setStrategy: (strategy: MergeStrategy) => void
@@ -106,6 +109,45 @@ export const useMatchReviewStore = create<MatchReviewState>((set, get) => ({
 		if (currentCandidateIndex > 0) {
 			set({ currentCandidateIndex: currentCandidateIndex - 1 })
 		}
+	},
+
+	/*
+	 * Field-level decisions belong to the candidate they were made against, so switching
+	 * candidates clears them -- carrying an "exclude the summary" from one provider's
+	 * result onto another's would silently exclude a value the user never looked at.
+	 */
+	selectCandidate: (index) =>
+		set({
+			currentCandidateIndex: index,
+			excludedFields: new Set(),
+			fieldOverrides: new Map(),
+		}),
+
+	/*
+	 * Rejecting removes a single candidate server-side; the record itself stays pending as
+	 * long as it has others. Mirroring that here is what stops a rejected candidate sitting
+	 * on screen, and stops the review jumping to the next record with options still unseen.
+	 */
+	dropCandidate: (index) => {
+		const { records, currentRecordIndex, currentCandidateIndex } = get()
+		const record = records[currentRecordIndex]
+		if (!record) return 0
+
+		const remaining = (record.matchCandidates ?? []).filter((_, i) => i !== index)
+		const nextRecords = records.map((entry, i) =>
+			i === currentRecordIndex ? { ...entry, matchCandidates: remaining } : entry,
+		)
+
+		set({
+			records: nextRecords,
+			// Keep the position where it was, clamped -- rejecting candidate 3 of 5 should land
+			// on the one that moved into slot 3, not send you back to the top of the list.
+			currentCandidateIndex: Math.max(0, Math.min(currentCandidateIndex, remaining.length - 1)),
+			excludedFields: new Set(),
+			fieldOverrides: new Map(),
+		})
+
+		return remaining.length
 	},
 
 	toggleField: (field) =>
