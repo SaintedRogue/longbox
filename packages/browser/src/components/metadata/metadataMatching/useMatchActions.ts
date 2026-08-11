@@ -145,11 +145,14 @@ export function useMatchActions() {
 
 	const queryClient = useQueryClient()
 
+	/*
+	 * Everything, not just the pending-matches list. Accepting a match rewrites the book's or
+	 * series' metadata, and this review is now reachable from the book page itself -- where a
+	 * narrow invalidation would leave the title and credits the user just changed stale on the
+	 * screen behind the dialog.
+	 */
 	const invalidateQueries = () => {
-		queryClient.invalidateQueries({
-			predicate: ({ queryKey }) =>
-				queryKey.some((key) => typeof key === 'string' && key === 'pendingMetadataMatches'),
-		})
+		void queryClient.invalidateQueries()
 	}
 
 	const advance = () => {

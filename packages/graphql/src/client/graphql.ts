@@ -5987,21 +5987,15 @@ export type ProviderMatchFindSeriesMutationVariables = Exact<{
 
 export type ProviderMatchFindSeriesMutation = { __typename?: 'Mutation', fetchSeriesMetadata: Array<{ __typename?: 'MatchCandidate', provider: string, externalId: string, confidence: number, metadata: { __typename: 'ExternalMediaMetadata' } | { __typename: 'ExternalSeriesMetadata', title: string, year?: number | null, publisher?: string | null, authors?: Array<string> | null, coverUrl?: string | null } }> };
 
-export type ProviderMatchAcceptMediaMutationVariables = Exact<{
-  mediaId: Scalars['ID']['input'];
-  candidateIndex: Scalars['Int']['input'];
+export type ProviderMatchRecordQueryVariables = Exact<{
+  id: MetadataFetchRecordId;
 }>;
 
 
-export type ProviderMatchAcceptMediaMutation = { __typename?: 'Mutation', acceptMediaMatch: { __typename?: 'MetadataFetchRecord', id: number, status: MetadataFetchStatus } };
-
-export type ProviderMatchAcceptSeriesMutationVariables = Exact<{
-  seriesId: Scalars['ID']['input'];
-  candidateIndex: Scalars['Int']['input'];
-}>;
-
-
-export type ProviderMatchAcceptSeriesMutation = { __typename?: 'Mutation', acceptSeriesMatch: { __typename?: 'MetadataFetchRecord', id: number, status: MetadataFetchStatus } };
+export type ProviderMatchRecordQuery = { __typename?: 'Query', metadataFetchRecord?: (
+    { __typename?: 'MetadataFetchRecord' }
+    & { ' $fragmentRefs'?: { 'PendingMatchRecordFragment': PendingMatchRecordFragment } }
+  ) | null };
 
 export type SideBarQueryQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -9003,22 +8997,104 @@ export const ProviderMatchFindSeriesDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<ProviderMatchFindSeriesMutation, ProviderMatchFindSeriesMutationVariables>;
-export const ProviderMatchAcceptMediaDocument = new TypedDocumentString(`
-    mutation ProviderMatchAcceptMedia($mediaId: ID!, $candidateIndex: Int!) {
-  acceptMediaMatch(mediaId: $mediaId, candidateIndex: $candidateIndex) {
-    id
-    status
+export const ProviderMatchRecordDocument = new TypedDocumentString(`
+    query ProviderMatchRecord($id: MetadataFetchRecordId!) {
+  metadataFetchRecord(id: $id) {
+    ...PendingMatchRecord
   }
 }
-    `) as unknown as TypedDocumentString<ProviderMatchAcceptMediaMutation, ProviderMatchAcceptMediaMutationVariables>;
-export const ProviderMatchAcceptSeriesDocument = new TypedDocumentString(`
-    mutation ProviderMatchAcceptSeries($seriesId: ID!, $candidateIndex: Int!) {
-  acceptSeriesMatch(seriesId: $seriesId, candidateIndex: $candidateIndex) {
-    id
-    status
+    fragment PendingMatchRecord on MetadataFetchRecord {
+  id
+  status
+  mediaId
+  seriesId
+  matchCandidates {
+    provider
+    externalId
+    metadata {
+      __typename
+      ... on ExternalMediaMetadata {
+        title
+        seriesName
+        seriesExternalId
+        summary
+        pageCount
+        number
+        day
+        month
+        year
+        genres
+        tags
+        isbn
+        isbn13
+        writers
+        artists
+        colorists
+        letterers
+        coverArtists
+      }
+      ... on ExternalSeriesMetadata {
+        seriesTitle: title
+        alternativeTitles
+        summary
+        volumeCount
+        coverUrl
+        status
+        year
+        endYear
+        genres
+        tags
+        authors
+        ageRating
+        publisher
+      }
+    }
+    confidence
+    confidenceFactors {
+      factor
+      weight
+      matched
+    }
   }
-}
-    `) as unknown as TypedDocumentString<ProviderMatchAcceptSeriesMutation, ProviderMatchAcceptSeriesMutationVariables>;
+  addedAt
+  updatedAt
+  media {
+    id
+    resolvedName
+    metadata {
+      title
+      summary
+      genres
+      writers
+      colorists
+      letterers
+      coverArtists
+      publisher
+      year
+      month
+      day
+      pageCount
+      identifierIsbn
+      lockedFields
+    }
+  }
+  series {
+    id
+    resolvedName
+    metadata {
+      title
+      summary
+      genres
+      writers
+      publisher
+      year
+      status
+      ageRating
+      volume
+      lockedFields
+    }
+  }
+}`) as unknown as TypedDocumentString<ProviderMatchRecordQuery, ProviderMatchRecordQueryVariables>;
 export const SideBarQueryDocument = new TypedDocumentString(`
     query SideBarQuery {
   me {
