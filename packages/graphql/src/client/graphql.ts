@@ -5786,6 +5786,14 @@ export type MediaFilterFormQueryVariables = Exact<{
 
 export type MediaFilterFormQuery = { __typename?: 'Query', mediaMetadataOverview: { __typename?: 'MediaMetadataOverview', genres: Array<string>, writers: Array<string>, pencillers: Array<string>, colorists: Array<string>, letterers: Array<string>, inkers: Array<string>, publishers: Array<string>, editors: Array<string>, characters: Array<string>, teams: Array<string>, coverArtists: Array<string>, series: Array<string> } };
 
+export type FilterPickerOptionsQueryVariables = Exact<{
+  seriesId?: InputMaybe<Scalars['ID']['input']>;
+  libraryId?: InputMaybe<Scalars['ID']['input']>;
+}>;
+
+
+export type FilterPickerOptionsQuery = { __typename?: 'Query', mediaMetadataOverview: { __typename?: 'MediaMetadataOverview', genres: Array<string>, writers: Array<string>, pencillers: Array<string>, colorists: Array<string>, letterers: Array<string>, inkers: Array<string>, publishers: Array<string>, editors: Array<string>, characters: Array<string>, teams: Array<string>, coverArtists: Array<string>, series: Array<string> } };
+
 export type DeleteLibraryMutationVariables = Exact<{
   id: Scalars['ID']['input'];
 }>;
@@ -8290,6 +8298,24 @@ export const MediaFilterFormDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<MediaFilterFormQuery, MediaFilterFormQueryVariables>;
+export const FilterPickerOptionsDocument = new TypedDocumentString(`
+    query FilterPickerOptions($seriesId: ID, $libraryId: ID) {
+  mediaMetadataOverview(seriesId: $seriesId, libraryId: $libraryId) {
+    genres
+    writers
+    pencillers
+    colorists
+    letterers
+    inkers
+    publishers
+    editors
+    characters
+    teams
+    coverArtists
+    series
+  }
+}
+    `) as unknown as TypedDocumentString<FilterPickerOptionsQuery, FilterPickerOptionsQueryVariables>;
 export const DeleteLibraryDocument = new TypedDocumentString(`
     mutation DeleteLibrary($id: ID!) {
   deleteLibrary(id: $id) {
