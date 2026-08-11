@@ -13,7 +13,7 @@ export type MatchReviewState = {
 	fieldOverrides: Map<MetadataField, FieldOverride>
 	lockedFields: Map<MetadataField, boolean>
 
-	open: (records: MatchRecord[], startIndex?: number) => void
+	open: (records: MatchRecord[], startIndex?: number, startCandidateIndex?: number) => void
 	close: () => void
 	nextRecord: () => void
 	prevRecord: () => void
@@ -39,12 +39,17 @@ export const useMatchReviewStore = create<MatchReviewState>((set, get) => ({
 	fieldOverrides: new Map(),
 	lockedFields: new Map(),
 
-	open: (records, startIndex = 0) =>
+	/*
+	 * `startCandidateIndex` exists for the on-demand provider search, which lands here with a
+	 * candidate the user has already picked out of a result grid. Opening on candidate 0 would
+	 * quietly review a different match than the one they clicked.
+	 */
+	open: (records, startIndex = 0, startCandidateIndex = 0) =>
 		set({
 			isOpen: true,
 			records,
 			currentRecordIndex: Math.min(startIndex, records.length - 1),
-			currentCandidateIndex: 0,
+			currentCandidateIndex: startCandidateIndex,
 			excludedFields: new Set(),
 			fieldOverrides: new Map(),
 			lockedFields: new Map(),

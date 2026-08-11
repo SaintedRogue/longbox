@@ -1,10 +1,12 @@
 import { useGraphQLMutation, useSDK } from '@longbox/client'
 import { Dialog, Text } from '@longbox/components'
 import { graphql, MetadataProvider } from '@longbox/graphql'
-import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
+import { MatchReviewDialog } from '../metadataMatching/reviewDialog/MatchReviewDialog'
+import type { MatchRecord } from '../metadataMatching/types'
+import { useMatchReviewStore } from '../metadataMatching/useMatchReviewStore'
 import {
 	MetadataSearchPanel,
 	type MetadataSearchQuery,
@@ -112,20 +114,15 @@ const findSeriesMutation = graphql(`
 	}
 `)
 
-const acceptMediaMutation = graphql(`
-	mutation ProviderMatchAcceptMedia($mediaId: ID!, $candidateIndex: Int!) {
-		acceptMediaMatch(mediaId: $mediaId, candidateIndex: $candidateIndex) {
-			id
-			status
-		}
-	}
-`)
-
-const acceptSeriesMutation = graphql(`
-	mutation ProviderMatchAcceptSeries($seriesId: ID!, $candidateIndex: Int!) {
-		acceptSeriesMatch(seriesId: $seriesId, candidateIndex: $candidateIndex) {
-			id
-			status
+/*
+ * The search above ran with `autoApply: false`, so it left a fetch record awaiting review.
+ * Reading it back is what lets a hand-picked candidate go through the same field-by-field
+ * review as an automatically queued one, rather than being applied wholesale.
+ */
+const fetchRecordQuery = graphql(`
+	query ProviderMatchRecord($id: MetadataFetchRecordId!) {
+		metadataFetchRecord(id: $id) {
+			...PendingMatchRecord
 		}
 	}
 `)
@@ -154,7 +151,6 @@ const trimmedOrNull = (value: string): string | null => value.trim() || null
  */
 export default function ProviderMatchDialog({ kind, id, open, onOpenChange }: Props) {
 	const { sdk } = useSDK()
-	const client = useQueryClient()
 
 	const [displayName, setDisplayName] = useState('')
 	const [providers, setProviders] = useState<MetadataProvider[]>([])
@@ -166,8 +162,7 @@ export default function ProviderMatchDialog({ kind, id, open, onOpenChange }: Pr
 
 	const { mutateAsync: findMedia } = useGraphQLMutation(findMediaMutation)
 	const { mutateAsync: findSeries } = useGraphQLMutation(findSeriesMutation)
-	const { mutateAsync: acceptMedia } = useGraphQLMutation(acceptMediaMutation)
-	const { mutateAsync: acceptSeries } = useGraphQLMutation(acceptSeriesMutation)
+	const openReview = useMatchReviewStore((state) => state.open)
 
 	const isMedia = kind === 'media'
 
@@ -271,33 +266,38 @@ export default function ProviderMatchDialog({ kind, id, open, onOpenChange }: Pr
 		[isMedia, id, findMedia, findSeries],
 	)
 
-	// Accept-by-index: `index` is the position of `candidate` within the list
-	// that was JUST returned by `runFetch` — the accept mutations re-run the
-	// same search server-side and apply whichever candidate sits at that
-	// index, so it must be the same index the compare-grid rendered.
-	const acceptAtIndex = useCallback(
+	/*
+	 * Selecting a candidate opens the field review rather than applying it. Picking the right
+	 * *match* and accepting every one of its *fields* are two different decisions, and a
+	 * provider that gets the issue right can still carry a worse summary or the wrong creators
+	 * than what is already on the book.
+	 *
+	 * `index` is the position within the list `runFetch` just returned. The accept mutation
+	 * re-runs the same search server-side and applies whichever candidate sits at that index,
+	 * so it has to be the index the compare-grid rendered -- which is also why the review is
+	 * opened positioned on it.
+	 */
+	const reviewAtIndex = useCallback(
 		async (_candidate: SearchPanelCandidate, index: number) => {
 			setApplyingIndex(index)
 			try {
-				if (isMedia) {
-					await acceptMedia({ mediaId: id, candidateIndex: index })
-				} else {
-					await acceptSeries({ seriesId: id, candidateIndex: index })
+				const { metadataFetchRecord } = await sdk.execute(fetchRecordQuery, {
+					id: isMedia ? { media: id } : { series: id },
+				})
+				if (!metadataFetchRecord) {
+					throw new Error('The search result is no longer available to review.')
 				}
-				toast.success('Metadata applied from the selected match.')
-				// A deliberate one-off apply — refresh everything so book and series
-				// views reflect the new title/credits without a manual reload.
-				void client.invalidateQueries()
+				openReview([metadataFetchRecord as MatchRecord], 0, index)
 				onOpenChange(false)
 			} catch (error) {
-				toast.error('Failed to apply the selected match.', {
+				toast.error('Failed to open the selected match for review.', {
 					description: error instanceof Error ? error.message : undefined,
 				})
 			} finally {
 				setApplyingIndex(null)
 			}
 		},
-		[isMedia, id, acceptMedia, acceptSeries, client, onOpenChange],
+		[isMedia, id, sdk, openReview, onOpenChange],
 	)
 
 	const providerOptions = [
@@ -306,33 +306,41 @@ export default function ProviderMatchDialog({ kind, id, open, onOpenChange }: Pr
 	]
 
 	return (
-		<Dialog open={open} onOpenChange={onOpenChange}>
-			<Dialog.Content size="xl" className="flex max-h-[85vh] flex-col">
-				<Dialog.Header>
-					<Dialog.Title>Match metadata</Dialog.Title>
-					<Dialog.Description>
-						{displayName ? `Search providers for "${displayName}"` : 'Search metadata providers'}
-					</Dialog.Description>
-					<Dialog.Close />
-				</Dialog.Header>
+		<>
+			<Dialog open={open} onOpenChange={onOpenChange}>
+				<Dialog.Content size="xl" className="flex max-h-[85vh] flex-col">
+					<Dialog.Header>
+						<Dialog.Title>Match metadata</Dialog.Title>
+						<Dialog.Description>
+							{displayName ? `Search providers for "${displayName}"` : 'Search metadata providers'}
+						</Dialog.Description>
+						<Dialog.Close />
+					</Dialog.Header>
 
-				<div className="gap-4 min-h-0 flex flex-col">
-					{hasContext ? (
-						<MetadataSearchPanel
-							kind={kind}
-							seed={seed}
-							providers={providerOptions}
-							onSearch={runFetch}
-							onSelect={acceptAtIndex}
-							selectingIndex={applyingIndex}
-						/>
-					) : (
-						<Text size="sm" variant="muted" className="py-10 text-center">
-							Preparing the metadata search…
-						</Text>
-					)}
-				</div>
-			</Dialog.Content>
-		</Dialog>
+					<div className="gap-4 min-h-0 flex flex-col">
+						{hasContext ? (
+							<MetadataSearchPanel
+								kind={kind}
+								seed={seed}
+								providers={providerOptions}
+								onSearch={runFetch}
+								onSelect={reviewAtIndex}
+								selectingIndex={applyingIndex}
+							/>
+						) : (
+							<Text size="sm" variant="muted" className="py-10 text-center">
+								Preparing the metadata search…
+							</Text>
+						)}
+					</div>
+				</Dialog.Content>
+			</Dialog>
+
+			{/*
+			 * Rendered outside the search dialog, which closes as the review opens -- nesting it
+			 * would unmount the review along with its parent.
+			 */}
+			<MatchReviewDialog />
+		</>
 	)
 }
