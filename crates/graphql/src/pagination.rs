@@ -2,7 +2,7 @@ use crate::object::{
 	author::Author, book_club_discussion_message::BookClubDiscussionMessage,
 	character::Character, directory_listing::DirectoryListing, job::Job,
 	library::Library, log::Log, media::Media, missing_entity::MissingEntity,
-	reading_list::ReadingList, series::Series, user::User,
+	omnibus::OmnibusSet, reading_list::ReadingList, series::Series, user::User,
 };
 use async_graphql::{
 	CustomValidator, InputObject, InputValueError, OneofObject, OutputType, Result,
@@ -300,6 +300,7 @@ pub enum PaginationInfo {
 #[graphql(concrete(name = "PaginatedLogResponse", params(Log)))]
 #[graphql(concrete(name = "PaginatedMediaResponse", params(Media)))]
 #[graphql(concrete(name = "PaginatedLibraryResponse", params(Library)))]
+#[graphql(concrete(name = "PaginatedOmnibusSetResponse", params(OmnibusSet)))]
 #[graphql(concrete(name = "PaginatedSeriesResponse", params(Series)))]
 #[graphql(concrete(name = "PaginatedReadingListResponse", params(ReadingList)))]
 #[graphql(concrete(name = "PaginatedUserResponse", params(User)))]

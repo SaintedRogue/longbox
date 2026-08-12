@@ -31,6 +31,7 @@ pub mod media_metadata_overview;
 pub mod metadata_fetch_record;
 pub mod missing_entity;
 pub mod notifier;
+pub mod omnibus;
 pub mod organize;
 pub mod reading_list;
 pub mod reading_list_item;
