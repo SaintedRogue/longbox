@@ -1,4 +1,5 @@
 use async_graphql::InputObject;
+use longbox_core::omnibus;
 use models::{
 	entity::{media, media_metadata, media_tag, reading_session, series, tag},
 	shared::enums::{FileStatus, ReadingStatus},
@@ -135,6 +136,10 @@ pub struct MediaFilterInput {
 	/// really the library's loose-file bucket. `false` inverts it.
 	#[graphql(default)]
 	pub is_standalone: Option<bool>,
+	/// `true` keeps only omnibuses — books whose name, metadata title, metadata format, or
+	/// series name says so. `false` inverts it.
+	#[graphql(default)]
+	pub is_omnibus: Option<bool>,
 	#[graphql(default)]
 	pub status: Option<StringLikeFilter<FileStatus>>,
 	#[graphql(default)]
@@ -199,6 +204,17 @@ impl IntoFilter for MediaFilterInput {
 					);
 
 				if standalone {
+					condition
+				} else {
+					condition.not()
+				}
+			}))
+			.add_option(self.is_omnibus.map(|omnibus| {
+				// Like `is_standalone`, derived rather than stored. The rule lives in
+				// `core` so the scan pipeline could reuse it.
+				let condition = omnibus::qualifying_condition();
+
+				if omnibus {
 					condition
 				} else {
 					condition.not()
