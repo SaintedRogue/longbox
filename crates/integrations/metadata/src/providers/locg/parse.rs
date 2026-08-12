@@ -104,6 +104,9 @@ pub struct IssuePage {
 	pub summary: Option<String>,
 	/// Issue-level page count (not the per-story one).
 	pub page_count: Option<i32>,
+	/// Collected editions carry an ISBN where single issues carry a UPC. The UPC has
+	/// nowhere to go in Longbox; the ISBN does, so it is worth pulling.
+	pub isbn: Option<String>,
 	pub cover_url: Option<String>,
 	pub series_id: Option<String>,
 	pub series_url: Option<String>,
@@ -396,9 +399,23 @@ pub fn parse_series_header(
 pub fn parse_issue_page(html: &str) -> IssuePage {
 	let doc = Html::parse_document(html);
 
-	// "DC Comics · Released Oct 9, 2024"
-	let (publisher, released) = match doc.select(&sel::PAGE_HEADER_INTRO).next() {
-		Some(intro) => match text_of(intro).split_once('·') {
+	// "DC Comics · Released Oct 9, 2024".
+	//
+	// Single issues wrap this in `div.header-intro`; collected editions do not, so fall
+	// back to the header section's own text with the title line removed. Depending on the
+	// wrapper alone silently lost the publisher and the release date on every trade and
+	// omnibus -- most of a trade-heavy library.
+	let header_line = doc
+		.select(&sel::PAGE_HEADER_INTRO)
+		.next()
+		.map(text_of)
+		.or_else(|| {
+			doc.select(&sel::PAGE_HEADER)
+				.next()
+				.map(|header| header_prelude(&text_of(header)))
+		});
+	let (publisher, released) = match header_line.as_deref() {
+		Some(line) => match line.split_once('·') {
 			Some((p, r)) => (non_empty(p.trim().to_string()), parse_released_date(r)),
 			None => (None, None),
 		},
@@ -406,14 +423,22 @@ pub fn parse_issue_page(html: &str) -> IssuePage {
 	};
 
 	let details = doc.select(&sel::PAGE_DETAILS).next();
+	// Every paragraph, not just the first. LOCG splits a description across several: the
+	// hook, the detail, and — on a collected edition — the "Collecting …" list, which is
+	// the single most useful paragraph for an omnibus and was being dropped.
 	let summary = details.and_then(|d| {
-		d.select(&sel::PAGE_DETAILS_SUMMARY)
-			.next()
+		let paragraphs: Vec<String> = d
+			.select(&sel::PAGE_DETAILS_SUMMARY)
 			.map(text_of)
-			.and_then(non_empty)
+			.filter(|text| !text.trim().is_empty())
+			.collect();
+		non_empty(paragraphs.join("\n\n"))
 	});
-	// The details block is a run of text: "Comic · 44 pages · $4.99 Cover Date …".
-	let page_count = details.and_then(|d| parse_page_count(&text_of(d)));
+	// The details block is a run of text: "Comic · 44 pages · $4.99 Cover Date …", or
+	// "Hardcover · 880 pages · $100.00 … ISBN 9781302925291" for a collected edition.
+	let details_text = details.map(|d| text_of(d));
+	let page_count = details_text.as_deref().and_then(parse_page_count);
+	let isbn = details_text.as_deref().and_then(parse_isbn);
 
 	let series_link = doc.select(&sel::PAGE_SERIES_LINK).next();
 	let series_href = series_link.and_then(|l| l.value().attr("href"));
@@ -440,6 +465,7 @@ pub fn parse_issue_page(html: &str) -> IssuePage {
 		released,
 		summary,
 		page_count,
+		isbn,
 		cover_url: doc
 			.select(&sel::PAGE_OG_IMAGE)
 			.next()
@@ -480,18 +506,93 @@ pub fn parse_issue_page(html: &str) -> IssuePage {
 	page
 }
 
-/// Pull the page count out of the details run: "Comic · 44 pages · $4.99".
+/// Everything in a header before the title line.
 ///
-/// Takes the **first** "N pages" it sees, which is the issue-level figure; the
-/// per-story count later in the document is usually a little smaller.
+/// The header renders as "Marvel Comics · Released Sep 23, 2020 Absolute Carnage
+/// Omnibus HC" once tags are stripped, so the publisher/date part is whatever precedes
+/// the heading text. Splitting on the interpunct alone would swallow the title into the
+/// date.
+fn header_prelude(header_text: &str) -> String {
+	// The release date ends at a 4-digit year; anything after that is the title.
+	match regex_free_year_end(header_text) {
+		Some(end) => header_text[..end].trim().to_string(),
+		None => header_text.to_string(),
+	}
+}
+
+/// Index just past the first 4-digit run in `text`, if any.
+fn regex_free_year_end(text: &str) -> Option<usize> {
+	let bytes = text.as_bytes();
+	let mut run = 0usize;
+	for (idx, byte) in bytes.iter().enumerate() {
+		if byte.is_ascii_digit() {
+			run += 1;
+			if run == 4 {
+				// Not part of a longer number (an ISBN, say).
+				let next_is_digit =
+					bytes.get(idx + 1).is_some_and(|b| b.is_ascii_digit());
+				if !next_is_digit {
+					return Some(idx + 1);
+				}
+			}
+		} else {
+			run = 0;
+		}
+	}
+	None
+}
+
+/// Pull an ISBN out of the details run: "… ISBN 9781302925291 …".
+///
+/// Only digits and `X` are kept, so a hyphenated ISBN-13 normalizes to the same form
+/// Longbox stores.
+fn parse_isbn(details_text: &str) -> Option<String> {
+	let idx = details_text.find("ISBN")?;
+	let tail = &details_text[idx + 4..];
+	let digits: String = tail
+		.chars()
+		.skip_while(|c| !c.is_ascii_alphanumeric())
+		.take_while(|c| c.is_ascii_digit() || *c == '-' || *c == 'X' || *c == 'x')
+		.filter(|c| *c != '-')
+		.collect();
+	(digits.len() >= 10).then_some(digits)
+}
+
+/// Pull the page count out of the details run: "Hardcover · 880 pages · $100.00".
+///
+/// The number has to be **adjacent** to the word. Taking the first `" pages"` and
+/// scanning backwards for digits reads the wrong number whenever the summary happens to
+/// end in the word: Absolute Carnage Omnibus describes "VENOM #16-20; and the EVERYONE
+/// IS A TARGET stinger pages", which yielded a 20-page omnibus instead of an 880-page
+/// one.
+///
+/// Takes the first adjacent match, which is the issue-level figure; the per-story counts
+/// that follow are smaller and not what a book's page count means.
 fn parse_page_count(details_text: &str) -> Option<i32> {
 	let lower = details_text.to_lowercase();
-	let idx = lower.find(" pages")?;
-	lower[..idx]
-		.rsplit(|c: char| !c.is_ascii_digit())
-		.find(|t| !t.is_empty())?
-		.parse::<i32>()
-		.ok()
+	let bytes = lower.as_bytes();
+	let mut from = 0usize;
+
+	while let Some(found) = lower[from..].find("pages") {
+		let at = from + found;
+		// Walk back over any whitespace between the number and the word.
+		let mut cursor = at;
+		while cursor > 0 && bytes[cursor - 1].is_ascii_whitespace() {
+			cursor -= 1;
+		}
+		let digits_end = cursor;
+		while cursor > 0 && bytes[cursor - 1].is_ascii_digit() {
+			cursor -= 1;
+		}
+		if cursor < digits_end {
+			if let Ok(count) = lower[cursor..digits_end].parse::<i32>() {
+				return Some(count);
+			}
+		}
+		from = at + "pages".len();
+	}
+
+	None
 }
 
 /// Convert a Unix timestamp to a calendar date.

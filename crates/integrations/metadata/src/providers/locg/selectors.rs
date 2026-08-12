@@ -104,9 +104,16 @@ pub static SERIES_HEADER_INTRO: LazyLock<Selector> =
 /// "{Series} #{number}" — the only source of the issue number.
 pub static PAGE_TITLE: LazyLock<Selector> =
 	LazyLock::new(|| sel("section#comic-header h1"));
-/// Publisher + "Released Oct 9, 2024" line above the title.
+/// Publisher + "Released Oct 9, 2024" line above the title, on a single issue.
+///
+/// **Absent on collected editions** — trades and omnibuses put the same text straight
+/// into the header section. [`PAGE_HEADER`] is the fallback, and losing that fallback
+/// silently drops the publisher and release date on most of a trade library.
 pub static PAGE_HEADER_INTRO: LazyLock<Selector> =
 	LazyLock::new(|| sel("section#comic-header div.header-intro"));
+/// The whole header section, for pages with no `div.header-intro`.
+pub static PAGE_HEADER: LazyLock<Selector> =
+	LazyLock::new(|| sel("section#comic-header"));
 /// Summary, format, page count, price, cover date, UPC and SKU all live here as
 /// loosely-structured text rather than labelled fields.
 pub static PAGE_DETAILS: LazyLock<Selector> =
@@ -170,6 +177,7 @@ mod tests {
 			&SERIES_HEADER_INTRO,
 			&PAGE_TITLE,
 			&PAGE_HEADER_INTRO,
+			&PAGE_HEADER,
 			&PAGE_DETAILS,
 			&PAGE_DETAILS_SUMMARY,
 			&PAGE_OG_IMAGE,

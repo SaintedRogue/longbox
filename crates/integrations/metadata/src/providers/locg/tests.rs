@@ -22,6 +22,10 @@ const SERIES_DETAIL: &str = include_str!("fixtures/series_detail.json");
 const RELEASES: &str = include_str!("fixtures/releases.json");
 const AJAX_ISSUES: &str = include_str!("fixtures/ajax_issues.html");
 const ISSUE_PAGE: &str = include_str!("fixtures/issue_page.html");
+/// A collected edition: Absolute Carnage Omnibus HC. Structurally different from a
+/// single issue -- no `div.header-intro`, an ISBN instead of a UPC, and 34 story-level
+/// credit blocks rather than one.
+const COLLECTED_EDITION_PAGE: &str = include_str!("fixtures/collected_edition_page.html");
 /// A series listing requested with the collected-edition formats: two regular issues
 /// plus three real "Vol. N HC/TP" editions LOCG files under the same series.
 const SERIES_EDITIONS: &str = include_str!("fixtures/series_editions.json");
@@ -266,6 +270,24 @@ fn parses_the_issue_page() {
 	assert!(summary.starts_with("Batman legend Scott Snyder"));
 }
 
+/// The page count must come from a number *adjacent* to the word.
+///
+/// Absolute Carnage Omnibus' summary ends "…VENOM #16-20; and the EVERYONE IS A TARGET
+/// stinger pages". Taking the first `" pages"` and scanning back for digits turned an
+/// 880-page omnibus into a 20-page one — a plausible-looking number, which is the kind
+/// of wrong that survives review.
+#[test]
+fn page_count_ignores_the_word_pages_in_prose() {
+	let page = parse::parse_issue_page(COLLECTED_EDITION_PAGE);
+	assert_eq!(page.page_count, Some(880));
+
+	let summary = page.summary.expect("a summary");
+	assert!(
+		summary.contains("stinger pages"),
+		"the fixture must still contain the phrase that caused this, got {summary:?}"
+	);
+}
+
 #[test]
 fn page_count_is_the_issue_level_number_not_the_per_story_one() {
 	// The page reports both: 44 pages for the issue, 42 for the story inside it.
@@ -325,6 +347,63 @@ fn maps_page_credits_into_the_metadata_fields() {
 			buckets.editors
 		);
 	}
+}
+
+/// A collected edition's page must yield as much as a single issue's.
+///
+/// This is the shape most of a trade-heavy library is made of, and it differs from a
+/// single issue in ways that silently produced empty fields: the publisher/date line is
+/// not wrapped in `div.header-intro`, the identifier is an ISBN rather than a UPC, and
+/// the credits are spread over 34 story blocks instead of one.
+#[test]
+fn parses_a_collected_edition_page() {
+	let page = parse::parse_issue_page(COLLECTED_EDITION_PAGE);
+
+	assert_eq!(page.heading.as_deref(), Some("Absolute Carnage Omnibus HC"));
+	assert_eq!(
+		page.publisher.as_deref(),
+		Some("Marvel Comics"),
+		"the publisher is in #comic-header but not inside div.header-intro here"
+	);
+	assert_eq!(
+		page.released.map(parse::date_parts),
+		Some((23, 9, 2020)),
+		"'Released Sep 23, 2020' has to be found without the header-intro wrapper"
+	);
+	assert_eq!(page.page_count, Some(880), "the page says 880 pages");
+	assert_eq!(
+		page.isbn.as_deref(),
+		Some("9781302925291"),
+		"collected editions carry an ISBN, which is a field Longbox can actually store"
+	);
+
+	let summary = page.summary.expect("a summary");
+	assert!(
+		summary.starts_with("Lethal killer Cletus Kasady"),
+		"got {summary:?}"
+	);
+
+	// Credits are aggregated across every story block on the page.
+	let buckets = roles::bucket_credits(
+		page.credits
+			.iter()
+			.map(|(role, name)| (role.as_str(), name.as_str())),
+	);
+	assert!(
+		buckets.writers.contains(&"Donny Cates".to_string()),
+		"writers: {:?}",
+		buckets.writers
+	);
+	assert!(
+		buckets.cover_artists.contains(&"Ryan Stegman".to_string()),
+		"cover artists: {:?}",
+		buckets.cover_artists
+	);
+	assert!(
+		buckets.letterers.contains(&"Clayton Cowles".to_string()),
+		"letterers: {:?}",
+		buckets.letterers
+	);
 }
 
 // ---------------------------------------------------------------------------
@@ -850,6 +929,76 @@ fn parses_collected_editions_from_a_widened_series_listing() {
 	}
 }
 
+/// A search result has to arrive reviewable.
+///
+/// Search cards carry a title, publisher, cover and date. Everything a reviewer compares
+/// — summary, page count, ISBN, credits, characters — is only on the detail page, so an
+/// unhydrated candidate renders as a column of dashes. That is exactly what a real review
+/// of an omnibus looked like before this.
+#[tokio::test]
+async fn search_candidates_arrive_hydrated_from_their_detail_page() {
+	let server = MockServer::start().await;
+	mock_successful_login(&server).await;
+	// The unnumbered route consults both the series listing and the quick search.
+	Mock::given(method("GET"))
+		.and(path("/comic/get_comics"))
+		.respond_with(
+			ResponseTemplate::new(200)
+				.insert_header("content-type", "application/json")
+				.set_body_string(SERIES_SEARCH),
+		)
+		.mount(&server)
+		.await;
+	Mock::given(method("GET"))
+		.and(path("/search/ajax_issues"))
+		.respond_with(
+			ResponseTemplate::new(200)
+				.insert_header("content-type", "text/html")
+				.set_body_string(AJAX_ISSUES),
+		)
+		.mount(&server)
+		.await;
+	// Any issue page resolves to the collected-edition fixture, so a hydrated candidate
+	// must carry that page's fields rather than the card's.
+	Mock::given(method("GET"))
+		.and(wiremock::matchers::path_regex(r"^/comic/\d+/x$"))
+		.respond_with(
+			ResponseTemplate::new(200)
+				.insert_header("content-type", "text/html")
+				.set_body_string(COLLECTED_EDITION_PAGE),
+		)
+		.mount(&server)
+		.await;
+
+	let query = SearchQuery {
+		title: "Absolute Carnage Omnibus".to_string(),
+		limit: Some(3),
+		..Default::default()
+	};
+	let candidates = test_client(&server)
+		.search_media(&query)
+		.await
+		.expect("search succeeds");
+
+	assert!(!candidates.is_empty());
+	let top = match &candidates[0].metadata {
+		ExternalMetadata::Media(media) => media,
+		other => panic!("expected media metadata, got {other:?}"),
+	};
+
+	assert_eq!(
+		top.page_count,
+		Some(880),
+		"page count only exists on the page"
+	);
+	assert_eq!(top.isbn.as_deref(), Some("9781302925291"));
+	assert!(top.summary.is_some(), "summary only exists on the page");
+	assert!(
+		top.writers.as_ref().is_some_and(|w| !w.is_empty()),
+		"credits only exist on the page"
+	);
+}
+
 #[tokio::test]
 async fn search_media_with_a_number_resolves_the_series_then_the_issue() {
 	let server = MockServer::start().await;
@@ -1126,4 +1275,27 @@ async fn live_search_finds_a_collected_edition() {
 		}
 		assert!(!candidates.is_empty(), "no candidates for {title}");
 	}
+}
+
+#[ignore = "Requires LOCG_CREDENTIALS env var and hits the live site"]
+#[tokio::test]
+async fn live_fetch_the_absolute_carnage_omnibus() {
+	// The exact page that showed a column of dashes in review.
+	let media = live_client().fetch_media_metadata("6266160").await.unwrap();
+	println!("{media:#?}");
+
+	assert_eq!(media.publisher.as_deref(), Some("Marvel Comics"));
+	assert_eq!(media.page_count, Some(880));
+	assert_eq!(media.isbn.as_deref(), Some("9781302925291"));
+	assert_eq!(
+		(media.day, media.month, media.year),
+		(Some(23), Some(9), Some(2020))
+	);
+	assert!(media.summary.is_some_and(|s| s.contains("Collecting")));
+	assert!(media
+		.writers
+		.is_some_and(|w| w.contains(&"Donny Cates".to_string())));
+	assert!(media
+		.cover_artists
+		.is_some_and(|c| c.contains(&"Ryan Stegman".to_string())));
 }
