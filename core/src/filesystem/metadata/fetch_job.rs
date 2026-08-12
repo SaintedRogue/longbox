@@ -50,10 +50,18 @@ pub enum MetadataFetchScope {
 /// these statuses — the scheduled metadata retry does exactly that — must set
 /// `force_refetch`, or it will skip precisely the records it was asked to retry. See
 /// [`MetadataFetchJobParams::retry_media`].
-pub const SKIP_STATUSES: [MetadataFetchStatus; 3] = [
+pub const SKIP_STATUSES: [MetadataFetchStatus; 4] = [
 	MetadataFetchStatus::AwaitingReview,
 	MetadataFetchStatus::Fetched,
 	MetadataFetchStatus::RateLimited,
+	// A previous search found nothing. Retrying is worth doing *deliberately* — a
+	// provider may have catalogued the book since — but not incidentally: a scan that
+	// adds one file enqueues a library-wide fetch, and without this entry that walk
+	// re-searches every unmatched book in the library against every enabled provider.
+	// On a large library that is hundreds of requests triggered by a single dropped
+	// file. The deliberate paths remain: the scheduled retry (configure it with
+	// `NoMatch`), a forced re-fetch, or "Find match" on the book itself.
+	MetadataFetchStatus::NoMatch,
 ];
 
 /// Parameters for the metadata fetch job
@@ -971,7 +979,9 @@ async fn resolve_library_type(
 
 #[cfg(test)]
 mod tests {
-	use super::all_budgets_exhausted;
+	use super::{
+		all_budgets_exhausted, MetadataFetchJobParams, MetadataFetchStatus, SKIP_STATUSES,
+	};
 
 	#[test]
 	fn defers_only_when_every_provider_is_exhausted() {
@@ -992,5 +1002,39 @@ mod tests {
 		]));
 		// No providers at all is handled upstream; the gate must not fire.
 		assert!(!all_budgets_exhausted(&[]));
+	}
+
+	/// Regression test for scan amplification.
+	///
+	/// A scan that creates any media enqueues a library-wide metadata fetch. While
+	/// `NoMatch` was absent from `SKIP_STATUSES`, that walk re-searched every
+	/// previously-unmatched book in the library against every enabled provider -- so
+	/// adding one file to a large library cost hundreds of provider requests, none of
+	/// which anyone asked for.
+	///
+	/// The three assertions together are the behaviour: a scan-driven scope does not
+	/// force, `NoMatch` is skipped when not forcing, and the deliberate retry path still
+	/// reaches those records because it does force.
+	#[test]
+	fn a_scan_does_not_re_search_the_unmatched_backlog() {
+		assert!(
+			SKIP_STATUSES.contains(&MetadataFetchStatus::NoMatch),
+			"an unmatched book must not be re-searched by an incidental library walk"
+		);
+
+		for params in [
+			MetadataFetchJobParams::media_in_library("lib".to_string()),
+			MetadataFetchJobParams::series_in_library("lib".to_string()),
+		] {
+			assert!(
+				!params.force_refetch,
+				"scan-driven scopes must not force, or the skip list is bypassed anyway"
+			);
+		}
+
+		assert!(
+			MetadataFetchJobParams::retry_media(vec!["m".to_string()]).force_refetch,
+			"a deliberate retry must still be able to revisit a NoMatch record"
+		);
 	}
 }
