@@ -10,7 +10,10 @@ use rust_decimal::prelude::FromPrimitive;
 use sea_orm::{prelude::*, IntoActiveModel, Set};
 use serde_json::Value as JsonValue;
 
-use super::enrichment::{self, ApplyActor, EnrichmentTarget};
+use super::{
+	enrichment::{self, ApplyActor, EnrichmentTarget},
+	ProviderClientCache,
+};
 use crate::CoreError;
 
 /// Apply the given match candidate to series metadata, merging fields
@@ -177,6 +180,70 @@ where
 	mark_fetch_status_accepted(conn, None, Some(media_id), candidate).await?;
 
 	Ok(())
+}
+
+/// Fetch a candidate's full metadata before it is written, when its provider's search
+/// only returns list rows.
+///
+/// Some providers' search endpoints are list views: League of Comic Geeks has no API at
+/// all, so a search result is a card with a title, publisher, cover and date. That is
+/// enough to rank a result and to show it in a list, but writing it would store a
+/// near-empty record. Auto-apply has no human in the loop to trigger the detail fetch the
+/// review dialog does, so it has to do it here — for the one candidate it is about to
+/// write, and only for providers that say they need it.
+///
+/// Returns the candidate unchanged if the provider's search is already complete, if its
+/// client cannot be built, or if the fetch fails. A thin auto-applied record is a worse
+/// outcome than a slightly stale one, but losing the match entirely is worse than both.
+pub async fn hydrate_candidate_for_apply(
+	candidate: &MatchCandidate,
+	provider_configs: &[models::entity::metadata_provider_config::Model],
+	provider_cache: &ProviderClientCache,
+	is_media: bool,
+) -> MatchCandidate {
+	let Some(config) = provider_configs
+		.iter()
+		.find(|config| config.provider_type.provider_id() == candidate.provider)
+	else {
+		return candidate.clone();
+	};
+
+	let Ok(provider) = provider_cache.get_or_create(config).await else {
+		return candidate.clone();
+	};
+
+	if !provider.search_returns_partial_metadata() {
+		return candidate.clone();
+	}
+
+	let fetched = if is_media {
+		provider
+			.fetch_media_metadata(&candidate.external_id)
+			.await
+			.map(ExternalMetadata::Media)
+	} else {
+		provider
+			.fetch_series_metadata(&candidate.external_id)
+			.await
+			.map(ExternalMetadata::Series)
+	};
+
+	match fetched {
+		Ok(metadata) => MatchCandidate {
+			metadata,
+			..candidate.clone()
+		},
+		Err(error) => {
+			tracing::warn!(
+				provider = candidate.provider,
+				external_id = candidate.external_id,
+				?error,
+				"Could not fetch full metadata before auto-apply; applying the search \
+				 result as-is"
+			);
+			candidate.clone()
+		},
+	}
 }
 
 /// Given a list of candidates and a set of provider configs, find the best
@@ -1071,6 +1138,40 @@ mod tests {
 			!fields.contains(&"STORY_ARC"),
 			"the candidate carried no story arc, so nothing may claim to have set it"
 		);
+	}
+
+	/// A provider whose search is already complete must not be charged an extra request.
+	///
+	/// `hydrate_candidate_for_apply` exists for list-view providers; every other provider
+	/// has to pass through it untouched, or auto-apply would double its request count
+	/// across a whole-library match for no benefit.
+	#[tokio::test]
+	async fn hydration_before_apply_leaves_complete_providers_alone() {
+		let conn = db::test_database().await;
+		let candidate = media_candidate("comicvine", "cv-1");
+
+		// No provider configs, so no client can be built -- the candidate must come back
+		// as-is rather than being dropped or emptied.
+		let result = hydrate_candidate_for_apply(
+			&candidate,
+			&[],
+			&ProviderClientCache::new(
+				std::sync::Arc::new(conn),
+				metadata_integrations::runtime::noop_runtime(),
+			),
+			true,
+		)
+		.await;
+
+		assert_eq!(result.provider, candidate.provider);
+		assert_eq!(result.external_id, candidate.external_id);
+		match (&result.metadata, &candidate.metadata) {
+			(ExternalMetadata::Media(got), ExternalMetadata::Media(want)) => {
+				assert_eq!(got.title, want.title);
+				assert_eq!(got.page_count, want.page_count);
+			},
+			_ => panic!("metadata kind changed"),
+		}
 	}
 
 	/// A hand-picked value is attributed to the operator and locked, so the next fetch

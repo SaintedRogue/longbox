@@ -4151,6 +4151,21 @@ export type Query = {
    */
   mediaEnrichmentPool: EnrichmentPool;
   /**
+   * The full metadata a provider holds for one of its own records.
+   *
+   * Exists because some providers' search endpoints are list views. League of Comic
+   * Geeks has no API, so a search result is a card: title, publisher, cover, date. The
+   * summary, page count, ISBN, credits and characters are only on the item's own page,
+   * which means a review grid built from search results shows a column of dashes.
+   *
+   * Rather than fetching every result's page during a search — three quarters of which
+   * nobody opens, and which on a whole-library match would add hours against a
+   * 15-requests-per-minute ceiling — the client calls this for the one candidate a
+   * person actually selected. The provider response cache makes re-opening the same
+   * review free.
+   */
+  mediaExternalMetadata: ExternalMediaMetadata;
+  /**
    * Distinct metadata values across books, for building filter controls.
    *
    * `series_id` and `library_id` are both optional and compose. Passing
@@ -4228,6 +4243,8 @@ export type Query = {
   seriesById?: Maybe<Series>;
   /** [`media_enrichment_pool`](Self::media_enrichment_pool) for a series. */
   seriesEnrichmentPool: EnrichmentPool;
+  /** [`media_external_metadata`](Self::media_external_metadata) for a series. */
+  seriesExternalMetadata: ExternalSeriesMetadata;
   /**
    * Distinct metadata values across series, for building filter controls.
    *
@@ -4476,6 +4493,12 @@ export type QueryMediaEnrichmentPoolArgs = {
 };
 
 
+export type QueryMediaExternalMetadataArgs = {
+  externalId: Scalars['String']['input'];
+  provider: MetadataProvider;
+};
+
+
 export type QueryMediaMetadataOverviewArgs = {
   libraryId?: InputMaybe<Scalars['ID']['input']>;
   seriesId?: InputMaybe<Scalars['ID']['input']>;
@@ -4573,6 +4596,12 @@ export type QuerySeriesByIdArgs = {
 
 export type QuerySeriesEnrichmentPoolArgs = {
   id: Scalars['ID']['input'];
+};
+
+
+export type QuerySeriesExternalMetadataArgs = {
+  externalId: Scalars['String']['input'];
+  provider: MetadataProvider;
 };
 
 
@@ -6010,6 +6039,22 @@ export type RejectAllPendingMatchesMutationVariables = Exact<{ [key: string]: ne
 
 
 export type RejectAllPendingMatchesMutation = { __typename?: 'Mutation', rejectAllPendingMatches: number };
+
+export type MediaExternalMetadataQueryVariables = Exact<{
+  provider: MetadataProvider;
+  externalId: Scalars['String']['input'];
+}>;
+
+
+export type MediaExternalMetadataQuery = { __typename?: 'Query', mediaExternalMetadata: { __typename?: 'ExternalMediaMetadata', title?: string | null, summary?: string | null, pageCount?: number | null, seriesName?: string | null, seriesExternalId?: string | null, number?: number | null, numberRaw?: string | null, day?: number | null, month?: number | null, year?: number | null, genres?: Array<string> | null, tags?: Array<string> | null, isbn?: string | null, isbn13?: string | null, writers?: Array<string> | null, artists?: Array<string> | null, colorists?: Array<string> | null, letterers?: Array<string> | null, coverArtists?: Array<string> | null, pencillers?: Array<string> | null, inkers?: Array<string> | null, editors?: Array<string> | null, characters?: Array<string> | null, teams?: Array<string> | null, storyArc?: string | null, imprint?: string | null, publisher?: string | null, coverUrl?: string | null, providerUrl?: string | null } };
+
+export type SeriesExternalMetadataQueryVariables = Exact<{
+  provider: MetadataProvider;
+  externalId: Scalars['String']['input'];
+}>;
+
+
+export type SeriesExternalMetadataQuery = { __typename?: 'Query', seriesExternalMetadata: { __typename?: 'ExternalSeriesMetadata', title: string, summary?: string | null, status?: PublicationStatus | null, year?: number | null, endYear?: number | null, genres?: Array<string> | null, tags?: Array<string> | null, ageRating?: string | null, authors?: Array<string> | null, artists?: Array<string> | null, publisher?: string | null, coverUrl?: string | null, volumeCount?: number | null } };
 
 export type MediaEnrichmentPoolQueryVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -8661,6 +8706,60 @@ export const RejectAllPendingMatchesDocument = new TypedDocumentString(`
   rejectAllPendingMatches
 }
     `) as unknown as TypedDocumentString<RejectAllPendingMatchesMutation, RejectAllPendingMatchesMutationVariables>;
+export const MediaExternalMetadataDocument = new TypedDocumentString(`
+    query MediaExternalMetadata($provider: MetadataProvider!, $externalId: String!) {
+  mediaExternalMetadata(provider: $provider, externalId: $externalId) {
+    title
+    summary
+    pageCount
+    seriesName
+    seriesExternalId
+    number
+    numberRaw
+    day
+    month
+    year
+    genres
+    tags
+    isbn
+    isbn13
+    writers
+    artists
+    colorists
+    letterers
+    coverArtists
+    pencillers
+    inkers
+    editors
+    characters
+    teams
+    storyArc
+    imprint
+    publisher
+    coverUrl
+    providerUrl
+  }
+}
+    `) as unknown as TypedDocumentString<MediaExternalMetadataQuery, MediaExternalMetadataQueryVariables>;
+export const SeriesExternalMetadataDocument = new TypedDocumentString(`
+    query SeriesExternalMetadata($provider: MetadataProvider!, $externalId: String!) {
+  seriesExternalMetadata(provider: $provider, externalId: $externalId) {
+    title
+    summary
+    status
+    year
+    endYear
+    genres
+    tags
+    ageRating
+    authors
+    artists
+    publisher
+    coverUrl
+    volumeCount
+  }
+}
+    `) as unknown as TypedDocumentString<SeriesExternalMetadataQuery, SeriesExternalMetadataQueryVariables>;
 export const MediaEnrichmentPoolDocument = new TypedDocumentString(`
     query MediaEnrichmentPool($id: ID!) {
   mediaEnrichmentPool(id: $id) {

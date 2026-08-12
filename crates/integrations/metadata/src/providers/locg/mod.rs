@@ -117,15 +117,6 @@ const ISSUE_ONLY_FORMATS: &[&str] = &["1", "6"];
 /// always logged — never silent.
 const MAX_SERIES_RESOLUTIONS_PER_SWEEP: usize = 40;
 
-/// How many search results get their full detail page fetched.
-///
-/// Everything worth comparing about an issue — summary, page count, ISBN, credits,
-/// characters — exists only on the detail page, so a candidate has to be hydrated to be
-/// reviewable. Each one is a page fetch against a blind rate limit, and a reviewer looks
-/// at the first few, so three is the balance. The response cache makes a second look at
-/// the same match free.
-const MAX_HYDRATED_CANDIDATES: usize = 3;
-
 /// How many same-titled series a single `search_media` call will pull issues from.
 ///
 /// Each one costs a request, and LOCG's alphabetical ordering means the first hit is
@@ -494,48 +485,6 @@ impl LocgClient {
 		Ok(path)
 	}
 
-	/// Replace the top candidates' card data with their full detail-page metadata.
-	///
-	/// A search card carries a title, publisher, cover and date — and nothing else. The
-	/// summary, page count, ISBN, characters and every credit live only on the detail
-	/// page, so an unhydrated candidate shows up in a review grid as a column of dashes
-	/// and is worth almost nothing to compare against. Metron's `search_series` hydrates
-	/// per hit for the same reason.
-	///
-	/// Bounded to [`MAX_HYDRATED_CANDIDATES`] because each one is a page fetch against a
-	/// blind rate limit. The runtime's response cache makes re-opening the same review
-	/// free. A failure leaves that candidate's card data in place rather than dropping
-	/// it: a thin candidate still matches, and losing a real result to a transient error
-	/// would be worse than showing less about it.
-	async fn hydrate_top_candidates(&self, candidates: &mut [MatchCandidate]) {
-		for candidate in candidates.iter_mut().take(MAX_HYDRATED_CANDIDATES) {
-			match self.fetch_media_metadata(&candidate.external_id).await {
-				Ok(detailed) => {
-					// Keep the card's series id when the page did not resolve one, so
-					// hydrating never loses information the card already had.
-					let series_external_id = match &candidate.metadata {
-						ExternalMetadata::Media(card) => detailed
-							.series_external_id
-							.clone()
-							.or_else(|| card.series_external_id.clone()),
-						_ => detailed.series_external_id.clone(),
-					};
-					candidate.metadata = ExternalMetadata::Media(ExternalMediaMetadata {
-						series_external_id,
-						..detailed
-					});
-				},
-				Err(error) => {
-					tracing::debug!(
-						external_id = candidate.external_id,
-						?error,
-						"Could not hydrate LOCG candidate; keeping its card data"
-					);
-				},
-			}
-		}
-	}
-
 	/// The parent series id for an issue, read off its detail page. Used by the release
 	/// sweep, where cards carry no series id of their own.
 	async fn issue_page_series_id(
@@ -731,6 +680,13 @@ impl MetadataProvider for LocgClient {
 		"locg"
 	}
 
+	/// LOCG's search endpoints return list markup: a card carries a title, publisher,
+	/// cover and date, and nothing that a reviewer actually compares. Callers that will
+	/// store a candidate have to fetch its page first.
+	fn search_returns_partial_metadata(&self) -> bool {
+		true
+	}
+
 	fn name(&self) -> &'static str {
 		"League of Comic Geeks"
 	}
@@ -886,7 +842,6 @@ impl MetadataProvider for LocgClient {
 		// match to keep whichever route happened to run first.
 		let mut scored = self.score_search(query, candidates);
 		scored.truncate(limit);
-		self.hydrate_top_candidates(&mut scored).await;
 		Ok(scored)
 	}
 

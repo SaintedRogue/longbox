@@ -232,6 +232,17 @@ pub async fn fetch_series_metadata(
 				confidence = candidate.confidence,
 				"Auto-applying series metadata match"
 			);
+			// Auto-apply writes with no human present, so nothing else will trigger the
+			// detail fetch a reviewer's click does. Providers whose search is already
+			// complete return the candidate untouched and pay nothing.
+			let candidate = apply::hydrate_candidate_for_apply(
+				&candidate,
+				&provider_configs,
+				provider_cache,
+				false,
+			)
+			.await;
+
 			if let Err(e) = apply::apply_series_match(
 				conn,
 				series_id,
@@ -458,6 +469,15 @@ pub async fn fetch_media_metadata(
 				confidence = candidate.confidence,
 				"Auto-applying media metadata match"
 			);
+			// See the series path: hydrate the one candidate about to be written.
+			let candidate = apply::hydrate_candidate_for_apply(
+				&candidate,
+				&provider_configs,
+				provider_cache,
+				true,
+			)
+			.await;
+
 			if let Err(e) = apply::apply_media_match(
 				conn,
 				media_id,
