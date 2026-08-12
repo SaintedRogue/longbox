@@ -228,12 +228,21 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--only", action="append", help="capture just this screen (repeatable)")
     parser.add_argument(
+        "--install",
+        action="store_true",
+        help="quantise the scratch captures into docs/public and exit",
+    )
+    parser.add_argument(
         "--theme",
         default="dark",
         choices=["dark", "light"],
         help="which app theme to capture",
     )
     args = parser.parse_args()
+
+    if args.install:
+        install()
+        return
 
     env = read_env()
     base_url = resolve_base_url(env)
@@ -273,8 +282,6 @@ def main() -> None:
             browser.close()
 
 
-if __name__ == "__main__":
-    main()
 
 
 def compose_hero(playwright, desktop: pathlib.Path, phone: pathlib.Path, out: pathlib.Path) -> None:
@@ -306,3 +313,73 @@ def compose_hero(playwright, desktop: pathlib.Path, phone: pathlib.Path, out: pa
         print(f"  {out.name:24s} {out.stat().st_size // 1024:5d} KB  composite")
     finally:
         browser.close()
+
+
+# Palette-quantised PNG is what keeps these files reasonable: the hero is mostly
+# comic covers, and lossless full-colour PNG of that is ~2 MB. At 256 colours the
+# mean channel error is under 2/255 and the result is indistinguishable at 1:1, for
+# roughly a quarter of the bytes. Resolution is kept instead — a crisp 537 KB image
+# beats a soft 448 KB one.
+MAX_ASSET_BYTES = 600 * 1024
+
+# Which captures become committed assets, and under what name.
+INSTALL = {
+    "landing-dark.png": "images/landing-dark.png",
+    "landing-light.png": "images/landing-light.png",
+    "omnibus-shelf.png": "images/omnibus-shelf.png",
+    "library-browse.png": "images/library-browse.png",
+    "book-detail.png": "images/book-detail.png",
+}
+
+
+# Above this width a capture is downscaled before quantising. The raw desktop
+# captures are 3200px (1600 at 2x) and quantise to ~1.7 MB when they are a grid of
+# two dozen covers — far more resolution than a docs page displaying them under
+# 1000px can use. 1600px keeps a 1.6x buffer for retina and lands the densest screen
+# in the set at 579 KB; 1800px puts it at 726 KB for no visible gain. The hero
+# composite is 2180px and stays native, because it is the one image someone looks at
+# closely.
+WIDTH_CAP = 2200
+TARGET_WIDTH = 1600
+
+
+def optimise(source: pathlib.Path, destination: pathlib.Path) -> None:
+    from PIL import Image
+
+    with Image.open(source) as image:
+        rgb = image.convert("RGB")
+        if rgb.width > WIDTH_CAP:
+            height = round(TARGET_WIDTH * rgb.height / rgb.width)
+            rgb = rgb.resize((TARGET_WIDTH, height), Image.LANCZOS)
+        quantised = rgb.quantize(colors=256, method=Image.MEDIANCUT)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        quantised.save(destination, optimize=True)
+
+    size = destination.stat().st_size
+    if size > MAX_ASSET_BYTES:
+        raise SystemExit(
+            f"{destination.name} is {size // 1024} KB, over the "
+            f"{MAX_ASSET_BYTES // 1024} KB budget"
+        )
+    print(f"  {destination.name:28s} {size // 1024:5d} KB")
+
+
+def install() -> None:
+    """Quantise the scratch captures into `docs/public`."""
+    public = REPO / "docs" / "public"
+    missing = [name for name in INSTALL if not (SCRATCH / name).exists()]
+    if missing:
+        raise SystemExit(f"missing captures: {', '.join(missing)} — run a capture first")
+
+    for name, target in INSTALL.items():
+        optimise(SCRATCH / name, public / target)
+
+    # The social card is written straight to docs/public by branding.py, so it is
+    # quantised in place rather than copied.
+    card = public / "og.png"
+    if card.exists():
+        optimise(card, card)
+
+
+if __name__ == "__main__":
+    main()

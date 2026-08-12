@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  <img alt="Screenshot of Longbox" src="./docs/public/images/landing-dark.png" width="90%" />
+  <img alt="Longbox on desktop and phone: a comics library browsed as series, and the same library's omnibuses on mobile" src="./docs/public/images/landing-dark.png" width="90%" />
 </p>
 
 <!-- prettier-ignore -->
