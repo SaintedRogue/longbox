@@ -123,10 +123,32 @@ export const usePrefetchLibraryBooks = () => {
 	return prefetch
 }
 
-export default function LibraryBooksSceneContainer() {
+/**
+ * A preset filter AND-ed into every query this scene makes, plus the name that keeps its
+ * cached pages, saved layout and remembered scroll position separate from the plain Books
+ * tab.
+ *
+ * This is how the Omnibuses tab is built: it is the same browse surface with
+ * `{ isOmnibus: true }` applied, which is why it gets sorting, the table view, the grid
+ * size slider and pagination without any of that being written twice. Omitting both props
+ * leaves the Books tab exactly as it was.
+ */
+export type LibraryBooksSceneProps = {
+	presetFilter?: MediaFilterInput
+	variant?: string
+	/**
+	 * What to say when nothing matches and the viewer has applied no filters of their own.
+	 * A preset-filtered view needs its own words: "do you have any books in your library?"
+	 * is the wrong question to ask someone whose library is full of books but holds no
+	 * omnibuses.
+	 */
+	emptyState?: { title: string; subtitle: string }
+}
+
+export default function LibraryBooksSceneContainer(props: LibraryBooksSceneProps) {
 	return (
 		<Suspense fallback={null}>
-			<LibraryBooksScene />
+			<LibraryBooksScene {...props} />
 		</Suspense>
 	)
 }
@@ -140,15 +162,22 @@ function getQueryKey(
 	search: string | undefined,
 	filters: MediaFilterInput[] | undefined,
 	orderBy: MediaOrderBy[] | undefined,
+	/** Keeps the Omnibuses tab's pages out of the Books tab's cache, and vice versa. */
+	viewKey = 'books',
 ): (string | object | number | MediaFilterInput[] | MediaOrderBy[] | undefined)[] {
-	return [cacheKey, libraryId, page, pageSize, search, filters, orderBy]
+	return [cacheKey, libraryId, page, pageSize, search, filters, orderBy, viewKey]
 }
 
-function LibraryBooksScene() {
+function LibraryBooksScene({ presetFilter, variant, emptyState }: LibraryBooksSceneProps) {
 	const { library } = useLibraryContext()
+	const viewKey = variant ?? 'books'
 	// Record where this list is so the library's "up" links (breadcrumbs, book -> library)
 	// return here rather than to page 1.
-	useRememberBrowsePosition(browseSceneKey.library(library.id))
+	useRememberBrowsePosition(
+		variant
+			? `${browseSceneKey.library(library.id)}:${variant}`
+			: browseSceneKey.library(library.id),
+	)
 	const {
 		filters: mediaFilters,
 		ordering,
@@ -185,7 +214,7 @@ function LibraryBooksScene() {
 
 	const [containerRef, isInView] = useIsInView<HTMLDivElement>()
 
-	const layoutKey = `library-${library.id}-books`
+	const layoutKey = `library-${library.id}-${viewKey}`
 
 	const { layoutMode, setLayout, columns, setColumns } = useBooksLayout(
 		layoutKey,
@@ -204,6 +233,7 @@ function LibraryBooksScene() {
 	const resolvedFilters = useMemo(
 		() => [
 			filters,
+			...(presetFilter ? [presetFilter] : []),
 			...(startsWith
 				? [
 						{
@@ -217,7 +247,7 @@ function LibraryBooksScene() {
 					]
 				: []),
 		],
-		[filters, startsWith],
+		[filters, presetFilter, startsWith],
 	)
 	const prefetch = usePrefetchLibraryBooks()
 
@@ -252,6 +282,7 @@ function LibraryBooksScene() {
 			search,
 			resolvedFilters,
 			orderBy,
+			viewKey,
 		),
 		{
 			filter: {
@@ -327,12 +358,12 @@ function LibraryBooksScene() {
 									title={
 										Object.keys(filters || {}).length > 0
 											? 'No books match your search'
-											: "It doesn't look like there are any books here"
+											: (emptyState?.title ?? "It doesn't look like there are any books here")
 									}
 									subtitle={
 										Object.keys(filters || {}).length > 0
 											? 'Try removing some filters to see more books'
-											: 'Do you have any books in your library?'
+											: (emptyState?.subtitle ?? 'Do you have any books in your library?')
 									}
 								/>
 							</div>

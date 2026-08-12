@@ -1805,6 +1805,11 @@ input MediaFilterInput {
 	really the library's loose-file bucket. `false` inverts it.
 	"""
 	isStandalone: Boolean = null
+	"""
+	`true` keeps only omnibuses — books whose name, metadata title, metadata format, or
+	series name says so. `false` inverts it.
+	"""
+	isOmnibus: Boolean = null
 	status: FieldFilterFileStatus = null
 	path: FieldFilterString = null
 	pages: NumericFilterI32 = null
@@ -2815,50 +2820,6 @@ type OffsetPaginationInfo {
 	zeroBased: Boolean!
 }
 
-"""
-One omnibus set: a title, and the volumes of it that are on disk.
-
-The volumes travel with the set rather than behind a second query. A set holds a
-handful of books, so a page of them is on the order of a hundred rows — and carrying
-them inline makes expanding a card pure client state, with no request and no loading
-state for something the server already knows.
-"""
-type OmnibusSet {
-	"""
-	A stable identifier: `series:<id>` for a set that is a series, `title:<normalized>`
-	for loose files grouped on their name.
-	"""
-	key: String!
-	"""
-	The set's display name. For a series-backed set this is the series name verbatim,
-	matching what the Series tab shows.
-	"""
-	title: String!
-	"""
-	The series the volumes live in, when they live in one. Present even for a set keyed
-	on its title, so the client can still link through to the series.
-	"""
-	seriesId: ID
-	volumeCount: Int!
-	volumes: [Media!]!
-	"""
-	Whether the shelf this set came from was cut short by the qualifying-books ceiling.
-	
-	Set on every returned set rather than reported once, because a paginated response
-	has nowhere else to put it. It exists so an enormous library can say the shelf is
-	partial instead of presenting an incomplete collection as the whole thing.
-	"""
-	truncated: Boolean!
-}
-
-"How to order the shelf."
-enum OmnibusSetOrderBy {
-	"Alphabetical by set title — a bookshelf's natural order."
-	TITLE
-	"Newest arrival first, by the most recently added volume in each set."
-	RECENTLY_ADDED
-}
-
 enum OrderDirection {
 	ASC
 	DESC
@@ -2975,11 +2936,6 @@ type PaginatedMediaResponse {
 
 type PaginatedMissingEntityResponse {
 	nodes: [MissingEntity!]!
-	pageInfo: PaginationInfo!
-}
-
-type PaginatedOmnibusSetResponse {
-	nodes: [OmnibusSet!]!
 	pageInfo: PaginationInfo!
 }
 
@@ -3180,7 +3136,7 @@ type Query {
 	finishedReadingSessionCount: Int!
 	activeReadingSessionCount: Int!
 	mediaDiskUsage: Int!
-	media(		filter: MediaFilterInput! = {id: null, name: null, size: null, extension: null, createdAt: null, updatedAt: null, seriesId: null, bookGroupId: null, isStandalone: null, status: null, path: null, pages: null, readingStatus: null, metadata: null, series: null, tags: null, _and: null, _not: null, _or: null},
+	media(		filter: MediaFilterInput! = {id: null, name: null, size: null, extension: null, createdAt: null, updatedAt: null, seriesId: null, bookGroupId: null, isStandalone: null, isOmnibus: null, status: null, path: null, pages: null, readingStatus: null, metadata: null, series: null, tags: null, _and: null, _not: null, _or: null},
 		"Free-text search. Terms are AND-ed, and each term is matched against the book's name, its metadata title, summary, publisher, series, writers, characters and story arc, and its tags. A term that parses as a number also matches the issue number exactly. AND-ed with `filter` rather than replacing it."
 		search: String,		orderBy: [MediaOrderBy!]! = [{media: {field: NAME, direction: ASC}}],		pagination: Pagination! = {offset: {page: 1, pageSize: 20, zeroBased: false}}
 	): PaginatedMediaResponse!
@@ -3256,26 +3212,6 @@ type Query {
 	"""
 	bookGroups(libraryId: ID!): [BookGroup!]!
 	bookGroupById(id: ID!): BookGroup
-	"""
-	The omnibus sets in a library: one entry per set, with its volumes.
-	
-	Books are grouped into sets here, in the resolver, and it is the *sets* that are
-	paginated. Paginating books instead would be a smaller change and quietly wrong: a
-	page boundary would fall inside a five-volume set, the volume count would report
-	only the volumes on the current page, and the set would appear again on the next
-	one.
-	
-	A book qualifies when its own name, its metadata title, its metadata format, or its
-	series' name says "omnibus". Including the series name is what covers a flat
-	library, where the folder carries the name and the files inside it are called
-	`v01.cbz`.
-	"""
-	omnibusSets(
-		"Restrict to one library. Omitted, the shelf spans every library the caller can see."
-		libraryId: ID,
-		"Free-text match against the set title, case-insensitive."
-		search: String,		orderBy: OmnibusSetOrderBy! = TITLE,		pagination: Pagination! = {offset: {page: 1, pageSize: 20, zeroBased: false}}
-	): PaginatedOmnibusSetResponse!
 	"Series ids the viewer follows."
 	followedSeriesIds: [ID!]!
 	"""
