@@ -22,6 +22,7 @@ pub(crate) mod media;
 mod media_metadata_overview;
 mod metadata_provider;
 mod notifier;
+mod omnibus;
 mod organize;
 pub(crate) mod reading_list;
 mod release_calendar;
@@ -58,6 +59,7 @@ use media::MediaQuery;
 use media_metadata_overview::MediaMetadataOverviewQuery;
 use metadata_provider::MetadataProviderQuery;
 use notifier::NotifierQuery;
+use omnibus::OmnibusQuery;
 use organize::OrganizeQuery;
 use reading_list::ReadingListQuery;
 use release_calendar::ReleaseCalendarQuery;
@@ -98,6 +100,7 @@ struct ContentQueries(
 	SeriesMetadataOverviewQuery,
 	OrganizeQuery,
 	BookGroupQuery,
+	OmnibusQuery,
 	ReleaseCalendarQuery,
 	SearchQuery,
 	LibraryFolderQuery,

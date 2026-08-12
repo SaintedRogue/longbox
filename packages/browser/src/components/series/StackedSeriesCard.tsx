@@ -68,6 +68,17 @@ type Props = {
 	to?: string
 	/** Skipped for destinations that are not a series, where series prefetch would be wasted. */
 	disablePrefetch?: boolean
+	/**
+	 * Makes the card a button rather than a link.
+	 *
+	 * The omnibus shelf reveals a set's volumes in place instead of navigating, and a card
+	 * that expands is a disclosure, not a destination. Wrapping the link in a button would
+	 * nest one interactive element inside another, which breaks keyboard and screen-reader
+	 * behaviour, so the element itself changes.
+	 */
+	onPress?: () => void
+	/** Disclosure state, announced when the card is an `onPress` button. */
+	isExpanded?: boolean
 }
 
 export function StackedSeriesCard({
@@ -80,6 +91,8 @@ export function StackedSeriesCard({
 	className,
 	to,
 	disablePrefetch,
+	onPress,
+	isExpanded,
 }: Props) {
 	const { isDarkVariant, getColor: getThemeColor } = useTheme()
 	const {
@@ -220,62 +233,84 @@ export function StackedSeriesCard({
 		return null
 	}
 
+	const wrapperClassName = cn(
+		'group relative block w-full',
+		!shouldFancyHover && 'hover:opacity-80',
+	)
+
+	const face = (
+		<div
+			className={cn('relative', className)}
+			style={{
+				width: cardWidth,
+				height: cardHeight,
+				borderRadius: radius,
+				backgroundColor,
+			}}
+		>
+			{/* The border is split into two, because here in the top part, the cards must go above the border for the fancy hover */}
+			<div
+				className="inset-0 border-white/10 pointer-events-none absolute z-10 border"
+				style={{
+					borderRadius: radius,
+					clipPath: `inset(0 0 ${Math.max(radius, 2)}px 0)`,
+				}}
+			/>
+			{/* here in the bottom part, the cards must sit under the border */}
+			<div
+				className="inset-0 border-white/10 pointer-events-none absolute z-50 border"
+				style={{
+					borderRadius: radius,
+					clipPath: `inset(calc(100% - ${Math.max(radius, 2)}px) 0 0 0)`,
+				}}
+			/>
+
+			<div
+				className="inset-0 pointer-events-none absolute"
+				style={{ ...gradientStyle, borderRadius: radius }}
+			/>
+
+			<div className="px-2.5 py-2 top-0 left-0 absolute z-10">
+				<Text
+					className="text-base font-bold leading-tight text-white md:text-lg line-clamp-2 text-wrap!"
+					style={{ textShadow: '2px 1px 2px rgba(0, 0, 0, 0.2)' }}
+				>
+					{name}
+				</Text>
+				<Text
+					className="mt-0.5 text-xs font-medium leading-tight md:text-sm text-white/75 line-clamp-1"
+					style={{ textShadow: '2px 1px 2px rgba(0, 0, 0, 0.2)' }}
+				>
+					{!isMissing ? subtitle : <span className="text-warning">Series Missing</span>}
+				</Text>
+			</div>
+
+			<div className="inset-0 absolute z-10" style={{ clipPath: `path('${clipPathString}')` }}>
+				{renderThumbnails()}
+			</div>
+		</div>
+	)
+
+	if (onPress) {
+		return (
+			<button
+				type="button"
+				onClick={onPress}
+				aria-expanded={isExpanded}
+				className={cn(wrapperClassName, 'cursor-pointer text-left')}
+			>
+				{face}
+			</button>
+		)
+	}
+
 	return (
 		<Link
 			to={to ?? paths.seriesOverview(id)}
-			className={cn('group relative block w-full', !shouldFancyHover && 'hover:opacity-80')}
+			className={wrapperClassName}
 			onMouseEnter={disablePrefetch ? undefined : prefetch}
 		>
-			<div
-				className={cn('relative', className)}
-				style={{
-					width: cardWidth,
-					height: cardHeight,
-					borderRadius: radius,
-					backgroundColor,
-				}}
-			>
-				{/* The border is split into two, because here in the top part, the cards must go above the border for the fancy hover */}
-				<div
-					className="inset-0 border-white/10 pointer-events-none absolute z-10 border"
-					style={{
-						borderRadius: radius,
-						clipPath: `inset(0 0 ${Math.max(radius, 2)}px 0)`,
-					}}
-				/>
-				{/* here in the bottom part, the cards must sit under the border */}
-				<div
-					className="inset-0 border-white/10 pointer-events-none absolute z-50 border"
-					style={{
-						borderRadius: radius,
-						clipPath: `inset(calc(100% - ${Math.max(radius, 2)}px) 0 0 0)`,
-					}}
-				/>
-
-				<div
-					className="inset-0 pointer-events-none absolute"
-					style={{ ...gradientStyle, borderRadius: radius }}
-				/>
-
-				<div className="px-2.5 py-2 top-0 left-0 absolute z-10">
-					<Text
-						className="text-base font-bold leading-tight text-white md:text-lg line-clamp-2 text-wrap!"
-						style={{ textShadow: '2px 1px 2px rgba(0, 0, 0, 0.2)' }}
-					>
-						{name}
-					</Text>
-					<Text
-						className="mt-0.5 text-xs font-medium leading-tight md:text-sm text-white/75 line-clamp-1"
-						style={{ textShadow: '2px 1px 2px rgba(0, 0, 0, 0.2)' }}
-					>
-						{!isMissing ? subtitle : <span className="text-warning">Series Missing</span>}
-					</Text>
-				</div>
-
-				<div className="inset-0 absolute z-10" style={{ clipPath: `path('${clipPathString}')` }}>
-					{renderThumbnails()}
-				</div>
-			</div>
+			{face}
 		</Link>
 	)
 }

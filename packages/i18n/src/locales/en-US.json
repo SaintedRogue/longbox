@@ -572,6 +572,7 @@
 	"libraryHeader": {
 		"tabs": {
 			"books": "Books",
+			"omnibuses": "Omnibuses",
 			"series": "Series",
 			"files": "Files"
 		},
@@ -2148,7 +2149,7 @@
 							"metron": "Sweep Metron releases",
 							"metronDescription": "Leave off unless Metron is reachable from this server (verify before enabling).",
 							"locg": "League of Comic Geeks",
-							"locgDescription": "Unofficial \u2014 signs in with your own account. Off unless you have acknowledged the terms."
+							"locgDescription": "Unofficial — signs in with your own account. Off unless you have acknowledged the terms."
 						}
 					},
 					"row": {
