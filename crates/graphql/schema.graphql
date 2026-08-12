@@ -828,6 +828,44 @@ input EmailerSendTo @oneOf {
 	anonymous: SendToEmail
 }
 
+"""
+Everything the review grid needs for one entity: the sources to compare, and where
+each currently-stored field came from.
+"""
+type EnrichmentPool {
+	sources: [EnrichmentSource!]!
+	fieldSources: [FieldProvenance!]!
+}
+
+"""
+One provider's view of an entity, ready to render as a column in the review grid.
+
+`payload` is flattened to JSON rather than typed: the shape differs between a book and
+a series, providers fill different subsets of it, and the grid reads it field by field.
+Typing it here would mean a GraphQL object per entity kind that duplicates
+`ExternalMediaMetadata` and drifts from it.
+"""
+type EnrichmentSource {
+	"Provider trait id (`comicvine`, `metron`, `locg`) or `manual`."
+	provider: String!
+	externalId: String
+	providerUrl: String
+	"""
+	`candidate` — stored for comparison; `linked` — the accepted match;
+	`rejected` — declined, kept so it is not offered again.
+	"""
+	state: String!
+	"`auto`, `user`, or `backfill` for a link recovered from the pre-pool columns."
+	chosenBy: String
+	confidence: Float
+	"""
+	The provider's field bag. `None` for a recovered link that predates the pool —
+	the id is known but the response was never kept, so it needs a re-fetch before it
+	can be compared.
+	"""
+	payload: JSON
+}
+
 "The visibility of a shareable entity"
 enum EntityVisibility {
 	PUBLIC
@@ -972,6 +1010,16 @@ input FieldFilterString @oneOf {
 	excludes: String
 	startsWith: String
 	endsWith: String
+}
+
+"Which source a stored field came from."
+type FieldProvenance {
+	"A `MetadataField` in its serde form, e.g. `PAGE_COUNT`."
+	field: String!
+	sourceProvider: String!
+	sourceExternalId: String
+	"`auto` or `user`."
+	chosenBy: String!
 }
 
 "The different statuses a file reference can have"
@@ -1271,6 +1319,14 @@ input LibraryConfigInput {
 	generateFileHashes: Boolean!
 	generateKoreaderHashes: Boolean!
 	processMetadata: Boolean!
+	"""
+	Let a metadata fetch fill in providers that never answered for a book.
+	
+	Defaults to off when omitted so existing clients keep the current behaviour. This
+	is *not* a force-refetch: a book keeps the match it has, and no provider that
+	already answered is asked again.
+	"""
+	metadataBackfillProviders: Boolean! = false
 	writeComicinfo: Boolean!
 	watch: Boolean!
 	libraryPattern: LibraryPattern!
@@ -3229,6 +3285,16 @@ type Query {
 	parseComicFilename(name: String!): ParsedComicFilename!
 	"Return all metadata fetch records that are awaiting user review."
 	pendingMetadataMatches: [MetadataFetchRecord!]!
+	"""
+	The enrichment pool for a book: one entry per provider that has answered, plus
+	the provenance of its stored fields.
+	
+	Ordered `linked` first so the accepted source leads the grid, then by descending
+	confidence — the order a reviewer wants to read them in.
+	"""
+	mediaEnrichmentPool(id: ID!): EnrichmentPool!
+	"[`media_enrichment_pool`](Self::media_enrichment_pool) for a series."
+	seriesEnrichmentPool(id: ID!): EnrichmentPool!
 	serverConfig: ServerConfigModel!
 	listDirectory(pagination: Pagination!, input: DirectoryListingInput): PaginatedDirectoryListingResponse!
 	smartLists(input: SmartListsInput! = {all: null, mine: true, search: null}): [SmartList!]!

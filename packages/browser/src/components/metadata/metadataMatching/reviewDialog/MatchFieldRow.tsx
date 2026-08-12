@@ -4,17 +4,23 @@ import { Undo2 } from 'lucide-react'
 import { useState } from 'react'
 
 import { type FieldComparison, resolveFieldValue } from '../types'
+import type { EnrichmentSource, FieldProvenance } from '../useEnrichmentPool'
 import { useMatchReviewStore } from '../useMatchReviewStore'
 import { FieldActionMenu } from './FieldActionMenu'
+import { FieldSourceChips } from './FieldSourceChips'
 import { FieldValue } from './FieldValue'
 import { ResolvedFieldEditor } from './ResolvedFieldEditor'
 import { getDidValuesEffectivelyChange } from './utils'
 
 type Props = {
 	comparison: FieldComparison
+	/** Providers other than the one under review, for adopting a value per field. */
+	otherSources?: EnrichmentSource[]
+	/** Where the currently-stored value came from, when we know. */
+	provenance?: FieldProvenance
 }
 
-export function MatchFieldRow({ comparison }: Props) {
+export function MatchFieldRow({ comparison, otherSources = [], provenance }: Props) {
 	const { t } = useLocaleContext()
 	const {
 		strategy,
@@ -22,6 +28,7 @@ export function MatchFieldRow({ comparison }: Props) {
 		toggleField,
 		fieldOverrides,
 		clearFieldOverride,
+		setFieldOverride,
 		getLockedFields,
 	} = useMatchReviewStore()
 	const { binding, currentValue, candidateValue, field } = comparison
@@ -54,17 +61,38 @@ export function MatchFieldRow({ comparison }: Props) {
 				},
 			)}
 		>
-			<div className="gap-1 flex items-center">
+			<div className="gap-1 flex flex-col items-start self-start">
 				<Text size="sm" className="font-medium">
 					{t(`metadataEditor.labels.${binding}`)}
 				</Text>
+				{provenance && (
+					<ToolTip
+						content={
+							provenance.chosenBy === 'user'
+								? 'You chose this value'
+								: `Applied automatically from ${provenance.sourceProvider}`
+						}
+					>
+						<Text size="xs" variant="muted" className="font-mono">
+							{provenance.sourceProvider}
+						</Text>
+					</ToolTip>
+				)}
 			</div>
 
-			<div className="min-w-0 pr-3">
+			<div className="min-w-0 pr-3 self-start">
 				<FieldValue value={currentValue} />
+				{/* The rest of the pool. Adopting one records it as your choice, which is
+				    also what locks it against the next fetch. */}
+				<FieldSourceChips
+					field={field}
+					sources={otherSources}
+					disabled={disabled}
+					onAdopt={(value) => setFieldOverride(field, { type: 'custom', value })}
+				/>
 			</div>
 
-			<div className="min-w-0 pr-3">
+			<div className="min-w-0 pr-3 self-start">
 				<FieldValue value={candidateValue} />
 			</div>
 

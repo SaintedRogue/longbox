@@ -11,6 +11,7 @@ mod config;
 mod custom_emoji;
 mod email_device;
 mod emailer;
+mod enrichment;
 mod epub;
 mod filesystem;
 mod job;
@@ -47,6 +48,7 @@ use config::ConfigQuery;
 use custom_emoji::CustomEmojiQuery;
 use email_device::EmailDeviceQuery;
 use emailer::EmailerQuery;
+use enrichment::EnrichmentQuery;
 use epub::EpubQuery;
 use filesystem::FilesystemQuery;
 use library::LibraryQuery;
@@ -111,6 +113,7 @@ struct SystemQueries(
 	LogQuery,
 	ConfigQuery,
 	MetadataProviderQuery,
+	EnrichmentQuery,
 	ServerConfigQuery,
 	FilesystemQuery,
 );

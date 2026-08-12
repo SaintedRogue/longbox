@@ -193,6 +193,7 @@ export const buildSchema = (
 				}
 			}),
 		processMetadata: z.boolean().default(true),
+		metadataBackfillProviders: z.boolean().default(false),
 		writeComicinfo: z.boolean().default(false),
 		autoOrganizeLooseFiles: z.boolean().default(false),
 		organizeCatchallSubfolders: z.boolean().default(false),
@@ -235,6 +236,7 @@ export const formDefaults = (
 	name: library?.name || '',
 	path: library?.path || '',
 	processMetadata: library?.config.processMetadata ?? true,
+	metadataBackfillProviders: library?.config.metadataBackfillProviders ?? false,
 	writeComicinfo: library?.config.writeComicinfo ?? false,
 	autoOrganizeLooseFiles: library?.config.autoOrganizeLooseFiles ?? false,
 	organizeCatchallSubfolders: library?.config.organizeCatchallSubfolders ?? false,

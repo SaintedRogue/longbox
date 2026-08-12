@@ -14,7 +14,8 @@
 
 use chrono::Utc;
 use metadata_integrations::{
-	ExternalMediaMetadata, ExternalSeriesMetadata, MatchCandidate, MetadataField,
+	ExternalMediaMetadata, ExternalMetadata, ExternalSeriesMetadata, MatchCandidate,
+	MetadataField,
 };
 use models::entity::{
 	external_metadata_link::{self, ChosenBy, LinkState, MANUAL_PROVIDER},
@@ -140,6 +141,37 @@ where
 	Ok(())
 }
 
+/// The providers that already have a link for this entity.
+///
+/// Used by the backfill mode: a book with an existing match is not re-searched by the
+/// provider that matched it, but a provider that never answered can still be asked. The
+/// state does not matter — a `candidate` row means that provider has already been given
+/// its chance, so asking again would just repeat the same request.
+pub async fn linked_providers<C>(
+	conn: &C,
+	target: EnrichmentTarget<'_>,
+) -> Result<Vec<String>, CoreError>
+where
+	C: ConnectionTrait,
+{
+	let mut query = external_metadata_link::Entity::find();
+	query = match target {
+		EnrichmentTarget::Media(id) => {
+			query.filter(external_metadata_link::Column::MediaId.eq(id))
+		},
+		EnrichmentTarget::Series(id) => {
+			query.filter(external_metadata_link::Column::SeriesId.eq(id))
+		},
+	};
+
+	Ok(query
+		.all(conn)
+		.await?
+		.into_iter()
+		.map(|link| link.provider)
+		.collect())
+}
+
 /// Record that a provider's match was applied, and attribute the fields it wrote.
 ///
 /// Three writes, in this order:
@@ -215,7 +247,14 @@ async fn upsert_link<C>(
 where
 	C: ConnectionTrait,
 {
-	let payload = serde_json::to_string(&candidate.metadata).ok();
+	// Store the *inner* field bag, not the `ExternalMetadata` enum. Serde tags the enum
+	// externally, so serializing it directly yields `{"Media": {...}}` and every reader
+	// would have to unwrap a Rust representation detail. The entity kind is already known
+	// from which id column is set.
+	let payload = match &candidate.metadata {
+		ExternalMetadata::Media(media) => serde_json::to_string(media).ok(),
+		ExternalMetadata::Series(series) => serde_json::to_string(series).ok(),
+	};
 	let now = Utc::now();
 
 	let existing = find_link(conn, target, &candidate.provider).await?;
