@@ -13,6 +13,7 @@ pub(crate) use fetch::filter_to_provider;
 pub use fetch::{fetch_media_metadata, fetch_series_metadata};
 pub use fetch_job::{
 	MetadataFetchJob, MetadataFetchJobOutput, MetadataFetchJobParams, MetadataFetchScope,
+	SKIP_STATUSES,
 };
 pub use provider_cache::{ProviderCacheError, ProviderClientCache};
 pub use release_calendar::{run_release_calendar_sync, sync_provider_releases};

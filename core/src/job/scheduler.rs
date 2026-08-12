@@ -175,6 +175,13 @@ async fn dispatch_library_scan(job: &scheduled_job::Model, ctx: &Ctx) -> CoreRes
 	Ok(())
 }
 
+/// Statuses the retry job targets when a scheduled job carries no explicit config.
+///
+/// Every entry here is also in [`SKIP_STATUSES`], which is exactly why the retry has to
+/// force the re-fetch — see `default_retry_statuses_require_forcing`.
+const DEFAULT_RETRY_STATUSES: [MetadataFetchStatus; 1] =
+	[MetadataFetchStatus::RateLimited];
+
 async fn dispatch_metadata_retry(
 	job: &scheduled_job::Model,
 	ctx: &Ctx,
@@ -184,7 +191,7 @@ async fn dispatch_metadata_retry(
 	let statuses = config
 		.as_ref()
 		.map(|c| c.statuses.clone())
-		.unwrap_or_else(|| vec![MetadataFetchStatus::RateLimited]);
+		.unwrap_or_else(|| DEFAULT_RETRY_STATUSES.to_vec());
 
 	let records = metadata_fetch_record::Entity::find()
 		.filter(metadata_fetch_record::Column::Status.is_in(statuses))
@@ -210,7 +217,9 @@ async fn dispatch_metadata_retry(
 			count = series_ids.len(),
 			"Enqueuing metadata retry for series"
 		);
-		let params = MetadataFetchJobParams::series(series_ids);
+		// `retry_*`, not the plain constructor: these records were selected *because*
+		// of their status, and those statuses are in `SKIP_STATUSES`.
+		let params = MetadataFetchJobParams::retry_series(series_ids);
 		ctx.enqueue(LongboxJob::metadata_fetch(params))
 			.await
 			.map_err(|e| CoreError::InternalError(e.to_string()))?;
@@ -221,7 +230,7 @@ async fn dispatch_metadata_retry(
 			count = media_ids.len(),
 			"Enqueuing metadata retry for media"
 		);
-		let params = MetadataFetchJobParams::media(media_ids);
+		let params = MetadataFetchJobParams::retry_media(media_ids);
 		ctx.enqueue(LongboxJob::metadata_fetch(params))
 			.await
 			.map_err(|e| CoreError::InternalError(e.to_string()))?;
@@ -236,6 +245,63 @@ mod tests {
 	use sea_orm::{ActiveModelTrait, Database, Set};
 
 	use super::*;
+	// Only the tests need this: they assert the overlap between what a retry targets
+	// and what the fetch job skips.
+	use crate::filesystem::metadata::SKIP_STATUSES;
+
+	/// Regression test for the retry-that-never-retried bug.
+	///
+	/// `dispatch_metadata_retry` selects fetch records *by status* and hands the ids to
+	/// the fetch job. The job, when not forced, skips any entity whose record status is
+	/// in `SKIP_STATUSES` — and every status worth retrying is in that list. So the
+	/// retry was skipping precisely the records it had just selected: a no-op in its
+	/// default configuration, invisible until scheduled jobs started firing at all.
+	///
+	/// This asserts the overlap that makes forcing mandatory. If someone widens
+	/// `DEFAULT_RETRY_STATUSES` to something outside `SKIP_STATUSES` the assert simply
+	/// stops applying to that entry; if someone drops the forcing, the two asserts below
+	/// fail and point at this explanation.
+	#[test]
+	fn default_retry_statuses_require_forcing() {
+		let overlapping = DEFAULT_RETRY_STATUSES
+			.iter()
+			.filter(|status| SKIP_STATUSES.contains(status))
+			.count();
+		assert_eq!(
+			overlapping,
+			DEFAULT_RETRY_STATUSES.len(),
+			"every default retry status is one the fetch job skips, so the retry must \
+			 force the re-fetch to have any effect"
+		);
+
+		assert!(
+			MetadataFetchJobParams::retry_media(vec!["media-1".to_string()])
+				.force_refetch,
+			"a media retry that does not force is a no-op"
+		);
+		assert!(
+			MetadataFetchJobParams::retry_series(vec!["series-1".to_string()])
+				.force_refetch,
+			"a series retry that does not force is a no-op"
+		);
+	}
+
+	/// The non-retry constructors must keep respecting existing outcomes: a scan-driven
+	/// fetch is not allowed to re-search a book that already has a match.
+	#[test]
+	fn ordinary_scopes_do_not_force() {
+		assert!(!MetadataFetchJobParams::media(vec!["m".to_string()]).force_refetch);
+		assert!(!MetadataFetchJobParams::series(vec!["s".to_string()]).force_refetch);
+		assert!(
+			!MetadataFetchJobParams::media_in_library("lib".to_string()).force_refetch
+		);
+		assert!(
+			!MetadataFetchJobParams::series_in_library("lib".to_string()).force_refetch
+		);
+		assert!(
+			!MetadataFetchJobParams::media_in_series("ser".to_string()).force_refetch
+		);
+	}
 
 	/// Regression test for the drop-abort bug: `JobScheduler`'s `Drop` aborts
 	/// every cron loop, so a caller that discards the handle (as the server once
