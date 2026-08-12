@@ -105,13 +105,12 @@ impl OmnibusQuery {
 		}
 
 		match order_by {
-			OmnibusSetOrderBy::Title => {
-				sets.sort_by(|a, b| a.title.to_lowercase().cmp(&b.title.to_lowercase()))
-			},
-			// Sets with no dated volume sort last rather than first, so an oddity in the
-			// data doesn't take over the top of the shelf.
+			OmnibusSetOrderBy::Title => sets.sort_by_key(|set| set.title.to_lowercase()),
+			// `Reverse` on an `Option` puts `None` last, which is what we want: a set with
+			// no dated volume is an oddity in the data and should not take over the top of
+			// the shelf.
 			OmnibusSetOrderBy::RecentlyAdded => {
-				sets.sort_by(|a, b| b.newest_added().cmp(&a.newest_added()))
+				sets.sort_by_key(|set| std::cmp::Reverse(set.newest_added()))
 			},
 		}
 
@@ -187,9 +186,15 @@ fn paginate(
 				.unwrap_or(0);
 
 			let limit = info.limit as usize;
-			let next_cursor = sets
-				.get(start + limit)
-				.map(|_| sets[start + limit - 1].key.as_id());
+			// `PaginationValidator` only rejects a zero page size on the offset variant, so
+			// a zero cursor limit reaches this far. Without the guard, the arithmetic for
+			// the last-item cursor underflows and takes the request down with it.
+			let next_cursor = (limit > 0)
+				.then(|| {
+					sets.get(start + limit)
+						.map(|_| sets[start + limit - 1].key.as_id())
+				})
+				.flatten();
 			let current_cursor = sets.get(start).map(|set| set.key.as_id());
 
 			let nodes = build(sets.into_iter().skip(start).take(limit).collect());

@@ -273,11 +273,8 @@ fn strip_one_trailing_token(value: &str) -> Option<&str> {
 		return Some(stripped);
 	}
 
-	let (head, last) = match value.rsplit_once(char::is_whitespace) {
-		Some(split) => split,
-		// A single word is the name itself; there is nothing trailing to remove.
-		None => return None,
-	};
+	// A single word is the name itself; there is nothing trailing to remove.
+	let (head, last) = value.rsplit_once(char::is_whitespace)?;
 
 	let lowered = last.to_ascii_lowercase();
 	let is_volume_marker = matches!(lowered.as_str(), "vol" | "vol." | "volume" | "v")
@@ -575,5 +572,258 @@ mod tests {
 		assert_eq!(sets.len(), 1);
 		assert_eq!(sets[0].volumes.len(), 1);
 		assert_eq!(sets[0].title, "Absolute Carnage Omnibus HC");
+	}
+}
+
+/// Tests that exercise the SQL, rather than the naming rule.
+///
+/// The pure functions above are covered without a database, but the condition
+/// [`qualifying_condition`] builds is the part that can only fail against a real schema:
+/// it filters on `media_metadata` columns reachable only through a join, and on a
+/// `series` subquery. A mistake there is an ambiguous-column or missing-join error at
+/// runtime, which no amount of string-level testing would catch.
+#[cfg(test)]
+mod sql_tests {
+	use chrono::Utc;
+	use migrations::{Migrator, MigratorTrait};
+	use models::{
+		entity::{library, library_config, media, media_metadata, series},
+		shared::enums::{
+			FileStatus, LibraryPattern, LibraryViewMode, ReadingDirection,
+			ReadingImageScaleFit, ReadingMode,
+		},
+	};
+	use sea_orm::{
+		ActiveModelTrait, Database, DatabaseConnection, EntityTrait, QueryFilter,
+		QueryOrder, Set,
+	};
+
+	use super::*;
+
+	async fn mem_db() -> DatabaseConnection {
+		let conn = Database::connect("sqlite::memory:")
+			.await
+			.expect("connects");
+		Migrator::up(&conn, None).await.expect("migrates");
+		conn
+	}
+
+	/// Libraries carry a mandatory config row, and `series.library_id` is a real foreign
+	/// key — so a scoping test cannot invent a library id.
+	async fn seed_library(conn: &DatabaseConnection, id: &str) {
+		let config = library_config::ActiveModel {
+			convert_rar_to_zip: Set(false),
+			hard_delete_conversions: Set(false),
+			default_reading_dir: Set(ReadingDirection::Ltr),
+			default_reading_mode: Set(ReadingMode::Paged),
+			default_reading_image_scale_fit: Set(ReadingImageScaleFit::Height),
+			generate_file_hashes: Set(false),
+			generate_koreader_hashes: Set(false),
+			process_metadata: Set(true),
+			watch: Set(false),
+			library_pattern: Set(LibraryPattern::SeriesBased),
+			default_library_view_mode: Set(LibraryViewMode::Series),
+			hide_series_view: Set(false),
+			skip_book_overview: Set(false),
+			process_thumbnail_colors_even_without_config: Set(false),
+			..Default::default()
+		}
+		.insert(conn)
+		.await
+		.expect("library config inserts");
+
+		library::ActiveModel {
+			id: Set(id.to_string()),
+			name: Set(format!("Library {id}")),
+			path: Set(format!("/comics/{id}")),
+			status: Set(FileStatus::Ready),
+			config_id: Set(config.id),
+			..Default::default()
+		}
+		.insert(conn)
+		.await
+		.expect("library inserts");
+	}
+
+	async fn seed_series(conn: &DatabaseConnection, id: &str, name: &str, library: &str) {
+		series::ActiveModel {
+			id: Set(id.to_string()),
+			name: Set(name.to_string()),
+			path: Set(format!("/comics/{id}")),
+			library_id: Set(Some(library.to_string())),
+			..Default::default()
+		}
+		.insert(conn)
+		.await
+		.expect("series inserts");
+	}
+
+	async fn seed_book(
+		conn: &DatabaseConnection,
+		id: &str,
+		name: &str,
+		series_id: Option<&str>,
+		format: Option<&str>,
+	) {
+		media::ActiveModel {
+			id: Set(id.to_string()),
+			name: Set(name.to_string()),
+			path: Set(format!("/comics/{id}.cbz")),
+			extension: Set("cbz".to_string()),
+			size: Set(1024),
+			pages: Set(1),
+			status: Set(FileStatus::Ready),
+			series_id: Set(series_id.map(String::from)),
+			created_at: Set(Utc::now().fixed_offset()),
+			..Default::default()
+		}
+		.insert(conn)
+		.await
+		.expect("media inserts");
+
+		media_metadata::ActiveModel {
+			media_id: Set(Some(id.to_string())),
+			format: Set(format.map(String::from)),
+			..Default::default()
+		}
+		.insert(conn)
+		.await
+		.expect("metadata inserts");
+	}
+
+	/// Run the shelf's query the way the resolver does, minus the permission scoping.
+	async fn qualifying_ids(
+		conn: &DatabaseConnection,
+		library_id: Option<&str>,
+	) -> Vec<String> {
+		let books = media::ModelWithMetadata::find()
+			.filter(media::Column::DeletedAt.is_null())
+			.filter(qualifying_condition(omnibus_series_query(library_id)))
+			.order_by_asc(media::Column::Id)
+			.into_model::<media::ModelWithMetadata>()
+			.all(conn)
+			.await
+			.expect("the shelf query runs");
+
+		books.into_iter().map(|book| book.media.id).collect()
+	}
+
+	/// The four signals, against a real schema. `metadata.format` and the `series.name`
+	/// subquery are the two that a join mistake would break.
+	#[tokio::test]
+	async fn every_signal_finds_its_book() {
+		let conn = mem_db().await;
+		seed_library(&conn, "lib-1").await;
+		seed_series(&conn, "s-omni", "Wolverine Omnibus (Marvel, 2020)", "lib-1").await;
+		seed_series(&conn, "s-plain", "Batman", "lib-1").await;
+
+		// Qualifies through its series' name, despite an unhelpful file name.
+		seed_book(&conn, "by-series", "v01.cbz", Some("s-omni"), None).await;
+		// Qualifies on its own name, inside an ordinary series.
+		seed_book(
+			&conn,
+			"by-name",
+			"Batman Omnibus Vol 1.cbz",
+			Some("s-plain"),
+			None,
+		)
+		.await;
+		// Qualifies on the ComicInfo format field alone.
+		seed_book(
+			&conn,
+			"by-format",
+			"btm-001.cbz",
+			Some("s-plain"),
+			Some("Omnibus"),
+		)
+		.await;
+		// Qualifies on nothing.
+		seed_book(&conn, "ordinary", "Batman 001.cbz", Some("s-plain"), None).await;
+
+		assert_eq!(
+			qualifying_ids(&conn, None).await,
+			["by-format", "by-name", "by-series"],
+			"the ordinary issue is excluded, and each of the three signals pulls its book in"
+		);
+	}
+
+	#[tokio::test]
+	async fn a_loose_file_with_no_series_still_qualifies() {
+		let conn = mem_db().await;
+		seed_book(&conn, "loose", "Thor Omnibus v01.cbz", None, None).await;
+
+		assert_eq!(qualifying_ids(&conn, None).await, ["loose"]);
+	}
+
+	/// Library scoping runs through the series table, because a book has no library of its
+	/// own. A book in another library must not appear.
+	#[tokio::test]
+	async fn the_series_subquery_scopes_to_one_library() {
+		let conn = mem_db().await;
+		seed_library(&conn, "lib-1").await;
+		seed_series(&conn, "s-mine", "Wolverine Omnibus", "lib-1").await;
+		seed_library(&conn, "lib-2").await;
+		seed_series(&conn, "s-theirs", "Thor Omnibus", "lib-2").await;
+		seed_book(&conn, "mine", "v01.cbz", Some("s-mine"), None).await;
+		seed_book(&conn, "theirs", "v01.cbz", Some("s-theirs"), None).await;
+
+		assert_eq!(
+			qualifying_ids(&conn, Some("lib-1")).await,
+			["mine"],
+			"the other library's omnibus is not on this library's shelf"
+		);
+	}
+
+	/// End to end: qualify, then group, with the series names the resolver would fetch.
+	#[tokio::test]
+	async fn qualifying_books_group_into_the_expected_sets() {
+		let conn = mem_db().await;
+		seed_library(&conn, "lib-1").await;
+		seed_series(&conn, "s-omni", "Wolverine Omnibus (Marvel, 2020)", "lib-1").await;
+		seed_series(&conn, "s-plain", "Batman", "lib-1").await;
+		seed_book(&conn, "w-1", "v01.cbz", Some("s-omni"), None).await;
+		seed_book(&conn, "w-2", "v02.cbz", Some("s-omni"), None).await;
+		seed_book(
+			&conn,
+			"b-1",
+			"Batman Omnibus Vol 1.cbz",
+			Some("s-plain"),
+			None,
+		)
+		.await;
+		seed_book(&conn, "b-2", "Batman 002.cbz", Some("s-plain"), None).await;
+
+		let books = media::ModelWithMetadata::find()
+			.filter(qualifying_condition(omnibus_series_query(Some("lib-1"))))
+			.order_by_asc(media::Column::Name)
+			.into_model::<media::ModelWithMetadata>()
+			.all(&conn)
+			.await
+			.expect("query runs");
+
+		let names = series::Entity::find()
+			.all(&conn)
+			.await
+			.expect("series load")
+			.into_iter()
+			.map(|row| (row.id, row.name))
+			.collect::<HashMap<_, _>>();
+
+		let sets = group_sets(books, &names);
+		let mut summary = sets
+			.iter()
+			.map(|set| (set.title.as_str(), set.volumes.len()))
+			.collect::<Vec<_>>();
+		summary.sort();
+
+		assert_eq!(
+			summary,
+			[
+				("Batman Omnibus", 1),
+				("Wolverine Omnibus (Marvel, 2020)", 2)
+			],
+			"the two-volume set collapses, and the omnibus inside Batman does not drag \
+			 the ordinary issue in with it"
+		);
 	}
 }

@@ -3766,6 +3766,51 @@ export type OffsetPaginationInfo = {
   zeroBased: Scalars['Boolean']['output'];
 };
 
+/**
+ * One omnibus set: a title, and the volumes of it that are on disk.
+ *
+ * The volumes travel with the set rather than behind a second query. A set holds a
+ * handful of books, so a page of them is on the order of a hundred rows — and carrying
+ * them inline makes expanding a card pure client state, with no request and no loading
+ * state for something the server already knows.
+ */
+export type OmnibusSet = {
+  __typename?: 'OmnibusSet';
+  /**
+   * A stable identifier: `series:<id>` for a set that is a series, `title:<normalized>`
+   * for loose files grouped on their name.
+   */
+  key: Scalars['String']['output'];
+  /**
+   * The series the volumes live in, when they live in one. Present even for a set keyed
+   * on its title, so the client can still link through to the series.
+   */
+  seriesId?: Maybe<Scalars['ID']['output']>;
+  /**
+   * The set's display name. For a series-backed set this is the series name verbatim,
+   * matching what the Series tab shows.
+   */
+  title: Scalars['String']['output'];
+  /**
+   * Whether the shelf this set came from was cut short by the qualifying-books ceiling.
+   *
+   * Set on every returned set rather than reported once, because a paginated response
+   * has nowhere else to put it. It exists so an enormous library can say the shelf is
+   * partial instead of presenting an incomplete collection as the whole thing.
+   */
+  truncated: Scalars['Boolean']['output'];
+  volumeCount: Scalars['Int']['output'];
+  volumes: Array<Media>;
+};
+
+/** How to order the shelf. */
+export enum OmnibusSetOrderBy {
+  /** Newest arrival first, by the most recently added volume in each set. */
+  RecentlyAdded = 'RECENTLY_ADDED',
+  /** Alphabetical by set title — a bookshelf's natural order. */
+  Title = 'TITLE'
+}
+
 export enum OrderDirection {
   Asc = 'ASC',
   Desc = 'DESC'
@@ -3895,6 +3940,12 @@ export type PaginatedMediaResponse = {
 export type PaginatedMissingEntityResponse = {
   __typename?: 'PaginatedMissingEntityResponse';
   nodes: Array<MissingEntity>;
+  pageInfo: PaginationInfo;
+};
+
+export type PaginatedOmnibusSetResponse = {
+  __typename?: 'PaginatedOmnibusSetResponse';
+  nodes: Array<OmnibusSet>;
   pageInfo: PaginationInfo;
 };
 
@@ -4180,6 +4231,21 @@ export type Query = {
   myBookClubInvitations: Array<BookClubInvitation>;
   numberOfLibraries: Scalars['Int']['output'];
   numberOfSeries: Scalars['Int']['output'];
+  /**
+   * The omnibus sets in a library: one entry per set, with its volumes.
+   *
+   * Books are grouped into sets here, in the resolver, and it is the *sets* that are
+   * paginated. Paginating books instead would be a smaller change and quietly wrong: a
+   * page boundary would fall inside a five-volume set, the volume count would report
+   * only the volumes on the current page, and the set would appear again on the next
+   * one.
+   *
+   * A book qualifies when its own name, its metadata title, its metadata format, or its
+   * series' name says "omnibus". Including the series name is what covers a flat
+   * library, where the folder carries the name and the files inside it are called
+   * `v01.cbz`.
+   */
+  omnibusSets: PaginatedOmnibusSetResponse;
   onDeck: PaginatedMediaResponse;
   /** The latest computed organize preview for a library, if any. */
   organizePreview?: Maybe<OrganizePreview>;
@@ -4512,6 +4578,14 @@ export type QueryMetadataFetchRecordArgs = {
 
 export type QueryMetadataProviderConfigByIdArgs = {
   id: Scalars['Int']['input'];
+};
+
+
+export type QueryOmnibusSetsArgs = {
+  libraryId?: InputMaybe<Scalars['ID']['input']>;
+  orderBy?: OmnibusSetOrderBy;
+  pagination?: Pagination;
+  search?: InputMaybe<Scalars['String']['input']>;
 };
 
 
@@ -6633,6 +6707,18 @@ export type LibraryBooksSceneQuery = { __typename?: 'Query', media: { __typename
       { __typename?: 'Media', id: string }
       & { ' $fragmentRefs'?: { 'BookCardFragment': BookCardFragment;'BookMetadataFragment': BookMetadataFragment } }
     )>, pageInfo: { __typename: 'CursorPaginationInfo' } | { __typename: 'OffsetPaginationInfo', currentPage: number, totalPages: number, pageSize: number, pageOffset: number, zeroBased: boolean } } };
+
+export type LibraryOmnibusSceneQueryVariables = Exact<{
+  libraryId: Scalars['ID']['input'];
+  orderBy: OmnibusSetOrderBy;
+  pagination: Pagination;
+}>;
+
+
+export type LibraryOmnibusSceneQuery = { __typename?: 'Query', omnibusSets: { __typename?: 'PaginatedOmnibusSetResponse', nodes: Array<{ __typename?: 'OmnibusSet', key: string, title: string, volumeCount: number, truncated: boolean, volumes: Array<(
+        { __typename?: 'Media', id: string, thumbnail: { __typename?: 'ImageRef', url: string, metadata?: { __typename?: 'ImageMetadata', averageColor?: string | null, thumbhash?: string | null, colors: Array<{ __typename?: 'ImageColor', color: string, percentage: any }> } | null } }
+        & { ' $fragmentRefs'?: { 'BookCardFragment': BookCardFragment } }
+      )> }>, pageInfo: { __typename: 'CursorPaginationInfo' } | { __typename: 'OffsetPaginationInfo', currentPage: number, totalPages: number } } };
 
 export type LibraryCollectionSceneQueryVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -10621,6 +10707,74 @@ fragment BookMetadata on Media {
     number
   }
 }`) as unknown as TypedDocumentString<LibraryBooksSceneQuery, LibraryBooksSceneQueryVariables>;
+export const LibraryOmnibusSceneDocument = new TypedDocumentString(`
+    query LibraryOmnibusScene($libraryId: ID!, $orderBy: OmnibusSetOrderBy!, $pagination: Pagination!) {
+  omnibusSets(libraryId: $libraryId, orderBy: $orderBy, pagination: $pagination) {
+    nodes {
+      key
+      title
+      volumeCount
+      truncated
+      volumes {
+        id
+        thumbnail {
+          url
+          metadata {
+            averageColor
+            colors {
+              color
+              percentage
+            }
+            thumbhash
+          }
+        }
+        ...BookCard
+      }
+    }
+    pageInfo {
+      __typename
+      ... on OffsetPaginationInfo {
+        currentPage
+        totalPages
+      }
+    }
+  }
+}
+    fragment BookCard on Media {
+  id
+  resolvedName
+  extension
+  pages
+  size
+  status
+  thumbnail {
+    url
+    metadata {
+      averageColor
+      colors {
+        color
+        percentage
+      }
+      thumbhash
+    }
+    height
+    width
+  }
+  readProgress {
+    percentageCompleted
+    epubcfi
+    page
+    updatedAt
+  }
+  readHistory {
+    __typename
+    completedAt
+  }
+  createdAt
+  libraryConfig {
+    skipBookOverview
+  }
+}`) as unknown as TypedDocumentString<LibraryOmnibusSceneQuery, LibraryOmnibusSceneQueryVariables>;
 export const LibraryCollectionSceneDocument = new TypedDocumentString(`
     query LibraryCollectionScene($id: ID!) {
   bookGroupById(id: $id) {

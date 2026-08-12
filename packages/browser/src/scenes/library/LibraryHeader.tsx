@@ -56,6 +56,11 @@ export default function LibraryHeader() {
 			onHover: () => prefetchBooks(id),
 			to: 'books',
 		},
+		{
+			isActive: !!location.pathname.match(/\/libraries\/[^/]+\/omnibuses(\/.*)?$/),
+			label: t('libraryHeader.tabs.omnibuses'),
+			to: 'omnibuses',
+		},
 		...(canAccessFiles
 			? [
 					{
