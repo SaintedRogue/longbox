@@ -1,0 +1,50 @@
+---
+title: Search
+---
+
+Search finds books by anything written about them — not just the filename.
+
+## What a term matches
+
+One term is checked against all of these at once:
+
+- The book's **name** and its metadata **title**
+- **Summary**, **publisher** and **series**
+- **Writers**, **characters** and **story arc**
+- Its **tags**
+
+A term that parses as a number _also_ matches the issue number, but exactly: searching
+`1` finds issue 1, not #10, #11 and #21. That is deliberate — substring-matching a
+number column makes issue search useless.
+
+## Several terms narrow, they do not widen
+
+Terms are **AND**-ed. `claremont phoenix` returns books that match `claremont`
+somewhere **and** `phoenix` somewhere — not necessarily in the same field. So a
+Claremont-written issue with Phoenix in the summary matches, which is usually what you
+meant.
+
+Adding a term always narrows the result. If you get nothing back, take a term away.
+
+## What it deliberately ignores
+
+**The file path.** It looks tempting and it is a trap: an absolute path carries its
+library's mount prefix, so a library at `/mnt/comics` would return every book in it for
+the term `comics`.
+
+The noisier credit fields — genres, colourists, letterers, teams — are also left out of
+bare search, so a common surname does not drown the result. They are all still
+reachable through the filter picker, where you have asked for that field by name.
+
+## Search and filters together
+
+Search is combined with whatever filters are active rather than replacing them. A
+filtered shelf stays filtered while you search inside it — which is how you find one
+book among your omnibuses without leaving the
+[Omnibuses tab](/docs/guides/features/omnibus-shelf).
+
+<Callout type="info">
+	**HOUSE RULES** — This is substring matching, not a ranked full-text index. Results come back in
+	your chosen sort order, not by relevance, and there is no stemming: `writing` will not find
+	`writer`.
+</Callout>

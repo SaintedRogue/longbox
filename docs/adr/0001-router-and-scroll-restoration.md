@@ -6,7 +6,8 @@ Accepted (2026-07-16) — Wave 3a. (Supersedes the Phase 2 plan's framing of Wav
 
 ## Context
 
-The Phase 1 investigation (`docs/longbox-investigation.md` §1) flagged two related web-UI pains:
+The Phase 1 investigation (`docs/longbox-investigation.md` §1 — since removed from the
+tree; recoverable from git history) flagged two related web-UI pains:
 
 1. **Scroll position is never restored** — navigating back to a list you drilled out of lands you at the top.
 2. **Getting lost on drill-down** — the six sibling routers unmount parent context on navigation.

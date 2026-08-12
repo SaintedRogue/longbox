@@ -1,0 +1,61 @@
+---
+title: Omnibus shelf
+---
+
+Omnibuses are awkward to browse. They are one book each, so the Series tab makes
+every one of them a folder you have to click into — and the Books tab buries them
+among every single issue you own. If your collection is mostly collected editions,
+neither view shows you your shelf.
+
+The **Omnibuses** tab is that shelf: every omnibus in a library, one card per book,
+one click into the book.
+
+<img
+	src="/images/omnibus-shelf.png"
+	alt="The Omnibuses tab, showing omnibus books as a grid of covers"
+	style={{ borderRadius: 8 }}
+/>
+
+## Finding it
+
+Open a library and pick **Omnibuses**, next to Series, Books and Files.
+
+## What lands on the shelf
+
+A book is treated as an omnibus when **any** of these says so, case-insensitively:
+
+| Signal                  | Why it is there                                                      |
+| ----------------------- | -------------------------------------------------------------------- |
+| The book's name         | Catches a file named for the omnibus, whatever folder it is in.      |
+| Its metadata title      | Catches a corrected title when the filename is unhelpful.            |
+| Its metadata **format** | The ComicInfo `Format` field — the proper home for this.             |
+| Its **series** name     | Catches volumes named `v01.cbz` inside a `Wolverine Omnibus` folder. |
+
+That last one is what makes a flat library work. Most collections name the omnibus on
+the folder and the volumes inside it `v01`, `v02` — and a rule that only read the
+book's own name would find almost nothing.
+
+<Callout type="info">
+	**HOUSE RULES** — Because the series name counts, an omnibus-named folder puts _everything_ in it
+	on the shelf. That is usually what you want, and it does mean a stray extra file in such a folder
+	turns up here too.
+</Callout>
+
+The signals are independent, so a series named plainly — `Batman`, say — that holds a
+hundred issues and one `Batman Omnibus Vol 1` contributes exactly one card. The issues
+are not swept in.
+
+## Adding a book by hand
+
+If a book belongs here but nothing about its name says "omnibus", set its **Format** to
+`Omnibus` in the metadata editor. It appears on the shelf immediately — no rescan.
+
+Removing one that the name rule wrongly caught is not possible yet; it is on the pull
+list.
+
+## Sorting, filtering, layout
+
+The shelf is the book browser with one filter applied, so everything there works here:
+ordering, the filter picker, the grid-size slider, the alphabet strip, the table view,
+and pagination. Sort and layout are remembered separately from the Books tab, so
+changing one does not disturb the other.
