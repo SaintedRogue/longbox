@@ -1,16 +1,26 @@
 # Longbox
 
-Self-hosted server for comics, manga, and digital books — a hard fork of
-[Stump](https://github.com/stumpapp/stump), rebranded as Longbox and published
-under `SaintedRogue`. The fork is **fully rebranded to `longbox`**: the server
-binary/package is `longbox_server`, the core lib is `longbox_core`, TS packages
-are `@longbox/*`, env vars are `LONGBOX_*`, the config file is `Longbox.toml`,
-and the data dir is `~/.longbox`; CI is titled "Longbox Checks CI". (The
-transitional `STUMP_*` env-var fallback and the `~/.stump→~/.longbox` boot
-migration shipped in the first rebrand release and have since been removed —
-`STUMP_*` vars and a legacy `~/.stump` dir are no longer read.) Upstream attribution — `stumpapp/stump`
-links, the MIT `LICENSE`, "fork of Stump" credit, and the sample data in
-`crates/email` — is deliberately preserved; don't "fix" those to Longbox.
+Self-hosted server for comics, manga, and digital books, published under
+`SaintedRogue`. It began as a hard fork of
+[Stump](https://github.com/stumpapp/stump) and **left the GitHub fork network on
+2026-08-12**; it is now a standalone project. Everything is rebranded to
+`longbox`: the server binary/package is `longbox_server`, the core lib is
+`longbox_core`, TS packages are `@longbox/*`, env vars are `LONGBOX_*`, the config
+file is `Longbox.toml`, and the data dir is `~/.longbox`; CI is titled "Longbox
+Checks CI". (The transitional `STUMP_*` env-var fallback and the
+`~/.stump→~/.longbox` boot migration shipped in the first rebrand release and have
+since been removed — `STUMP_*` vars and a legacy `~/.stump` dir are no longer read.)
+
+**On upstream attribution.** Two different things, don't confuse them:
+
+- **Keep** the MIT `LICENSE` with its `Copyright (c) 2022 Aaron Leopold` notice —
+  that is the licence obligation and it is not optional — and the sample data in
+  `crates/email`. Don't "fix" those to Longbox.
+- **Do not reintroduce** comparative framing. Longbox is described on its own
+  terms: no "a fork of Stump" tagline, no feature list benchmarked against Stump,
+  no "inherited from the Stump core". The README has zero mentions by design, and
+  `docs/content` is being cleared of them. If you find yourself writing "unlike
+  Stump", delete the sentence.
 
 ## Layout — a two-language monorepo
 

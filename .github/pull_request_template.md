@@ -10,7 +10,7 @@ A clear and concise description of the PR.
 - Reasoning
 - Additional context
 
-How to contribute: https://github.com/stumpapp/stump/blob/main/.github/CONTRIBUTING.md
+How to contribute: https://github.com/SaintedRogue/longbox/blob/main/.github/CONTRIBUTING.md
 
 ## Screenshots
 
@@ -22,9 +22,9 @@ Screenshots or a screen recording of the visual changes associated with this PR.
 
 Please read each item and check the boxes:
 
-- [ ] I read the [contributing guidelines](https://github.com/stumpapp/stump/blob/main/.github/CONTRIBUTING.md)
+- [ ] I read the [contributing guidelines](https://github.com/SaintedRogue/longbox/blob/main/.github/CONTRIBUTING.md)
 - [ ] I searched for existing issues or pull requests that may be related to my contribution
-- [ ] This PR is based into `nightly` and not `main`
+- [ ] This PR targets `main`
 - [ ] I added tests and/or documentation for my changes if applicable
 
 ## Longbox Contributor License Agreement
