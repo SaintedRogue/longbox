@@ -64,7 +64,7 @@ v02.cbz` land in one set.
 omnibusSets(
   libraryId: ID                  # omitted = every library the caller can see
   search: String
-  orderBy: [OmnibusSetOrderBy!]  # TITLE | RECENTLY_ADDED
+  orderBy: OmnibusSetOrderBy = TITLE  # TITLE | RECENTLY_ADDED
   pagination: Pagination
 ): PaginatedOmnibusSetResponse
 
@@ -110,13 +110,16 @@ would read as "this is your whole collection" when it is not.
 
 ## Frontend
 
-| File                                        | Change                                                     |
-| ------------------------------------------- | ---------------------------------------------------------- |
-| `LibraryHeader.tsx`                         | Fourth tab, `to: 'omnibuses'`                              |
-| `LibraryRouter.tsx`                         | One lazy route                                             |
-| `tabs/omnibuses/LibraryOmnibusScene.tsx`    | `DynamicCardGrid` of cards, `GenericEmptyState` when empty |
-| `tabs/omnibuses/OmnibusCard.tsx`            | Cover, `×N` badge, title; expands to `BookCard`s in place  |
-| `packages/i18n/src/locales/en-{US,GB}.json` | `libraryHeader.tabs.omnibuses`                             |
+| File                                     | Change                                                     |
+| ---------------------------------------- | ---------------------------------------------------------- |
+| `LibraryHeader.tsx`                      | Fourth tab, `to: 'omnibuses'`                              |
+| `LibraryRouter.tsx`                      | One lazy route                                             |
+| `tabs/omnibuses/LibraryOmnibusScene.tsx` | `DynamicCardGrid` of cards, `GenericEmptyState` when empty |
+| `tabs/omnibuses/OmnibusCard.tsx`         | Cover, `×N` badge, title; expands to `BookCard`s in place  |
+| `packages/i18n/src/locales/en-US.json`   | `libraryHeader.tabs.omnibuses`                             |
+
+en-GB is deliberately untouched: it has no `libraryHeader` block at all and falls
+back to en-US, so adding the one key there would not match how the file is kept.
 
 Expansion state is a `useState<Set<string>>` of set keys, not a ref. The react
 compiler is enabled in this repo and rejects the ref-as-state pattern; past bugs
