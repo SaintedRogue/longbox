@@ -145,8 +145,9 @@ Contributions are very welcome — good places to start:
 - **CI / release automation** and other devops
 - Chipping away at `TODO`/`FIXME` comments
 
-Open a pull request when you have something — the `TODO` and `FIXME` comments in
-the tree are the honest backlog.
+Take a look at the [open issues](https://github.com/SaintedRogue/longbox/issues)
+to see what's on the pull list — or the `TODO` and `FIXME` comments in the tree, which
+are the unfiltered version.
 
 ## How the box is packed
 
