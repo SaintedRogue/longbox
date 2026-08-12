@@ -42,7 +42,7 @@ export default function BookOverviewContent({ id }: Props) {
 	return (
 		<>
 			<Suspense>
-				<div className="gap-4 flex h-full w-full flex-col">
+				<div className="gap-4 min-w-0 flex h-full w-full flex-col">
 					<div className="gap-3 tablet:mb-2 flex flex-col items-center tablet:flex-row tablet:items-start">
 						<div className="max-w-sm gap-3 sm:max-w-50 flex w-full shrink-0 flex-col items-center">
 							<ProminentThumbnailImage
@@ -56,7 +56,13 @@ export default function BookOverviewContent({ id }: Props) {
 							</div>
 						</div>
 
-						<BookOverviewSceneHeader media={media} book={fragmentData} completedAt={completedAt} />
+						<div className="min-w-0 w-full">
+							<BookOverviewSceneHeader
+								media={media}
+								book={fragmentData}
+								completedAt={completedAt}
+							/>
+						</div>
 					</div>
 
 					{/* `nextInSeries` walks the book's series_id. For a standalone book that is
@@ -64,7 +70,12 @@ export default function BookOverviewContent({ id }: Props) {
 					    book in the library. */}
 					{!media.isStandalone && <BooksAfterCursor cursor={media.id} />}
 
-					<div className="gap-y-2 flex flex-col">
+					{/* `min-w-0`: the metadata table sets its own `overflow-x-auto`, but a flex
+					    item defaults to `min-width: auto` and grows to its content. Without
+					    this the column expanded to the table's intrinsic width, so the table
+					    never scrolled internally and the whole page scrolled sideways with the
+					    right-hand columns cut off. */}
+					<div className="gap-y-2 min-w-0 flex flex-col">
 						<div className="gap-2 flex flex-wrap items-center justify-between">
 							<Heading size="sm">Metadata</Heading>
 							<BookMetadataMatch mediaId={media.id} />

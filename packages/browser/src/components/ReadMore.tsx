@@ -32,7 +32,26 @@ type Props = {
 	muted?: boolean
 }
 
-const COLLAPSED_HEIGHT = 72
+/**
+ * Collapsed height, in whole lines rather than pixels.
+ *
+ * A pixel height that is not a multiple of the line-height clips the last line through
+ * its middle, and the gradient and "Read more" pill then sit on top of that half line —
+ * which reads as broken layout rather than as a fade. Expressing it in `rem` against the
+ * body line-height keeps the cut between lines, and keeps it there if the type scale
+ * changes.
+ */
+const COLLAPSED_LINES = 4
+/**
+ * The line-height the collapsed text is measured in.
+ *
+ * Set on the text container as well as used for the height, rather than inherited: the
+ * arithmetic only lands between lines if both sides agree on the value, and inheriting it
+ * from whatever markdown renders means guessing. Guessing wrong is what put the gradient
+ * and the "Read more" pill on top of a half-rendered line.
+ */
+const LINE_HEIGHT_REM = 1.5
+const COLLAPSED_HEIGHT = `${COLLAPSED_LINES * LINE_HEIGHT_REM}rem`
 const MAX_EXPANDED_HEIGHT = 300
 
 export default function ReadMore({ text, muted }: Props) {
@@ -55,6 +74,7 @@ export default function ReadMore({ text, muted }: Props) {
 				className={showingAll ? 'overflow-y-auto' : 'overflow-hidden'}
 				style={{
 					maxHeight: showingAll ? MAX_EXPANDED_HEIGHT : COLLAPSED_HEIGHT,
+					lineHeight: `${LINE_HEIGHT_REM}rem`,
 					transition: 'max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
 				}}
 			>

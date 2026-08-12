@@ -281,31 +281,39 @@ export default function BookActionMenu({ book }: Props) {
 				download
 			/>
 
-			<div className="gap-1 flex w-full items-center">
-				{canDownload && (
-					<ButtonOrLink
-						className="w-full shrink"
-						variant="outline"
-						onClick={() => downloadRef.current?.click()}
-						title="Download"
-					>
-						<Download className="mr-2 h-4 w-4" />
-						Download
-					</ButtonOrLink>
-				)}
+			{/* Two labelled download buttons and the overflow menu do not fit one line in a
+			    ~200px column. Wrapping them does not help either: `flex-1` lets a child
+			    shrink below its basis, so instead of wrapping they squashed until "Download"
+			    truncated to a few characters and the menu sat on top of its neighbour.
+			    Stacking is the honest answer at this width -- the primary download shares a
+			    line with the menu, and the offline download gets its own. */}
+			<div className="gap-1 flex w-full flex-col">
+				<div className="gap-1 flex w-full items-center">
+					{canDownload && (
+						<ButtonOrLink
+							className="min-w-0 flex-1 truncate"
+							variant="outline"
+							onClick={() => downloadRef.current?.click()}
+							title="Download"
+						>
+							<Download className="mr-2 h-4 w-4 shrink-0" />
+							Download
+						</ButtonOrLink>
+					)}
+
+					<DropdownMenu
+						align="end"
+						contentWrapperClassName="w-48"
+						trigger={
+							<Button variant="outline" size="icon" className="h-8 w-8 shrink-0">
+								<EllipsisVertical className="h-4 w-4" />
+							</Button>
+						}
+						groups={groups}
+					/>
+				</div>
 
 				{canDownload && <OfflineDownloadButton book={book} />}
-
-				<DropdownMenu
-					align="end"
-					contentWrapperClassName="w-48"
-					trigger={
-						<Button variant="outline" size="icon" className="h-8 w-8 shrink-0">
-							<EllipsisVertical className="h-4 w-4" />
-						</Button>
-					}
-					groups={groups}
-				/>
 			</div>
 		</>
 	)
