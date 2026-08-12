@@ -42,6 +42,20 @@ pub enum MetadataFetchScope {
 	MediaInSeries(Id),
 }
 
+/// Fetch-record statuses that mean "this entity already has an outcome", so a
+/// non-forced job leaves it alone. **This list is the re-fetch policy** — there is no
+/// other configuration for it, and every scope inherits it.
+///
+/// The consequence that is easy to miss: a job which deliberately *targets* one of
+/// these statuses — the scheduled metadata retry does exactly that — must set
+/// `force_refetch`, or it will skip precisely the records it was asked to retry. See
+/// [`MetadataFetchJobParams::retry_media`].
+pub const SKIP_STATUSES: [MetadataFetchStatus; 3] = [
+	MetadataFetchStatus::AwaitingReview,
+	MetadataFetchStatus::Fetched,
+	MetadataFetchStatus::RateLimited,
+];
+
 /// Parameters for the metadata fetch job
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct MetadataFetchJobParams {
@@ -76,6 +90,23 @@ impl MetadataFetchJobParams {
 
 	pub fn media_in_library(library_id: Id) -> Self {
 		Self::new(MetadataFetchScope::MediaInLibrary(library_id), false)
+	}
+
+	/// Retry an explicit list of media whose fetch records the caller has already
+	/// inspected — the scheduled metadata retry.
+	///
+	/// `force_refetch` is **not optional here**. A retry selects records *by status*,
+	/// and the statuses worth retrying are the ones in [`SKIP_STATUSES`]; without
+	/// forcing, the job skips every record the retry just asked it to revisit and the
+	/// whole job is a no-op. Use [`media`](Self::media) for a scope that should respect
+	/// existing outcomes.
+	pub fn retry_media(ids: Vec<Id>) -> Self {
+		Self::new(MetadataFetchScope::Media(ids), true)
+	}
+
+	/// [`retry_media`](Self::retry_media) for series.
+	pub fn retry_series(ids: Vec<Id>) -> Self {
+		Self::new(MetadataFetchScope::Series(ids), true)
 	}
 }
 
@@ -493,11 +524,9 @@ impl JobLifecycle for MetadataFetchJob {
 				if !self.params.force_refetch {
 					let existing = metadata_fetch_record::Entity::find()
 						.filter(metadata_fetch_record::Column::SeriesId.eq(&series_id))
-						.filter(metadata_fetch_record::Column::Status.is_in([
-							MetadataFetchStatus::AwaitingReview,
-							MetadataFetchStatus::Fetched,
-							MetadataFetchStatus::RateLimited,
-						]))
+						.filter(
+							metadata_fetch_record::Column::Status.is_in(SKIP_STATUSES),
+						)
 						.one(conn)
 						.await?;
 
@@ -708,11 +737,9 @@ impl JobLifecycle for MetadataFetchJob {
 				if !self.params.force_refetch {
 					let existing = metadata_fetch_record::Entity::find()
 						.filter(metadata_fetch_record::Column::MediaId.eq(&media_id))
-						.filter(metadata_fetch_record::Column::Status.is_in([
-							MetadataFetchStatus::AwaitingReview,
-							MetadataFetchStatus::Fetched,
-							MetadataFetchStatus::RateLimited,
-						]))
+						.filter(
+							metadata_fetch_record::Column::Status.is_in(SKIP_STATUSES),
+						)
 						.one(conn)
 						.await?;
 
