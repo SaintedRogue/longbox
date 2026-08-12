@@ -3,7 +3,9 @@ title: Contributing
 description: Information about contributing to Longbox
 ---
 
-Every collection benefits from more hands on deck. If you can code, the [developer guide](#developer-guide) below will get your environment set up; if you'd rather help grow Longbox's language support, the Crowdin project page is [here](https://crowdin.com/project/stump).
+Every collection benefits from more hands on deck. If you can code, the
+[developer guide](#developer-guide) below will get your environment set up; if you'd
+rather help grow Longbox's language support, see [Translations](#translations).
 
 ## Developer Guide
 
@@ -61,12 +63,14 @@ Longbox has gotten quite large and complex, so we've put together a few notes an
 
 ### Where to start?
 
-If you aren't sure what to work on, we recommend taking a look at some of the open [issues](https://github.com/SaintedRogue/longbox/issues) on GitHub. You can also reach out to us on [Discord](https://discord.gg/63Ybb7J3as), or an open GitHub issue, if you have any questions.
+If you aren't sure what to work on, the `TODO` and `FIXME` comments in the tree are
+the honest backlog. If something is unclear, say so in a pull request or a draft PR — that is the
+fastest way to get an answer.
 
 In general, some good places to start might be:
 
 - Translations, so Longbox is accessible to as many people as possible
-  - You can translate through [Crowdin](https://crowdin.com/project/stump) or help find/fix areas of the app that need better translation coverage
+  - Locale files live in `packages/i18n/src/locales`; add or correct one and open a pull request
 - Writing comprehensive tests
 - Improving the UI/UX, even small changes can go a long way
 - CI pipelines, automated release processes, and other devops-related efforts
@@ -105,12 +109,7 @@ Below is a list of resources that we've found helpful in developing Longbox. We'
 
 ## Translations
 
-If you'd like to help translate Longbox into other languages, you can do so [here](https://crowdin.com/project/stump). You can do as little or as much as you'd like at a time! If you don't see your language listed, please open an issue on GitHub.
-
-## Financial Contributions
-
-If you'd like to support the project financially, you can do so using any of the following platforms:
-
-- [Kofi](https://ko-fi.com/aaronleop)
-- [GitHub Sponsors](https://github.com/sponsors/aaronleopold)
-- [Open Collective](https://opencollective.com/stump)
+Longbox ships 32 locales, and they always need work. The files live in
+`packages/i18n/src/locales` — copy `en-US.json`, translate as much or as little as
+you like, and open a pull request. Partial locales are genuinely useful: anything
+missing falls back to `en-US`, so a half-finished translation still helps.
