@@ -1,0 +1,74 @@
+---
+title: Release calendar
+---
+
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+
+The calendar is your pull list: one Sunday-aligned week of issues that are expected,
+day by day, for the series you follow.
+
+## Finding it
+
+**Calendar** in the sidebar. Two views sit at the top right:
+
+| View             | Shows                                                     |
+| ---------------- | --------------------------------------------------------- |
+| **My pull list** | Only series you follow. The default.                      |
+| **All series**   | Everything Longbox has release data for, followed or not. |
+
+Arrows step a week at a time; **Today** comes back.
+
+## Filling it
+
+The calendar does not read your files — nothing in a `.cbz` knows what ships next
+month. It needs two things, and it will look empty until both are true.
+
+<Steps>
+
+<Step>
+### Match your series to a provider
+
+Release dates arrive from a metadata provider, which means a series has to be matched
+to that provider's record of it first. See
+[metadata fetching](/docs/guides/integrations/metadata-fetching). A library with no
+matches has no calendar.
+
+</Step>
+
+<Step>
+### Let the calendar sync run
+
+A background job pulls upcoming releases for your matched series. It is scheduled — see
+[background jobs](/docs/guides/fundamentals/background-jobs) — and you can run it on
+demand from the server's job settings.
+
+</Step>
+
+<Step>
+### Follow the series you care about
+
+Follow a series from its page menu. Anything you follow shows up under **My pull
+list**; **All series** ignores following entirely.
+
+</Step>
+
+</Steps>
+
+<Callout type="info">
+	**HOUSE RULES** — An empty week is usually sparse matching rather than a quiet month. Switch to
+	**All series** first: if that is empty too, the gap is upstream of the calendar — few series
+	matched, or the sync has not run.
+</Callout>
+
+## Which providers supply dates
+
+[League of Comic Geeks](/docs/guides/integrations/metadata-fetching/providers) is the
+strongest source here, because a weekly release list is the thing it is built around.
+[Metron](https://metron.cloud) also carries dates. A provider that knows your series
+but publishes no schedule contributes nothing to this page.
+
+## What a day holds
+
+Each of the seven days is present whether or not anything ships, so the week reads as a
+week. An entry shows the series, the issue number and its cover where one is known —
+clicking through goes to the series.

@@ -1,0 +1,40 @@
+---
+title: Characters
+---
+
+Browsing by character asks a question a folder tree cannot answer: _what do I own with
+Venom in it?_ Longbox reads the characters recorded on each book and gives you that
+list.
+
+## Finding it
+
+**Characters** in the sidebar.
+
+## Where the list comes from
+
+Characters are not something you configure. They are read from the **characters** field
+on each book's metadata, and only books that have it contribute. A library whose books
+carry no character metadata shows an empty page — the feature is working, there is just
+nothing recorded for it to read.
+
+## Getting characters onto your books
+
+Two ways, and they stack:
+
+- **Embedded metadata.** `ComicInfo.xml` inside a `.cbz` has a `Characters` field, and
+  the scanner reads it. Files tagged by ComicTagger or similar usually have it already.
+- **A metadata provider.** Matching a book fills in characters along with everything
+  else — see [metadata fetching](/docs/guides/integrations/metadata-fetching). Marvel and
+  DC books in particular tend to have rich character lists upstream.
+
+<Callout type="info">
+	**HOUSE RULES** — Character names are text, not identities. `Spider-Man`, `Spider-Man (Peter
+	Parker)` and `Peter Parker` are three different entries, because that is genuinely what your files
+	say. Consistency comes from consistent metadata, so matching a run against one provider gives
+	tidier results than mixing sources.
+</Callout>
+
+## Editing them
+
+A book's characters are editable in the metadata editor like any other field, and an
+edit you make by hand is protected from being overwritten by a later provider fetch.

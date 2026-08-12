@@ -1,0 +1,64 @@
+---
+title: Combining sources
+---
+
+Most servers make you pick a metadata provider and live with it. Longbox keeps them all:
+**sources add rather than compete.** Every provider that has answered for a book is
+stored, so you can take the summary from one and the credits from another, and see where
+each stored field came from afterwards.
+
+## Why it works this way
+
+Providers are good at different things. [Metron](https://metron.cloud) has careful,
+openly-licensed credits. [ComicVine](https://comicvine.gamespot.com) has the widest
+coverage of anything. [League of Comic Geeks](/docs/guides/integrations/metadata-fetching/providers)
+knows collected editions and release weeks better than either.
+
+Storing one and discarding the rest throws away the reason to have more than one.
+
+## The review grid
+
+When you match a book — **Find metadata match** on the book's page — the review grid puts
+the current value beside the candidate, field by field, and you accept what you want.
+
+Underneath each field are **source chips**: what every _other_ provider has for that same
+field. Click one to take that value instead. Fields where a source has nothing are
+omitted rather than shown empty, so the sources that do know something are easy to spot.
+
+<Callout type="info">
+	**HOUSE RULES** — Chips are inline rather than extra columns on purpose. A column per provider is
+	readable at two providers and unreadable at four, and the comparison you actually want is almost
+	always one field at a time.
+</Callout>
+
+## Provenance
+
+Every stored field remembers which source it came from and whether a person or an
+automatic fetch chose it. The review grid shows this next to the field, so a value you
+are unsure about can be traced rather than guessed at.
+
+## Values you have chosen stay chosen
+
+A field you set or accept by hand is **locked**. Later fetches skip it — automatic
+matching will not quietly overwrite a summary you fixed or a title you corrected.
+
+This is what makes it safe to run metadata jobs across a whole library after you have
+already tidied part of it by hand.
+
+## Partial answers, and why a fetch sometimes pauses
+
+Some providers' search results are summaries. League of Comic Geeks has no API, so a
+search result is effectively a catalogue card — title, publisher, cover, date — while the
+summary, page count, ISBN, credits and characters live on the item's own page.
+
+Longbox fetches that page for the candidate **you select**, not for all of them. A search
+returning ten results would otherwise mean ten extra page loads to display one, and on a
+whole-library match that adds hours against the provider's rate limit. The trade is a
+short pause after you pick a candidate, while its full record is retrieved — the External
+column shows `loading…` while that happens.
+
+## Books matched before this existed
+
+A book matched by an older version of Longbox has a provider id recorded but no stored
+response, because responses were not kept then. The pool shows the source as present but
+without values; re-running a match fills it in.

@@ -1,0 +1,56 @@
+---
+title: Offline reading
+---
+
+Longbox installs as an app, and an installed app that needs a server to show you a book
+you already own is not much of an app. Download issues to the device and read them with
+no connection at all.
+
+## Installing first
+
+Offline reading depends on the app being installed, because that is what gives it a
+service worker and durable storage. Install from your browser's address bar — "Install
+app" in Chrome and Edge, **Share → Add to Home Screen** on iOS.
+
+<Callout type="info">
+	**HOUSE RULES** — After installing, **reload once**. The service worker only takes control of a
+	page it did not itself load, so the first visit after installing is still served by the network.
+	Skip the reload and your first offline attempt will come up empty.
+</Callout>
+
+## Downloading a book
+
+Open a book and use **Download for offline** in its action menu. Progress is shown as it
+copies, and **Downloads** in the sidebar lists everything you hold locally, with the
+option to remove any of it.
+
+Downloaded books are readable from the Downloads list whether you are online or not.
+
+## Reading progress survives the trip
+
+This is the part worth understanding, because it is where offline reading usually goes
+wrong elsewhere.
+
+Progress made while offline is **queued on the device**, not discarded and not silently
+lost. When the connection returns, the queue is sent and your position on the server
+catches up. Read three issues on a train with no signal and your shelf is correct by the
+time you are back in range.
+
+The queue survives the app being closed — it is stored, not held in memory.
+
+## Storage
+
+Downloads and the progress queue live in your browser's own storage for the site, which
+means:
+
+- **Clearing site data removes them.** Downloads are a local copy, not a backup.
+- The operating system may reclaim storage under pressure. Rare, but possible on a nearly
+  full phone.
+- Each browser and each installed copy is separate — a book downloaded in Chrome is not
+  present in Safari.
+
+## What is not offline
+
+Browsing, search, metadata and covers for books you have **not** downloaded all need the
+server. Offline mode is about reading what you have deliberately taken with you, not a
+full mirror of the library.

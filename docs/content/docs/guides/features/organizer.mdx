@@ -1,0 +1,65 @@
+---
+title: Loose file organizer
+---
+
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+
+Files dropped straight into a library root have nowhere to live. Longbox files them in a
+catch-all bucket so they are still readable, but they have no series, they clutter
+browsing, and metadata matching has less to work with.
+
+The **organizer** moves them into series folders.
+
+<Callout type="warn">
+	**HOUSE RULES** — This one is different from everything else in Longbox: it **moves files on
+	disk**. Collections and the omnibus shelf only ever change how things are displayed. Read the plan
+	before you apply it.
+</Callout>
+
+## Finding it
+
+Library settings → **Organizer**.
+
+## Plan, then apply
+
+Two deliberate steps, never one.
+
+<Steps>
+
+<Step>
+### Plan
+
+Longbox works out where each loose file would go — matching it to an existing series
+where it can, proposing a folder where it cannot — and shows you the moves it intends
+to make, file by file.
+
+Nothing has happened yet. This is the step to read carefully.
+
+</Step>
+
+<Step>
+### Apply
+
+The moves you approve are carried out. The library is then rescanned so series and books
+line up with the new layout.
+
+</Step>
+
+</Steps>
+
+## Settings
+
+| Setting                                | Effect                                                                                |
+| -------------------------------------- | ------------------------------------------------------------------------------------- |
+| **Automatically organize loose files** | Runs the organizer as part of a scan, without asking. Off by default.                 |
+| **Organize catch-all subfolders**      | Also considers files sitting in the catch-all bucket's subfolders, not just its root. |
+
+Automatic organizing is off by default for the obvious reason: it moves files, and a
+wrong guess made silently during a scan is much harder to unpick than a plan you
+declined.
+
+## When to use something else
+
+If you want the shelf to read correctly but the files left exactly where they are, you
+want [collections](/docs/guides/fundamentals/collections) instead. That groups books
+without touching disk. The organizer is for when the directory itself is the problem.

@@ -1,0 +1,52 @@
+---
+title: Collections
+---
+
+A [series](/docs/guides/fundamentals/series) is a folder. A **collection** is a shelf of
+books that belong together without sharing one — the same run, scattered across a flat
+directory or split between folders.
+
+## Where they live
+
+Open a library, go to **Series**, and switch the toggle from **Series** to
+**Collections**. They use the same card as a series deliberately: a collection is a
+shelf of books exactly like a series is, it just isn't backed by a folder.
+
+## Building them
+
+Collections are detected rather than created. From the Collections view, run
+**Detect collections**: Longbox groups books that share a series according to their
+metadata, and leaves genuinely standalone books alone.
+
+Nothing moves on disk. Detection reads metadata and writes groupings — your files stay
+exactly where they are.
+
+<Callout type="info">
+	**HOUSE RULES** — Detection needs metadata to group on. A library of files named `v01.cbz` inside
+	well-named folders already has series and will produce few collections; a flat pile of loose files
+	with good embedded metadata will produce many.
+</Callout>
+
+## Where a grouping came from
+
+Each collection records how it was formed:
+
+| Source       | Meaning                                                    |
+| ------------ | ---------------------------------------------------------- |
+| **Metadata** | Grouped on the series recorded in the book's own metadata. |
+| **Filename** | Grouped on a series name parsed out of the filename.       |
+| **Manual**   | You created or corrected it.                               |
+
+A book you have placed by hand is not moved again by a later detection run.
+
+## Collections, series, and the organizer
+
+Three related tools, easy to confuse:
+
+- **Series** — the folders on disk. Longbox does not invent these.
+- **Collections** — groupings on top of your files, changing nothing on disk.
+- The [**organizer**](/docs/guides/features/organizer) — actually _moves_ loose files
+  into folders, changing the library on disk.
+
+Reach for a collection when you want the shelf to read correctly and the files left
+alone. Reach for the organizer when you want the files themselves tidied.

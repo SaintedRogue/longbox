@@ -17,6 +17,8 @@ You can define recurring jobs that run automatically on a cron-based schedule:
 
 2. **Metadata retry**: Retries previously failed or rate-limited metadata fetch attempts. You choose which statuses to retry (`Rate limited`, `Failed`, or both).
 
+3. **Release calendar sync**: Asks your metadata providers what is shipping and stores the result, which is what fills the [release calendar](/docs/guides/features/release-calendar). Only series matched to a provider contribute, so a library with few matches produces a thin calendar however often this runs.
+
 ### Cron
 
 Schedules are defined using [cron expressions](https://en.wikipedia.org/wiki/Cron). Longbox supports 6-field cron expressions:
