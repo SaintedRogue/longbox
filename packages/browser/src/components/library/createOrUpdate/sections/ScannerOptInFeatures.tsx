@@ -14,6 +14,7 @@ type Props = {
 		values: Pick<
 			CreateOrUpdateLibrarySchema,
 			| 'processMetadata'
+			| 'metadataBackfillProviders'
 			| 'writeComicinfo'
 			| 'watch'
 			| 'generateFileHashes'
@@ -27,10 +28,18 @@ export default function ScannerOptInFeatures({ onDidChange }: Props) {
 	const ctx = useLibraryManagementSafe()
 	const isCreating = !ctx?.library
 
-	const [processMetadata, writeComicinfo, watch, generateFileHashes, koreaderHashes] = useWatch({
+	const [
+		processMetadata,
+		metadataBackfillProviders,
+		writeComicinfo,
+		watch,
+		generateFileHashes,
+		koreaderHashes,
+	] = useWatch({
 		control: form.control,
 		name: [
 			'processMetadata',
+			'metadataBackfillProviders',
 			'writeComicinfo',
 			'watch',
 			'generateFileHashes',
@@ -41,12 +50,20 @@ export default function ScannerOptInFeatures({ onDidChange }: Props) {
 	const params = useMemo(
 		() => ({
 			processMetadata,
+			metadataBackfillProviders,
 			writeComicinfo,
 			watch,
 			generateFileHashes,
 			generateKoreaderHashes: koreaderHashes,
 		}),
-		[processMetadata, writeComicinfo, watch, generateFileHashes, koreaderHashes],
+		[
+			processMetadata,
+			metadataBackfillProviders,
+			writeComicinfo,
+			watch,
+			generateFileHashes,
+			koreaderHashes,
+		],
 	)
 
 	const handleProcessMetadataChange = useCallback(() => {
@@ -58,6 +75,16 @@ export default function ScannerOptInFeatures({ onDidChange }: Props) {
 			})
 		}
 	}, [form, processMetadata, params, onDidChange])
+
+	const handleMetadataBackfillChange = useCallback(() => {
+		form.setValue('metadataBackfillProviders', !metadataBackfillProviders)
+		if (onDidChange) {
+			onDidChange({
+				...params,
+				metadataBackfillProviders: !metadataBackfillProviders,
+			})
+		}
+	}, [form, metadataBackfillProviders, params, onDidChange])
 
 	const handleWriteComicinfoChange = useCallback(() => {
 		form.setValue('writeComicinfo', !writeComicinfo)
@@ -123,6 +150,15 @@ export default function ScannerOptInFeatures({ onDidChange }: Props) {
 				checked={processMetadata}
 				onClick={handleProcessMetadataChange}
 				{...form.register('processMetadata')}
+			/>
+
+			<CheckBox
+				id="metadataBackfillProviders"
+				label="Let new providers fill in books that already have a match"
+				description="Books keep the match they have, and no provider is asked twice. This only lets a provider you added later fill in the gaps it never had a chance at."
+				checked={metadataBackfillProviders}
+				onClick={handleMetadataBackfillChange}
+				{...form.register('metadataBackfillProviders')}
 			/>
 
 			<CheckBox

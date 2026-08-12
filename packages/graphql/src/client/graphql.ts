@@ -897,6 +897,46 @@ export type EmailerSendTo =
   { anonymous: SendToEmail; device?: never; }
   |  { anonymous?: never; device: SendToDevice; };
 
+/**
+ * Everything the review grid needs for one entity: the sources to compare, and where
+ * each currently-stored field came from.
+ */
+export type EnrichmentPool = {
+  __typename?: 'EnrichmentPool';
+  fieldSources: Array<FieldProvenance>;
+  sources: Array<EnrichmentSource>;
+};
+
+/**
+ * One provider's view of an entity, ready to render as a column in the review grid.
+ *
+ * `payload` is flattened to JSON rather than typed: the shape differs between a book and
+ * a series, providers fill different subsets of it, and the grid reads it field by field.
+ * Typing it here would mean a GraphQL object per entity kind that duplicates
+ * `ExternalMediaMetadata` and drifts from it.
+ */
+export type EnrichmentSource = {
+  __typename?: 'EnrichmentSource';
+  /** `auto`, `user`, or `backfill` for a link recovered from the pre-pool columns. */
+  chosenBy?: Maybe<Scalars['String']['output']>;
+  confidence?: Maybe<Scalars['Float']['output']>;
+  externalId?: Maybe<Scalars['String']['output']>;
+  /**
+   * The provider's field bag. `None` for a recovered link that predates the pool —
+   * the id is known but the response was never kept, so it needs a re-fetch before it
+   * can be compared.
+   */
+  payload?: Maybe<Scalars['JSON']['output']>;
+  /** Provider trait id (`comicvine`, `metron`, `locg`) or `manual`. */
+  provider: Scalars['String']['output'];
+  providerUrl?: Maybe<Scalars['String']['output']>;
+  /**
+   * `candidate` — stored for comparison; `linked` — the accepted match;
+   * `rejected` — declined, kept so it is not offered again.
+   */
+  state: Scalars['String']['output'];
+};
+
 /** The visibility of a shareable entity */
 export enum EntityVisibility {
   Private = 'PRIVATE',
@@ -1043,6 +1083,17 @@ export type FieldFilterString =
   |  { anyOf?: never; contains?: never; endsWith?: never; eq?: never; excludes?: never; like?: never; likeAnyOf?: never; likeNoneOf?: never; neq: Scalars['String']['input']; noneOf?: never; startsWith?: never; }
   |  { anyOf?: never; contains?: never; endsWith?: never; eq?: never; excludes?: never; like?: never; likeAnyOf?: never; likeNoneOf?: never; neq?: never; noneOf: Array<Scalars['String']['input']>; startsWith?: never; }
   |  { anyOf?: never; contains?: never; endsWith?: never; eq?: never; excludes?: never; like?: never; likeAnyOf?: never; likeNoneOf?: never; neq?: never; noneOf?: never; startsWith: Scalars['String']['input']; };
+
+/** Which source a stored field came from. */
+export type FieldProvenance = {
+  __typename?: 'FieldProvenance';
+  /** `auto` or `user`. */
+  chosenBy: Scalars['String']['output'];
+  /** A `MetadataField` in its serde form, e.g. `PAGE_COUNT`. */
+  field: Scalars['String']['output'];
+  sourceExternalId?: Maybe<Scalars['String']['output']>;
+  sourceProvider: Scalars['String']['output'];
+};
 
 /** The different statuses a file reference can have */
 export enum FileStatus {
@@ -1382,6 +1433,14 @@ export type LibraryConfigInput = {
   ignoreRules?: InputMaybe<Array<Scalars['String']['input']>>;
   libraryPattern: LibraryPattern;
   libraryType: LibraryType;
+  /**
+   * Let a metadata fetch fill in providers that never answered for a book.
+   *
+   * Defaults to off when omitted so existing clients keep the current behaviour. This
+   * is *not* a force-refetch: a book keeps the match it has, and no provider that
+   * already answered is asked again.
+   */
+  metadataBackfillProviders?: Scalars['Boolean']['input'];
   organizeCatchallSubfolders?: Scalars['Boolean']['input'];
   processMetadata: Scalars['Boolean']['input'];
   processThumbnailColorsEvenWithoutConfig: Scalars['Boolean']['input'];
@@ -4084,6 +4143,14 @@ export type Query = {
   mediaCount: Scalars['Int']['output'];
   mediaDiskUsage: Scalars['Int']['output'];
   /**
+   * The enrichment pool for a book: one entry per provider that has answered, plus
+   * the provenance of its stored fields.
+   *
+   * Ordered `linked` first so the accepted source leads the grid, then by descending
+   * confidence — the order a reviewer wants to read them in.
+   */
+  mediaEnrichmentPool: EnrichmentPool;
+  /**
    * Distinct metadata values across books, for building filter controls.
    *
    * `series_id` and `library_id` are both optional and compose. Passing
@@ -4159,6 +4226,8 @@ export type Query = {
   /** Returns the available alphabet for all series in the server */
   seriesAlphabet: Scalars['JSONObject']['output'];
   seriesById?: Maybe<Series>;
+  /** [`media_enrichment_pool`](Self::media_enrichment_pool) for a series. */
+  seriesEnrichmentPool: EnrichmentPool;
   /**
    * Distinct metadata values across series, for building filter controls.
    *
@@ -4402,6 +4471,11 @@ export type QueryMediaByPathArgs = {
 };
 
 
+export type QueryMediaEnrichmentPoolArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
 export type QueryMediaMetadataOverviewArgs = {
   libraryId?: InputMaybe<Scalars['ID']['input']>;
   seriesId?: InputMaybe<Scalars['ID']['input']>;
@@ -4493,6 +4567,11 @@ export type QuerySeriesArgs = {
 
 
 export type QuerySeriesByIdArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type QuerySeriesEnrichmentPoolArgs = {
   id: Scalars['ID']['input'];
 };
 
@@ -5932,6 +6011,20 @@ export type RejectAllPendingMatchesMutationVariables = Exact<{ [key: string]: ne
 
 export type RejectAllPendingMatchesMutation = { __typename?: 'Mutation', rejectAllPendingMatches: number };
 
+export type MediaEnrichmentPoolQueryVariables = Exact<{
+  id: Scalars['ID']['input'];
+}>;
+
+
+export type MediaEnrichmentPoolQuery = { __typename?: 'Query', mediaEnrichmentPool: { __typename?: 'EnrichmentPool', sources: Array<{ __typename?: 'EnrichmentSource', provider: string, externalId?: string | null, providerUrl?: string | null, state: string, chosenBy?: string | null, confidence?: number | null, payload?: any | null }>, fieldSources: Array<{ __typename?: 'FieldProvenance', field: string, sourceProvider: string, chosenBy: string }> } };
+
+export type SeriesEnrichmentPoolQueryVariables = Exact<{
+  id: Scalars['ID']['input'];
+}>;
+
+
+export type SeriesEnrichmentPoolQuery = { __typename?: 'Query', seriesEnrichmentPool: { __typename?: 'EnrichmentPool', sources: Array<{ __typename?: 'EnrichmentSource', provider: string, externalId?: string | null, providerUrl?: string | null, state: string, chosenBy?: string | null, confidence?: number | null }>, fieldSources: Array<{ __typename?: 'FieldProvenance', field: string, sourceProvider: string, chosenBy: string }> } };
+
 export type AcceptMediaMatchMutationVariables = Exact<{
   mediaId: Scalars['ID']['input'];
   candidateIndex: Scalars['Int']['input'];
@@ -6541,7 +6634,7 @@ export type LibrarySeriesGridQueryVariables = Exact<{
 
 export type LibrarySeriesGridQuery = { __typename?: 'Query', series: { __typename?: 'PaginatedSeriesResponse', nodes: Array<{ __typename?: 'Series', id: string, thumbnail: { __typename?: 'ImageRef', url: string } }>, pageInfo: { __typename: 'CursorPaginationInfo', currentCursor?: string | null, nextCursor?: string | null, limit: number } | { __typename: 'OffsetPaginationInfo' } } };
 
-export type LibrarySettingsConfigFragment = { __typename?: 'Library', config: { __typename?: 'LibraryConfig', id: number, convertRarToZip: boolean, hardDeleteConversions: boolean, defaultReadingDir: ReadingDirection, defaultReadingMode: ReadingMode, defaultReadingImageScaleFit: ReadingImageScaleFit, defaultLibraryViewMode: LibraryViewMode, hideSeriesView: boolean, skipBookOverview: boolean, generateFileHashes: boolean, generateKoreaderHashes: boolean, processMetadata: boolean, writeComicinfo: boolean, watch: boolean, autoOrganizeLooseFiles: boolean, organizeCatchallSubfolders: boolean, libraryPattern: LibraryPattern, libraryType: LibraryType, processThumbnailColorsEvenWithoutConfig: boolean, ignoreRules?: Array<string> | null, thumbnailConfig?: { __typename: 'ImageProcessorOptions', format: SupportedImageFormat, quality?: number | null, page?: number | null, resizeMethod?: { __typename: 'ExactDimensionResize', width: number, height: number } | { __typename: 'FitWithinResize' } | { __typename: 'ScaleEvenlyByFactor', factor: any } | { __typename: 'ScaledDimensionResize', dimension: Dimension, size: number } | null } | null } } & { ' $fragmentName'?: 'LibrarySettingsConfigFragment' };
+export type LibrarySettingsConfigFragment = { __typename?: 'Library', config: { __typename?: 'LibraryConfig', id: number, convertRarToZip: boolean, hardDeleteConversions: boolean, defaultReadingDir: ReadingDirection, defaultReadingMode: ReadingMode, defaultReadingImageScaleFit: ReadingImageScaleFit, defaultLibraryViewMode: LibraryViewMode, hideSeriesView: boolean, skipBookOverview: boolean, generateFileHashes: boolean, generateKoreaderHashes: boolean, processMetadata: boolean, metadataBackfillProviders: boolean, writeComicinfo: boolean, watch: boolean, autoOrganizeLooseFiles: boolean, organizeCatchallSubfolders: boolean, libraryPattern: LibraryPattern, libraryType: LibraryType, processThumbnailColorsEvenWithoutConfig: boolean, ignoreRules?: Array<string> | null, thumbnailConfig?: { __typename: 'ImageProcessorOptions', format: SupportedImageFormat, quality?: number | null, page?: number | null, resizeMethod?: { __typename: 'ExactDimensionResize', width: number, height: number } | { __typename: 'FitWithinResize' } | { __typename: 'ScaleEvenlyByFactor', factor: any } | { __typename: 'ScaledDimensionResize', dimension: Dimension, size: number } | null } | null } } & { ' $fragmentName'?: 'LibrarySettingsConfigFragment' };
 
 export type LibrarySettingsRouterEditLibraryMutationMutationVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -7936,6 +8029,7 @@ export const LibrarySettingsConfigFragmentDoc = new TypedDocumentString(`
     generateFileHashes
     generateKoreaderHashes
     processMetadata
+    metadataBackfillProviders
     writeComicinfo
     watch
     autoOrganizeLooseFiles
@@ -8567,6 +8661,45 @@ export const RejectAllPendingMatchesDocument = new TypedDocumentString(`
   rejectAllPendingMatches
 }
     `) as unknown as TypedDocumentString<RejectAllPendingMatchesMutation, RejectAllPendingMatchesMutationVariables>;
+export const MediaEnrichmentPoolDocument = new TypedDocumentString(`
+    query MediaEnrichmentPool($id: ID!) {
+  mediaEnrichmentPool(id: $id) {
+    sources {
+      provider
+      externalId
+      providerUrl
+      state
+      chosenBy
+      confidence
+      payload
+    }
+    fieldSources {
+      field
+      sourceProvider
+      chosenBy
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<MediaEnrichmentPoolQuery, MediaEnrichmentPoolQueryVariables>;
+export const SeriesEnrichmentPoolDocument = new TypedDocumentString(`
+    query SeriesEnrichmentPool($id: ID!) {
+  seriesEnrichmentPool(id: $id) {
+    sources {
+      provider
+      externalId
+      providerUrl
+      state
+      chosenBy
+      confidence
+    }
+    fieldSources {
+      field
+      sourceProvider
+      chosenBy
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<SeriesEnrichmentPoolQuery, SeriesEnrichmentPoolQueryVariables>;
 export const AcceptMediaMatchDocument = new TypedDocumentString(`
     mutation AcceptMediaMatch($mediaId: ID!, $candidateIndex: Int!, $strategy: MergeStrategy, $excludeFields: [MetadataField!], $overrides: [MetadataFieldOverride!]) {
   acceptMediaMatch(
@@ -10269,6 +10402,7 @@ export const LibraryLayoutDocument = new TypedDocumentString(`
     generateFileHashes
     generateKoreaderHashes
     processMetadata
+    metadataBackfillProviders
     writeComicinfo
     watch
     autoOrganizeLooseFiles

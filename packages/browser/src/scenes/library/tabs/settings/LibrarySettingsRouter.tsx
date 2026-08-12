@@ -48,6 +48,7 @@ export const LibrarySettingsConfig = graphql(`
 			generateFileHashes
 			generateKoreaderHashes
 			processMetadata
+			metadataBackfillProviders
 			writeComicinfo
 			watch
 			autoOrganizeLooseFiles

@@ -127,6 +127,11 @@ pub enum MetadataFetchTask {
 		series_id: String,
 		series_name: String,
 		library_type: LibraryType,
+		/// Whether this entity's library allows filling in providers that never
+		/// answered. `serde(default)` so a job persisted before this field existed
+		/// still deserializes, defaulting to the safe "don't".
+		#[serde(default)]
+		backfill_providers: bool,
 	},
 	/// Fetch metadata for a media item
 	FetchMedia {
@@ -134,6 +139,9 @@ pub enum MetadataFetchTask {
 		media_name: String,
 		series_name: Option<String>,
 		library_type: LibraryType,
+		/// See [`MetadataFetchTask::FetchSeries::backfill_providers`].
+		#[serde(default)]
+		backfill_providers: bool,
 	},
 }
 
@@ -273,30 +281,32 @@ impl JobLifecycle for MetadataFetchJob {
 					.into_iter()
 					.collect();
 
-				let mut library_type_map: HashMap<String, LibraryType> = HashMap::new();
+				let mut library_map: HashMap<String, LibrarySettings> = HashMap::new();
 
 				for library_id in &unique_library_ids {
-					let lt = resolve_library_type(conn, library_id).await?;
-					library_type_map.insert(library_id.clone(), lt);
+					let settings = resolve_library_settings(conn, library_id).await?;
+					library_map.insert(library_id.clone(), settings);
 				}
 
 				series_list
 					.into_iter()
 					.filter_map(|s| {
+						let settings = s
+							.library_id
+							.as_ref()
+							.and_then(|lid| library_map.get(lid))
+							.copied()?;
 						Some(MetadataFetchTask::FetchSeries {
 							series_id: s.id,
 							series_name: s.name,
-							library_type: s
-								.library_id
-								.as_ref()
-								.and_then(|lid| library_type_map.get(lid))
-								.cloned()?,
+							library_type: settings.library_type,
+							backfill_providers: settings.backfill_providers,
 						})
 					})
 					.collect()
 			},
 			MetadataFetchScope::SeriesInLibrary(library_id) => {
-				let library_type = resolve_library_type(conn, library_id).await?;
+				let settings = resolve_library_settings(conn, library_id).await?;
 
 				let series_list = series::Entity::find()
 					.filter(series::Column::LibraryId.eq(library_id))
@@ -308,7 +318,8 @@ impl JobLifecycle for MetadataFetchJob {
 					.map(|s| MetadataFetchTask::FetchSeries {
 						series_id: s.id,
 						series_name: s.name,
-						library_type,
+						library_type: settings.library_type,
+						backfill_providers: settings.backfill_providers,
 					})
 					.collect()
 			},
@@ -326,25 +337,27 @@ impl JobLifecycle for MetadataFetchJob {
 					.into_iter()
 					.collect();
 
-				let mut library_type_map: HashMap<String, LibraryType> = HashMap::new();
+				let mut library_map: HashMap<String, LibrarySettings> = HashMap::new();
 
 				for library_id in &unique_library_ids {
-					let lt = resolve_library_type(conn, library_id).await?;
-					library_type_map.insert(library_id.clone(), lt);
+					let settings = resolve_library_settings(conn, library_id).await?;
+					library_map.insert(library_id.clone(), settings);
 				}
 
 				media_list
 					.into_iter()
 					.filter_map(|(m, s)| {
+						let settings = s
+							.as_ref()
+							.and_then(|s| s.library_id.as_ref())
+							.and_then(|lid| library_map.get(lid))
+							.copied()?;
 						Some(MetadataFetchTask::FetchMedia {
 							media_id: m.id,
 							media_name: m.name,
 							series_name: s.as_ref().map(|s| s.name.clone()),
-							library_type: s
-								.as_ref()
-								.and_then(|s| s.library_id.as_ref())
-								.and_then(|lid| library_type_map.get(lid))
-								.cloned()?,
+							library_type: settings.library_type,
+							backfill_providers: settings.backfill_providers,
 						})
 					})
 					.collect()
@@ -359,7 +372,7 @@ impl JobLifecycle for MetadataFetchJob {
 					.ok_or_else(|| {
 						JobError::TaskFailed("Series not found".to_string())
 					})?;
-				let library_type = resolve_library_type(conn, &library_id).await?;
+				let settings = resolve_library_settings(conn, &library_id).await?;
 
 				let media_list = media::Entity::find()
 					.filter(media::Column::SeriesId.eq(series_id))
@@ -373,12 +386,13 @@ impl JobLifecycle for MetadataFetchJob {
 						media_id: m.id,
 						media_name: m.name,
 						series_name: s.map(|s| s.name),
-						library_type,
+						library_type: settings.library_type,
+						backfill_providers: settings.backfill_providers,
 					})
 					.collect()
 			},
 			MetadataFetchScope::MediaInLibrary(library_id) => {
-				let library_type = resolve_library_type(conn, library_id).await?;
+				let settings = resolve_library_settings(conn, library_id).await?;
 
 				let media_list = media::Entity::find()
 					.filter(
@@ -402,7 +416,8 @@ impl JobLifecycle for MetadataFetchJob {
 						media_id: m.id,
 						media_name: m.name,
 						series_name: s.map(|s| s.name),
-						library_type,
+						library_type: settings.library_type,
+						backfill_providers: settings.backfill_providers,
 					})
 					.collect()
 			},
@@ -505,8 +520,9 @@ impl JobLifecycle for MetadataFetchJob {
 				series_id,
 				series_name,
 				library_type,
+				backfill_providers,
 			} => {
-				let provider_configs: Vec<_> = all_provider_configs
+				let mut provider_configs: Vec<_> = all_provider_configs
 					.iter()
 					.filter(|c| library_type.has_provider_overlap(&c.provider_type))
 					.collect();
@@ -530,6 +546,10 @@ impl JobLifecycle for MetadataFetchJob {
 					&series_name,
 				));
 
+				// An entity that already has an outcome is left alone -- that is the
+				// re-fetch policy and it stays. The one exception is backfill mode, where
+				// the *entity* keeps its match but a provider that never answered may
+				// still be asked. Nothing already linked is ever re-searched.
 				if !self.params.force_refetch {
 					let existing = metadata_fetch_record::Entity::find()
 						.filter(metadata_fetch_record::Column::SeriesId.eq(&series_id))
@@ -540,12 +560,40 @@ impl JobLifecycle for MetadataFetchJob {
 						.await?;
 
 					if existing.is_some() {
-						output.skipped = 1;
-						return Ok(JobTaskOutput {
-							output,
-							logs,
-							subtasks: vec![],
-						});
+						if backfill_providers {
+							let linked = enrichment::linked_providers(
+								conn,
+								enrichment::EnrichmentTarget::Series(&series_id),
+							)
+							.await?;
+							provider_configs.retain(|config| {
+								needs_backfill(&config.provider_type, &linked)
+							});
+							if provider_configs.is_empty() {
+								tracing::trace!(
+									series_id,
+									"Backfill: every compatible provider is already linked"
+								);
+								output.skipped = 1;
+								return Ok(JobTaskOutput {
+									output,
+									logs,
+									subtasks: vec![],
+								});
+							}
+							tracing::debug!(
+								series_id,
+								providers = provider_configs.len(),
+								"Backfill: asking only the providers with no link yet"
+							);
+						} else {
+							output.skipped = 1;
+							return Ok(JobTaskOutput {
+								output,
+								logs,
+								subtasks: vec![],
+							});
+						}
 					}
 				}
 
@@ -726,9 +774,10 @@ impl JobLifecycle for MetadataFetchJob {
 				media_id,
 				media_name,
 				library_type,
+				backfill_providers,
 				..
 			} => {
-				let provider_configs: Vec<_> = all_provider_configs
+				let mut provider_configs: Vec<_> = all_provider_configs
 					.iter()
 					.filter(|c| library_type.has_provider_overlap(&c.provider_type))
 					.collect();
@@ -752,6 +801,10 @@ impl JobLifecycle for MetadataFetchJob {
 					&media_name,
 				));
 
+				// An entity that already has an outcome is left alone -- that is the
+				// re-fetch policy and it stays. The one exception is backfill mode, where
+				// the *entity* keeps its match but a provider that never answered may
+				// still be asked. Nothing already linked is ever re-searched.
 				if !self.params.force_refetch {
 					let existing = metadata_fetch_record::Entity::find()
 						.filter(metadata_fetch_record::Column::MediaId.eq(&media_id))
@@ -762,12 +815,40 @@ impl JobLifecycle for MetadataFetchJob {
 						.await?;
 
 					if existing.is_some() {
-						output.skipped = 1;
-						return Ok(JobTaskOutput {
-							output,
-							logs: vec![],
-							subtasks: vec![],
-						});
+						if backfill_providers {
+							let linked = enrichment::linked_providers(
+								conn,
+								enrichment::EnrichmentTarget::Media(&media_id),
+							)
+							.await?;
+							provider_configs.retain(|config| {
+								needs_backfill(&config.provider_type, &linked)
+							});
+							if provider_configs.is_empty() {
+								tracing::trace!(
+									media_id,
+									"Backfill: every compatible provider is already linked"
+								);
+								output.skipped = 1;
+								return Ok(JobTaskOutput {
+									output,
+									logs,
+									subtasks: vec![],
+								});
+							}
+							tracing::debug!(
+								media_id,
+								providers = provider_configs.len(),
+								"Backfill: asking only the providers with no link yet"
+							);
+						} else {
+							output.skipped = 1;
+							return Ok(JobTaskOutput {
+								output,
+								logs: vec![],
+								subtasks: vec![],
+							});
+						}
 					}
 				}
 
@@ -981,10 +1062,36 @@ fn all_budgets_exhausted(states: &[(&'static str, bool)]) -> bool {
 	!states.is_empty() && states.iter().all(|(_, exhausted)| *exhausted)
 }
 
-async fn resolve_library_type(
+/// Whether a provider still has to be asked when backfilling.
+///
+/// The comparison is against [`MetadataProvider::provider_id`] — the lowercase trait id
+/// (`comicvine`) — and **not** `to_string()`, which yields the SCREAMING_SNAKE form
+/// (`COMIC_VINE`) used for the DB column and the GraphQL enum. Link rows store the trait
+/// id, so comparing the wrong one silently matches nothing and re-asks every provider.
+fn needs_backfill(
+	provider: &models::shared::enums::MetadataProvider,
+	linked: &[String],
+) -> bool {
+	!linked
+		.iter()
+		.any(|candidate| candidate == provider.provider_id())
+}
+
+/// The per-library settings a fetch task needs to carry.
+///
+/// Both come from `library_configs`, and both are decided per library rather than per
+/// job, so a scope spanning libraries has to look them up per entity.
+#[derive(Debug, Clone, Copy)]
+struct LibrarySettings {
+	library_type: LibraryType,
+	/// See `library_config.metadata_backfill_providers`.
+	backfill_providers: bool,
+}
+
+async fn resolve_library_settings(
 	conn: &DatabaseConnection,
 	library_id: &str,
-) -> Result<LibraryType, JobError> {
+) -> Result<LibrarySettings, JobError> {
 	let config = library_config::Entity::find()
 		.filter(library_config::Column::LibraryId.eq(library_id))
 		.one(conn)
@@ -996,13 +1103,17 @@ async fn resolve_library_type(
 			))
 		})?;
 
-	Ok(config.library_type)
+	Ok(LibrarySettings {
+		library_type: config.library_type,
+		backfill_providers: config.metadata_backfill_providers,
+	})
 }
 
 #[cfg(test)]
 mod tests {
 	use super::{
-		all_budgets_exhausted, MetadataFetchJobParams, MetadataFetchStatus, SKIP_STATUSES,
+		all_budgets_exhausted, needs_backfill, MetadataFetchJobParams,
+		MetadataFetchStatus, SKIP_STATUSES,
 	};
 
 	#[test]
@@ -1024,6 +1135,33 @@ mod tests {
 		]));
 		// No providers at all is handled upstream; the gate must not fire.
 		assert!(!all_budgets_exhausted(&[]));
+	}
+
+	/// The id spellings that must not be confused. `provider_id()` is what link rows
+	/// store; `to_string()` is the DB/GraphQL enum form. Comparing the latter matches
+	/// nothing, which in backfill mode means re-asking every provider that had already
+	/// answered -- exactly what the mode exists to avoid.
+	#[test]
+	fn backfill_compares_the_provider_trait_id() {
+		use models::shared::enums::MetadataProvider;
+
+		let linked = vec!["comicvine".to_string()];
+		assert!(
+			!needs_backfill(&MetadataProvider::ComicVine, &linked),
+			"a linked provider must not be asked again"
+		);
+		assert!(
+			needs_backfill(&MetadataProvider::Locg, &linked),
+			"a provider that never answered still gets its chance"
+		);
+
+		// The trap, spelled out: the enum's Display form is not what is stored.
+		assert_eq!(MetadataProvider::ComicVine.provider_id(), "comicvine");
+		assert_eq!(MetadataProvider::ComicVine.to_string(), "COMIC_VINE");
+		assert!(
+			needs_backfill(&MetadataProvider::ComicVine, &["COMIC_VINE".to_string()]),
+			"a Display-form value does not match, which is why the helper exists"
+		);
 	}
 
 	/// Regression test for scan amplification.

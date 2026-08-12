@@ -63,6 +63,13 @@ pub struct LibraryConfigInput {
 	pub generate_file_hashes: bool,
 	pub generate_koreader_hashes: bool,
 	pub process_metadata: bool,
+	/// Let a metadata fetch fill in providers that never answered for a book.
+	///
+	/// Defaults to off when omitted so existing clients keep the current behaviour. This
+	/// is *not* a force-refetch: a book keeps the match it has, and no provider that
+	/// already answered is asked again.
+	#[graphql(default)]
+	pub metadata_backfill_providers: bool,
 	pub write_comicinfo: bool,
 	pub watch: bool,
 	pub library_pattern: LibraryPattern,
@@ -90,6 +97,7 @@ impl LibraryConfigInput {
 			generate_file_hashes,
 			generate_koreader_hashes,
 			process_metadata,
+			metadata_backfill_providers,
 			write_comicinfo,
 			watch,
 			library_pattern,
@@ -118,6 +126,7 @@ impl LibraryConfigInput {
 			generate_file_hashes: Set(generate_file_hashes),
 			generate_koreader_hashes: Set(generate_koreader_hashes),
 			process_metadata: Set(process_metadata),
+			metadata_backfill_providers: Set(metadata_backfill_providers),
 			write_comicinfo: Set(write_comicinfo),
 			watch: Set(watch),
 			library_pattern: Set(library_pattern),

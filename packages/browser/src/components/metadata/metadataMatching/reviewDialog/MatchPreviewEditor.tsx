@@ -12,6 +12,7 @@ import {
 	getSeriesFieldComparisons,
 	isMediaCandidate,
 } from '../types'
+import { useEnrichmentPool } from '../useEnrichmentPool'
 import { useMatchReviewStore } from '../useMatchReviewStore'
 import { CandidateToolbar } from './CandidateToolbar'
 import { MatchFieldRow } from './MatchFieldRow'
@@ -27,6 +28,22 @@ export function MatchPreviewEditor() {
 	const candidate = record?.matchCandidates?.[currentCandidateIndex]
 	const isMedia = !!record?.mediaId
 	const currentMetadata = isMedia ? record?.media?.metadata : record?.series?.metadata
+
+	// Every provider that has answered for this entity, not just the candidate under
+	// review. The provider whose candidate is being reviewed is dropped: its values are
+	// already the "incoming" column, so offering them again as a chip is noise.
+	const { sources, fieldSources } = useEnrichmentPool({
+		id: (isMedia ? record?.mediaId : record?.seriesId) ?? undefined,
+		isMedia,
+	})
+	const otherSources = useMemo(
+		() => sources.filter((source) => source.provider !== candidate?.provider),
+		[sources, candidate?.provider],
+	)
+	const provenanceByField = useMemo(
+		() => new Map(fieldSources.map((row) => [row.field, row])),
+		[fieldSources],
+	)
 
 	const fieldComparisons: FieldComparison[] = useMemo(() => {
 		if (!candidate) return []
@@ -88,7 +105,12 @@ export function MatchPreviewEditor() {
 
 					<div className="divide-y divide-border">
 						{fieldComparisons.map((comparison) => (
-							<MatchFieldRow key={comparison.field} comparison={comparison} />
+							<MatchFieldRow
+								key={comparison.field}
+								comparison={comparison}
+								otherSources={otherSources}
+								provenance={provenanceByField.get(comparison.field)}
+							/>
 						))}
 						{fieldComparisons.length === 0 && (
 							<div className="py-12 flex items-center justify-center">

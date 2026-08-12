@@ -188,6 +188,13 @@ const FIELD_VALIDATION: Partial<Record<MetadataField, NumberValidation>> = Objec
 export const getNumberValidation = (field: MetadataField): NumberValidation | undefined =>
 	FIELD_VALIDATION[field]
 
+/**
+ * Every field def keyed by its `MetadataField`, for callers that have a field and need
+ * its binding or `candidateKey` — reading an external payload, for instance.
+ */
+export const FIELD_DEF_BY_FIELD: Partial<Record<MetadataField, MetadataFieldDef>> =
+	Object.fromEntries([...MEDIA_FIELD_DEFS, ...SERIES_FIELD_DEFS].map((def) => [def.field, def]))
+
 export const FIELD_BINDING_NAME: Partial<Record<MetadataField, string>> = Object.fromEntries(
 	ALL_FIELD_DEFS.filter((d) => d.editorType === 'badgeList').map((d) => [d.field, d.binding]),
 )

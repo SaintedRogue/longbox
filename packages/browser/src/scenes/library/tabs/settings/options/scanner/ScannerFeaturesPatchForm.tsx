@@ -25,6 +25,7 @@ export default function ScannerFeaturesPatchForm() {
 	const handleSubmit = useCallback(
 		({
 			processMetadata,
+			metadataBackfillProviders,
 			writeComicinfo,
 			watch,
 			generateFileHashes,
@@ -32,6 +33,7 @@ export default function ScannerFeaturesPatchForm() {
 		}: Pick<
 			CreateOrUpdateLibrarySchema,
 			| 'processMetadata'
+			| 'metadataBackfillProviders'
 			| 'writeComicinfo'
 			| 'watch'
 			| 'generateFileHashes'
@@ -41,6 +43,7 @@ export default function ScannerFeaturesPatchForm() {
 				config: {
 					generateFileHashes,
 					processMetadata,
+					metadataBackfillProviders,
 					writeComicinfo,
 					watch,
 					generateKoreaderHashes,
