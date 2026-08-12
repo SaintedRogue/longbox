@@ -54,6 +54,12 @@ pub struct ReleaseCalendarConfig {
 	/// after a live test.
 	#[serde(default)]
 	pub metron_enabled: bool,
+	/// Sweep League of Comic Geeks' weekly release lists. Default OFF: LOCG is an
+	/// unofficial provider gated behind
+	/// `server_config.unofficial_providers_acknowledged_at`, so sweeping it is
+	/// always an explicit opt-in.
+	#[serde(default)]
+	pub locg_enabled: bool,
 }
 
 fn default_true() -> bool {
@@ -65,6 +71,7 @@ impl Default for ReleaseCalendarConfig {
 		Self {
 			comicvine_enabled: true,
 			metron_enabled: false,
+			locg_enabled: false,
 		}
 	}
 }

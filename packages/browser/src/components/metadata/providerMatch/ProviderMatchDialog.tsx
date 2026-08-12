@@ -19,6 +19,7 @@ const PROVIDER_LABELS: Record<MetadataProvider, string> = {
 	[MetadataProvider.Hardcover]: 'Hardcover',
 	[MetadataProvider.Metron]: 'Metron',
 	[MetadataProvider.ComicVine]: 'Comic Vine',
+	[MetadataProvider.Locg]: 'League of Comic Geeks',
 }
 
 const mediaContextQuery = graphql(`

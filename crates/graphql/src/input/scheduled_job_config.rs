@@ -32,6 +32,10 @@ pub struct ReleaseCalendarConfigInput {
 	pub comicvine_enabled: bool,
 	/// Sweep Metron's store-date window (leave off until verified reachable)
 	pub metron_enabled: bool,
+	/// Sweep League of Comic Geeks' weekly release lists. Defaults to off when
+	/// omitted; LOCG is an unofficial provider and sweeping it is opt-in.
+	#[graphql(default)]
+	pub locg_enabled: bool,
 }
 
 #[derive(InputObject)]

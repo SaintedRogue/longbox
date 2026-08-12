@@ -38,9 +38,14 @@ export function ProviderApiKeyInput({ hasStoredCredential = false }: Props) {
 		name: ['providerType', 'apiToken'],
 	})
 	const isMetron = provider === MetadataProvider.Metron
+	const isLocg = provider === MetadataProvider.Locg
+	// Both Metron and LOCG pack `username:password` into the single apiToken field, so
+	// both get the credential-pair UI rather than a token box.
+	const usesCredentialPair = isMetron || isLocg
+	const copy = usesCredentialPair ? CREDENTIAL_PAIR_COPY[isLocg ? 'LOCG' : 'METRON'] : null
 
-	// Metron-only local field state; `apiToken` is composed from these. Not pre-seeded —
-	// the server never returns stored credentials, so both start empty.
+	// Local field state for the credential pair; `apiToken` is composed from these. Not
+	// pre-seeded — the server never returns stored credentials, so both start empty.
 	const [username, setUsername] = useState('')
 	const [password, setPassword] = useState('')
 
@@ -123,12 +128,12 @@ export function ProviderApiKeyInput({ hasStoredCredential = false }: Props) {
 
 	return (
 		<>
-			{isMetron ? (
+			{usesCredentialPair && copy ? (
 				<>
 					<Input
-						id="metron-username"
-						label="Metron username"
-						description="Your metron.cloud account username"
+						id={`${copy.idPrefix}-username`}
+						label={copy.usernameLabel}
+						description={copy.usernameDescription}
 						type="text"
 						autoComplete="off"
 						value={username}
@@ -136,19 +141,18 @@ export function ProviderApiKeyInput({ hasStoredCredential = false }: Props) {
 						fullWidth
 					/>
 					<PasswordInput
-						id="metron-password"
-						label="Metron password"
+						id={`${copy.idPrefix}-password`}
+						label={copy.passwordLabel}
 						value={password}
 						onChange={(e) => handlePasswordChange(e.target.value)}
 						errorMessage={errors.apiToken?.message}
 						fullWidth
 					/>
 					<Text size="xs" variant="muted">
-						Enter your metron.cloud username and password. Metadata provided by metron.cloud, CC
-						BY-SA 4.0
+						{copy.attribution}
 					</Text>
 					<Text size="xs" variant="muted">
-						Credentials aren&apos;t validated in-app — save them, then verify manually.
+						{copy.validationHint}
 					</Text>
 					{hasStoredCredential && (
 						<Text size="xs" variant="muted">
@@ -233,6 +237,32 @@ const validateHardcoverApiKey: Validator = async (apiKey, t) => {
 	return getProperty(data, 'data.me[0].id') != null
 }
 
+/**
+ * Per-provider copy for the two providers that authenticate with a credential pair
+ * packed into the single `apiToken` column.
+ */
+const CREDENTIAL_PAIR_COPY = {
+	METRON: {
+		idPrefix: 'metron',
+		usernameLabel: 'Metron username',
+		usernameDescription: 'Your metron.cloud account username',
+		passwordLabel: 'Metron password',
+		attribution:
+			'Enter your metron.cloud username and password. Metadata provided by metron.cloud, CC BY-SA 4.0',
+		validationHint: "Credentials aren't validated in-app — save them, then verify manually.",
+	},
+	LOCG: {
+		idPrefix: 'locg',
+		usernameLabel: 'League of Comic Geeks username',
+		usernameDescription: 'Your own leagueofcomicgeeks.com account',
+		passwordLabel: 'League of Comic Geeks password',
+		attribution:
+			'Longbox signs in as you to read League of Comic Geeks, which has no public API. Requests are made with your account and are subject to their terms of use.',
+		validationHint:
+			'Use the Test button after saving — the check runs on the server, never from your browser.',
+	},
+} as const
+
 const PROVIDER_VALIDATORS: Record<MetadataProvider, Validator | null> = {
 	HARDCOVER: validateHardcoverApiKey,
 	// Metron is intentionally NOT validated in-app: its gateway hands out 24h bans to
@@ -242,4 +272,8 @@ const PROVIDER_VALIDATORS: Record<MetadataProvider, Validator | null> = {
 	// ComicVine also validates server-side (no browser-friendly CORS endpoint for the
 	// api_key check); see the provider's `validate_credentials`.
 	COMIC_VINE: null,
+	// League of Comic Geeks sends no CORS headers at all, and its credential check is a
+	// login POST — the browser must never make it. Validated server-side via the Test
+	// button (see the provider's `validate_credentials`).
+	LOCG: null,
 }

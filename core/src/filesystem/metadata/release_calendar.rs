@@ -137,6 +137,7 @@ pub async fn run_release_calendar_sync(
 		let enabled = match provider_config.provider_type {
 			MetadataProviderEnum::ComicVine => config.comicvine_enabled,
 			MetadataProviderEnum::Metron => config.metron_enabled,
+			MetadataProviderEnum::Locg => config.locg_enabled,
 			// Hardcover has no release windows.
 			MetadataProviderEnum::Hardcover => false,
 		};

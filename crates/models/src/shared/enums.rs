@@ -505,6 +505,16 @@ pub enum MetadataProvider {
 	Metron,
 	/// Comic Vine (https://comicvine.gamespot.com) — comics; free API, NON-COMMERCIAL use only
 	ComicVine,
+	/// League of Comic Geeks (https://leagueofcomicgeeks.com) — comics.
+	///
+	/// **Unofficial.** LOCG publishes no usable API (their private one rejects every
+	/// request without a client key that cannot be obtained), so this provider drives
+	/// the site's own session-authenticated endpoints with the operator's personal
+	/// login. LOCG's Terms of Use prohibit automated access, which is why this variant
+	/// is hidden from the add-provider list until the server owner acknowledges that —
+	/// see `server_config.unofficial_providers_acknowledged_at` and
+	/// [`MetadataProvider::is_unofficial`].
+	Locg,
 }
 
 impl MetadataProvider {
@@ -519,6 +529,22 @@ impl MetadataProvider {
 			],
 			Self::Metron => &[LibraryType::Comic],
 			Self::ComicVine => &[LibraryType::Comic],
+			Self::Locg => &[LibraryType::Comic],
+		}
+	}
+
+	/// Whether this provider has no official/public API and is reached only by
+	/// driving a site's own session-authenticated endpoints as the operator, against
+	/// that site's terms of use.
+	///
+	/// Providers where this is `true` MUST be withheld from the add-provider list —
+	/// absent, not disabled — until the server owner has acknowledged those terms
+	/// (`server_config.unofficial_providers_acknowledged_at`). Longbox itself does no
+	/// scraping; the operator who configures one of these is acting as themselves.
+	pub fn is_unofficial(&self) -> bool {
+		match self {
+			Self::Hardcover | Self::Metron | Self::ComicVine => false,
+			Self::Locg => true,
 		}
 	}
 
@@ -536,6 +562,7 @@ impl MetadataProvider {
 			Self::Hardcover => "hardcover",
 			Self::Metron => "metron",
 			Self::ComicVine => "comicvine",
+			Self::Locg => "locg",
 		}
 	}
 
@@ -546,6 +573,7 @@ impl MetadataProvider {
 			"hardcover" => Some(Self::Hardcover),
 			"metron" => Some(Self::Metron),
 			"comicvine" => Some(Self::ComicVine),
+			"locg" => Some(Self::Locg),
 			_ => None,
 		}
 	}

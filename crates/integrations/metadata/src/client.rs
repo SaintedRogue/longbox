@@ -1,6 +1,6 @@
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
-use reqwest::Client;
+use reqwest::{cookie::CookieStore, Client};
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
 use reqwest_retry::{
 	policies::ExponentialBackoff, RetryTransientMiddleware, Retryable, RetryableStrategy,
@@ -71,14 +71,37 @@ impl Default for RetryClientConfig {
 /// `reqwest::Client::new()`) so the User-Agent is never accidentally dropped —
 /// a headerless request is exactly what Metron's filters ban.
 pub fn default_metadata_client() -> Client {
-	Client::builder()
-		.user_agent(METADATA_USER_AGENT)
-		.connect_timeout(CONNECT_TIMEOUT)
-		.timeout(REQUEST_TIMEOUT)
+	metadata_client_builder()
 		.build()
 		// Mirrors `reqwest::Client::new()`, which unwraps the same result. The only
 		// failure mode is the TLS backend failing to initialize at startup.
 		.expect("failed to build metadata HTTP client")
+}
+
+/// A [`reqwest::ClientBuilder`] carrying the mandatory User-Agent and the shared
+/// timeouts, for providers that need one more knob (a cookie jar, a redirect policy).
+/// Start here rather than at `Client::builder()` so the User-Agent is never dropped.
+pub fn metadata_client_builder() -> reqwest::ClientBuilder {
+	Client::builder()
+		.user_agent(METADATA_USER_AGENT)
+		.connect_timeout(CONNECT_TIMEOUT)
+		.timeout(REQUEST_TIMEOUT)
+}
+
+/// Build a metadata client that persists cookies into `jar`, otherwise identical to
+/// [`default_metadata_client`] (same mandatory User-Agent, same timeouts).
+///
+/// Only for providers that authenticate with a *session* rather than a token — i.e.
+/// League of Comic Geeks, which has no API and is reached by logging into the site as
+/// the operator. Its `ci_session` cookie is reissued by the server on **every**
+/// response, so the jar has to be the source of truth; a credential string copied
+/// once would be stale by the next request. The caller keeps the `Arc` so it can ask
+/// whether a session is currently held (and drop it to force a fresh login).
+pub fn metadata_client_with_cookie_jar<C: CookieStore + 'static>(jar: Arc<C>) -> Client {
+	metadata_client_builder()
+		.cookie_provider(jar)
+		.build()
+		.expect("failed to build cookie-aware metadata HTTP client")
 }
 
 /// Build a [`ClientWithMiddleware`] wrapping the given [`reqwest::Client`]

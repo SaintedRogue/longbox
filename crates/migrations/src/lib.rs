@@ -38,6 +38,7 @@ mod m20260809_000000_add_book_groups;
 mod m20260809_000100_metadata_pipeline_hardening;
 mod m20260809_000200_follows_and_expected_issues;
 mod m20260810_000000_add_library_folders;
+mod m20260811_000000_add_unofficial_providers_ack;
 
 pub struct Migrator;
 
@@ -82,6 +83,7 @@ impl MigratorTrait for Migrator {
 			Box::new(m20260809_000100_metadata_pipeline_hardening::Migration),
 			Box::new(m20260809_000200_follows_and_expected_issues::Migration),
 			Box::new(m20260810_000000_add_library_folders::Migration),
+			Box::new(m20260811_000000_add_unofficial_providers_ack::Migration),
 		]
 	}
 }

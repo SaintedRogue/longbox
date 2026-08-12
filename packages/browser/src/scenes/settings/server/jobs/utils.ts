@@ -12,6 +12,8 @@ const scheduledMetadataRetryConfig = z.object({
 const scheduledReleaseCalendarConfig = z.object({
 	comicvineEnabled: z.boolean(),
 	metronEnabled: z.boolean(),
+	// Older stored configs predate LOCG, so this has to tolerate its absence.
+	locgEnabled: z.boolean().optional(),
 })
 
 const scheduledJobConfig = z.union([
@@ -64,6 +66,8 @@ export const scheduledJobFormSchema = z.object({
 		.default([MetadataFetchStatus.RateLimited]),
 	comicvineEnabled: z.boolean().default(true),
 	metronEnabled: z.boolean().default(false),
+	// Off by default: LOCG is an unofficial provider, so sweeping it is opt-in.
+	locgEnabled: z.boolean().default(false),
 	enabled: z.boolean().default(true),
 })
 export type ScheduledJobFormValues = z.infer<typeof scheduledJobFormSchema>
@@ -77,6 +81,7 @@ export function buildScheduledJobInput(values: ScheduledJobFormValues) {
 						releaseCalendar: {
 							comicvineEnabled: values.comicvineEnabled,
 							metronEnabled: values.metronEnabled,
+							locgEnabled: values.locgEnabled,
 						},
 					}
 				: { metadataRetry: { statuses: values.statuses } }

@@ -2232,6 +2232,18 @@ export enum MetadataProvider {
   ComicVine = 'COMIC_VINE',
   /** Hardcover (https://hardcover.app) */
   Hardcover = 'HARDCOVER',
+  /**
+   * League of Comic Geeks (https://leagueofcomicgeeks.com) — comics.
+   *
+   * **Unofficial.** LOCG publishes no usable API (their private one rejects every
+   * request without a client key that cannot be obtained), so this provider drives
+   * the site's own session-authenticated endpoints with the operator's personal
+   * login. LOCG's Terms of Use prohibit automated access, which is why this variant
+   * is hidden from the add-provider list until the server owner acknowledges that —
+   * see `server_config.unofficial_providers_acknowledged_at` and
+   * [`MetadataProvider::is_unofficial`].
+   */
+  Locg = 'LOCG',
   /** Metron (https://metron.cloud) — comics; data CC BY-SA 4.0 */
   Metron = 'METRON'
 }
@@ -2614,6 +2626,18 @@ export type Mutation = {
    * and unlinks removed ones. Returns the updated series.
    */
   setSeriesTags: Series;
+  /**
+   * Record — or withdraw — the server owner's acknowledgement of the terms of
+   * using **unofficial** metadata providers: those with no official API, which
+   * can only be reached by driving a site's own session-authenticated endpoints
+   * with the operator's personal login, against that site's terms of use.
+   *
+   * Providers in that class are absent from the add-provider list until this is
+   * set. Passing `acknowledged: false` clears the timestamp, which re-hides them
+   * (existing configured instances are left alone — removing those is a separate,
+   * explicit action).
+   */
+  setUnofficialProvidersAcknowledged: ServerConfigModel;
   /** Suggest a book for the book club */
   suggestBook: BookClubBookSuggestion;
   /** Send a test email to verify the SMTP configuration is working */
@@ -3304,6 +3328,11 @@ export type MutationSetSeriesLockedFieldsArgs = {
 export type MutationSetSeriesTagsArgs = {
   id: Scalars['ID']['input'];
   tags: Array<Scalars['String']['input']>;
+};
+
+
+export type MutationSetUnofficialProvidersAcknowledgedArgs = {
+  acknowledged: Scalars['Boolean']['input'];
 };
 
 
@@ -4682,6 +4711,11 @@ export type RegisteredEmailDevice = {
 export type ReleaseCalendarConfigInput = {
   /** Sweep ComicVine's store-date window */
   comicvineEnabled: Scalars['Boolean']['input'];
+  /**
+   * Sweep League of Comic Geeks' weekly release lists. Defaults to off when
+   * omitted; LOCG is an unofficial provider and sweeping it is opt-in.
+   */
+  locgEnabled?: Scalars['Boolean']['input'];
   /** Sweep Metron's store-date window (leave off until verified reachable) */
   metronEnabled: Scalars['Boolean']['input'];
 };
@@ -5142,6 +5176,17 @@ export type ServerConfigModel = {
   id: Scalars['Int']['output'];
   initialWalSetupComplete: Scalars['Boolean']['output'];
   publicUrl?: Maybe<Scalars['String']['output']>;
+  /**
+   * When the server owner acknowledged the terms of using **unofficial** metadata
+   * providers — those with no official API, reached only by driving a site's own
+   * session-authenticated endpoints with the operator's personal login.
+   *
+   * `None` means not acknowledged, and providers in that class must be **absent**
+   * from the add-provider list entirely rather than merely disabled. A timestamp
+   * (not a bool) so the acceptance is auditable and can be cleared to re-prompt
+   * if the disclosure wording changes.
+   */
+  unofficialProvidersAcknowledgedAt?: Maybe<Scalars['DateTime']['output']>;
 };
 
 /**
@@ -7226,6 +7271,18 @@ export type TestMetadataProviderMutationVariables = Exact<{
 
 
 export type TestMetadataProviderMutation = { __typename?: 'Mutation', testMetadataProvider: { __typename?: 'ProviderValidationResult', status: ProviderValidationStatus, message: string } };
+
+export type UnofficialProvidersAcknowledgedQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type UnofficialProvidersAcknowledgedQuery = { __typename?: 'Query', serverConfig: { __typename?: 'ServerConfigModel', id: number, unofficialProvidersAcknowledgedAt?: any | null } };
+
+export type UnofficialProvidersSetAcknowledgedMutationVariables = Exact<{
+  acknowledged: Scalars['Boolean']['input'];
+}>;
+
+
+export type UnofficialProvidersSetAcknowledgedMutation = { __typename?: 'Mutation', setUnofficialProvidersAcknowledged: { __typename?: 'ServerConfigModel', id: number, unofficialProvidersAcknowledgedAt?: any | null } };
 
 export type CreateTagModalMutationVariables = Exact<{
   tags: Array<Scalars['String']['input']> | Scalars['String']['input'];
@@ -11805,6 +11862,22 @@ export const TestMetadataProviderDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<TestMetadataProviderMutation, TestMetadataProviderMutationVariables>;
+export const UnofficialProvidersAcknowledgedDocument = new TypedDocumentString(`
+    query UnofficialProvidersAcknowledged {
+  serverConfig {
+    id
+    unofficialProvidersAcknowledgedAt
+  }
+}
+    `) as unknown as TypedDocumentString<UnofficialProvidersAcknowledgedQuery, UnofficialProvidersAcknowledgedQueryVariables>;
+export const UnofficialProvidersSetAcknowledgedDocument = new TypedDocumentString(`
+    mutation UnofficialProvidersSetAcknowledged($acknowledged: Boolean!) {
+  setUnofficialProvidersAcknowledged(acknowledged: $acknowledged) {
+    id
+    unofficialProvidersAcknowledgedAt
+  }
+}
+    `) as unknown as TypedDocumentString<UnofficialProvidersSetAcknowledgedMutation, UnofficialProvidersSetAcknowledgedMutationVariables>;
 export const CreateTagModalDocument = new TypedDocumentString(`
     mutation CreateTagModal($tags: [String!]!) {
   createTags(tags: $tags) {

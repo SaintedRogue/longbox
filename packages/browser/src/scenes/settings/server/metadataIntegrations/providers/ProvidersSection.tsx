@@ -8,6 +8,7 @@ import { Suspense } from 'react'
 import { PROVIDER_LABELS } from './constants'
 import { CreateProviderDialog } from './CreateProviderDialog'
 import { ExistingProviderCard } from './ExistingProviderCard'
+import { UnofficialProvidersPanel } from './UnofficialProvidersPanel'
 
 const query = graphql(`
 	query ProvidersSectionGetProviders {
@@ -120,6 +121,10 @@ export default function ProvidersSection() {
 
 				<CreateProviderDialog />
 			</div>
+
+			<Suspense fallback={null}>
+				<UnofficialProvidersPanel />
+			</Suspense>
 
 			<Suspense fallback={null}>
 				<ProviderCards />

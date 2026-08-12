@@ -24,3 +24,8 @@ packages/graphql/src/client/*.ts
 
 apps/expo/drizzle/*
 apps/expo/components/emoji/data.json
+# Captured provider fixtures are verbatim responses from a live site, not source.
+# Formatting them would churn on every recapture and invites "tidying" that quietly
+# changes what the parser tests assert against. The .html captures alongside these
+# are already unchecked, so this keeps the whole fixture set consistent.
+crates/integrations/metadata/src/providers/*/fixtures

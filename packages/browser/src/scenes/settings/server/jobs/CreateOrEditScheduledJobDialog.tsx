@@ -75,6 +75,7 @@ export function CreateOrEditScheduledJobDialog({
 					config && 'statuses' in config ? config.statuses : [MetadataFetchStatus.RateLimited],
 				comicvineEnabled: config && 'comicvineEnabled' in config ? config.comicvineEnabled : true,
 				metronEnabled: config && 'metronEnabled' in config ? config.metronEnabled : false,
+				locgEnabled: config && 'locgEnabled' in config ? !!config.locgEnabled : false,
 				enabled: data.enabled,
 			} satisfies ScheduledJobFormValues
 		}
@@ -86,6 +87,7 @@ export function CreateOrEditScheduledJobDialog({
 			statuses: [MetadataFetchStatus.RateLimited],
 			comicvineEnabled: true,
 			metronEnabled: false,
+			locgEnabled: false,
 			enabled: true,
 		} satisfies ScheduledJobFormValues
 	}, [data])
@@ -95,19 +97,28 @@ export function CreateOrEditScheduledJobDialog({
 		resolver: zodResolver(scheduledJobFormSchema),
 	})
 
-	const [watchKind, schedule, libraryIds, statuses, enabled, comicvineEnabled, metronEnabled] =
-		useWatch({
-			control: form.control,
-			name: [
-				'kind',
-				'schedule',
-				'libraryIds',
-				'statuses',
-				'enabled',
-				'comicvineEnabled',
-				'metronEnabled',
-			],
-		})
+	const [
+		watchKind,
+		schedule,
+		libraryIds,
+		statuses,
+		enabled,
+		comicvineEnabled,
+		metronEnabled,
+		locgEnabled,
+	] = useWatch({
+		control: form.control,
+		name: [
+			'kind',
+			'schedule',
+			'libraryIds',
+			'statuses',
+			'enabled',
+			'comicvineEnabled',
+			'metronEnabled',
+			'locgEnabled',
+		],
+	})
 	const [cronPreset, setCronPreset] = useState('')
 	const { errors: formErrors } = useFormState({ control: form.control })
 
@@ -276,6 +287,12 @@ export function CreateOrEditScheduledJobDialog({
 									description={t(getKey('fields.releaseCalendar.metronDescription'))}
 									checked={metronEnabled}
 									onClick={() => form.setValue('metronEnabled', !metronEnabled)}
+								/>
+								<CheckBox
+									label={t(getKey('fields.releaseCalendar.locg'))}
+									description={t(getKey('fields.releaseCalendar.locgDescription'))}
+									checked={locgEnabled}
+									onClick={() => form.setValue('locgEnabled', !locgEnabled)}
 								/>
 							</div>
 						)}

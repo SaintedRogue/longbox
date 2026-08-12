@@ -47,6 +47,7 @@ export function ScheduledJobRow({ job, libraries, onEdit, onDelete }: Props) {
 			const providers = [
 				config.comicvineEnabled ? 'ComicVine' : null,
 				config.metronEnabled ? 'Metron' : null,
+				config.locgEnabled ? 'League of Comic Geeks' : null,
 			].filter(Boolean)
 			return providers.length > 0 ? providers.join(', ') : t(`${LOCALE_BASE}.row.disabled`)
 		}

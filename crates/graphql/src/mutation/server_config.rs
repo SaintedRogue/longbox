@@ -31,4 +31,34 @@ impl ServerConfigMutation {
 		let updated_config = config.update(conn).await?;
 		Ok(updated_config)
 	}
+
+	/// Record — or withdraw — the server owner's acknowledgement of the terms of
+	/// using **unofficial** metadata providers: those with no official API, which
+	/// can only be reached by driving a site's own session-authenticated endpoints
+	/// with the operator's personal login, against that site's terms of use.
+	///
+	/// Providers in that class are absent from the add-provider list until this is
+	/// set. Passing `acknowledged: false` clears the timestamp, which re-hides them
+	/// (existing configured instances are left alone — removing those is a separate,
+	/// explicit action).
+	#[graphql(guard = "PermissionGuard::one(UserPermission::ManageServer)")]
+	async fn set_unofficial_providers_acknowledged(
+		&self,
+		ctx: &Context<'_>,
+		acknowledged: bool,
+	) -> Result<server_config::Model> {
+		let conn = ctx.data::<CoreContext>()?.conn.as_ref();
+
+		let config = server_config::Entity::find()
+			.one(conn)
+			.await?
+			.ok_or("Server configuration not found")?;
+
+		let mut config = config.into_active_model();
+		config.unofficial_providers_acknowledged_at =
+			Set(acknowledged.then(chrono::Utc::now));
+
+		let updated_config = config.update(conn).await?;
+		Ok(updated_config)
+	}
 }

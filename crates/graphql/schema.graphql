@@ -2110,6 +2110,18 @@ enum MetadataProvider {
 	METRON
 	"Comic Vine (https://comicvine.gamespot.com) — comics; free API, NON-COMMERCIAL use only"
 	COMIC_VINE
+	"""
+	League of Comic Geeks (https://leagueofcomicgeeks.com) — comics.
+	
+	**Unofficial.** LOCG publishes no usable API (their private one rejects every
+	request without a client key that cannot be obtained), so this provider drives
+	the site's own session-authenticated endpoints with the operator's personal
+	login. LOCG's Terms of Use prohibit automated access, which is why this variant
+	is hidden from the add-provider list until the server owner acknowledges that —
+	see `server_config.unofficial_providers_acknowledged_at` and
+	[`MetadataProvider::is_unofficial`].
+	"""
+	LOCG
 }
 
 type MetadataProviderConfigModel {
@@ -2499,6 +2511,18 @@ type Mutation {
 	updateNotifier(id: Int!, input: NotifierInput!): Notifier!
 	deleteNotifier(id: Int!): Notifier!
 	updatePublicUrl(publicUrl: String!): ServerConfigModel!
+	"""
+	Record — or withdraw — the server owner's acknowledgement of the terms of
+	using **unofficial** metadata providers: those with no official API, which
+	can only be reached by driving a site's own session-authenticated endpoints
+	with the operator's personal login, against that site's terms of use.
+	
+	Providers in that class are absent from the add-provider list until this is
+	set. Passing `acknowledged: false` clears the timestamp, which re-hides them
+	(existing configured instances are left alone — removing those is a separate,
+	explicit action).
+	"""
+	setUnofficialProvidersAcknowledged(acknowledged: Boolean!): ServerConfigModel!
 	createScheduledJob(input: CreateScheduledJobInput!): ScheduledJob!
 	updateScheduledJob(id: Int!, input: UpdateScheduledJobInput!): ScheduledJob!
 	deleteScheduledJob(id: Int!): Boolean!
@@ -3392,6 +3416,11 @@ input ReleaseCalendarConfigInput {
 	comicvineEnabled: Boolean!
 	"Sweep Metron's store-date window (leave off until verified reachable)"
 	metronEnabled: Boolean!
+	"""
+	Sweep League of Comic Geeks' weekly release lists. Defaults to off when
+	omitted; LOCG is an unofficial provider and sweeping it is opt-in.
+	"""
+	locgEnabled: Boolean! = false
 }
 
 """
@@ -3822,6 +3851,17 @@ type ServerConfigModel {
 	id: Int!
 	publicUrl: String
 	initialWalSetupComplete: Boolean!
+	"""
+	When the server owner acknowledged the terms of using **unofficial** metadata
+	providers — those with no official API, reached only by driving a site's own
+	session-authenticated endpoints with the operator's personal login.
+	
+	`None` means not acknowledged, and providers in that class must be **absent**
+	from the add-provider list entirely rather than merely disabled. A timestamp
+	(not a bool) so the acceptance is auditable and can be cleared to re-prompt
+	if the disclosure wording changes.
+	"""
+	unofficialProvidersAcknowledgedAt: DateTime
 }
 
 """
