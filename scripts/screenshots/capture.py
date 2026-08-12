@@ -57,17 +57,49 @@ class Screen:
     prepare: object = field(default=None)
 
 
+def reveal_reader_controls(page: Page) -> None:
+    """Try to show the reader's toolbar. Known not to work headlessly.
+
+    Without the toolbar, a reader capture is a comic page on a black field —
+    indistinguishable from any image viewer, which is why it is worth attempting.
+
+    Both `PagedReader` and `AnimatedPagedReader` bind space to toggle `showToolBar`
+    and also put a toggle on a centre tap zone. Neither fires under Playwright:
+    verified by sampling the far-left gutter, where a full-width toolbar would appear
+    and where page artwork never reaches — it stays a single flat colour either way.
+    The hotkey presumably depends on how `react-hotkeys-hook` normalises the key, and
+    the tap zone only exists when `tapSidesToNavigate` is enabled.
+
+    Left in place because the attempt is harmless and the capture is still valid; the
+    reader image is simply not installed into `docs/public` while it cannot show that
+    it is a reader.
+    """
+    box = page.viewport_size
+    page.keyboard.press(" ")
+    page.wait_for_timeout(400)
+    page.mouse.click(box["width"] // 2, box["height"] // 2)
+
+
 SCREENS: list[Screen] = [
     Screen("library-browse", "/libraries/{library_id}/series"),
     Screen("omnibus-shelf", "/libraries/{library_id}/omnibuses"),
-    Screen("release-calendar", "/calendar"),
     Screen("book-detail", "/books/{book_id}"),
     # The reader decodes a full comic page after the route settles.
-    Screen("reader", "/books/{book_id}/reader", settle_ms=2500),
+    Screen(
+        "reader",
+        "/books/{book_id}/reader",
+        settle_ms=2500,
+        prepare=reveal_reader_controls,
+    ),
     # Phone variants exist for the hero composite.
     Screen("omnibus-shelf-phone", "/libraries/{library_id}/omnibuses", "phone"),
     Screen("book-detail-phone", "/books/{book_id}", "phone"),
 ]
+
+# Deliberately not captured: the release calendar. Prod has one mapped release
+# across the whole week on the widest scope, so the screen photographs as
+# "Nothing expected this week" — which makes a working feature look broken. Add it
+# back when a library has releases to show.
 
 
 def read_env() -> dict[str, str]:
@@ -243,3 +275,34 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+def compose_hero(playwright, desktop: pathlib.Path, phone: pathlib.Path, out: pathlib.Path) -> None:
+    """Screenshot `hero.html` with the two captures embedded.
+
+    Transparent background so the composite drops onto any README or docs background
+    without a matte edge around the shadows.
+    """
+    template = (pathlib.Path(__file__).parent / "hero.html").resolve()
+    url = (
+        f"file://{template}?desktop=file://{desktop.resolve()}"
+        f"&phone=file://{phone.resolve()}"
+    )
+    browser = playwright.chromium.launch()
+    try:
+        # Scale factor 1: the source captures are already 2x, so the composite is
+        # rendered at their native pixel size rather than doubled again.
+        context = browser.new_context(
+            viewport={"width": 2200, "height": 1400}, device_scale_factor=1
+        )
+        page = context.new_page()
+        page.goto(url, wait_until="load")
+        page.wait_for_function(
+            "() => Array.from(document.images).every(i => i.complete && i.naturalWidth > 0)",
+            timeout=30_000,
+        )
+        page.wait_for_timeout(300)
+        page.locator("#stage").screenshot(path=str(out), omit_background=True)
+        print(f"  {out.name:24s} {out.stat().st_size // 1024:5d} KB  composite")
+    finally:
+        browser.close()
