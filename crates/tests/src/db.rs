@@ -1,6 +1,7 @@
 use models::entity::{
-	age_restriction, book_group, kobo_sync_session, library, library_config,
-	library_exclusion, library_folder, media, media_analysis, media_metadata, media_tag,
+	age_restriction, book_group, external_metadata_link, kobo_sync_session, library,
+	library_config, library_exclusion, library_folder, media, media_analysis,
+	media_metadata, media_tag, metadata_fetch_record, metadata_field_source,
 	reading_device, reading_session, refresh_token, series, series_metadata,
 	server_config, session, tag, user, user_preferences,
 };
@@ -24,6 +25,14 @@ pub async fn create_database_tables(db: &DbConn) -> Result<(), DbErr> {
 		schema.create_table_from_entity(media::Entity),
 		schema.create_table_from_entity(book_group::Entity),
 		schema.create_table_from_entity(media_metadata::Entity),
+		// The enrichment pool. Note this schema is derived from the entities, so it does
+		// NOT carry the migration's CHECK constraints or partial unique indexes -- tests
+		// that depend on those must run the migrator instead.
+		schema.create_table_from_entity(external_metadata_link::Entity),
+		schema.create_table_from_entity(metadata_field_source::Entity),
+		// `apply_*_match` marks the fetch record accepted, so applying anything needs
+		// this table present.
+		schema.create_table_from_entity(metadata_fetch_record::Entity),
 		schema.create_table_from_entity(media_analysis::Entity),
 		schema.create_table_from_entity(series::Entity),
 		schema.create_table_from_entity(series_metadata::Entity),

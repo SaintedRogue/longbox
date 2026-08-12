@@ -8,6 +8,7 @@ use models::{
 };
 use sea_orm::{prelude::*, sea_query::OnConflict, QuerySelect, Set};
 
+use super::enrichment::ApplyActor;
 use super::{apply, ProviderClientCache};
 use crate::CoreError;
 
@@ -238,6 +239,9 @@ pub async fn fetch_series_metadata(
 				config.strategy,
 				config.exclude_fields,
 				vec![],
+				// Auto-apply: no human chose this, so the fields are attributed to the
+				// provider and nothing gets locked.
+				ApplyActor::Auto,
 			)
 			.await
 			{
@@ -461,6 +465,9 @@ pub async fn fetch_media_metadata(
 				config.strategy,
 				config.exclude_fields,
 				vec![],
+				// Auto-apply: no human chose this, so the fields are attributed to the
+				// provider and nothing gets locked.
+				ApplyActor::Auto,
 			)
 			.await
 			{

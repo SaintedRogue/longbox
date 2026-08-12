@@ -117,6 +117,9 @@ impl Library {
 
 		let config = library_config::ActiveModel {
 			library_id: sea_orm::Set(Some(id.clone())),
+			// NOT NULL with no DB-level default in the entity-derived test schema, so it
+			// has to be explicit here even though the migration defaults it to false.
+			metadata_backfill_providers: sea_orm::Set(false),
 			..Default::default()
 		}
 		.insert(db)

@@ -1349,6 +1349,16 @@ export type LibraryConfig = {
   libraryId?: Maybe<Scalars['String']['output']>;
   libraryPattern: LibraryPattern;
   libraryType: LibraryType;
+  /**
+   * Whether a metadata fetch over this library may fill in providers that never
+   * answered for a book.
+   *
+   * Off by default, and deliberately *not* a force-refetch: a book that already has a
+   * match from one provider is never re-searched by that provider. This only lets a
+   * newly-added provider backfill the gap — which is the one way a library matched
+   * before a provider existed can ever benefit from it.
+   */
+  metadataBackfillProviders: Scalars['Boolean']['output'];
   organizeCatchallSubfolders: Scalars['Boolean']['output'];
   processMetadata: Scalars['Boolean']['output'];
   processThumbnailColorsEvenWithoutConfig: Scalars['Boolean']['output'];
