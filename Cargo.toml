@@ -61,10 +61,17 @@ num-traits = "0.2.19"
 prefixed-api-key = { version = "0.3.0", features = ["sha2"] }
 rand = "0.9.2"
 regex = "1.11.3"
-reqwest = { version = "0.13.4", default-features = false, features = [ "json", "rustls" ] }
+# `cookies` is required by the League of Comic Geeks provider: it authenticates with
+# a session cookie that the server rotates on *every* response, so the cookie jar —
+# not a stored string — has to be the source of truth.
+reqwest = { version = "0.13.4", default-features = false, features = [ "cookies", "form", "json", "rustls" ] }
 reqwest-middleware = { version = "0.5.2", features = ["json"] }
 reqwest-retry = "0.9.1"
 rust_decimal = { version = "1.38.0", features = ["serde-with-float"] }
+# HTML parsing for providers that have no API and must read the site's own markup
+# (League of Comic Geeks). Keep every selector in one module per provider so a site
+# redesign is a single-file fix.
+scraper = { version = "0.20", default-features = false }
 sea-orm = { version = "1.1.16", features = [
   "mock",
   "macros",

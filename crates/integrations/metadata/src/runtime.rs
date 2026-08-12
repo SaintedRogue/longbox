@@ -64,6 +64,38 @@ pub fn always_cacheable(_body: &serde_json::Value) -> bool {
 	true
 }
 
+/// [`cached_get_json`] for providers whose responses are HTML rather than JSON.
+///
+/// Only League of Comic Geeks needs this: it has no API, so its issue pages and quick
+/// search return markup. The body is stored in the same cache as a JSON string, which
+/// keeps one cache, one ledger and one limiter across every provider instead of a
+/// parallel set for the scraping one. Cached unconditionally — LOCG reports failures
+/// with status codes, so anything arriving under a 2xx is a real page.
+pub async fn cached_get_text(
+	client: &ClientWithMiddleware,
+	runtime: &dyn ProviderRuntime,
+	limiter: &RateLimiter,
+	provider: &str,
+	request: reqwest::Request,
+) -> Result<String, MetadataProviderError> {
+	let url = request.url().to_string();
+
+	if let Some(serde_json::Value::String(hit)) = runtime.cache_get(provider, &url).await
+	{
+		return Ok(hit);
+	}
+
+	limiter.until_ready().await;
+	let response = client.execute(request).await?;
+	runtime.record_call(provider, &url).await;
+	let response = response.error_for_status()?;
+	let body = response.text().await?;
+	runtime
+		.cache_put(provider, &url, &serde_json::Value::String(body.clone()))
+		.await;
+	Ok(body)
+}
+
 /// Execute a provider GET through the cache and ledger: a fresh cache hit costs
 /// neither a rate-limit permit nor budget; a miss waits for the limiter, records
 /// exactly one ledger row, and offers the body back to the cache.

@@ -19,6 +19,15 @@ pub struct Model {
 	#[sea_orm(column_type = "Text", nullable)]
 	#[graphql(skip)]
 	pub jwt_refresh_secret: Option<String>,
+	/// When the server owner acknowledged the terms of using **unofficial** metadata
+	/// providers — those with no official API, reached only by driving a site's own
+	/// session-authenticated endpoints with the operator's personal login.
+	///
+	/// `None` means not acknowledged, and providers in that class must be **absent**
+	/// from the add-provider list entirely rather than merely disabled. A timestamp
+	/// (not a bool) so the acceptance is auditable and can be cleared to re-prompt
+	/// if the disclosure wording changes.
+	pub unofficial_providers_acknowledged_at: Option<DateTimeUtc>,
 }
 
 #[derive(FromQueryResult)]

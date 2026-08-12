@@ -4,13 +4,14 @@ import { Button, Dialog, Form } from '@longbox/components'
 import { graphql, MergeStrategy, MetadataProvider } from '@longbox/graphql'
 import { useLocaleContext } from '@longbox/i18n'
 import { useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 
-import { isComicProvider, PROVIDER_LABELS, PROVIDERS } from './constants'
+import { availableProviders, isComicProvider, PROVIDER_LABELS } from './constants'
 import ProviderForm from './ProviderForm'
 import ProviderSelectionCard from './ProviderSelectionCard'
 import { createConfig, CreateProviderConfigSchema } from './schema'
+import { useUnofficialProvidersAcknowledged } from './UnofficialProvidersPanel'
 
 const createProviderMutation = graphql(`
 	mutation CreateProviderDialogCreateProvider($input: CreateMetadataProviderConfigInput!) {
@@ -21,6 +22,24 @@ const createProviderMutation = graphql(`
 		}
 	}
 `)
+
+/**
+ * The selectable providers. Unofficial ones (no public API, driven with the operator's
+ * own login) are **omitted entirely** until the server owner acknowledges the terms in
+ * the Unofficial integrations panel — absent rather than shown-and-disabled, so nobody
+ * is nudged toward one they haven't read about.
+ */
+function ProviderChoices({ onSelect }: { onSelect: (provider: MetadataProvider) => void }) {
+	const unofficialAcknowledged = useUnofficialProvidersAcknowledged()
+
+	return (
+		<div className="gap-4 grid grid-cols-2">
+			{availableProviders(unofficialAcknowledged).map((provider) => (
+				<ProviderSelectionCard key={provider} provider={provider} onSelect={onSelect} />
+			))}
+		</div>
+	)
+}
 
 export function CreateProviderDialog() {
 	const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -108,15 +127,9 @@ export function CreateProviderDialog() {
 
 					<Form form={form} onSubmit={handleSubmit} id="create-provider-form" className="py-2">
 						{step === 0 && (
-							<div className="gap-4 grid grid-cols-2">
-								{PROVIDERS.map((provider) => (
-									<ProviderSelectionCard
-										key={provider}
-										provider={provider}
-										onSelect={handleSelectProvider}
-									/>
-								))}
-							</div>
+							<Suspense fallback={null}>
+								<ProviderChoices onSelect={handleSelectProvider} />
+							</Suspense>
 						)}
 
 						{step === 1 && <ProviderForm />}

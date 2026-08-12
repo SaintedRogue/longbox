@@ -12,7 +12,7 @@ use metadata_integrations::{
 	ProviderValidationResult, ProviderValidationStatus,
 };
 use models::{
-	entity::{metadata_fetch_record, metadata_provider_config},
+	entity::{metadata_fetch_record, metadata_provider_config, server_config},
 	shared::enums::{MetadataFetchStatus, MetadataProvider, UserPermission},
 };
 use sea_orm::{prelude::*, IntoActiveModel, Set, TransactionTrait, TryIntoModel};
@@ -33,6 +33,26 @@ impl MetadataProviderMutation {
 		let core_ctx = ctx.data::<CoreContext>()?;
 		let conn = core_ctx.conn.as_ref();
 		let encryption_key = core_ctx.get_encryption_key().await?;
+
+		// Providers with no official API (LOCG) are reached by driving a site's own
+		// endpoints with the operator's personal login, against that site's terms. The
+		// UI hides them until the owner acknowledges that, but hiding a card is not a
+		// gate — this is. Enforced here so the API cannot be used to skip the
+		// disclosure.
+		if input.provider_type.is_unofficial() {
+			let acknowledged = server_config::Entity::find()
+				.one(conn)
+				.await?
+				.and_then(|config| config.unofficial_providers_acknowledged_at)
+				.is_some();
+			if !acknowledged {
+				return Err(async_graphql::Error::new(
+					"This provider has no official API and requires acknowledging its \
+					 terms of use first (Settings → Server → Metadata Integrations → \
+					 Unofficial integrations).",
+				));
+			}
+		}
 
 		let active_model = input.try_into_active_model(&encryption_key).await?;
 		let result = active_model.save(conn).await?.try_into_model()?;

@@ -136,6 +136,7 @@ pub fn provider_budget_id(
 		models::shared::enums::MetadataProvider::ComicVine => "comicvine",
 		models::shared::enums::MetadataProvider::Metron => "metron",
 		models::shared::enums::MetadataProvider::Hardcover => "hardcover",
+		models::shared::enums::MetadataProvider::Locg => "locg",
 	}
 }
 

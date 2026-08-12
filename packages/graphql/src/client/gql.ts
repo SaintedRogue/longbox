@@ -225,6 +225,8 @@ type Documents = {
     "\n\tquery ProvidersSectionGetProviders {\n\t\tmetadataProviderConfigs {\n\t\t\tid\n\t\t\tproviderType\n\t\t\tposition\n\t\t\t...ExistingProviderCard\n\t\t}\n\t}\n": typeof types.ProvidersSectionGetProvidersDocument,
     "\n\tmutation ProvidersSectionSetPreferred($id: Int!, $input: PatchMetadataProviderConfigInput!) {\n\t\tupdateMetadataProvider(id: $id, input: $input) {\n\t\t\tid\n\t\t\tposition\n\t\t}\n\t}\n": typeof types.ProvidersSectionSetPreferredDocument,
     "\n\tmutation TestMetadataProvider($id: Int!) {\n\t\ttestMetadataProvider(id: $id) {\n\t\t\tstatus\n\t\t\tmessage\n\t\t}\n\t}\n": typeof types.TestMetadataProviderDocument,
+    "\n\tquery UnofficialProvidersAcknowledged {\n\t\tserverConfig {\n\t\t\tid\n\t\t\tunofficialProvidersAcknowledgedAt\n\t\t}\n\t}\n": typeof types.UnofficialProvidersAcknowledgedDocument,
+    "\n\tmutation UnofficialProvidersSetAcknowledged($acknowledged: Boolean!) {\n\t\tsetUnofficialProvidersAcknowledged(acknowledged: $acknowledged) {\n\t\t\tid\n\t\t\tunofficialProvidersAcknowledgedAt\n\t\t}\n\t}\n": typeof types.UnofficialProvidersSetAcknowledgedDocument,
     "\n\tmutation CreateTagModal($tags: [String!]!) {\n\t\tcreateTags(tags: $tags) {\n\t\t\tid\n\t\t\tname\n\t\t}\n\t}\n": typeof types.CreateTagModalDocument,
     "\n\tmutation DeleteTagConfirmModal($tags: [String!]!) {\n\t\tdeleteTags(tags: $tags) {\n\t\t\tid\n\t\t\tname\n\t\t}\n\t}\n": typeof types.DeleteTagConfirmModalDocument,
     "\n\tmutation RenameTagModal($id: Int!, $name: String!) {\n\t\trenameTag(id: $id, name: $name) {\n\t\t\tid\n\t\t\tname\n\t\t}\n\t}\n": typeof types.RenameTagModalDocument,
@@ -467,6 +469,8 @@ const documents: Documents = {
     "\n\tquery ProvidersSectionGetProviders {\n\t\tmetadataProviderConfigs {\n\t\t\tid\n\t\t\tproviderType\n\t\t\tposition\n\t\t\t...ExistingProviderCard\n\t\t}\n\t}\n": types.ProvidersSectionGetProvidersDocument,
     "\n\tmutation ProvidersSectionSetPreferred($id: Int!, $input: PatchMetadataProviderConfigInput!) {\n\t\tupdateMetadataProvider(id: $id, input: $input) {\n\t\t\tid\n\t\t\tposition\n\t\t}\n\t}\n": types.ProvidersSectionSetPreferredDocument,
     "\n\tmutation TestMetadataProvider($id: Int!) {\n\t\ttestMetadataProvider(id: $id) {\n\t\t\tstatus\n\t\t\tmessage\n\t\t}\n\t}\n": types.TestMetadataProviderDocument,
+    "\n\tquery UnofficialProvidersAcknowledged {\n\t\tserverConfig {\n\t\t\tid\n\t\t\tunofficialProvidersAcknowledgedAt\n\t\t}\n\t}\n": types.UnofficialProvidersAcknowledgedDocument,
+    "\n\tmutation UnofficialProvidersSetAcknowledged($acknowledged: Boolean!) {\n\t\tsetUnofficialProvidersAcknowledged(acknowledged: $acknowledged) {\n\t\t\tid\n\t\t\tunofficialProvidersAcknowledgedAt\n\t\t}\n\t}\n": types.UnofficialProvidersSetAcknowledgedDocument,
     "\n\tmutation CreateTagModal($tags: [String!]!) {\n\t\tcreateTags(tags: $tags) {\n\t\t\tid\n\t\t\tname\n\t\t}\n\t}\n": types.CreateTagModalDocument,
     "\n\tmutation DeleteTagConfirmModal($tags: [String!]!) {\n\t\tdeleteTags(tags: $tags) {\n\t\t\tid\n\t\t\tname\n\t\t}\n\t}\n": types.DeleteTagConfirmModalDocument,
     "\n\tmutation RenameTagModal($id: Int!, $name: String!) {\n\t\trenameTag(id: $id, name: $name) {\n\t\t\tid\n\t\t\tname\n\t\t}\n\t}\n": types.RenameTagModalDocument,
@@ -1339,6 +1343,14 @@ export function graphql(source: "\n\tmutation ProvidersSectionSetPreferred($id: 
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n\tmutation TestMetadataProvider($id: Int!) {\n\t\ttestMetadataProvider(id: $id) {\n\t\t\tstatus\n\t\t\tmessage\n\t\t}\n\t}\n"): typeof import('./graphql').TestMetadataProviderDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\tquery UnofficialProvidersAcknowledged {\n\t\tserverConfig {\n\t\t\tid\n\t\t\tunofficialProvidersAcknowledgedAt\n\t\t}\n\t}\n"): typeof import('./graphql').UnofficialProvidersAcknowledgedDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\tmutation UnofficialProvidersSetAcknowledged($acknowledged: Boolean!) {\n\t\tsetUnofficialProvidersAcknowledged(acknowledged: $acknowledged) {\n\t\t\tid\n\t\t\tunofficialProvidersAcknowledgedAt\n\t\t}\n\t}\n"): typeof import('./graphql').UnofficialProvidersSetAcknowledgedDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
