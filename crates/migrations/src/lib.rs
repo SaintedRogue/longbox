@@ -39,6 +39,7 @@ mod m20260809_000100_metadata_pipeline_hardening;
 mod m20260809_000200_follows_and_expected_issues;
 mod m20260810_000000_add_library_folders;
 mod m20260811_000000_add_unofficial_providers_ack;
+mod m20260812_000000_metadata_enrichment_pool;
 
 pub struct Migrator;
 
@@ -84,6 +85,7 @@ impl MigratorTrait for Migrator {
 			Box::new(m20260809_000200_follows_and_expected_issues::Migration),
 			Box::new(m20260810_000000_add_library_folders::Migration),
 			Box::new(m20260811_000000_add_unofficial_providers_ack::Migration),
+			Box::new(m20260812_000000_metadata_enrichment_pool::Migration),
 		]
 	}
 }

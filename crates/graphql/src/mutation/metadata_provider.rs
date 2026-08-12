@@ -6,6 +6,7 @@ use crate::{
 	},
 };
 use async_graphql::{Context, Object, Result};
+use longbox_core::filesystem::metadata::ApplyActor;
 use longbox_core::utils::encryption::decrypt_string;
 use metadata_integrations::{
 	create_provider, MatchCandidate, MergeStrategy, MetadataField,
@@ -189,6 +190,8 @@ impl MetadataProviderMutation {
 					strategy,
 					exclude_fields.clone(),
 					vec![],
+					// "Accept all pending" is still the operator's decision.
+					ApplyActor::User,
 				)
 				.await
 			} else if record.series_id.is_some() {
@@ -199,6 +202,7 @@ impl MetadataProviderMutation {
 					strategy,
 					exclude_fields.clone(),
 					vec![],
+					ApplyActor::User,
 				)
 				.await
 			} else {

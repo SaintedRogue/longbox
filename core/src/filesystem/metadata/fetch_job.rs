@@ -23,6 +23,7 @@ use crate::job::{
 	JobTaskOutput, WorkingState,
 };
 
+use super::enrichment::{self, ApplyActor};
 use super::{apply, ProviderClientCache};
 
 type Id = String;
@@ -641,6 +642,14 @@ impl JobLifecycle for MetadataFetchJob {
 					.exec(conn)
 					.await?;
 
+				// See the media branch: the pool outlives this review's working set.
+				enrichment::record_candidate_pool(
+					conn,
+					enrichment::EnrichmentTarget::Series(&series_id),
+					&all_candidates,
+				)
+				.await?;
+
 				if let Some((candidate, config)) = apply::find_auto_apply_candidate(
 					&all_candidates,
 					&all_provider_configs,
@@ -690,6 +699,7 @@ impl JobLifecycle for MetadataFetchJob {
 						config.strategy,
 						config.exclude_fields,
 						vec![],
+						ApplyActor::Auto,
 					)
 					.await
 					{
@@ -873,6 +883,17 @@ impl JobLifecycle for MetadataFetchJob {
 					.exec(conn)
 					.await?;
 
+				// Keep each provider's best answer in the pool, whether or not anything is
+				// applied below. `match_candidates` above is this review's working set and
+				// is overwritten by the next fetch; the pool is what lets the review grid
+				// show LOCG's fields beside ComicVine's later on.
+				enrichment::record_candidate_pool(
+					conn,
+					enrichment::EnrichmentTarget::Media(&media_id),
+					&all_candidates,
+				)
+				.await?;
+
 				if let Some((candidate, config)) = apply::find_auto_apply_candidate(
 					&all_candidates,
 					&all_provider_configs,
@@ -920,6 +941,7 @@ impl JobLifecycle for MetadataFetchJob {
 						config.strategy,
 						config.exclude_fields,
 						vec![],
+						ApplyActor::Auto,
 					)
 					.await
 					{

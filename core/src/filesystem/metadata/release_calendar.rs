@@ -9,7 +9,10 @@ use std::collections::HashMap;
 use chrono::{Duration, Utc};
 use metadata_integrations::UpcomingRelease;
 use models::{
-	entity::{expected_issue, metadata_provider_config, scheduled_job, series_metadata},
+	entity::{
+		expected_issue, external_metadata_link, metadata_provider_config, scheduled_job,
+		series_metadata,
+	},
 	shared::enums::MetadataProvider as MetadataProviderEnum,
 };
 use sea_orm::{prelude::*, sea_query::OnConflict, ActiveValue::Set, QueryFilter};
@@ -45,17 +48,37 @@ where
 		..Default::default()
 	};
 
-	// provider series-id → our series id. `metadata_external_id` is how a
-	// matched series stores its provider identity; Mylar's series.json
-	// `comicid` is a ComicVine volume id and joins the map for that provider.
+	// provider series-id → our series id.
+	//
+	// The enrichment pool is the authoritative source here, and it is what makes a
+	// second provider's calendar work at all: `series_metadata.metadata_source` holds
+	// only *one* provider, so before the pool existed a series matched to ComicVine was
+	// invisible to a LOCG sweep no matter how well LOCG knew it. Links accumulate, so a
+	// series can now be found by whichever provider is sweeping.
 	let mut series_by_external_id: HashMap<String, String> = HashMap::new();
+	let links = external_metadata_link::Entity::find()
+		.filter(external_metadata_link::Column::Provider.eq(provider_id))
+		.filter(external_metadata_link::Column::SeriesId.is_not_null())
+		.all(conn)
+		.await?;
+	for link in links {
+		if let (Some(series_id), Some(external_id)) = (link.series_id, link.external_id) {
+			series_by_external_id.insert(external_id, series_id);
+		}
+	}
+
+	// The legacy single-source column still contributes. The Phase 2 migration
+	// backfilled it into the pool, but a series matched by an older build between that
+	// migration and this sweep would otherwise be missed.
 	let rows = series_metadata::Entity::find()
 		.filter(series_metadata::Column::MetadataSource.eq(provider_id))
 		.all(conn)
 		.await?;
 	for row in rows {
 		if let Some(ext) = row.metadata_external_id.clone() {
-			series_by_external_id.insert(ext, row.series_id.clone());
+			series_by_external_id
+				.entry(ext)
+				.or_insert(row.series_id.clone());
 		}
 	}
 	if provider_id == "comicvine" {
@@ -246,6 +269,97 @@ mod tests {
 			cover_url: None,
 			release_date: Some("2026-08-12".to_string()),
 		}
+	}
+
+	/// The capability the enrichment pool exists for: a series matched to one provider
+	/// can still be found by another provider's sweep.
+	///
+	/// Before the pool, `series_metadata` held exactly one `metadata_source`, so a series
+	/// matched to ComicVine was invisible to a LOCG sweep however well LOCG knew it —
+	/// LOCG's whole reason for being here is its release calendar, so this was the case
+	/// that mattered most and could not work.
+	#[tokio::test]
+	async fn a_series_matched_to_another_provider_is_still_found_via_its_link() {
+		let conn = mem_db().await;
+		// Matched to ComicVine in the single-source column, as an older build would.
+		seed_series(&conn, "s-1", Some("comicvine"), Some("cv-4050"), None).await;
+		// And separately linked to LOCG — which the old shape had nowhere to put.
+		external_metadata_link::ActiveModel {
+			series_id: Set(Some("s-1".to_string())),
+			provider: Set("locg".to_string()),
+			external_id: Set(Some("178012".to_string())),
+			state: Set(
+				models::entity::external_metadata_link::LinkState::LINKED.to_string()
+			),
+			fetched_at: Set(Utc::now()),
+			..Default::default()
+		}
+		.insert(&conn)
+		.await
+		.expect("link inserts");
+
+		let stats = sync_provider_releases(
+			&conn,
+			"locg",
+			vec![UpcomingRelease {
+				series_external_id: "178012".to_string(),
+				external_id: "2463692".to_string(),
+				number: Some("1".to_string()),
+				title: Some("Absolute Batman #1".to_string()),
+				cover_url: None,
+				release_date: Some("2024-10-09".to_string()),
+			}],
+		)
+		.await
+		.expect("sweep succeeds");
+
+		assert_eq!(stats.matched, 1, "the LOCG link is what makes this match");
+
+		let rows = expected_issue::Entity::find()
+			.all(&conn)
+			.await
+			.expect("query");
+		assert_eq!(rows.len(), 1);
+		assert_eq!(rows[0].series_id, "s-1");
+		assert_eq!(rows[0].provider, "locg");
+	}
+
+	/// A link belonging to a *different* provider must not match this sweep, or every
+	/// provider would inherit every other provider's ids.
+	#[tokio::test]
+	async fn a_link_for_another_provider_does_not_match() {
+		let conn = mem_db().await;
+		seed_series(&conn, "s-1", None, None, None).await;
+		external_metadata_link::ActiveModel {
+			series_id: Set(Some("s-1".to_string())),
+			provider: Set("comicvine".to_string()),
+			external_id: Set(Some("178012".to_string())),
+			state: Set(
+				models::entity::external_metadata_link::LinkState::LINKED.to_string()
+			),
+			fetched_at: Set(Utc::now()),
+			..Default::default()
+		}
+		.insert(&conn)
+		.await
+		.expect("link inserts");
+
+		let stats = sync_provider_releases(
+			&conn,
+			"locg",
+			vec![UpcomingRelease {
+				series_external_id: "178012".to_string(),
+				external_id: "issue-1".to_string(),
+				number: None,
+				title: None,
+				cover_url: None,
+				release_date: None,
+			}],
+		)
+		.await
+		.expect("sweep succeeds");
+
+		assert_eq!(stats.matched, 0, "ids are only meaningful per provider");
 	}
 
 	#[tokio::test]

@@ -5,6 +5,7 @@ use crate::{
 	object::{media::Media, metadata_fetch_record::MetadataFetchRecord},
 };
 use async_graphql::{Context, Object, Result, ID};
+use longbox_core::filesystem::metadata::ApplyActor;
 use metadata_integrations::{
 	MatchCandidate, MergeStrategy, MetadataField, MetadataFieldOverride, SearchQuery,
 };
@@ -298,6 +299,9 @@ impl MediaMetadataMutation {
 			strategy,
 			exclude_fields,
 			overrides,
+			// The operator picked this match, so overridden fields are attributed to
+			// them and locked against later fetches.
+			ApplyActor::User,
 		)
 		.await?;
 

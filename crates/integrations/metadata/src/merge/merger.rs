@@ -12,6 +12,19 @@ pub struct FieldMerger {
 	locked_fields: HashSet<MetadataField>,
 	exclude_fields: HashSet<MetadataField>,
 	overrides: HashMap<MetadataField, JsonValue>,
+	/// Fields this merger wrote from provider data, in the order written.
+	///
+	/// The merger is the only thing that knows which fields a merge actually touched —
+	/// the strategy, the lock list and the exclusions all get a say — so it is also the
+	/// only honest place to record it. Callers read this afterwards to attribute each
+	/// stored field to the provider it came from.
+	merged: Vec<MetadataField>,
+	/// Fields written from an explicit operator override rather than from provider data.
+	///
+	/// Tracked separately because the two mean different things downstream: an override
+	/// is a human decision, so it is attributed to the operator and locked against
+	/// future fetches, while a strategy-driven merge is attributed to the provider.
+	overridden: Vec<MetadataField>,
 }
 
 impl FieldMerger {
@@ -25,6 +38,8 @@ impl FieldMerger {
 			locked_fields: locked_fields.into_iter().collect(),
 			exclude_fields: exclude_fields.into_iter().collect(),
 			overrides: HashMap::new(),
+			merged: Vec::new(),
+			overridden: Vec::new(),
 		}
 	}
 
@@ -39,6 +54,8 @@ impl FieldMerger {
 			locked_fields: locked_fields.into_iter().collect(),
 			exclude_fields: exclude_fields.into_iter().collect(),
 			overrides: overrides.into_iter().map(|o| (o.field, o.value)).collect(),
+			merged: Vec::new(),
+			overridden: Vec::new(),
 		}
 	}
 
@@ -51,6 +68,28 @@ impl FieldMerger {
 			.unwrap_or_default();
 
 		Self::new(config.strategy, locked, config.exclude_fields.clone())
+	}
+
+	/// Fields written from provider data. Read after the merge to attribute them.
+	pub fn merged_fields(&self) -> &[MetadataField] {
+		&self.merged
+	}
+
+	/// Fields written from an operator override. These are the ones to lock.
+	pub fn overridden_fields(&self) -> &[MetadataField] {
+		&self.overridden
+	}
+
+	fn record_merged(&mut self, field: MetadataField) {
+		if !self.merged.contains(&field) {
+			self.merged.push(field);
+		}
+	}
+
+	fn record_overridden(&mut self, field: MetadataField) {
+		if !self.overridden.contains(&field) {
+			self.overridden.push(field);
+		}
 	}
 
 	fn can_write(&self, field: MetadataField) -> bool {
@@ -67,17 +106,21 @@ impl FieldMerger {
 	/// - `Some(None)` if the override should clear the field
 	/// - `None` if there is no override for this field
 	pub fn apply_scalar_override<T: DeserializeOwned>(
-		&self,
+		&mut self,
 		field: MetadataField,
 	) -> Option<Option<T>> {
 		if !self.can_write(field) {
 			return None;
 		}
-		match self.overrides.get(&field) {
+		let result = match self.overrides.get(&field) {
 			Some(v) if v.is_null() => Some(None),
 			Some(v) => serde_json::from_value::<T>(v.clone()).ok().map(Some),
 			None => None,
+		};
+		if result.is_some() {
+			self.record_overridden(field);
 		}
+		result
 	}
 
 	/// Apply a user-provided override for a comma-separated list field.
@@ -87,13 +130,13 @@ impl FieldMerger {
 	/// - `Some(None)` if the override should clear the field
 	/// - `None` if there is no override for this field
 	pub fn apply_comma_list_override(
-		&self,
+		&mut self,
 		field: MetadataField,
 	) -> Option<Option<String>> {
 		if !self.can_write(field) {
 			return None;
 		}
-		match self.overrides.get(&field) {
+		let result = match self.overrides.get(&field) {
 			Some(v) if v.is_null() => Some(None),
 			Some(v) => {
 				let items: Vec<String> =
@@ -105,7 +148,11 @@ impl FieldMerger {
 				}
 			},
 			None => None,
+		};
+		if result.is_some() {
+			self.record_overridden(field);
 		}
+		result
 	}
 
 	/// Merge a scalar Option<T> value:
@@ -113,7 +160,7 @@ impl FieldMerger {
 	/// - Returns `Some(new_value)` if the field should be updated
 	/// - Returns `None` if it should be left unchanged.
 	pub fn merge_scalar<T: Clone + PartialEq>(
-		&self,
+		&mut self,
 		field: MetadataField,
 		existing: &Option<T>,
 		external: &Option<T>,
@@ -124,7 +171,7 @@ impl FieldMerger {
 
 		let external_val = external.as_ref()?; // Nothing from external, leave as-is
 
-		match self.strategy {
+		let result = match self.strategy {
 			MergeStrategy::FillGaps | MergeStrategy::FillAndMergeLists => {
 				if existing.is_none() {
 					Some(Some(external_val.clone()))
@@ -134,7 +181,11 @@ impl FieldMerger {
 			},
 			MergeStrategy::PreferExternal
 			| MergeStrategy::PreferExternalAndMergeLists => Some(Some(external_val.clone())),
+		};
+		if result.is_some() {
+			self.record_merged(field);
 		}
+		result
 	}
 
 	/// Merge a required (non-Option) scalar:
@@ -142,7 +193,7 @@ impl FieldMerger {
 	/// - Returns `Some(new_value)` if the field should be updated
 	/// - Returns `None` if it should be left unchanged.
 	pub fn merge_required_scalar<T: Clone + PartialEq>(
-		&self,
+		&mut self,
 		field: MetadataField,
 		_existing: &T,
 		external: &Option<T>,
@@ -153,12 +204,16 @@ impl FieldMerger {
 
 		let external_val = external.as_ref()?;
 
-		match self.strategy {
+		let result = match self.strategy {
 			// For required fields that already have a value, FillGaps does nothing
 			MergeStrategy::FillGaps | MergeStrategy::FillAndMergeLists => None,
 			MergeStrategy::PreferExternal
 			| MergeStrategy::PreferExternalAndMergeLists => Some(external_val.clone()),
+		};
+		if result.is_some() {
+			self.record_merged(field);
 		}
+		result
 	}
 
 	/// Merge a comma-separated list field:
@@ -166,7 +221,7 @@ impl FieldMerger {
 	/// - Returns `Some(new_value)` if the field should be updated
 	/// - Returns `None` if it should be left unchanged
 	pub fn merge_comma_list(
-		&self,
+		&mut self,
 		field: MetadataField,
 		existing: &Option<String>,
 		external: &Option<Vec<String>>,
@@ -180,7 +235,7 @@ impl FieldMerger {
 			_ => return None,
 		};
 
-		match self.strategy {
+		let result = match self.strategy {
 			MergeStrategy::FillGaps => {
 				let is_empty = existing.as_ref().is_none_or(|s| s.trim().is_empty());
 				if is_empty {
@@ -219,7 +274,11 @@ impl FieldMerger {
 					Some(Some(merged.join(", ")))
 				}
 			},
+		};
+		if result.is_some() {
+			self.record_merged(field);
 		}
+		result
 	}
 }
 
@@ -229,7 +288,7 @@ mod tests {
 
 	#[test]
 	fn fill_gaps_only_fills_empty() {
-		let merger = FieldMerger::new(MergeStrategy::FillGaps, vec![], vec![]);
+		let mut merger = FieldMerger::new(MergeStrategy::FillGaps, vec![], vec![]);
 
 		assert_eq!(
 			merger.merge_scalar(MetadataField::Title, &None, &Some("New".to_string())),
@@ -266,7 +325,7 @@ mod tests {
 
 	#[test]
 	fn prefer_external_overwrites() {
-		let merger = FieldMerger::new(MergeStrategy::PreferExternal, vec![], vec![]);
+		let mut merger = FieldMerger::new(MergeStrategy::PreferExternal, vec![], vec![]);
 
 		assert_eq!(
 			merger.merge_scalar(
@@ -289,7 +348,8 @@ mod tests {
 
 	#[test]
 	fn fill_and_merge_lists_unions_arrays() {
-		let merger = FieldMerger::new(MergeStrategy::FillAndMergeLists, vec![], vec![]);
+		let mut merger =
+			FieldMerger::new(MergeStrategy::FillAndMergeLists, vec![], vec![]);
 
 		assert_eq!(
 			merger.merge_scalar(
@@ -314,7 +374,7 @@ mod tests {
 
 	#[test]
 	fn prefer_external_and_merge_lists_overwrites_scalars_merges_lists() {
-		let merger =
+		let mut merger =
 			FieldMerger::new(MergeStrategy::PreferExternalAndMergeLists, vec![], vec![]);
 
 		assert_eq!(
@@ -348,7 +408,7 @@ mod tests {
 
 	#[test]
 	fn locked_fields_never_written() {
-		let merger = FieldMerger::new(
+		let mut merger = FieldMerger::new(
 			MergeStrategy::PreferExternal,
 			vec![MetadataField::Title],
 			vec![],
@@ -375,7 +435,7 @@ mod tests {
 
 	#[test]
 	fn excluded_fields_never_written() {
-		let merger =
+		let mut merger =
 			FieldMerger::new(MergeStrategy::FillGaps, vec![], vec![MetadataField::Cover]);
 
 		assert_eq!(
@@ -386,7 +446,7 @@ mod tests {
 
 	#[test]
 	fn no_external_data_means_no_change() {
-		let merger = FieldMerger::new(MergeStrategy::PreferExternal, vec![], vec![]);
+		let mut merger = FieldMerger::new(MergeStrategy::PreferExternal, vec![], vec![]);
 
 		assert_eq!(
 			merger.merge_scalar::<String>(

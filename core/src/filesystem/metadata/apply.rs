@@ -10,6 +10,7 @@ use rust_decimal::prelude::FromPrimitive;
 use sea_orm::{prelude::*, IntoActiveModel, Set};
 use serde_json::Value as JsonValue;
 
+use super::enrichment::{self, ApplyActor, EnrichmentTarget};
 use crate::CoreError;
 
 /// Apply the given match candidate to series metadata, merging fields
@@ -21,6 +22,7 @@ pub async fn apply_series_match<C>(
 	strategy: MergeStrategy,
 	exclude_fields: Vec<MetadataField>,
 	overrides: Vec<MetadataFieldOverride>,
+	actor: ApplyActor,
 ) -> Result<(), CoreError>
 where
 	C: ConnectionTrait,
@@ -41,7 +43,7 @@ where
 
 	match existing {
 		Some(model) => {
-			let merger = FieldMerger::with_overrides(
+			let mut merger = FieldMerger::with_overrides(
 				strategy,
 				parse_locked_fields(&model.locked_fields),
 				exclude_fields,
@@ -52,9 +54,19 @@ where
 			active.metadata_source = Set(Some(candidate.provider.clone()));
 			active.metadata_external_id = Set(Some(candidate.external_id.clone()));
 
-			apply_series_fields(&merger, &model, &mut active, ext);
+			apply_series_fields(&mut merger, &model, &mut active, ext);
 
 			series_metadata::Entity::update(active).exec(conn).await?;
+
+			enrichment::record_applied_match(
+				conn,
+				EnrichmentTarget::Series(series_id),
+				candidate,
+				actor,
+				merger.merged_fields(),
+				merger.overridden_fields(),
+			)
+			.await?;
 		},
 		None => {
 			let active = build_series_metadata_insert(
@@ -64,6 +76,16 @@ where
 				&candidate.external_id,
 			);
 			series_metadata::Entity::insert(active).exec(conn).await?;
+
+			enrichment::record_applied_match(
+				conn,
+				EnrichmentTarget::Series(series_id),
+				candidate,
+				actor,
+				&enrichment::series_fields_present(ext),
+				&[],
+			)
+			.await?;
 		},
 	}
 
@@ -81,6 +103,7 @@ pub async fn apply_media_match<C>(
 	strategy: MergeStrategy,
 	exclude_fields: Vec<MetadataField>,
 	overrides: Vec<MetadataFieldOverride>,
+	actor: ApplyActor,
 ) -> Result<(), CoreError>
 where
 	C: ConnectionTrait,
@@ -102,7 +125,7 @@ where
 
 	match existing {
 		Some(model) => {
-			let merger = FieldMerger::with_overrides(
+			let mut merger = FieldMerger::with_overrides(
 				strategy,
 				parse_locked_fields(&model.locked_fields),
 				exclude_fields,
@@ -113,9 +136,19 @@ where
 			active.metadata_source = Set(Some(candidate.provider.clone()));
 			active.metadata_external_id = Set(Some(candidate.external_id.clone()));
 
-			apply_media_fields(&merger, &model, &mut active, ext);
+			apply_media_fields(&mut merger, &model, &mut active, ext);
 
 			media_metadata::Entity::update(active).exec(conn).await?;
+
+			enrichment::record_applied_match(
+				conn,
+				EnrichmentTarget::Media(media_id),
+				candidate,
+				actor,
+				merger.merged_fields(),
+				merger.overridden_fields(),
+			)
+			.await?;
 		},
 		None => {
 			let active = build_media_metadata_insert(
@@ -125,6 +158,19 @@ where
 				&candidate.external_id,
 			);
 			media_metadata::Entity::insert(active).exec(conn).await?;
+
+			// A fresh insert writes every field the provider supplied, so the whole
+			// payload is attributable to it. Nothing was overridden: overrides only
+			// apply on top of an existing record.
+			enrichment::record_applied_match(
+				conn,
+				EnrichmentTarget::Media(media_id),
+				candidate,
+				actor,
+				&enrichment::media_fields_present(ext),
+				&[],
+			)
+			.await?;
 		},
 	}
 
@@ -334,7 +380,7 @@ where
 }
 
 fn apply_series_fields(
-	merger: &FieldMerger,
+	merger: &mut FieldMerger,
 	model: &series_metadata::Model,
 	active: &mut series_metadata::ActiveModel,
 	ext: &ExternalSeriesMetadata,
@@ -425,7 +471,7 @@ fn apply_series_fields(
 }
 
 fn apply_media_fields(
-	merger: &FieldMerger,
+	merger: &mut FieldMerger,
 	model: &media_metadata::Model,
 	active: &mut media_metadata::ActiveModel,
 	ext: &ExternalMediaMetadata,
@@ -691,6 +737,10 @@ mod tests {
 	// Absolute path: this module is itself named `tests`, so `use super::*` glob-imports
 	// that self-reference and shadows the extern `tests` fixture crate under a bare name.
 	use ::tests::{db, fake_data};
+	use models::entity::{
+		external_metadata_link::{self, ChosenBy, LinkState, MANUAL_PROVIDER},
+		metadata_field_source,
+	};
 
 	async fn seeded_series(
 		conn: &sea_orm::DatabaseConnection,
@@ -859,5 +909,241 @@ mod tests {
 		};
 		let model = build_media_metadata_insert("m1", &ext, "comicvine", "78901");
 		assert_eq!(model.title, Set(Some("Absolute Batman #1".to_string())));
+	}
+
+	/// Build a media candidate carrying just enough to be attributable.
+	fn media_candidate(provider: &str, external_id: &str) -> MatchCandidate {
+		MatchCandidate {
+			provider: provider.to_string(),
+			external_id: external_id.to_string(),
+			metadata: ExternalMetadata::Media(ExternalMediaMetadata {
+				provider: provider.to_string(),
+				external_id: external_id.to_string(),
+				title: Some(format!("Title from {provider}")),
+				summary: Some(format!("Summary from {provider}")),
+				page_count: Some(44),
+				..Default::default()
+			}),
+			confidence: 0.9,
+			confidence_factors: vec![],
+		}
+	}
+
+	async fn seeded_media(conn: &sea_orm::DatabaseConnection, series_id: &str) -> String {
+		fake_data::Media {
+			series_id: series_id.to_string(),
+			id: None,
+			name: Some("Issue 1".to_string()),
+			extension: Some("cbz".to_string()),
+			created_at: None,
+			modified_at: None,
+			deleted_at: None,
+			pages: Some(20),
+		}
+		.insert(conn)
+		.await
+		.id
+	}
+
+	async fn seeded_library_media(conn: &sea_orm::DatabaseConnection) -> String {
+		let library = fake_data::Library {
+			id: None,
+			name: Some("Comics".to_string()),
+			path: Some("/tmp/comics".to_string()),
+		}
+		.insert(conn)
+		.await;
+		let series = seeded_series(conn, &library.id, "Absolute Batman").await;
+		seeded_media(conn, &series).await
+	}
+
+	/// The point of the pool: two providers describing the same book coexist, instead of
+	/// the second displacing the first the way a single `metadata_source` column forced.
+	#[tokio::test]
+	async fn two_providers_link_to_the_same_book() {
+		let conn = db::test_database().await;
+		let media_id = seeded_library_media(&conn).await;
+
+		for provider in ["comicvine", "locg"] {
+			apply_media_match(
+				&conn,
+				&media_id,
+				&media_candidate(provider, &format!("{provider}-1")),
+				MergeStrategy::FillGaps,
+				vec![],
+				vec![],
+				ApplyActor::Auto,
+			)
+			.await
+			.expect("apply succeeds");
+		}
+
+		let links = external_metadata_link::Entity::find()
+			.filter(external_metadata_link::Column::MediaId.eq(&media_id))
+			.all(&conn)
+			.await
+			.expect("query");
+
+		let mut providers: Vec<&str> =
+			links.iter().map(|l| l.provider.as_str()).collect();
+		providers.sort_unstable();
+		assert_eq!(providers, ["comicvine", "locg"]);
+		assert!(
+			links.iter().all(|l| l.state == LinkState::LINKED),
+			"an applied match is a linked one"
+		);
+		assert!(
+			links.iter().all(|l| l.payload.is_some()),
+			"the payload is what lets the review grid compare sources"
+		);
+	}
+
+	/// Applying the same provider twice must refresh its one row, not accumulate rows —
+	/// the partial unique index says one link per (book, provider).
+	#[tokio::test]
+	async fn re_applying_a_provider_updates_its_existing_link() {
+		let conn = db::test_database().await;
+		let media_id = seeded_library_media(&conn).await;
+
+		for external_id in ["locg-1", "locg-2"] {
+			apply_media_match(
+				&conn,
+				&media_id,
+				&media_candidate("locg", external_id),
+				MergeStrategy::PreferExternal,
+				vec![],
+				vec![],
+				ApplyActor::Auto,
+			)
+			.await
+			.expect("apply succeeds");
+		}
+
+		let links = external_metadata_link::Entity::find()
+			.filter(external_metadata_link::Column::MediaId.eq(&media_id))
+			.all(&conn)
+			.await
+			.expect("query");
+		assert_eq!(links.len(), 1);
+		assert_eq!(links[0].external_id.as_deref(), Some("locg-2"));
+		assert!(links[0].refreshed_at.is_some(), "a re-apply is a refresh");
+	}
+
+	/// Every field the apply actually wrote gets attributed. Fields the provider had
+	/// nothing for must not appear — provenance that claims coverage it does not have is
+	/// worse than none.
+	#[tokio::test]
+	async fn applied_fields_are_attributed_to_their_provider() {
+		let conn = db::test_database().await;
+		let media_id = seeded_library_media(&conn).await;
+
+		apply_media_match(
+			&conn,
+			&media_id,
+			&media_candidate("locg", "2463692"),
+			MergeStrategy::FillGaps,
+			vec![],
+			vec![],
+			ApplyActor::Auto,
+		)
+		.await
+		.expect("apply succeeds");
+
+		let rows = metadata_field_source::Entity::find()
+			.filter(metadata_field_source::Column::MediaId.eq(&media_id))
+			.all(&conn)
+			.await
+			.expect("query");
+
+		assert!(
+			!rows.is_empty(),
+			"expected provenance for the applied fields"
+		);
+		assert!(rows.iter().all(|r| r.source_provider == "locg"));
+		assert!(rows
+			.iter()
+			.all(|r| r.source_external_id.as_deref() == Some("2463692")));
+		assert!(rows.iter().all(|r| r.chosen_by == ChosenBy::AUTO));
+
+		let fields: Vec<&str> = rows.iter().map(|r| r.field.as_str()).collect();
+		assert!(fields.contains(&"PAGE_COUNT"), "got {fields:?}");
+		assert!(
+			!fields.contains(&"STORY_ARC"),
+			"the candidate carried no story arc, so nothing may claim to have set it"
+		);
+	}
+
+	/// A hand-picked value is attributed to the operator and locked, so the next fetch
+	/// cannot quietly undo the choice. This is the guarantee the whole pick-and-choose
+	/// flow rests on.
+	#[tokio::test]
+	async fn an_overridden_field_is_attributed_to_the_operator_and_locked() {
+		let conn = db::test_database().await;
+		let media_id = seeded_library_media(&conn).await;
+
+		// A first apply so a metadata row exists -- overrides only apply on top of one.
+		apply_media_match(
+			&conn,
+			&media_id,
+			&media_candidate("comicvine", "cv-1"),
+			MergeStrategy::FillGaps,
+			vec![],
+			vec![],
+			ApplyActor::Auto,
+		)
+		.await
+		.expect("first apply succeeds");
+
+		apply_media_match(
+			&conn,
+			&media_id,
+			&media_candidate("locg", "locg-1"),
+			MergeStrategy::PreferExternal,
+			vec![],
+			vec![MetadataFieldOverride {
+				field: MetadataField::Summary,
+				value: serde_json::json!("Signed copy, NYCC 2024"),
+			}],
+			ApplyActor::User,
+		)
+		.await
+		.expect("override apply succeeds");
+
+		let summary_row = metadata_field_source::Entity::find()
+			.filter(metadata_field_source::Column::MediaId.eq(&media_id))
+			.filter(metadata_field_source::Column::Field.eq("SUMMARY"))
+			.one(&conn)
+			.await
+			.expect("query")
+			.expect("summary provenance exists");
+		assert_eq!(summary_row.source_provider, MANUAL_PROVIDER);
+		assert_eq!(summary_row.chosen_by, ChosenBy::USER);
+		assert!(summary_row.source_external_id.is_none());
+
+		let metadata = media_metadata::Entity::find()
+			.filter(media_metadata::Column::MediaId.eq(&media_id))
+			.one(&conn)
+			.await
+			.expect("query")
+			.expect("metadata exists");
+		assert_eq!(metadata.summary.as_deref(), Some("Signed copy, NYCC 2024"));
+		let locked: Vec<MetadataField> =
+			serde_json::from_value(metadata.locked_fields.expect("locked list"))
+				.expect("valid lock list");
+		assert!(
+			locked.contains(&MetadataField::Summary),
+			"a hand-picked field must be locked, got {locked:?}"
+		);
+
+		// Exactly one provenance row for the field, not one per pass. The production
+		// schema enforces this with a unique index, so a duplicate would fail the insert
+		// and take the whole apply down -- which is how this was found.
+		let summary_rows = metadata_field_source::Entity::find()
+			.filter(metadata_field_source::Column::MediaId.eq(&media_id))
+			.filter(metadata_field_source::Column::Field.eq("SUMMARY"))
+			.all(&conn)
+			.await
+			.expect("query");
+		assert_eq!(summary_rows.len(), 1, "one row per field, whoever wrote it");
 	}
 }

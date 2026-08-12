@@ -1,4 +1,5 @@
 use async_graphql::{Context, Object, Result, ID};
+use longbox_core::filesystem::metadata::ApplyActor;
 use metadata_integrations::{
 	MatchCandidate, MergeStrategy, MetadataField, MetadataFieldOverride,
 };
@@ -244,6 +245,7 @@ impl SeriesMetadataMutation {
 			strategy,
 			exclude_fields,
 			overrides,
+			ApplyActor::User,
 		)
 		.await?;
 

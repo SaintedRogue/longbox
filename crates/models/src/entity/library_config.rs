@@ -31,6 +31,14 @@ pub struct Model {
 	pub generate_file_hashes: bool,
 	pub generate_koreader_hashes: bool,
 	pub process_metadata: bool,
+	/// Whether a metadata fetch over this library may fill in providers that never
+	/// answered for a book.
+	///
+	/// Off by default, and deliberately *not* a force-refetch: a book that already has a
+	/// match from one provider is never re-searched by that provider. This only lets a
+	/// newly-added provider backfill the gap — which is the one way a library matched
+	/// before a provider existed can ever benefit from it.
+	pub metadata_backfill_providers: bool,
 	pub write_comicinfo: bool,
 	pub watch: bool,
 	#[sea_orm(column_type = "Text")]
