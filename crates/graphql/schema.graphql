@@ -3286,6 +3286,23 @@ type Query {
 	"Return all metadata fetch records that are awaiting user review."
 	pendingMetadataMatches: [MetadataFetchRecord!]!
 	"""
+	The full metadata a provider holds for one of its own records.
+	
+	Exists because some providers' search endpoints are list views. League of Comic
+	Geeks has no API, so a search result is a card: title, publisher, cover, date. The
+	summary, page count, ISBN, credits and characters are only on the item's own page,
+	which means a review grid built from search results shows a column of dashes.
+	
+	Rather than fetching every result's page during a search — three quarters of which
+	nobody opens, and which on a whole-library match would add hours against a
+	15-requests-per-minute ceiling — the client calls this for the one candidate a
+	person actually selected. The provider response cache makes re-opening the same
+	review free.
+	"""
+	mediaExternalMetadata(provider: MetadataProvider!, externalId: String!): ExternalMediaMetadata!
+	"[`media_external_metadata`](Self::media_external_metadata) for a series."
+	seriesExternalMetadata(provider: MetadataProvider!, externalId: String!): ExternalSeriesMetadata!
+	"""
 	The enrichment pool for a book: one entry per provider that has answered, plus
 	the provenance of its stored fields.
 	

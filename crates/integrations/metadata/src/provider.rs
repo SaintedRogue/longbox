@@ -35,6 +35,21 @@ pub trait MetadataProvider: Send + Sync {
 		query: &SearchQuery,
 	) -> Result<Vec<MatchCandidate>, MetadataProviderError>;
 
+	/// Whether search results carry only what a listing row shows.
+	///
+	/// `true` means a candidate from [`search_media`](Self::search_media) has a title,
+	/// publisher, cover and date and little else, because the provider's search endpoint
+	/// is a list view — everything else lives on the item's own page. Such a candidate is
+	/// fine to *rank* and to show in a result list, but a caller about to **store** one
+	/// should fetch its full metadata first, or it will save a near-empty record.
+	///
+	/// Only League of Comic Geeks sets this: it has no API, and its search markup is a
+	/// list of cards. Providers whose search returns full objects leave it `false` and
+	/// pay nothing.
+	fn search_returns_partial_metadata(&self) -> bool {
+		false
+	}
+
 	/// Score and sort search results based on their relevance to the query
 	fn score_search(
 		&self,

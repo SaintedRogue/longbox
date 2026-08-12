@@ -31,6 +31,20 @@ export const UNOFFICIAL_PROVIDERS: MetadataProvider[] = [MetadataProvider.Locg]
 export const isUnofficialProvider = (provider: MetadataProvider): boolean =>
 	UNOFFICIAL_PROVIDERS.includes(provider)
 
+/**
+ * Providers whose search endpoints return list rows rather than full records.
+ *
+ * A search result from one of these carries a title, publisher, cover and date; the
+ * summary, page count, ISBN, credits and characters live only on the item's own page. The
+ * review grid fetches that page for the candidate on screen instead of comparing against
+ * a near-empty card.
+ *
+ * Mirrors `MetadataProvider::search_returns_partial_metadata` on the backend, the same way
+ * `isComicProvider` mirrors `supported_library_types`. Getting it wrong is cheap in both
+ * directions: a false positive spends one request a review, a false negative shows dashes.
+ */
+export const PARTIAL_SEARCH_PROVIDERS: Set<string> = new Set([MetadataProvider.Locg])
+
 export const PROVIDERS = Object.values(MetadataProvider)
 
 /**

@@ -1,7 +1,15 @@
+use std::sync::Arc;
+
 use async_graphql::{Context, Object, Result, SimpleObject};
+use metadata_integrations::{
+	ExternalMediaMetadata, ExternalSeriesMetadata, MetadataProvider as ProviderTrait,
+};
 use models::{
-	entity::{external_metadata_link, media, metadata_field_source, series},
-	shared::enums::UserPermission,
+	entity::{
+		external_metadata_link, media, metadata_field_source, metadata_provider_config,
+		series,
+	},
+	shared::enums::{MetadataProvider, UserPermission},
 };
 use sea_orm::{prelude::*, QueryFilter, QueryOrder};
 
@@ -55,6 +63,41 @@ pub struct EnrichmentQuery;
 
 #[Object]
 impl EnrichmentQuery {
+	/// The full metadata a provider holds for one of its own records.
+	///
+	/// Exists because some providers' search endpoints are list views. League of Comic
+	/// Geeks has no API, so a search result is a card: title, publisher, cover, date. The
+	/// summary, page count, ISBN, credits and characters are only on the item's own page,
+	/// which means a review grid built from search results shows a column of dashes.
+	///
+	/// Rather than fetching every result's page during a search — three quarters of which
+	/// nobody opens, and which on a whole-library match would add hours against a
+	/// 15-requests-per-minute ceiling — the client calls this for the one candidate a
+	/// person actually selected. The provider response cache makes re-opening the same
+	/// review free.
+	#[graphql(guard = "PermissionGuard::one(UserPermission::MetadataProviderRead)")]
+	async fn media_external_metadata(
+		&self,
+		ctx: &Context<'_>,
+		provider: MetadataProvider,
+		external_id: String,
+	) -> Result<ExternalMediaMetadata> {
+		let client = provider_client(ctx, provider).await?;
+		Ok(client.fetch_media_metadata(&external_id).await?)
+	}
+
+	/// [`media_external_metadata`](Self::media_external_metadata) for a series.
+	#[graphql(guard = "PermissionGuard::one(UserPermission::MetadataProviderRead)")]
+	async fn series_external_metadata(
+		&self,
+		ctx: &Context<'_>,
+		provider: MetadataProvider,
+		external_id: String,
+	) -> Result<ExternalSeriesMetadata> {
+		let client = provider_client(ctx, provider).await?;
+		Ok(client.fetch_series_metadata(&external_id).await?)
+	}
+
 	/// The enrichment pool for a book: one entry per provider that has answered, plus
 	/// the provenance of its stored fields.
 	///
@@ -119,6 +162,26 @@ impl EnrichmentQuery {
 
 		Ok(build_pool(links, field_sources))
 	}
+}
+
+/// The shared client for a provider, from its stored (enabled) config.
+///
+/// Goes through the process-wide cache so this shares one rate limiter, response cache
+/// and budget ledger with the fetch jobs — a review that re-opens the same match is a
+/// cache hit rather than another request against the provider.
+async fn provider_client(
+	ctx: &Context<'_>,
+	provider: MetadataProvider,
+) -> Result<Arc<dyn ProviderTrait + Send + Sync>> {
+	let core = ctx.data::<CoreContext>()?;
+	let config = metadata_provider_config::Entity::find()
+		.filter(metadata_provider_config::Column::ProviderType.eq(provider))
+		.filter(metadata_provider_config::Column::Enabled.eq(true))
+		.one(core.conn.as_ref())
+		.await?
+		.ok_or("That provider is not configured, or is turned off")?;
+
+	Ok(core.provider_cache().get_or_create(&config).await?)
 }
 
 /// Rewrite a payload's keys from serde's snake_case to the camelCase the rest of the API

@@ -929,17 +929,18 @@ fn parses_collected_editions_from_a_widened_series_listing() {
 	}
 }
 
-/// A search result has to arrive reviewable.
+/// A search must NOT fetch detail pages.
 ///
-/// Search cards carry a title, publisher, cover and date. Everything a reviewer compares
-/// — summary, page count, ISBN, credits, characters — is only on the detail page, so an
-/// unhydrated candidate renders as a column of dashes. That is exactly what a real review
-/// of an omnibus looked like before this.
+/// LOCG's search is a list view, so a candidate arrives thin — and that is now correct.
+/// Fetching each result's page during the search spent three requests to display one
+/// (only the selected candidate is ever rendered) and, on a whole-library match against a
+/// 15-requests-per-minute ceiling, added hours for data nobody would read. The review
+/// dialog fetches the page for the candidate a person selects, and auto-apply fetches it
+/// for the one candidate it is about to write.
 #[tokio::test]
-async fn search_candidates_arrive_hydrated_from_their_detail_page() {
+async fn a_search_does_not_fetch_detail_pages() {
 	let server = MockServer::start().await;
 	mock_successful_login(&server).await;
-	// The unnumbered route consults both the series listing and the quick search.
 	Mock::given(method("GET"))
 		.and(path("/comic/get_comics"))
 		.respond_with(
@@ -958,45 +959,32 @@ async fn search_candidates_arrive_hydrated_from_their_detail_page() {
 		)
 		.mount(&server)
 		.await;
-	// Any issue page resolves to the collected-edition fixture, so a hydrated candidate
-	// must carry that page's fields rather than the card's.
+	// Any detail-page request during a search is the regression.
 	Mock::given(method("GET"))
 		.and(wiremock::matchers::path_regex(r"^/comic/\d+/x$"))
-		.respond_with(
-			ResponseTemplate::new(200)
-				.insert_header("content-type", "text/html")
-				.set_body_string(COLLECTED_EDITION_PAGE),
-		)
+		.respond_with(ResponseTemplate::new(200).set_body_string(COLLECTED_EDITION_PAGE))
+		.expect(0)
 		.mount(&server)
 		.await;
 
-	let query = SearchQuery {
-		title: "Absolute Carnage Omnibus".to_string(),
-		limit: Some(3),
-		..Default::default()
-	};
-	let candidates = test_client(&server)
-		.search_media(&query)
+	let client = test_client(&server);
+	let candidates = client
+		.search_media(&SearchQuery {
+			title: "Absolute Carnage Omnibus".to_string(),
+			limit: Some(8),
+			..Default::default()
+		})
 		.await
 		.expect("search succeeds");
 
 	assert!(!candidates.is_empty());
-	let top = match &candidates[0].metadata {
-		ExternalMetadata::Media(media) => media,
-		other => panic!("expected media metadata, got {other:?}"),
-	};
-
-	assert_eq!(
-		top.page_count,
-		Some(880),
-		"page count only exists on the page"
-	);
-	assert_eq!(top.isbn.as_deref(), Some("9781302925291"));
-	assert!(top.summary.is_some(), "summary only exists on the page");
+	// And the provider says so, which is how a caller knows to fetch before storing.
 	assert!(
-		top.writers.as_ref().is_some_and(|w| !w.is_empty()),
-		"credits only exist on the page"
+		client.search_returns_partial_metadata(),
+		"a provider with list-view search must declare it, or auto-apply will store a \
+		 near-empty record"
 	);
+	// MockServer verifies expect(0) on drop.
 }
 
 #[tokio::test]
@@ -1298,4 +1286,49 @@ async fn live_fetch_the_absolute_carnage_omnibus() {
 	assert!(media
 		.cover_artists
 		.is_some_and(|c| c.contains(&"Ryan Stegman".to_string())));
+}
+
+#[ignore = "Requires LOCG_CREDENTIALS env var and hits the live site"]
+#[tokio::test]
+async fn live_search_is_card_only_and_fast() {
+	use std::time::Instant;
+
+	let client = live_client();
+	let t = Instant::now();
+	let candidates = client
+		.search_media(&SearchQuery {
+			title: "Absolute Carnage Omnibus".to_string(),
+			limit: Some(8),
+			..Default::default()
+		})
+		.await
+		.unwrap();
+	let elapsed = t.elapsed();
+	println!("search: {elapsed:?} for {} candidates", candidates.len());
+
+	// Card-only: the detail-page fields must be absent, which is what makes it fast.
+	match &candidates[0].metadata {
+		ExternalMetadata::Media(m) => {
+			println!(
+				"  top candidate has summary={} page_count={:?}",
+				m.summary.is_some(),
+				m.page_count
+			);
+			assert!(m.title.is_some(), "the card still carries a title");
+			assert!(m.page_count.is_none(), "a card has no page count");
+		},
+		other => panic!("expected media, got {other:?}"),
+	}
+
+	// And the one a reviewer selects is fetched on demand.
+	let t = Instant::now();
+	let full = client
+		.fetch_media_metadata(&candidates[0].external_id)
+		.await
+		.unwrap();
+	println!(
+		"  on-demand fetch of the selected candidate: {:?}",
+		t.elapsed()
+	);
+	assert!(full.summary.is_some());
 }

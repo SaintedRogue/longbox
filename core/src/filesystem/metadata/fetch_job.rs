@@ -740,6 +740,16 @@ impl JobLifecycle for MetadataFetchJob {
 						confidence = candidate.confidence,
 						"Auto-applying series metadata match"
 					);
+					// Auto-apply has no reviewer to trigger the detail fetch, so the one
+					// candidate being written is hydrated here.
+					let candidate = apply::hydrate_candidate_for_apply(
+						&candidate,
+						&all_provider_configs,
+						provider_cache,
+						false,
+					)
+					.await;
+
 					match apply::apply_series_match(
 						conn,
 						&series_id,
@@ -1015,6 +1025,15 @@ impl JobLifecycle for MetadataFetchJob {
 						confidence = candidate.confidence,
 						"Auto-applying media metadata match"
 					);
+					// See the series branch: hydrate before writing.
+					let candidate = apply::hydrate_candidate_for_apply(
+						&candidate,
+						&all_provider_configs,
+						provider_cache,
+						true,
+					)
+					.await;
+
 					match apply::apply_media_match(
 						conn,
 						&media_id,

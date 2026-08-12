@@ -1,10 +1,12 @@
 import { Card, cn, Heading, Text } from '@longbox/components'
+import { MetadataProvider } from '@longbox/graphql'
 import { useLocaleContext } from '@longbox/i18n'
 import { useOverlayScrollbars } from 'overlayscrollbars-react'
 import { useEffect, useMemo, useRef } from 'react'
 
 import { usePreferences } from '@/hooks/usePreferences'
 import { useTheme } from '@/hooks/useTheme'
+import { PARTIAL_SEARCH_PROVIDERS } from '@/scenes/settings/server/metadataIntegrations/providers/constants'
 
 import {
 	FieldComparison,
@@ -12,6 +14,7 @@ import {
 	getSeriesFieldComparisons,
 	isMediaCandidate,
 } from '../types'
+import { useCandidateMetadata } from '../useCandidateMetadata'
 import { useEnrichmentPool } from '../useEnrichmentPool'
 import { useMatchReviewStore } from '../useMatchReviewStore'
 import { CandidateToolbar } from './CandidateToolbar'
@@ -45,16 +48,28 @@ export function MatchPreviewEditor() {
 		[fieldSources],
 	)
 
+	// A search result from a list-view provider carries a title, publisher, cover and date
+	// and nothing else, so comparing against it shows a column of dashes. Fetch the real
+	// thing for the candidate that is actually on screen — one request, not one per result.
+	const { metadata: fetched, isLoading: isLoadingMetadata } = useCandidateMetadata({
+		provider: candidate?.provider as MetadataProvider | undefined,
+		externalId: candidate?.externalId,
+		isMedia,
+		enabled: PARTIAL_SEARCH_PROVIDERS.has(candidate?.provider ?? ''),
+	})
+
 	const fieldComparisons: FieldComparison[] = useMemo(() => {
 		if (!candidate) return []
-		const meta = candidate.metadata as Record<string, unknown>
+		// Prefer the fetched page; fall back to the search result while it loads or if it
+		// failed, since a thin candidate is still a valid match to accept.
+		const meta = (fetched ?? candidate.metadata) as Record<string, unknown>
 		if (isMedia && isMediaCandidate(candidate.metadata)) {
 			return getMediaFieldComparisons(currentMetadata, meta)
 		} else if (!isMedia && !isMediaCandidate(candidate.metadata)) {
 			return getSeriesFieldComparisons(currentMetadata, meta)
 		}
 		return []
-	}, [candidate, currentMetadata, isMedia])
+	}, [candidate, fetched, currentMetadata, isMedia])
 
 	const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -97,7 +112,17 @@ export function MatchPreviewEditor() {
 					<div className="py-2.5 pl-2.5 grid grid-cols-[140px_1fr_1fr_40px_1fr_32px] items-center border-b border-border bg-muted/50">
 						<Heading className="text-sm font-medium">{t(getKey('headers.field'))}</Heading>
 						<Heading className="text-sm font-medium">{t(getKey('headers.current'))}</Heading>
-						<Heading className="text-sm font-medium">{t(getKey('headers.external'))}</Heading>
+						<div className="gap-2 flex items-center">
+							<Heading className="text-sm font-medium">{t(getKey('headers.external'))}</Heading>
+							{/* Otherwise this column reads as "the provider has nothing" for the
+							    moment before the fetched page arrives, and the values then change
+							    under the reader. */}
+							{isLoadingMetadata && (
+								<Text size="xs" variant="muted">
+									loading&hellip;
+								</Text>
+							)}
+						</div>
 						<div />
 						<Heading className="text-sm font-medium">{t(getKey('headers.resolved'))}</Heading>
 						<div />
