@@ -1,0 +1,137 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title>Longbox hero composite</title>
+		<style>
+			/*
+			 * The hero image: a desktop capture with a phone beside it.
+			 *
+			 * Built as HTML screenshotted by Playwright rather than an image-library
+			 * montage. There is no ImageMagick on the build box, and expressing the
+			 * device frames as CSS means they are versioned as source rather than baked
+			 * into pixels — a bezel radius is a one-line change here.
+			 *
+			 * `--phone-inset` is the only load-bearing number. Stump's composite
+			 * overlapped the desktop's *content*, which clipped a series title mid-word
+			 * and left a truncated username on show. Here the phone overlaps only the
+			 * desktop's bezel and the transparent margin, never its screen.
+			 */
+			:root {
+				--desktop-w: 1600px;
+				--desktop-h: 1000px;
+				--phone-w: 390px;
+				--phone-h: 844px;
+				--desktop-bezel: 14px;
+				--desktop-radius: 18px;
+				--phone-bezel: 12px;
+				--phone-radius: 44px;
+				/*
+				 * How far the desktop frame is pushed right, making room for the phone.
+				 *
+				 * Load-bearing. The phone occupies `--gutter` to
+				 * `--gutter + --phone-w + 2 * --phone-bezel`; the desktop *screen* starts
+				 * at `--gutter + --phone-inset + --desktop-bezel`. Setting the inset to
+				 * the phone's full outer width minus the desktop bezel lands the phone's
+				 * right edge exactly on the screen's left edge: the phone tucks behind the
+				 * entire bezel and covers not one pixel of the app.
+				 *
+				 * 390 + 2*12 - 14 = 400. Change any of those and change this.
+				 */
+				--phone-inset: 400px;
+				--gutter: 90px;
+			}
+
+			* {
+				box-sizing: border-box;
+			}
+
+			html,
+			body {
+				margin: 0;
+				padding: 0;
+				background: transparent;
+			}
+
+			#stage {
+				position: relative;
+				/* Room for the phone hanging off the left and the shadows on every side. */
+				width: calc(var(--desktop-w) + var(--gutter) * 2 + var(--phone-inset));
+				height: calc(var(--desktop-h) + var(--gutter) * 2 + 120px);
+			}
+
+			.frame {
+				position: absolute;
+				background: #0d0f13;
+				overflow: hidden;
+			}
+
+			.frame img {
+				display: block;
+				width: 100%;
+				height: 100%;
+				object-fit: cover;
+			}
+
+			#desktop {
+				left: calc(var(--gutter) + var(--phone-inset));
+				top: var(--gutter);
+				width: calc(var(--desktop-w) + var(--desktop-bezel) * 2);
+				height: calc(var(--desktop-h) + var(--desktop-bezel) * 2);
+				padding: var(--desktop-bezel);
+				border-radius: var(--desktop-radius);
+				box-shadow:
+					0 2px 0 rgb(255 255 255 / 0.06) inset,
+					0 40px 80px -20px rgb(0 0 0 / 0.55),
+					0 8px 24px -8px rgb(0 0 0 / 0.4);
+			}
+
+			#desktop .screen {
+				width: 100%;
+				height: 100%;
+				border-radius: calc(var(--desktop-radius) - var(--desktop-bezel) + 2px);
+				overflow: hidden;
+			}
+
+			#phone {
+				left: var(--gutter);
+				/* Sits low and slightly proud of the desktop's baseline, which reads as
+				   "in front of" without hiding anything. */
+				top: calc(var(--gutter) + var(--desktop-h) - var(--phone-h) + 150px);
+				width: calc(var(--phone-w) + var(--phone-bezel) * 2);
+				height: calc(var(--phone-h) + var(--phone-bezel) * 2);
+				padding: var(--phone-bezel);
+				border-radius: var(--phone-radius);
+				background: #05070a;
+				box-shadow:
+					0 0 0 1px rgb(255 255 255 / 0.09),
+					0 40px 70px -16px rgb(0 0 0 / 0.65);
+				z-index: 2;
+			}
+
+			#phone .screen {
+				width: 100%;
+				height: 100%;
+				border-radius: calc(var(--phone-radius) - var(--phone-bezel));
+				overflow: hidden;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="stage">
+			<div class="frame" id="desktop">
+				<div class="screen"><img id="desktop-img" alt="" /></div>
+			</div>
+			<div class="frame" id="phone">
+				<div class="screen"><img id="phone-img" alt="" /></div>
+			</div>
+		</div>
+		<script>
+			// Sources are injected by capture.py so the template carries no absolute
+			// paths and can be opened by hand for tweaking.
+			const params = new URLSearchParams(location.search)
+			document.getElementById('desktop-img').src = params.get('desktop')
+			document.getElementById('phone-img').src = params.get('phone')
+		</script>
+	</body>
+</html>

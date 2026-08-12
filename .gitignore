@@ -66,3 +66,6 @@ longbox.env
 
 # Nx local cache and workspace data (build artefacts, never committed)
 .nx/
+
+# Raw screenshot captures; only the optimised assets in docs/public are committed
+.screenshots-scratch/

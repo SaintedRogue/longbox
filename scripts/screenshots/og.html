@@ -1,0 +1,167 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title>Longbox social card</title>
+		<style>
+			/*
+			 * The Open Graph card: 1200x630, the size every link unfurler crops to.
+			 *
+			 * This replaces an inherited card that carried Stump's wordmark, logo and
+			 * tagline, so every Longbox docs link shared in Slack or Discord rendered as
+			 * a different project.
+			 *
+			 * Palette is taken from the README badges rather than invented, so the card
+			 * matches the identity already in use: ink #211d18, amber #d98a3d, cream
+			 * #f3efe8.
+			 */
+			:root {
+				--ink: #211d18;
+				--ink-lift: #2b2620;
+				--amber: #d98a3d;
+				--cream: #f3efe8;
+			}
+
+			* {
+				box-sizing: border-box;
+			}
+
+			html,
+			body {
+				margin: 0;
+				padding: 0;
+			}
+
+			#card {
+				position: relative;
+				width: 1200px;
+				height: 630px;
+				background:
+					radial-gradient(120% 140% at 8% 0%, var(--ink-lift) 0%, var(--ink) 55%), var(--ink);
+				overflow: hidden;
+				font-family:
+					ui-sans-serif,
+					system-ui,
+					-apple-system,
+					'Segoe UI',
+					sans-serif;
+				color: var(--cream);
+			}
+
+			#copy {
+				position: absolute;
+				left: 72px;
+				top: 84px;
+				width: 560px;
+				z-index: 2;
+			}
+
+			#lockup {
+				display: flex;
+				align-items: center;
+				gap: 18px;
+				margin-bottom: 30px;
+			}
+
+			/* The mark is stroke-based and inherits `currentColor`, so recolouring it for
+			   a dark ground is a colour declaration rather than a new asset. */
+			#lockup svg {
+				width: 68px;
+				height: 68px;
+				color: var(--amber);
+				flex: 0 0 auto;
+			}
+
+			#wordmark {
+				font-size: 62px;
+				font-weight: 800;
+				letter-spacing: -0.02em;
+				line-height: 1;
+			}
+
+			h1 {
+				font-size: 40px;
+				line-height: 1.15;
+				font-weight: 700;
+				letter-spacing: -0.015em;
+				margin: 0 0 20px;
+				text-wrap: balance;
+			}
+
+			p {
+				font-size: 23px;
+				line-height: 1.45;
+				margin: 0;
+				color: rgb(243 239 232 / 0.72);
+			}
+
+			#rule {
+				width: 84px;
+				height: 5px;
+				background: var(--amber);
+				border-radius: 999px;
+				margin: 32px 0 0;
+			}
+
+			/*
+			 * The app itself, bleeding off the bottom-right corner. Cropped rather than
+			 * fitted: at card size a whole screenshot is unreadable, so a corner of it
+			 * reads better than all of it.
+			 */
+			#shot {
+				position: absolute;
+				left: 620px;
+				top: 150px;
+				width: 720px;
+				height: 560px;
+				border-radius: 14px 0 0 0;
+				overflow: hidden;
+				box-shadow: 0 30px 70px -20px rgb(0 0 0 / 0.6);
+				border-top: 1px solid rgb(243 239 232 / 0.1);
+				border-left: 1px solid rgb(243 239 232 / 0.1);
+			}
+
+			#shot img {
+				display: block;
+				width: 1440px;
+				height: auto;
+				/*
+				 * Pull the composite so the card frames the grid, not the empty margin
+				 * around the device frames.
+				 *
+				 * The horizontal offset must clear the phone entirely. At this width the
+				 * phone spans roughly 59–333px, so anything shallower than -333 leaves a
+				 * sliver of bezel at the crop edge that reads as a rendering glitch
+				 * rather than as a device.
+				 */
+				margin: -110px 0 0 -350px;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="card">
+			<div id="copy">
+				<div id="lockup">
+					<span id="mark"></span>
+					<span id="wordmark">Longbox</span>
+				</div>
+				<h1>Your comics, bagged, boarded, and served.</h1>
+				<p>
+					A fast, self-hosted server for comics, manga and digital books — with a Rust core, an
+					installable web app, and full OPDS support.
+				</p>
+				<div id="rule"></div>
+			</div>
+			<div id="shot"><img id="shot-img" alt="" /></div>
+		</div>
+		<script>
+			// The screenshot path comes in on the query string so this template holds no
+			// absolute paths. The mark is injected by branding.py via `evaluate` rather
+			// than fetched here: Chromium blocks `fetch` of a file:// URL from a file://
+			// page, which fails as a silent timeout waiting for an element that never
+			// arrives.
+			const params = new URLSearchParams(location.search)
+			document.getElementById('shot-img').src = params.get('shot')
+		</script>
+	</body>
+</html>
