@@ -29,14 +29,14 @@ Metaphor **seasons**; it never renames real product nouns. In instructions the
 real UI concept always wins (Library, Series, Book, Collection, Reading List,
 Smart List); the comic word is a one-time gloss, not a rename.
 
-| Comic word                               | Used for                                 | Guardrail                                                   |
-| ---------------------------------------- | ---------------------------------------- | ----------------------------------------------------------- |
-| your longbox / the shelf                 | the whole running server                 | —                                                           |
-| issue · run                              | a book · a series                        | Gloss once ("a series — your run of a title"); don't rename |
-| bagged & boarded                         | offline durability, backups, data safety | —                                                           |
-| pulled / the pulled issue                | the active book / peek overlay           | established brand motif                                     |
-| your box, your rules · no cloud landlord | the self-host ownership pitch            | carry the "why" in plain language                           |
-| cracking the box / the spine             | getting started, first run               | —                                                           |
+| Comic word                               | Used for                                 | Guardrail                                                    |
+| ---------------------------------------- | ---------------------------------------- | ------------------------------------------------------------ |
+| your longbox / the shelf                 | the whole running server                 | —                                                            |
+| issue · run                              | a book · a series                        | Gloss once ("a series — your run of a title"); don't rename  |
+| bagged & boarded                         | offline durability, backups, data safety | —                                                            |
+| pulled / the pulled issue                | the active book you are reading          | ADR-0002 removed the peek overlay; the motif is the book now |
+| your box, your rules · no cloud landlord | the self-host ownership pitch            | carry the "why" in plain language                            |
+| cracking the box / the spine             | getting started, first run               | —                                                            |
 
 ## Signature devices
 
@@ -61,8 +61,11 @@ Smart List); the comic word is a one-time gloss, not a rename.
 - Don't bury a required step under a metaphor.
 - Don't carry meaning in ASCII art alone — the caption-box **label is real
   text** (screen-reader safe).
-- **Don't touch upstream attribution.** The fork-of-Stump credit, the MIT
-  `LICENSE`, and attribution links to `stumpapp/stump` stay exactly as they are.
+- **Leave the `LICENSE` alone.** Its `Copyright (c) 2022 Aaron Leopold` notice is a
+  licence obligation, not a style choice.
+- **Don't frame Longbox against Stump.** It left the fork network on 2026-08-12 and
+  is described on its own terms — no "a fork of Stump" tagline, no feature list
+  benchmarked against it, no "unlike Stump". See `CLAUDE.md`.
 - Don't invent product behavior to fit a metaphor. Accuracy wins.
 
 ## Worked example — a deep guide (voiced framing, neutral body)

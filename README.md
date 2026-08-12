@@ -13,7 +13,7 @@
 
 <p align="center">
   <b>Your comics, bagged, boarded, and served.</b><br/>
-  A fast, self-hosted longbox for every issue you own — comics, manga, and digital books — with a Rust core, an installable web app, and full <a href="https://opds.io/">OPDS</a> support. A PWA-first fork of <a href="https://github.com/stumpapp/stump">Stump</a>.
+  A fast, self-hosted longbox for every issue you own — comics, manga, and digital books — with a Rust core, an installable web app, and full <a href="https://opds.io/">OPDS</a> support.
 </p>
 
 <p align="center">
@@ -25,13 +25,12 @@
   <summary><b>Table of Contents</b></summary>
 
 - [What is Longbox?](#what-is-longbox)
-- [What's in this box that Stump's isn't](#whats-in-this-box-that-stumps-isnt)
-- [What's inside](#whats-inside)
+- [What's in the box](#whats-in-the-box)
 - [Cracking the box open](#cracking-the-box-open)
 - [For the shop out back (developers)](#for-the-shop-out-back-developers)
 - [How the box is packed](#how-the-box-is-packed)
 - [If this box isn't for you](#if-this-box-isnt-for-you)
-- [License & Attribution](#license--attribution)
+- [License](#license)
 
 </details>
 
@@ -48,65 +47,78 @@ Under the hood it's [Rust](https://www.rust-lang.org/) +
 [Axum](https://github.com/tokio-rs/axum) + [SeaORM](https://www.sea-ql.org/SeaORM/)
 doing the scanning and serving, with a [React](https://react.dev/) app up front.
 
-Longbox began as a fork of [Stump](https://github.com/stumpapp/stump) by Aaron
-Leopold, whose excellent Rust core and fast scanner we kept and built on. Where
-Stump ships desktop and mobile apps alongside the web UI, **Longbox goes all-in
-on a single installable PWA** — and spends that focus on navigation, comic
+**Longbox goes all-in on a single installable PWA** — one app for the desktop and
+the phone, no separate native builds — and spends that focus on navigation, comic
 metadata, and offline reading.
 
 — · — · —
 
-## What's in this box that Stump's isn't
+## What's in the box
 
-The things Longbox adds on top of the Stump core:
+**Reading**
 
-- **🗂️ One longbox, everywhere.** The Tauri desktop and Expo mobile apps are
-  gone — a single installable, offline-capable PWA covers desktop and mobile.
-  Dropping the native apps also makes the whole repository uniformly
-  [MIT](./LICENSE).
-- **🧭 Navigation that keeps your place.** Scroll position is restored on
-  back/forward, book details open as a **peek overlay** over the browse grid (the
-  "pulled issue" — you never lose your spot on the shelf), and breadcrumbs plus
-  back/forward controls make it easy to find your way home. _(See
-  [`docs/adr/0001`](./docs/adr/0001-router-and-scroll-restoration.md).)_
-- **🏷️ Deeper comic metadata.** A [Metron](https://metron.cloud) provider brings
-  CC BY-SA metadata and ComicVine/GCD cross-references into the enrichment
-  framework, ComicVine IDs are recovered from ComicTagger/Kavita tags
-  (`[Issue ID N]` and `[CVDB N]`), and edits can be written **back to
-  `ComicInfo.xml`** inside the archive (opt-in, CBZ).
-- **📥 Bagged & boarded offline reading.** Reading progress made offline is
-  queued locally (IndexedDB) and synced automatically on reconnect, so a dropped
-  connection never loses your place. Full offline downloads are
-  [on the pull list](./docs/longbox-wave3b-offline-plan.md).
-- **📱 Proper installability.** Maskable icons, a full iOS launch-screen set, and
-  a themed splash — Longbox installs and launches like a native app.
-- **📦 A fresh identity.** A hand-drawn line-mark and brand system (see
-  [`docs/longbox-design-notes.md`](./docs/longbox-design-notes.md)).
+- EPUB, PDF, CBZ/ZIP and CBR/RAR, each with a built-in reader
+- Annotations and highlights for EPUB
+- Paged and continuous reading, double-spread support, per-book image scaling and
+  reading direction
+- Reading progress that follows you between devices
 
-## What's inside
+**Bagged & boarded — offline**
 
-Inherited from the Stump core and carried forward:
+- Download issues to the device and read them with no connection
+- Progress made offline is queued locally and synced automatically on reconnect, so
+  a dropped signal never loses your place
+- Maskable icons, a full iOS launch-screen set and a themed splash: it installs and
+  launches like a native app
+
+**Metadata**
+
+- [Metron](https://metron.cloud), [ComicVine](https://comicvine.gamespot.com) and
+  [League of Comic Geeks](https://leagueofcomicgeeks.com) providers
+- Sources **add rather than compete**: every provider's answer is kept, and the
+  review grid shows them side by side so you can take the summary from one and the
+  credits from another. Each stored field remembers where it came from
+- ComicVine IDs recovered from ComicTagger and Kavita tags (`[Issue ID N]`, `[CVDB N]`)
+- Edits written back to `ComicInfo.xml` inside the archive (opt-in, CBZ)
+- A release calendar for the series you follow
+
+**Browsing**
+
+- Scroll position restored on back and forward, plus breadcrumbs and history
+  controls — you never lose your spot on the shelf. _(See
+  [`docs/adr/0001`](./docs/adr/0001-router-and-scroll-restoration.md) and
+  [`0002`](./docs/adr/0002-book-detail-is-a-page-not-a-peek.md).)_
+- An **omnibus shelf**: every omnibus in a library as one grid, one card per book
+- Collections for books that belong together without sharing a folder, and an
+  organizer for loose files
+- Browse by character, and search across titles, metadata, credits and tags
+- Smart lists — saved filters that behave like a shelf
+
+**Sharing & access**
 
 - [OPDS](https://opds.io/) [v1.2](https://specs.opds.io/opds-1.2) (including
   [OPDS PSE](https://github.com/anansi-project/opds-pse)) and
   [v2.0](https://specs.opds.io/opds-2.0.html)
-- EPUB, PDF, CBZ/ZIP, and CBR/RAR — with a built-in reader for every format
-- Annotations and highlights for EPUB
-- OIDC authentication and multi-user accounts with permissions, age
-  restrictions, and access control
-- [Kobo](/docs/content/docs/guides/integrations/kobo.mdx) and
-  [KoReader](/docs/content/docs/guides/integrations/koreader.mdx) sync
-- A handful of [built-in themes](/docs/content/docs/apps/web/themes.mdx) (light,
-  dark, and more)
-- 32 locales
-- Multiple installation methods, including Docker and pre-built binaries
+- [Kobo](./docs/content/docs/guides/integrations/kobo.mdx) and
+  [KoReader](./docs/content/docs/guides/integrations/koreader.mdx) sync
+- Send to device by email, and API keys for your own tooling
+- Book clubs, with discussions and scheduled reading
+- OIDC authentication and multi-user accounts with permissions, age restrictions and
+  per-library access control
 
-The [documentation](/docs/content/docs) has the full run.
+**Running it**
+
+- A single self-hosted binary, or Docker
+- Background jobs with a scheduler for scans and metadata refreshes
+- A file explorer and uploads
+- A handful of [built-in themes](./docs/content/docs/apps/web/themes.mdx) and 32 locales
+
+The [documentation](./docs/content/docs) has the full run.
 
 ## Cracking the box open
 
 Installation guides live in
-[the docs](/docs/content/docs/getting-started/installation/index.mdx) (Docker and
+[the docs](./docs/content/docs/getting-started/installation/index.mdx) (Docker and
 pre-built binaries).
 
 To crack it open locally for development:
@@ -122,7 +134,7 @@ yarn dev:web
 ## For the shop out back (developers)
 
 The developer guide is in
-[the docs](/docs/content/docs/developer/contributing.mdx); please review
+[the docs](./docs/content/docs/developer/contributing.mdx); please review
 [CONTRIBUTING.md](./.github/CONTRIBUTING.md) first.
 
 Contributions are very welcome — good places to start:
@@ -133,8 +145,8 @@ Contributions are very welcome — good places to start:
 - **CI / release automation** and other devops
 - Chipping away at `TODO`/`FIXME` comments
 
-Take a look at the [open issues](https://github.com/SaintedRogue/longbox/issues)
-to see what's on the pull list.
+Open a pull request when you have something — the `TODO` and `FIXME` comments in
+the tree are the honest backlog.
 
 ## How the box is packed
 
@@ -162,8 +174,8 @@ are worth a look:
 - [Storyteller](https://gitlab.com/storyteller-platform/storyteller)
 - [audiobookshelf](https://github.com/advplyr/audiobookshelf) (_audiobooks & podcasts_)
 
-## License & Attribution
+## License
 
-All code in this repository is licensed under the [MIT License](https://www.tldrlegal.com/license/mit-license).
-
-Longbox is a fork of [**Stump**](https://github.com/stumpapp/stump) by Aaron Leopold and contributors — thank you for the Rust core and fast scanner this project is built on.
+All code in this repository is licensed under the
+[MIT License](https://www.tldrlegal.com/license/mit-license). See
+[`LICENSE`](./LICENSE) for the full text and copyright notices.
