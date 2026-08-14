@@ -42,6 +42,40 @@ describe('offlineBlobUrl', () => {
 		expect(result).toBeNull()
 		expect(createObjectURL).not.toHaveBeenCalled()
 	})
+
+	/**
+	 * The store is keyed by exact URL and the download fetcher writes plain, unsized page URLs, so
+	 * the reader's `?width=` previews would otherwise all miss -- meaning blank previews offline for
+	 * a book the user deliberately downloaded.
+	 */
+	it('falls back to the unsized URL when a sized variant is not stored', async () => {
+		const matchUrl = jest
+			.spyOn(blobStore, 'matchUrl')
+			.mockImplementation(async (url: string) =>
+				url === '/api/v2/media/1/page/1' ? fakeResponse() : undefined,
+			)
+
+		const result = await offlineBlobUrl('/api/v2/media/1/page/1?width=320')
+
+		expect(result).toBe('blob:mock-0')
+		expect(matchUrl).toHaveBeenCalledWith('/api/v2/media/1/page/1?width=320')
+		expect(matchUrl).toHaveBeenCalledWith('/api/v2/media/1/page/1')
+	})
+
+	it('prefers an exact match over the unsized fallback', async () => {
+		const matchUrl = jest.spyOn(blobStore, 'matchUrl').mockResolvedValue(fakeResponse())
+
+		await offlineBlobUrl('/api/v2/media/1/page/1?width=320')
+
+		expect(matchUrl).toHaveBeenCalledTimes(1)
+	})
+
+	it('does not retry when there is no query string to strip', async () => {
+		const matchUrl = jest.spyOn(blobStore, 'matchUrl').mockResolvedValue(undefined)
+
+		expect(await offlineBlobUrl('/api/v2/media/1/page/1')).toBeNull()
+		expect(matchUrl).toHaveBeenCalledTimes(1)
+	})
 })
 
 describe('offlineFileBlob', () => {

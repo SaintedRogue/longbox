@@ -19,6 +19,7 @@ import { enqueueProgress } from '@/offline/progressOutbox'
 import paths from '@/paths'
 
 import { resolveInitialPage } from './resolveInitialPage'
+import { withResumePoint } from './resumeCache'
 
 export const BOOK_READER_SCENE_QUERY = graphql(`
 	query BookReaderScene($id: ID!) {
@@ -106,6 +107,10 @@ export function BookReaderScene({ book }: Props) {
 	const { sdk } = useSDK()
 	const { t } = useLocaleContext()
 
+	// Pulled out as primitives so the effects below depend on stable values rather than on the
+	// `book` object, whose identity changes whenever its query is refetched.
+	const { id: bookId, pages: bookPages } = book
+
 	const isIncognito = search.get('incognito') === 'true'
 	const isStreaming = !search.get('stream') || search.get('stream') === 'true'
 	const lastSyncedElapsedRef = useRef(book?.readProgress?.elapsedSeconds ?? 0)
@@ -115,53 +120,67 @@ export function BookReaderScene({ book }: Props) {
 	// regressing — the newer page on the server, which does an absolute overwrite of
 	// end_page with no ordering guard.
 	const latestProgressSeqRef = useRef(0)
+	// The most recent page reported for this book, whether or not the server has acknowledged it.
+	// It is the reader's own truth about where the user stopped, and is what the cached scene query
+	// is patched with on the way out -- see `withResumePoint`.
+	const lastReportedPageRef = useRef<number | null>(null)
 
-	const { mutate } = useGraphQLMutation(UPDATE_READ_PROGRESS)
+	const { mutateAsync } = useGraphQLMutation(UPDATE_READ_PROGRESS)
 
 	const fireProgressMutation = useCallback(
 		// Named function expression so the retry below can recurse on its own name rather than the
 		// outer const, which would be a forward reference react-compiler rejects.
 		function fireProgressMutation(
-			variables: Parameters<typeof mutate>[0],
+			variables: Parameters<typeof mutateAsync>[0],
 			outboxRecord: Parameters<typeof enqueueProgress>[0],
 			seq: number,
 			retryCount: number,
 		) {
-			mutate(variables, {
-				onError: (err) => {
-					const supersededByNewerUpdate = seq !== latestProgressSeqRef.current
-					if (!supersededByNewerUpdate && retryCount < 3) {
-						const delay = Math.min(1000 * 2 ** retryCount, 15_000)
-						setTimeout(
-							() => fireProgressMutation(variables, outboxRecord, seq, retryCount + 1),
-							delay,
-						)
-						return
-					}
+			// `mutateAsync().catch()` rather than `mutate(variables, { onError })`: react-query only
+			// runs a `mutate` call's own callbacks while the component that made the call is still
+			// mounted, and the single most valuable progress write of a session is the page turn
+			// immediately before the reader is closed. Dropping that one's error handling took the
+			// retry *and* the offline outbox with it. The returned promise settles either way.
+			mutateAsync(variables).catch((err) => {
+				const supersededByNewerUpdate = seq !== latestProgressSeqRef.current
+				if (!supersededByNewerUpdate && retryCount < 3) {
+					const delay = Math.min(1000 * 2 ** retryCount, 15_000)
+					setTimeout(
+						() => fireProgressMutation(variables, outboxRecord, seq, retryCount + 1),
+						delay,
+					)
+					return
+				}
 
-					console.error(err)
-					// Only the newest in-flight mutation's terminal failure is worth surfacing;
-					// an older, superseded one silently gives up in favor of the newer attempt.
-					if (!supersededByNewerUpdate) {
-						// Retries are exhausted -- durably queue the update so it isn't lost; the
-						// outbox flush hook (useProgressOutbox, mounted in AppLayout) replays it
-						// once the app is back online.
-						enqueueProgress(outboxRecord).catch((enqueueError) =>
-							console.error('Failed to enqueue offline reading progress', enqueueError),
-						)
-						toast.error(t('readerToasts.progressSavedOffline'))
-					}
-				},
+				console.error(err)
+				// Only the newest in-flight mutation's terminal failure is worth surfacing;
+				// an older, superseded one silently gives up in favor of the newer attempt.
+				if (!supersededByNewerUpdate) {
+					// Retries are exhausted -- durably queue the update so it isn't lost; the
+					// outbox flush hook (useProgressOutbox, mounted in AppLayout) replays it
+					// once the app is back online.
+					enqueueProgress(outboxRecord).catch((enqueueError) =>
+						console.error('Failed to enqueue offline reading progress', enqueueError),
+					)
+					toast.error(t('readerToasts.progressSavedOffline'))
+				}
 			})
 		},
-		[mutate, t],
+		[mutateAsync, t],
 	)
 
 	const updateProgress = useCallback(
 		(page: number, elapsedSeconds: number) => {
 			if (!book) return
 			if (isIncognito) return
-			if (book.readProgress?.page === page) return
+			// Deduped against what this reader last reported, not against `book.readProgress.page`.
+			// That value is whatever the query held at mount and does not move as you read, so
+			// paging back to it looked like "no change" and skipped the write entirely -- leaving
+			// the server, and now the resume point below, describing a page the user had already
+			// moved off. Open on 6, read to 10, page back to 6, close: you would reopen on 10.
+			if (lastReportedPageRef.current === page) return
+
+			lastReportedPageRef.current = page
 
 			const delta = Math.max(0, elapsedSeconds - lastSyncedElapsedRef.current)
 			// Advance the baseline optimistically at fire time rather than in onSuccess: if
@@ -207,6 +226,33 @@ export function BookReaderScene({ book }: Props) {
 			client.invalidateQueries({ exact: false, queryKey: [sdk.cacheKeys.inProgress] })
 		}
 	}, [sdk, client])
+
+	/**
+	 * Leave this scene's *own* cached query describing where the book was left, not where it was
+	 * opened. Nothing else does: the progress mutation returns no data to update the cache from,
+	 * and the reader seeds its starting page from this entry once, at mount. Without this, closing
+	 * a book and re-opening it inside the 30 minute `gcTime` resumed from the stale cached page --
+	 * see `withResumePoint` for the full walkthrough.
+	 *
+	 * It is also invalidated, so the next mount refetches in the background and reconciles with the
+	 * server (which may know about reading done on another device) without ever blocking a paint.
+	 */
+	useEffect(() => {
+		const queryKey = sdk.cacheKey('bookReader', [bookId])
+		return () => {
+			const page = lastReportedPageRef.current
+			if (page == null) return
+
+			client.setQueryData<BookReaderSceneQuery>(queryKey, (cached) =>
+				withResumePoint(cached, {
+					page,
+					pages: bookPages,
+					elapsedSeconds: lastSyncedElapsedRef.current,
+				}),
+			)
+			client.invalidateQueries({ queryKey })
+		}
+	}, [sdk, client, bookId, bookPages])
 
 	const initialPage = useMemo(
 		() => resolveInitialPage(startPage, book.readProgress?.page, book.pages),

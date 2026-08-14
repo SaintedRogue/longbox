@@ -1,7 +1,22 @@
-import { ScaledDimensionResizeInput } from '@longbox/graphql'
-
 import { APIBase } from '../base'
 import { createRouteURLHandler } from './utils'
+
+/**
+ * The widths the server will actually honour for a downscaled page preview, mirroring
+ * `THUMBNAIL_VARIANT_WIDTHS` in the Rust core. It is a whitelist rather than a free parameter so a
+ * client cannot make the server mint an unbounded number of distinct renders of the same page;
+ * anything outside it silently falls through to the full-resolution page.
+ */
+export const PAGE_PREVIEW_WIDTHS = [160, 320, 480, 640] as const
+export type PagePreviewWidth = (typeof PAGE_PREVIEW_WIDTHS)[number]
+
+export type BookPageParams = {
+	/**
+	 * Ask for a downscaled WebP preview of the page instead of the source image. Only for UI that
+	 * paints pages at thumbnail size -- a full-resolution comic page is measured in megabytes.
+	 */
+	width?: PagePreviewWidth
+}
 
 /**
  * The root route for the media API
@@ -33,7 +48,7 @@ export class MediaAPI extends APIBase {
 	/**
 	 * The URL for fetching a page of a media entity
 	 */
-	bookPageURL(mediaID: string, page: number, params?: ScaledDimensionResizeInput): string {
+	bookPageURL(mediaID: string, page: number, params?: BookPageParams): string {
 		return this.withServiceURL(mediaURL(`${mediaID}/page/${page}`, params))
 	}
 }
