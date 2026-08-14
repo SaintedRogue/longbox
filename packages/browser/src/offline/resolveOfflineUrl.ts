@@ -15,10 +15,29 @@ import { matchUrl } from './blobStore'
  * where the browser's own HTTP cache handles reuse via the `ETag` / `Cache-Control` the server sends.
  */
 export async function offlineBlobUrl(url: string): Promise<string | null> {
-	const resp = await matchUrl(url)
+	const resp = await matchOfflineUrl(url)
 	if (!resp) return null
 	const blob = await resp.blob()
 	return URL.createObjectURL(blob)
+}
+
+/**
+ * Look `url` up in the blob store, falling back to the same URL without its query string.
+ *
+ * The store is keyed by exact URL (`cache.match` does not ignore the search by default) and the
+ * download fetcher writes the plain, unsized URL of each page. Sized variants of the same image --
+ * the reader's `?width=` page previews -- are therefore misses that would go to the network, which
+ * offline means a blank preview for a book the user deliberately downloaded. A stored full-size
+ * copy satisfies a request for a scaled version of the same image, so it is served as-is; it is
+ * bigger than asked for, but it is local, correct, and already on the device.
+ */
+async function matchOfflineUrl(url: string): Promise<Response | undefined> {
+	const exact = await matchUrl(url)
+	if (exact) return exact
+
+	const queryStart = url.indexOf('?')
+	if (queryStart === -1) return undefined
+	return matchUrl(url.slice(0, queryStart))
 }
 
 /**

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use axum::{
 	extract::{Path, Query as AxumQuery, State},
 	http::HeaderMap,
@@ -11,7 +13,10 @@ use longbox_core::{
 	config::LongboxConfig,
 	filesystem::{
 		get_saved_thumbnail, get_thumbnail,
-		image::{generate_book_thumbnail, thumbnail_variant, GenerateThumbnailOptions},
+		image::{
+			generate_book_thumbnail, page_preview, thumbnail_variant,
+			GenerateThumbnailOptions,
+		},
 		media::get_page_async,
 		ContentType, FileError,
 	},
@@ -39,6 +44,29 @@ use crate::{
 #[derive(serde::Deserialize)]
 pub(crate) struct ThumbnailQuery {
 	pub width: Option<u32>,
+}
+
+/// Optional sizing for the reader page route: `?width=` restricted to the same
+/// [`longbox_core::filesystem::image::THUMBNAIL_VARIANT_WIDTHS`] whitelist. Anything else serves
+/// the full-resolution page unchanged.
+///
+/// This exists for the reader's page-preview strip, which paints ~100 CSS px wide thumbnails: it
+/// was fetching the untouched source page for each one, i.e. megabytes of 2000x3000 JPEG per
+/// preview, decoded on the main thread and thrown away at 5% scale.
+#[derive(serde::Deserialize)]
+struct PageQuery {
+	/// Kept as a string and parsed by [`PageQuery::preview_width`] rather than typed as
+	/// `Option<u32>`: a typed field makes axum reject the *whole request* with a 400 when the
+	/// value doesn't parse, so `?width=abc` would fail a page request that used to succeed (this
+	/// route ignored every query string before). "Anything else serves the full page" should hold
+	/// for malformed input too, not just for well-formed integers outside the whitelist.
+	width: Option<String>,
+}
+
+impl PageQuery {
+	fn preview_width(&self) -> Option<u32> {
+		self.width.as_deref().and_then(|width| width.parse().ok())
+	}
 }
 
 /// Swap a thumbnail response for its width variant when one was requested and
@@ -227,6 +255,7 @@ async fn get_media_page(
 	Path((id, page)): Path<(String, u32)>,
 	State(ctx): State<AppState>,
 	Extension(req): Extension<AuthContext>,
+	AxumQuery(params): AxumQuery<PageQuery>,
 ) -> APIResult<ImageResponse> {
 	let book = media::Entity::find_for_user(&req.user())
 		.filter(media::Column::Id.eq(id.clone()))
@@ -235,8 +264,20 @@ async fn get_media_page(
 		.await?
 		.ok_or(APIError::NotFound("Book not found".to_string()))?;
 
+	let preview_width = params.preview_width();
+
+	// A preview is a few hundred pixels wide, so rendering a PDF's neighbouring pages to produce
+	// one is pure waste -- the same reasoning `get_media_thumbnail` uses for its own adjusted config.
+	let config = match preview_width {
+		Some(_) => Arc::new(LongboxConfig {
+			pdf_prerender_range: 0,
+			..ctx.config.as_ref().clone()
+		}),
+		None => ctx.config.clone(),
+	};
+
 	let (content_type, bytes) =
-		match get_page_async(&book.path, page.try_into()?, ctx.config.as_ref()).await {
+		match get_page_async(&book.path, page.try_into()?, config.as_ref()).await {
 			Ok(result) => result,
 			Err(e) => {
 				if matches!(e, FileError::NoImageError) {
@@ -246,8 +287,48 @@ async fn get_media_page(
 			},
 		};
 
-	// The book file is the true source of a page, so its mtime is a valid `Last-Modified`
+	let (content_type, bytes) = match preview_width {
+		Some(width) => match page_preview(&bytes, width).await {
+			Some(preview) => (ContentType::WEBP, preview),
+			None => (content_type, bytes),
+		},
+		None => (content_type, bytes),
+	};
+
+	// The book file is the true source of a page, so its mtime is a valid `Last-Modified`. That
+	// holds for a preview too: it is a pure function of the same file, page and requested width.
 	Ok(ImageResponse::source_page(content_type, bytes)
 		.with_source_file(&book.path)
 		.await)
+}
+
+#[cfg(test)]
+mod page_query_tests {
+	use super::PageQuery;
+
+	fn query(width: Option<&str>) -> PageQuery {
+		PageQuery {
+			width: width.map(str::to_string),
+		}
+	}
+
+	#[test]
+	fn parses_a_numeric_width() {
+		assert_eq!(query(Some("320")).preview_width(), Some(320));
+	}
+
+	#[test]
+	fn treats_no_width_as_a_full_page_request() {
+		assert_eq!(query(None).preview_width(), None);
+	}
+
+	/// A malformed width must degrade to "serve the full page", not fail the request. Typing the
+	/// field as `Option<u32>` would make axum reject the whole request with a 400 instead -- and
+	/// this route served every one of these fine before it took a query at all.
+	#[test]
+	fn treats_a_malformed_width_as_absent() {
+		for width in ["", "abc", "-1", "320px", "1.5"] {
+			assert_eq!(query(Some(width)).preview_width(), None, "width={width:?}");
+		}
+	}
 }
