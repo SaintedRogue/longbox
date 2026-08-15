@@ -468,12 +468,37 @@ export type CalendarEntry = {
   coverUrl?: Maybe<Scalars['String']['output']>;
   /** Whether a book with this issue number already exists in the series. */
   inLibrary: Scalars['Boolean']['output'];
+  /**
+   * Whether the viewer follows this series. Drives the subscribe control, and is what
+   * lets the "all releases" view offer to subscribe to something it is showing you.
+   */
+  isFollowed: Scalars['Boolean']['output'];
   number?: Maybe<Scalars['String']['output']>;
   /** ISO `YYYY-MM-DD`. */
   releaseDate: Scalars['String']['output'];
   seriesId: Scalars['ID']['output'];
   seriesName: Scalars['String']['output'];
   title?: Maybe<Scalars['String']['output']>;
+};
+
+/**
+ * A month as a calendar actually draws one: six whole weeks of cells, including the tail
+ * of the previous month and the head of the next.
+ */
+export type CalendarMonth = {
+  __typename?: 'CalendarMonth';
+  /**
+   * Always 42 cells, oldest first. A grid that changed height month to month would
+   * make the page jump on every page-through.
+   */
+  days: Array<CalendarDay>;
+  /** e.g. "August 2026". */
+  label: Scalars['String']['output'];
+  /**
+   * ISO `YYYY-MM-01` for the month being shown — the frontend compares each cell's
+   * date against this to know which cells are padding.
+   */
+  monthStart: Scalars['String']['output'];
 };
 
 export enum CalendarScope {
@@ -2733,6 +2758,17 @@ export type Mutation = {
   setUnofficialProvidersAcknowledged: ServerConfigModel;
   /** Suggest a book for the book club */
   suggestBook: BookClubBookSuggestion;
+  /**
+   * Pull the release calendar now, without waiting for the schedule.
+   *
+   * Returns as soon as the sweep has *started*, not when it finishes: a sweep talks to
+   * external providers and can run for minutes, which is far longer than a request
+   * should be held open. The UI polls `releaseCalendarStatus` for the rest.
+   *
+   * Gated on `ManageServer` because a sweep spends the server's shared provider API
+   * budget — this is not a per-viewer refresh.
+   */
+  syncReleaseCalendar: ReleaseCalendarStatus;
   /** Send a test email to verify the SMTP configuration is working */
   testEmailer: Scalars['Boolean']['output'];
   /**
@@ -4396,6 +4432,13 @@ export type Query = {
    * are present, empty or not, so the grid renders without gap logic).
    */
   releaseCalendar: Array<CalendarDay>;
+  /**
+   * A month laid out as a grid: six whole weeks of cells, every one present whether or
+   * not it has anything on it, so the frontend renders rows without gap logic.
+   */
+  releaseCalendarMonth: CalendarMonth;
+  /** Whether the calendar is syncing, and when it last did. */
+  releaseCalendarStatus: ReleaseCalendarStatus;
   scheduledJobs: Array<ScheduledJob>;
   /**
    * Search books, series, libraries, authors and characters in one request.
@@ -4430,6 +4473,13 @@ export type Query = {
   /** Returns a list of all tags. */
   tags: Array<Tag>;
   topReaders: Array<User>;
+  /**
+   * Everything expected from today onward, grouped by day.
+   *
+   * Unlike the week grid this omits days with nothing on them: it is a list of what is
+   * coming, and a run of empty dates carries no information in that framing.
+   */
+  upcomingReleases: Array<CalendarDay>;
   /** New books in followed series, newest first — 30-day window, hard cap. */
   updatesFeed: UpdatesFeed;
   uploadConfig: UploadConfig;
@@ -4749,6 +4799,12 @@ export type QueryReleaseCalendarArgs = {
 };
 
 
+export type QueryReleaseCalendarMonthArgs = {
+  monthOffset?: Scalars['Int']['input'];
+  scope?: CalendarScope;
+};
+
+
 export type QuerySearchAllArgs = {
   limitPerType?: Scalars['Int']['input'];
   query: Scalars['String']['input'];
@@ -4807,6 +4863,12 @@ export type QuerySmartListsArgs = {
 
 export type QueryTopReadersArgs = {
   take?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+export type QueryUpcomingReleasesArgs = {
+  days?: Scalars['Int']['input'];
+  scope?: CalendarScope;
 };
 
 
@@ -5042,6 +5104,20 @@ export type ReleaseCalendarConfigInput = {
   locgEnabled?: Scalars['Boolean']['input'];
   /** Sweep Metron's store-date window (leave off until verified reachable) */
   metronEnabled: Scalars['Boolean']['input'];
+};
+
+/** The state of the calendar's own data: is it refreshing, and how stale is it. */
+export type ReleaseCalendarStatus = {
+  __typename?: 'ReleaseCalendarStatus';
+  /** A sweep is in flight right now. Starting a second one is refused. */
+  isRunning: Scalars['Boolean']['output'];
+  /**
+   * Whether an enabled schedule exists, so the UI can say whether this refreshes on
+   * its own or only when asked.
+   */
+  isScheduled: Scalars['Boolean']['output'];
+  /** RFC 3339 of the last *successful* sync, by any route. Null if it has never run. */
+  lastSyncedAt?: Maybe<Scalars['String']['output']>;
 };
 
 /**
@@ -5499,6 +5575,11 @@ export type ServerConfigModel = {
   __typename?: 'ServerConfigModel';
   id: Scalars['Int']['output'];
   initialWalSetupComplete: Scalars['Boolean']['output'];
+  /**
+   * When the release calendar last pulled, by any route. See the migration for why
+   * this lives here rather than on the scheduled job.
+   */
+  lastReleaseCalendarSyncAt?: Maybe<Scalars['DateTime']['output']>;
   publicUrl?: Maybe<Scalars['String']['output']>;
   /**
    * When the server owner acknowledged the terms of using **unofficial** metadata
@@ -6512,6 +6593,14 @@ export type UseCoreEventSubscriptionVariables = Exact<{ [key: string]: never; }>
 
 export type UseCoreEventSubscription = { __typename?: 'Subscription', readEvents: { __typename: 'CreatedManySeries', count: number, libraryId: string } | { __typename: 'CreatedMedia', id: string, seriesId: string } | { __typename: 'CreatedOrUpdatedManyMedia', count: number, seriesId: string } | { __typename: 'DiscoveredMissingLibrary', id: string } | { __typename: 'JobOutput', id: string, output: { __typename: 'AnalyzeMediaOutput' } | { __typename: 'LibraryScanOutput', createdMedia: number, createdSeries: number, updatedMedia: number, updatedSeries: number } | { __typename: 'MetadataFetchJobOutput' } | { __typename: 'OrganizeLooseFilesOutput', moved: number, proposedMoves: number } | { __typename: 'PlaceholderGenerationOutput' } | { __typename: 'SeriesScanOutput', createdMedia: number, updatedMedia: number } | { __typename: 'ThumbnailGenerationOutput' } } | { __typename: 'JobStarted', id: string } | { __typename: 'JobUpdate', id: string, status?: JobStatus | null, message?: string | null, completedTasks?: number | null, remainingTasks?: number | null, completedSubtasks?: number | null, totalSubtasks?: number | null, subtitle?: string | null } };
 
+export type UseFollowSeriesMutationVariables = Exact<{
+  id: Scalars['ID']['input'];
+  isFollowing: Scalars['Boolean']['input'];
+}>;
+
+
+export type UseFollowSeriesMutation = { __typename?: 'Mutation', followSeries: boolean };
+
 export type UsePreferencesMutationVariables = Exact<{
   input: UpdateUserPreferencesInput;
 }>;
@@ -6706,13 +6795,38 @@ export type BookSearchSceneQuery = { __typename?: 'Query', media: { __typename?:
       & { ' $fragmentRefs'?: { 'BookCardFragment': BookCardFragment;'BookMetadataFragment': BookMetadataFragment } }
     )>, pageInfo: { __typename: 'CursorPaginationInfo' } | { __typename: 'OffsetPaginationInfo', currentPage: number, totalPages: number, pageSize: number, pageOffset: number, zeroBased: boolean } } };
 
+export type ReleaseCalendarMonthQueryVariables = Exact<{
+  monthOffset: Scalars['Int']['input'];
+  scope: CalendarScope;
+}>;
+
+
+export type ReleaseCalendarMonthQuery = { __typename?: 'Query', releaseCalendarMonth: { __typename?: 'CalendarMonth', monthStart: string, label: string, days: Array<{ __typename?: 'CalendarDay', date: string, entries: Array<{ __typename?: 'CalendarEntry', seriesId: string, seriesName: string, number?: string | null, title?: string | null, coverUrl?: string | null, inLibrary: boolean, isFollowed: boolean }> }> } };
+
 export type ReleaseCalendarQueryVariables = Exact<{
   weekOffset: Scalars['Int']['input'];
   scope: CalendarScope;
 }>;
 
 
-export type ReleaseCalendarQuery = { __typename?: 'Query', releaseCalendar: Array<{ __typename?: 'CalendarDay', date: string, entries: Array<{ __typename?: 'CalendarEntry', seriesId: string, seriesName: string, number?: string | null, title?: string | null, coverUrl?: string | null, inLibrary: boolean }> }> };
+export type ReleaseCalendarQuery = { __typename?: 'Query', releaseCalendar: Array<{ __typename?: 'CalendarDay', date: string, entries: Array<{ __typename?: 'CalendarEntry', seriesId: string, seriesName: string, number?: string | null, title?: string | null, coverUrl?: string | null, inLibrary: boolean, isFollowed: boolean }> }> };
+
+export type UpcomingReleasesQueryVariables = Exact<{
+  scope: CalendarScope;
+}>;
+
+
+export type UpcomingReleasesQuery = { __typename?: 'Query', upcomingReleases: Array<{ __typename?: 'CalendarDay', date: string, entries: Array<{ __typename?: 'CalendarEntry', seriesId: string, seriesName: string, number?: string | null, title?: string | null, coverUrl?: string | null, inLibrary: boolean, isFollowed: boolean }> }> };
+
+export type CalendarSyncStatusQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type CalendarSyncStatusQuery = { __typename?: 'Query', releaseCalendarStatus: { __typename?: 'ReleaseCalendarStatus', isRunning: boolean, lastSyncedAt?: string | null, isScheduled: boolean } };
+
+export type CalendarSyncStatusSyncMutationVariables = Exact<{ [key: string]: never; }>;
+
+
+export type CalendarSyncStatusSyncMutation = { __typename?: 'Mutation', syncReleaseCalendar: { __typename?: 'ReleaseCalendarStatus', isRunning: boolean, lastSyncedAt?: string | null } };
 
 export type CharacterCardFragment = { __typename?: 'Character', name: string, bookCount?: number | null } & { ' $fragmentName'?: 'CharacterCardFragment' };
 
@@ -7126,14 +7240,6 @@ export type FollowedSeriesIdsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
 export type FollowedSeriesIdsQuery = { __typename?: 'Query', followedSeriesIds: Array<string> };
-
-export type FollowSeriesMutationVariables = Exact<{
-  id: Scalars['ID']['input'];
-  isFollowing: Scalars['Boolean']['input'];
-}>;
-
-
-export type FollowSeriesMutation = { __typename?: 'Mutation', followSeries: boolean };
 
 export type SeriesLayoutQueryVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -9961,6 +10067,11 @@ export const UseCoreEventDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<UseCoreEventSubscription, UseCoreEventSubscriptionVariables>;
+export const UseFollowSeriesDocument = new TypedDocumentString(`
+    mutation UseFollowSeries($id: ID!, $isFollowing: Boolean!) {
+  followSeries(id: $id, isFollowing: $isFollowing)
+}
+    `) as unknown as TypedDocumentString<UseFollowSeriesMutation, UseFollowSeriesMutationVariables>;
 export const UsePreferencesDocument = new TypedDocumentString(`
     mutation UsePreferences($input: UpdateUserPreferencesInput!) {
   updateViewerPreferences(input: $input) {
@@ -10389,6 +10500,26 @@ fragment BookMetadata on Media {
     number
   }
 }`) as unknown as TypedDocumentString<BookSearchSceneQuery, BookSearchSceneQueryVariables>;
+export const ReleaseCalendarMonthDocument = new TypedDocumentString(`
+    query ReleaseCalendarMonth($monthOffset: Int!, $scope: CalendarScope!) {
+  releaseCalendarMonth(monthOffset: $monthOffset, scope: $scope) {
+    monthStart
+    label
+    days {
+      date
+      entries {
+        seriesId
+        seriesName
+        number
+        title
+        coverUrl
+        inLibrary
+        isFollowed
+      }
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<ReleaseCalendarMonthQuery, ReleaseCalendarMonthQueryVariables>;
 export const ReleaseCalendarDocument = new TypedDocumentString(`
     query ReleaseCalendar($weekOffset: Int!, $scope: CalendarScope!) {
   releaseCalendar(weekOffset: $weekOffset, scope: $scope) {
@@ -10400,10 +10531,44 @@ export const ReleaseCalendarDocument = new TypedDocumentString(`
       title
       coverUrl
       inLibrary
+      isFollowed
     }
   }
 }
     `) as unknown as TypedDocumentString<ReleaseCalendarQuery, ReleaseCalendarQueryVariables>;
+export const UpcomingReleasesDocument = new TypedDocumentString(`
+    query UpcomingReleases($scope: CalendarScope!) {
+  upcomingReleases(scope: $scope) {
+    date
+    entries {
+      seriesId
+      seriesName
+      number
+      title
+      coverUrl
+      inLibrary
+      isFollowed
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<UpcomingReleasesQuery, UpcomingReleasesQueryVariables>;
+export const CalendarSyncStatusDocument = new TypedDocumentString(`
+    query CalendarSyncStatus {
+  releaseCalendarStatus {
+    isRunning
+    lastSyncedAt
+    isScheduled
+  }
+}
+    `) as unknown as TypedDocumentString<CalendarSyncStatusQuery, CalendarSyncStatusQueryVariables>;
+export const CalendarSyncStatusSyncDocument = new TypedDocumentString(`
+    mutation CalendarSyncStatusSync {
+  syncReleaseCalendar {
+    isRunning
+    lastSyncedAt
+  }
+}
+    `) as unknown as TypedDocumentString<CalendarSyncStatusSyncMutation, CalendarSyncStatusSyncMutationVariables>;
 export const CharacterDetailSceneDocument = new TypedDocumentString(`
     query CharacterDetailScene($name: String!) {
   characterByName(name: $name) {
@@ -11480,11 +11645,6 @@ export const FollowedSeriesIdsDocument = new TypedDocumentString(`
   followedSeriesIds
 }
     `) as unknown as TypedDocumentString<FollowedSeriesIdsQuery, FollowedSeriesIdsQueryVariables>;
-export const FollowSeriesDocument = new TypedDocumentString(`
-    mutation FollowSeries($id: ID!, $isFollowing: Boolean!) {
-  followSeries(id: $id, isFollowing: $isFollowing)
-}
-    `) as unknown as TypedDocumentString<FollowSeriesMutation, FollowSeriesMutationVariables>;
 export const SeriesLayoutDocument = new TypedDocumentString(`
     query SeriesLayout($id: ID!) {
   seriesById(id: $id) {

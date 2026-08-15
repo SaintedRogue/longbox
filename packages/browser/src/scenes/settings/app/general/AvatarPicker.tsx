@@ -105,7 +105,6 @@ export default function AvatarPicker() {
 
 	const handleRemove = async () => {
 		try {
-			// @ts-expect-error: my abstraction doesn't like `never` variables its fine
 			await deleteAvatar()
 		} catch (error) {
 			console.error(error)

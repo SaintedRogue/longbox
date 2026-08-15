@@ -51,7 +51,6 @@ export default function DeleteJobHistoryConfirmation() {
 	return (
 		<ConfirmationModal
 			isOpen={showConfirmation}
-			// @ts-expect-error: useGraphQLMutation types obv need fixing
 			onConfirm={() => deleteLogs()}
 			onClose={() => setShowConfirmation(false)}
 			title={t(getKey('title'))}

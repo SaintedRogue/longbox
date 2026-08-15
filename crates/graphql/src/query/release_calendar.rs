@@ -6,13 +6,14 @@ use std::collections::{HashMap, HashSet};
 
 use async_graphql::{Context, Enum, Object, Result, SimpleObject, ID};
 use chrono::{Datelike, Duration, NaiveDate, Utc};
+use longbox_core::filesystem::metadata::sweep_in_flight;
 use metadata_integrations::issue_numbers_match;
 use models::{
 	entity::{
-		expected_issue, media, media_metadata, reading_session, series, series_follow,
-		user::AuthUser,
+		expected_issue, media, media_metadata, reading_session, scheduled_job, series,
+		series_follow, server_config, user::AuthUser,
 	},
-	shared::enums::ReadingStatus,
+	shared::enums::{ReadingStatus, ScheduledJobKind},
 };
 use sea_orm::{prelude::*, QueryOrder, QuerySelect};
 
@@ -40,6 +41,25 @@ pub struct CalendarEntry {
 	pub release_date: String,
 	/// Whether a book with this issue number already exists in the series.
 	pub in_library: bool,
+	/// Whether the viewer follows this series. Drives the subscribe control, and is what
+	/// lets the "all releases" view offer to subscribe to something it is showing you.
+	pub is_followed: bool,
+}
+
+/// How far ahead the upcoming view may look. Matches the sweep's own forward window —
+/// asking for more than the oracle ever writes would just render empty days.
+const MAX_UPCOMING_DAYS: i32 = 90;
+
+/// The state of the calendar's own data: is it refreshing, and how stale is it.
+#[derive(SimpleObject)]
+pub struct ReleaseCalendarStatus {
+	/// A sweep is in flight right now. Starting a second one is refused.
+	pub is_running: bool,
+	/// RFC 3339 of the last *successful* sync, by any route. Null if it has never run.
+	pub last_synced_at: Option<String>,
+	/// Whether an enabled schedule exists, so the UI can say whether this refreshes on
+	/// its own or only when asked.
+	pub is_scheduled: bool,
 }
 
 #[derive(SimpleObject)]
@@ -47,6 +67,20 @@ pub struct CalendarDay {
 	/// ISO `YYYY-MM-DD`.
 	pub date: String,
 	pub entries: Vec<CalendarEntry>,
+}
+
+/// A month as a calendar actually draws one: six whole weeks of cells, including the tail
+/// of the previous month and the head of the next.
+#[derive(SimpleObject)]
+pub struct CalendarMonth {
+	/// ISO `YYYY-MM-01` for the month being shown — the frontend compares each cell's
+	/// date against this to know which cells are padding.
+	pub month_start: String,
+	/// e.g. "August 2026".
+	pub label: String,
+	/// Always 42 cells, oldest first. A grid that changed height month to month would
+	/// make the page jump on every page-through.
+	pub days: Vec<CalendarDay>,
 }
 
 #[derive(SimpleObject)]
@@ -73,6 +107,26 @@ pub(crate) fn week_window(today: NaiveDate, week_offset: i32) -> (NaiveDate, Nai
 	let start =
 		today - Duration::days(days_from_sunday) + Duration::weeks(week_offset as i64);
 	(start, start + Duration::days(6))
+}
+
+/// The first of the month `month_offset` months from `today`'s month.
+pub(crate) fn month_start(today: NaiveDate, month_offset: i32) -> NaiveDate {
+	// Work in absolute months so the arithmetic can't produce a month 0 or 13.
+	let absolute = today.year() * 12 + (today.month0() as i32) + month_offset;
+	let year = absolute.div_euclid(12);
+	let month0 = absolute.rem_euclid(12) as u32;
+	NaiveDate::from_ymd_opt(year, month0 + 1, 1).unwrap_or(today)
+}
+
+/// The Sunday-aligned grid a month is drawn on: whole weeks, so every row has seven
+/// cells, padded with the tail of the previous month and the head of the next.
+///
+/// Six rows rather than five-or-six. A grid that changes height month to month makes the
+/// whole page jump when you page through it, and a calendar is something you page through.
+pub(crate) fn month_grid_window(month_start: NaiveDate) -> (NaiveDate, NaiveDate) {
+	let lead = month_start.weekday().num_days_from_sunday() as i64;
+	let start = month_start - Duration::days(lead);
+	(start, start + Duration::days(41))
 }
 
 /// Accessible series for the viewer, as `id -> name`. Library exclusions and
@@ -102,6 +156,104 @@ async fn followed_series_ids_for(
 		.collect())
 }
 
+/// Every expected issue the viewer can see between `start` and `end`, oldest first.
+///
+/// Shared by the week grid and the upcoming list: they differ only in the window they ask
+/// for and how they group the answer, so the scoping, the in-library match and the follow
+/// lookup all live here rather than being kept in step in two places.
+async fn entries_between(
+	conn: &DatabaseConnection,
+	user: &AuthUser,
+	scope: CalendarScope,
+	start: NaiveDate,
+	end: NaiveDate,
+) -> Result<Vec<CalendarEntry>> {
+	let accessible = accessible_series(conn, user).await?;
+	let follows = followed_series_ids_for(conn, &user.id).await?;
+
+	let scoped_ids: Vec<String> = match scope {
+		CalendarScope::All => accessible.keys().cloned().collect(),
+		CalendarScope::Followed => accessible
+			.keys()
+			.filter(|id| follows.contains(*id))
+			.cloned()
+			.collect(),
+	};
+	if scoped_ids.is_empty() {
+		return Ok(vec![]);
+	}
+
+	let expected = expected_issue::Entity::find()
+		.filter(expected_issue::Column::SeriesId.is_in(scoped_ids))
+		.filter(expected_issue::Column::ReleaseDate.gte(start.to_string()))
+		.filter(expected_issue::Column::ReleaseDate.lte(end.to_string()))
+		.order_by_asc(expected_issue::Column::ReleaseDate)
+		.all(conn)
+		.await?;
+
+	// Owned issue numbers per involved series, for the in-library badge.
+	let involved: Vec<String> = expected.iter().map(|e| e.series_id.clone()).collect();
+	let mut numbers_by_series: HashMap<String, Vec<String>> = HashMap::new();
+	if !involved.is_empty() {
+		let books = media::Entity::find()
+			.filter(media::Column::SeriesId.is_in(involved))
+			.select_only()
+			.column(media::Column::Id)
+			.column(media::Column::SeriesId)
+			.into_tuple::<(String, Option<String>)>()
+			.all(conn)
+			.await?;
+		let media_ids: Vec<String> = books.iter().map(|(id, _)| id.clone()).collect();
+		let series_by_media: HashMap<String, String> = books
+			.into_iter()
+			.filter_map(|(id, sid)| sid.map(|sid| (id, sid)))
+			.collect();
+		let metadata_numbers = media_metadata::Entity::find()
+			.filter(media_metadata::Column::MediaId.is_in(media_ids))
+			.all(conn)
+			.await?;
+		for row in metadata_numbers {
+			let (Some(media_id), Some(number)) = (row.media_id, row.number) else {
+				continue;
+			};
+			if let Some(series_id) = series_by_media.get(&media_id) {
+				numbers_by_series
+					.entry(series_id.clone())
+					.or_default()
+					.push(number.normalize().to_string());
+			}
+		}
+	}
+
+	Ok(expected
+		.into_iter()
+		.filter_map(|entry| {
+			let release_date = entry.release_date.clone()?;
+			let series_name = accessible.get(&entry.series_id)?.clone();
+			let in_library = entry.number.as_deref().is_some_and(|expected_number| {
+				numbers_by_series
+					.get(&entry.series_id)
+					.is_some_and(|owned| {
+						owned
+							.iter()
+							.any(|n| issue_numbers_match(n, expected_number))
+					})
+			});
+
+			Some(CalendarEntry {
+				is_followed: follows.contains(&entry.series_id),
+				series_id: ID::from(entry.series_id),
+				series_name,
+				number: entry.number,
+				title: entry.title,
+				cover_url: entry.cover_url,
+				release_date,
+				in_library,
+			})
+		})
+		.collect())
+}
+
 #[Object]
 impl ReleaseCalendarQuery {
 	/// Series ids the viewer follows.
@@ -127,19 +279,6 @@ impl ReleaseCalendarQuery {
 		let AuthContext { user, .. } = ctx.data::<AuthContext>()?;
 		let conn = ctx.data::<CoreContext>()?.conn.as_ref();
 
-		let accessible = accessible_series(conn, user).await?;
-		let scoped_ids: Vec<String> = match scope {
-			CalendarScope::All => accessible.keys().cloned().collect(),
-			CalendarScope::Followed => {
-				let follows = followed_series_ids_for(conn, &user.id).await?;
-				accessible
-					.keys()
-					.filter(|id| follows.contains(*id))
-					.cloned()
-					.collect()
-			},
-		};
-
 		let (start, end) = week_window(Utc::now().date_naive(), week_offset);
 		let mut days: Vec<CalendarDay> = (0..7)
 			.map(|d| CalendarDay {
@@ -148,88 +287,115 @@ impl ReleaseCalendarQuery {
 			})
 			.collect();
 
-		if scoped_ids.is_empty() {
-			return Ok(days);
-		}
-
-		let expected = expected_issue::Entity::find()
-			.filter(expected_issue::Column::SeriesId.is_in(scoped_ids))
-			.filter(expected_issue::Column::ReleaseDate.gte(start.to_string()))
-			.filter(expected_issue::Column::ReleaseDate.lte(end.to_string()))
-			.order_by_asc(expected_issue::Column::ReleaseDate)
-			.all(conn)
-			.await?;
-
-		// Owned issue numbers per involved series, for the in-library badge.
-		let involved: Vec<String> =
-			expected.iter().map(|e| e.series_id.clone()).collect();
-		let mut numbers_by_series: HashMap<String, Vec<String>> = HashMap::new();
-		if !involved.is_empty() {
-			let books = media::Entity::find()
-				.filter(media::Column::SeriesId.is_in(involved))
-				.select_only()
-				.column(media::Column::Id)
-				.column(media::Column::SeriesId)
-				.into_tuple::<(String, Option<String>)>()
-				.all(conn)
-				.await?;
-			let media_ids: Vec<String> = books.iter().map(|(id, _)| id.clone()).collect();
-			let series_by_media: HashMap<String, String> = books
-				.into_iter()
-				.filter_map(|(id, sid)| sid.map(|sid| (id, sid)))
-				.collect();
-			let metadata_numbers = media_metadata::Entity::find()
-				.filter(media_metadata::Column::MediaId.is_in(media_ids))
-				.all(conn)
-				.await?;
-			for row in metadata_numbers {
-				let (Some(media_id), Some(number)) = (row.media_id, row.number) else {
-					continue;
-				};
-				if let Some(series_id) = series_by_media.get(&media_id) {
-					numbers_by_series
-						.entry(series_id.clone())
-						.or_default()
-						.push(number.normalize().to_string());
-				}
-			}
-		}
-
-		for entry in expected {
-			let Some(release_date) = entry.release_date.clone() else {
-				continue;
-			};
-			let Some(series_name) = accessible.get(&entry.series_id) else {
-				continue;
-			};
-			let in_library = entry.number.as_deref().is_some_and(|expected_number| {
-				numbers_by_series
-					.get(&entry.series_id)
-					.is_some_and(|owned| {
-						owned
-							.iter()
-							.any(|n| issue_numbers_match(n, expected_number))
-					})
-			});
-			let day_index = NaiveDate::parse_from_str(&release_date, "%Y-%m-%d")
+		for entry in entries_between(conn, user, scope, start, end).await? {
+			let day_index = NaiveDate::parse_from_str(&entry.release_date, "%Y-%m-%d")
 				.ok()
 				.and_then(|d| usize::try_from((d - start).num_days()).ok())
 				.filter(|i| *i < 7);
 			let Some(day_index) = day_index else {
 				continue;
 			};
-			days[day_index].entries.push(CalendarEntry {
-				series_id: ID::from(entry.series_id.clone()),
-				series_name: series_name.clone(),
-				number: entry.number,
-				title: entry.title,
-				cover_url: entry.cover_url,
-				release_date,
-				in_library,
-			});
+			days[day_index].entries.push(entry);
 		}
 
 		Ok(days)
+	}
+
+	/// A month laid out as a grid: six whole weeks of cells, every one present whether or
+	/// not it has anything on it, so the frontend renders rows without gap logic.
+	async fn release_calendar_month(
+		&self,
+		ctx: &Context<'_>,
+		#[graphql(default = 0)] month_offset: i32,
+		#[graphql(default_with = "CalendarScope::Followed")] scope: CalendarScope,
+	) -> Result<CalendarMonth> {
+		let AuthContext { user, .. } = ctx.data::<AuthContext>()?;
+		let conn = ctx.data::<CoreContext>()?.conn.as_ref();
+
+		let start_of_month = month_start(Utc::now().date_naive(), month_offset);
+		let (start, end) = month_grid_window(start_of_month);
+
+		let mut by_date: HashMap<String, Vec<CalendarEntry>> = HashMap::new();
+		for entry in entries_between(conn, user, scope, start, end).await? {
+			by_date
+				.entry(entry.release_date.clone())
+				.or_default()
+				.push(entry);
+		}
+
+		let days = (0..42)
+			.map(|offset| {
+				let date = (start + Duration::days(offset)).to_string();
+				CalendarDay {
+					entries: by_date.remove(&date).unwrap_or_default(),
+					date,
+				}
+			})
+			.collect();
+
+		Ok(CalendarMonth {
+			month_start: start_of_month.to_string(),
+			label: start_of_month.format("%B %Y").to_string(),
+			days,
+		})
+	}
+
+	/// Everything expected from today onward, grouped by day.
+	///
+	/// Unlike the week grid this omits days with nothing on them: it is a list of what is
+	/// coming, and a run of empty dates carries no information in that framing.
+	async fn upcoming_releases(
+		&self,
+		ctx: &Context<'_>,
+		#[graphql(default = 90)] days: i32,
+		#[graphql(default_with = "CalendarScope::Followed")] scope: CalendarScope,
+	) -> Result<Vec<CalendarDay>> {
+		let AuthContext { user, .. } = ctx.data::<AuthContext>()?;
+		let conn = ctx.data::<CoreContext>()?.conn.as_ref();
+
+		let today = Utc::now().date_naive();
+		let end = today + Duration::days(days.clamp(1, MAX_UPCOMING_DAYS) as i64);
+
+		let mut grouped: Vec<CalendarDay> = Vec::new();
+		for entry in entries_between(conn, user, scope, today, end).await? {
+			// `entries_between` returns oldest first, so the run of entries for one date is
+			// contiguous and only the last group can ever match.
+			match grouped.last_mut() {
+				Some(day) if day.date == entry.release_date => day.entries.push(entry),
+				_ => grouped.push(CalendarDay {
+					date: entry.release_date.clone(),
+					entries: vec![entry],
+				}),
+			}
+		}
+
+		Ok(grouped)
+	}
+
+	/// Whether the calendar is syncing, and when it last did.
+	async fn release_calendar_status(
+		&self,
+		ctx: &Context<'_>,
+	) -> Result<ReleaseCalendarStatus> {
+		let core = ctx.data::<CoreContext>()?;
+		let conn = core.conn.as_ref();
+
+		let last_synced_at = server_config::Entity::find()
+			.one(conn)
+			.await?
+			.and_then(|config| config.last_release_calendar_sync_at)
+			.map(|t| t.to_rfc3339());
+
+		let schedule = scheduled_job::Entity::find()
+			.filter(scheduled_job::Column::Kind.eq(ScheduledJobKind::ReleaseCalendarSync))
+			.one(conn)
+			.await?;
+
+		Ok(ReleaseCalendarStatus {
+			is_running: sweep_in_flight(),
+			last_synced_at,
+			is_scheduled: schedule.is_some_and(|job| job.enabled),
+		})
 	}
 
 	/// New books in followed series, newest first — 30-day window, hard cap.
@@ -305,6 +471,64 @@ impl ReleaseCalendarQuery {
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	fn day(year: i32, month: u32, day: u32) -> NaiveDate {
+		NaiveDate::from_ymd_opt(year, month, day).unwrap()
+	}
+
+	#[test]
+	fn month_start_snaps_to_the_first() {
+		assert_eq!(month_start(day(2026, 8, 15), 0), day(2026, 8, 1));
+		assert_eq!(month_start(day(2026, 8, 1), 0), day(2026, 8, 1));
+		assert_eq!(month_start(day(2026, 8, 31), 0), day(2026, 8, 1));
+	}
+
+	/// Naive month arithmetic overflows into a month 0 or 13 at the year boundary; this
+	/// works in absolute months so it cannot.
+	#[test]
+	fn month_start_crosses_years_in_both_directions() {
+		assert_eq!(month_start(day(2026, 12, 10), 1), day(2027, 1, 1));
+		assert_eq!(month_start(day(2026, 1, 10), -1), day(2025, 12, 1));
+		assert_eq!(month_start(day(2026, 8, 15), 12), day(2027, 8, 1));
+		assert_eq!(month_start(day(2026, 8, 15), -20), day(2024, 12, 1));
+	}
+
+	/// Every row must have seven cells, so the grid starts on the Sunday on or before the
+	/// first of the month.
+	#[test]
+	fn month_grid_starts_on_a_sunday_and_is_always_six_weeks() {
+		for (year, month) in [(2026, 8), (2026, 2), (2027, 1), (2024, 2)] {
+			let first = day(year, month, 1);
+			let (start, end) = month_grid_window(first);
+
+			assert_eq!(
+				start.weekday().num_days_from_sunday(),
+				0,
+				"{year}-{month} grid must start on a Sunday"
+			);
+			assert!(start <= first, "grid must not start after the 1st");
+			assert_eq!(
+				(end - start).num_days(),
+				41,
+				"{year}-{month} grid must be exactly six weeks"
+			);
+			// The whole month has to fit inside the six rows.
+			let next_month = month_start(first, 1);
+			assert!(
+				end >= next_month - Duration::days(1),
+				"{year}-{month} grid must cover the whole month"
+			);
+		}
+	}
+
+	/// A month that starts on a Sunday must not gain a blank leading week.
+	#[test]
+	fn a_month_starting_on_sunday_has_no_leading_padding() {
+		// 2026-11-01 is a Sunday.
+		let first = day(2026, 11, 1);
+		assert_eq!(first.weekday().num_days_from_sunday(), 0);
+		assert_eq!(month_grid_window(first).0, first);
+	}
 
 	#[test]
 	fn week_window_is_sunday_aligned() {

@@ -49,7 +49,6 @@ export default function ClearLoginActivityConfirmation() {
 	return (
 		<ConfirmationModal
 			isOpen={showConfirmation}
-			// @ts-expect-error: useGraphQLMutation types obv need fixing
 			onConfirm={() => deleteActivity()}
 			onClose={() => setShowConfirmation(false)}
 			title={t(getKey('title'))}

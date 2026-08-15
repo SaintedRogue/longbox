@@ -120,13 +120,19 @@ export function useGraphQL<TResult, TVariables>(
 	return { error, ...rest } as UseQueryResult<TResult>
 }
 
+/**
+ * The variables a mutation is called with.
+ *
+ * An operation that declares no variables maps to `void`, not `never`: "takes nothing"
+ * should mean you call it with nothing, whereas `never` makes it impossible to call at
+ * all. The query hooks sidestepped this by declaring `variables?`, so the mutation hooks
+ * were the only place it could bite — and it only did once a zero-variable mutation
+ * existed to try it.
+ */
+type MutationVariables<TVariables> = TVariables extends Record<string, never> ? void : TVariables
+
 type UseGraphQLMutationOptions<TResult, TVariables> = Omit<
-	UseMutationOptions<
-		TResult,
-		unknown,
-		TVariables extends Record<string, never> ? never : TVariables,
-		unknown
-	>,
+	UseMutationOptions<TResult, unknown, MutationVariables<TVariables>, unknown>,
 	'mutationFn'
 >
 
@@ -138,8 +144,10 @@ export function useGraphQLMutation<TResult, TVariables>(
 	const { onUnauthenticatedResponse, onConnectionWithServerChanged } = useClientContext()
 
 	const mutationFn = useCallback(
-		async (variables?: TVariables extends Record<string, never> ? never : TVariables) =>
-			sdk.execute(document, variables),
+		async (variables?: MutationVariables<TVariables>) =>
+			// The cast reconciles this hook's `void` with the SDK's own `never` spelling;
+			// both mean "no variables", and `execute` ignores the argument in that case.
+			sdk.execute(document, variables as never),
 		[sdk, document],
 	)
 	const { error, ...rest } = useMutation({
@@ -160,18 +168,13 @@ export function useGraphQLMutation<TResult, TVariables>(
 	return { error, ...rest } as UseMutationResult<
 		TResult,
 		unknown,
-		TVariables extends Record<string, never> ? never : TVariables,
+		MutationVariables<TVariables>,
 		unknown
 	>
 }
 
 type UseGraphQLUploadMutationOptions<TResult, TVariables> = Omit<
-	UseMutationOptions<
-		TResult,
-		unknown,
-		TVariables extends Record<string, never> ? never : TVariables,
-		unknown
-	>,
+	UseMutationOptions<TResult, unknown, MutationVariables<TVariables>, unknown>,
 	'mutationFn'
 > & {
 	config?: Pick<AxiosRequestConfig, 'onUploadProgress'>
@@ -185,8 +188,8 @@ export function useGraphQLUploadMutation<TResult, TVariables>(
 	const { onUnauthenticatedResponse, onConnectionWithServerChanged } = useClientContext()
 
 	const mutationFn = useCallback(
-		async (variables?: TVariables extends Record<string, never> ? never : TVariables) =>
-			sdk.executeUpload(document, variables, config),
+		async (variables?: MutationVariables<TVariables>) =>
+			sdk.executeUpload(document, variables as never, config),
 		[sdk, document, config],
 	)
 	const { error, ...rest } = useMutation({
@@ -207,7 +210,7 @@ export function useGraphQLUploadMutation<TResult, TVariables>(
 	return { error, ...rest } as UseMutationResult<
 		TResult,
 		unknown,
-		TVariables extends Record<string, never> ? never : TVariables,
+		MutationVariables<TVariables>,
 		unknown
 	>
 }

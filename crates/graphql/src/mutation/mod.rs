@@ -21,6 +21,7 @@ mod organize;
 mod plugin;
 mod reading_list;
 pub mod reading_progress;
+mod release_calendar;
 mod scheduled_job_config;
 mod series;
 mod series_metadata;
@@ -54,6 +55,7 @@ use organize::OrganizeMutation;
 use plugin::PluginMutation;
 use reading_list::ReadingListMutation;
 use reading_progress::ReadProgressMutation;
+use release_calendar::ReleaseCalendarMutation;
 use scheduled_job_config::ScheduledJobConfigMutation;
 use series::SeriesMutation;
 use series_metadata::SeriesMetadataMutation;
@@ -106,6 +108,7 @@ struct SystemMutations(
 	ScheduledJobConfigMutation,
 	MetadataProviderMutation,
 	PluginMutation,
+	ReleaseCalendarMutation,
 );
 
 #[derive(async_graphql::MergedObject, Default)]

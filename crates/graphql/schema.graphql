@@ -415,6 +415,30 @@ type CalendarEntry {
 	releaseDate: String!
 	"Whether a book with this issue number already exists in the series."
 	inLibrary: Boolean!
+	"""
+	Whether the viewer follows this series. Drives the subscribe control, and is what
+	lets the "all releases" view offer to subscribe to something it is showing you.
+	"""
+	isFollowed: Boolean!
+}
+
+"""
+A month as a calendar actually draws one: six whole weeks of cells, including the tail
+of the previous month and the head of the next.
+"""
+type CalendarMonth {
+	"""
+	ISO `YYYY-MM-01` for the month being shown — the frontend compares each cell's
+	date against this to know which cells are padding.
+	"""
+	monthStart: String!
+	"e.g. \"August 2026\"."
+	label: String!
+	"""
+	Always 42 cells, oldest first. A grid that changed height month to month would
+	make the page jump on every page-through.
+	"""
+	days: [CalendarDay!]!
 }
 
 enum CalendarScope {
@@ -2643,6 +2667,17 @@ type Mutation {
 	unreachable plugin — "it is down, and here is why" is the answer, not a failure.
 	"""
 	testPlugin(id: Int!): PluginTestResult!
+	"""
+	Pull the release calendar now, without waiting for the schedule.
+	
+	Returns as soon as the sweep has *started*, not when it finishes: a sweep talks to
+	external providers and can run for minutes, which is far longer than a request
+	should be held open. The UI polls `releaseCalendarStatus` for the rest.
+	
+	Gated on `ManageServer` because a sweep spends the server's shared provider API
+	budget — this is not a per-viewer refresh.
+	"""
+	syncReleaseCalendar: ReleaseCalendarStatus!
 	createSmartList(input: SaveSmartListInput!): SmartList!
 	updateSmartList(id: ID!, input: SaveSmartListInput!): SmartList!
 	deleteSmartList(id: ID!): SmartList!
@@ -3340,6 +3375,20 @@ type Query {
 	are present, empty or not, so the grid renders without gap logic).
 	"""
 	releaseCalendar(weekOffset: Int! = 0, scope: CalendarScope! = FOLLOWED): [CalendarDay!]!
+	"""
+	A month laid out as a grid: six whole weeks of cells, every one present whether or
+	not it has anything on it, so the frontend renders rows without gap logic.
+	"""
+	releaseCalendarMonth(monthOffset: Int! = 0, scope: CalendarScope! = FOLLOWED): CalendarMonth!
+	"""
+	Everything expected from today onward, grouped by day.
+	
+	Unlike the week grid this omits days with nothing on them: it is a list of what is
+	coming, and a run of empty dates carries no information in that framing.
+	"""
+	upcomingReleases(days: Int! = 90, scope: CalendarScope! = FOLLOWED): [CalendarDay!]!
+	"Whether the calendar is syncing, and when it last did."
+	releaseCalendarStatus: ReleaseCalendarStatus!
 	"New books in followed series, newest first — 30-day window, hard cap."
 	updatesFeed(days: Int! = 30, cap: Int! = 500): UpdatesFeed!
 	"""
@@ -3685,6 +3734,19 @@ input ReleaseCalendarConfigInput {
 	omitted; LOCG is an unofficial provider and sweeping it is opt-in.
 	"""
 	locgEnabled: Boolean! = false
+}
+
+"The state of the calendar's own data: is it refreshing, and how stale is it."
+type ReleaseCalendarStatus {
+	"A sweep is in flight right now. Starting a second one is refused."
+	isRunning: Boolean!
+	"RFC 3339 of the last *successful* sync, by any route. Null if it has never run."
+	lastSyncedAt: String
+	"""
+	Whether an enabled schedule exists, so the UI can say whether this refreshes on
+	its own or only when asked.
+	"""
+	isScheduled: Boolean!
 }
 
 """
@@ -4126,6 +4188,11 @@ type ServerConfigModel {
 	if the disclosure wording changes.
 	"""
 	unofficialProvidersAcknowledgedAt: DateTime
+	"""
+	When the release calendar last pulled, by any route. See the migration for why
+	this lives here rather than on the scheduled job.
+	"""
+	lastReleaseCalendarSyncAt: DateTime
 }
 
 """
