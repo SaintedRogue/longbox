@@ -481,6 +481,26 @@ export type CalendarEntry = {
   title?: Maybe<Scalars['String']['output']>;
 };
 
+/**
+ * A month as a calendar actually draws one: six whole weeks of cells, including the tail
+ * of the previous month and the head of the next.
+ */
+export type CalendarMonth = {
+  __typename?: 'CalendarMonth';
+  /**
+   * Always 42 cells, oldest first. A grid that changed height month to month would
+   * make the page jump on every page-through.
+   */
+  days: Array<CalendarDay>;
+  /** e.g. "August 2026". */
+  label: Scalars['String']['output'];
+  /**
+   * ISO `YYYY-MM-01` for the month being shown — the frontend compares each cell's
+   * date against this to know which cells are padding.
+   */
+  monthStart: Scalars['String']['output'];
+};
+
 export enum CalendarScope {
   /** Every series the viewer can access. */
   All = 'ALL',
@@ -4412,6 +4432,11 @@ export type Query = {
    * are present, empty or not, so the grid renders without gap logic).
    */
   releaseCalendar: Array<CalendarDay>;
+  /**
+   * A month laid out as a grid: six whole weeks of cells, every one present whether or
+   * not it has anything on it, so the frontend renders rows without gap logic.
+   */
+  releaseCalendarMonth: CalendarMonth;
   /** Whether the calendar is syncing, and when it last did. */
   releaseCalendarStatus: ReleaseCalendarStatus;
   scheduledJobs: Array<ScheduledJob>;
@@ -4771,6 +4796,12 @@ export type QueryRecentlyAddedSeriesArgs = {
 export type QueryReleaseCalendarArgs = {
   scope?: CalendarScope;
   weekOffset?: Scalars['Int']['input'];
+};
+
+
+export type QueryReleaseCalendarMonthArgs = {
+  monthOffset?: Scalars['Int']['input'];
+  scope?: CalendarScope;
 };
 
 
@@ -6764,6 +6795,14 @@ export type BookSearchSceneQuery = { __typename?: 'Query', media: { __typename?:
       & { ' $fragmentRefs'?: { 'BookCardFragment': BookCardFragment;'BookMetadataFragment': BookMetadataFragment } }
     )>, pageInfo: { __typename: 'CursorPaginationInfo' } | { __typename: 'OffsetPaginationInfo', currentPage: number, totalPages: number, pageSize: number, pageOffset: number, zeroBased: boolean } } };
 
+export type ReleaseCalendarMonthQueryVariables = Exact<{
+  monthOffset: Scalars['Int']['input'];
+  scope: CalendarScope;
+}>;
+
+
+export type ReleaseCalendarMonthQuery = { __typename?: 'Query', releaseCalendarMonth: { __typename?: 'CalendarMonth', monthStart: string, label: string, days: Array<{ __typename?: 'CalendarDay', date: string, entries: Array<{ __typename?: 'CalendarEntry', seriesId: string, seriesName: string, number?: string | null, title?: string | null, coverUrl?: string | null, inLibrary: boolean, isFollowed: boolean }> }> } };
+
 export type ReleaseCalendarQueryVariables = Exact<{
   weekOffset: Scalars['Int']['input'];
   scope: CalendarScope;
@@ -7201,14 +7240,6 @@ export type FollowedSeriesIdsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
 export type FollowedSeriesIdsQuery = { __typename?: 'Query', followedSeriesIds: Array<string> };
-
-export type FollowSeriesMutationVariables = Exact<{
-  id: Scalars['ID']['input'];
-  isFollowing: Scalars['Boolean']['input'];
-}>;
-
-
-export type FollowSeriesMutation = { __typename?: 'Mutation', followSeries: boolean };
 
 export type SeriesLayoutQueryVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -10469,6 +10500,26 @@ fragment BookMetadata on Media {
     number
   }
 }`) as unknown as TypedDocumentString<BookSearchSceneQuery, BookSearchSceneQueryVariables>;
+export const ReleaseCalendarMonthDocument = new TypedDocumentString(`
+    query ReleaseCalendarMonth($monthOffset: Int!, $scope: CalendarScope!) {
+  releaseCalendarMonth(monthOffset: $monthOffset, scope: $scope) {
+    monthStart
+    label
+    days {
+      date
+      entries {
+        seriesId
+        seriesName
+        number
+        title
+        coverUrl
+        inLibrary
+        isFollowed
+      }
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<ReleaseCalendarMonthQuery, ReleaseCalendarMonthQueryVariables>;
 export const ReleaseCalendarDocument = new TypedDocumentString(`
     query ReleaseCalendar($weekOffset: Int!, $scope: CalendarScope!) {
   releaseCalendar(weekOffset: $weekOffset, scope: $scope) {
@@ -11594,11 +11645,6 @@ export const FollowedSeriesIdsDocument = new TypedDocumentString(`
   followedSeriesIds
 }
     `) as unknown as TypedDocumentString<FollowedSeriesIdsQuery, FollowedSeriesIdsQueryVariables>;
-export const FollowSeriesDocument = new TypedDocumentString(`
-    mutation FollowSeries($id: ID!, $isFollowing: Boolean!) {
-  followSeries(id: $id, isFollowing: $isFollowing)
-}
-    `) as unknown as TypedDocumentString<FollowSeriesMutation, FollowSeriesMutationVariables>;
 export const SeriesLayoutDocument = new TypedDocumentString(`
     query SeriesLayout($id: ID!) {
   seriesById(id: $id) {

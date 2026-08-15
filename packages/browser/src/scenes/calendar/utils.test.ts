@@ -1,6 +1,7 @@
 import {
 	dayLabel,
 	dayNumber,
+	isSameMonth,
 	isToday,
 	monthLabel,
 	relativeTime,
@@ -68,6 +69,21 @@ describe('weekRangeLabel', () => {
 
 	it('is empty for an empty week rather than rendering a stray dash', () => {
 		expect(weekRangeLabel([])).toBe('')
+	})
+})
+
+describe('isSameMonth', () => {
+	/** The month grid pads with adjacent-month days, which must render as padding. */
+	it('separates a month from its padding days', () => {
+		expect(isSameMonth('2026-08-01', '2026-08-01')).toBe(true)
+		expect(isSameMonth('2026-08-31', '2026-08-01')).toBe(true)
+		expect(isSameMonth('2026-07-31', '2026-08-01')).toBe(false)
+		expect(isSameMonth('2026-09-01', '2026-08-01')).toBe(false)
+	})
+
+	/** Same month number, different year, is not the same month. */
+	it('does not confuse the same month in another year', () => {
+		expect(isSameMonth('2027-08-15', '2026-08-01')).toBe(false)
 	})
 })
 

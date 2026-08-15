@@ -9,10 +9,33 @@ import { Link, useSearchParams } from 'react-router-dom'
 
 import { SceneContainer } from '@/components/container'
 
+import CalendarMonthGrid, { CalendarMonthSkeleton } from './CalendarMonthGrid'
 import CalendarSyncStatus from './CalendarSyncStatus'
 import CalendarWeek, { CalendarWeekSkeleton } from './CalendarWeek'
+import DayDetail from './DayDetail'
 import UpcomingList, { UpcomingListSkeleton } from './UpcomingList'
-import { weekRangeLabel } from './utils'
+import { isSameMonth, todayIso, weekRangeLabel } from './utils'
+
+const monthQuery = graphql(`
+	query ReleaseCalendarMonth($monthOffset: Int!, $scope: CalendarScope!) {
+		releaseCalendarMonth(monthOffset: $monthOffset, scope: $scope) {
+			monthStart
+			label
+			days {
+				date
+				entries {
+					seriesId
+					seriesName
+					number
+					title
+					coverUrl
+					inLibrary
+					isFollowed
+				}
+			}
+		}
+	}
+`)
 
 const weekQuery = graphql(`
 	query ReleaseCalendar($weekOffset: Int!, $scope: CalendarScope!) {
@@ -54,6 +77,7 @@ const SCOPES = [
 ] as const
 
 const VIEWS = [
+	['month', 'Month'],
 	['week', 'Week'],
 	['upcoming', 'Upcoming'],
 ] as const
@@ -61,95 +85,134 @@ const VIEWS = [
 type CalendarView = (typeof VIEWS)[number][0]
 
 /**
- * View, week and scope live in the URL rather than in component state.
+ * Everything that decides what the page shows lives in the URL.
  *
- * They are what the page *is*, so they should survive a reload, be linkable to someone
+ * These are what the page *is*, so they should survive a reload, be linkable to someone
  * else, and respond to the back button. Holding them in `useState` quietly made all three
  * untrue.
  */
 function useCalendarParams() {
 	const [params, setParams] = useSearchParams()
 
-	const weekOffset = Number.parseInt(params.get('week') ?? '0', 10) || 0
-	const scope =
-		params.get('scope') === CalendarScope.All ? CalendarScope.All : CalendarScope.Followed
-	const view: CalendarView = params.get('view') === 'upcoming' ? 'upcoming' : 'week'
+	const intParam = (key: string) => Number.parseInt(params.get(key) ?? '0', 10) || 0
+	const rawView = params.get('view')
+	const view: CalendarView = rawView === 'week' || rawView === 'upcoming' ? rawView : 'month'
 
-	const update = (next: { week?: number; scope?: CalendarScope; view?: CalendarView }) => {
+	const update = (next: {
+		month?: number
+		week?: number
+		scope?: CalendarScope
+		view?: CalendarView
+		date?: string | null
+	}) => {
 		const merged = new URLSearchParams(params)
-		// Every default is omitted rather than written, so the everyday URL stays clean.
-		if (next.week !== undefined) {
-			if (next.week === 0) merged.delete('week')
-			else merged.set('week', String(next.week))
-		}
-		if (next.scope !== undefined) {
-			if (next.scope === CalendarScope.Followed) merged.delete('scope')
-			else merged.set('scope', next.scope)
-		}
+		const set = (key: string, value: string, isDefault: boolean) =>
+			isDefault ? merged.delete(key) : merged.set(key, value)
+
+		// Every default is omitted rather than written, so the everyday URL stays `/calendar`.
+		if (next.month !== undefined) set('month', String(next.month), next.month === 0)
+		if (next.week !== undefined) set('week', String(next.week), next.week === 0)
+		if (next.scope !== undefined) set('scope', next.scope, next.scope === CalendarScope.Followed)
+		if (next.date !== undefined) set('date', next.date ?? '', !next.date)
 		if (next.view !== undefined) {
-			if (next.view === 'week') merged.delete('view')
-			else merged.set('view', next.view)
-			// A week offset means nothing in the upcoming list, and carrying it would put a
-			// stale value back in play the moment you switched back.
-			if (next.view === 'upcoming') merged.delete('week')
+			set('view', next.view, next.view === 'month')
+			// Offsets and a selected day mean different things per view; carrying them across
+			// would put a stale value back in play the moment you switched.
+			merged.delete('month')
+			merged.delete('week')
+			merged.delete('date')
 		}
-		// Paging a week is not a destination worth its own history entry.
+
+		// Paging is not a destination worth its own history entry.
 		setParams(merged, { replace: true })
 	}
 
-	return { weekOffset, scope, view, update }
+	return {
+		monthOffset: intParam('month'),
+		weekOffset: intParam('week'),
+		scope: params.get('scope') === CalendarScope.All ? CalendarScope.All : CalendarScope.Followed,
+		view,
+		selectedDate: params.get('date'),
+		update,
+	}
 }
 
 export default function CalendarScene() {
-	const { weekOffset, scope, view, update } = useCalendarParams()
-	const isWeekView = view === 'week'
+	const { monthOffset, weekOffset, scope, view, selectedDate, update } = useCalendarParams()
 
+	const month = useGraphQL(
+		monthQuery,
+		['releaseCalendarMonth', monthOffset, scope],
+		{ monthOffset, scope },
+		// Hold the current answer on screen while the next loads, so paging shifts content
+		// rather than blanking the page and springing back.
+		{ placeholderData: keepPreviousData, enabled: view === 'month' },
+	)
 	const week = useGraphQL(
 		weekQuery,
 		['releaseCalendar', weekOffset, scope],
 		{ weekOffset, scope },
-		// Hold the previous week on screen while the next one loads, so paging shifts the
-		// content instead of blanking the page and springing back.
-		{ placeholderData: keepPreviousData, enabled: isWeekView },
+		{ placeholderData: keepPreviousData, enabled: view === 'week' },
 	)
 	const upcoming = useGraphQL(
 		upcomingQuery,
 		['upcomingReleases', scope],
 		{ scope },
-		{ placeholderData: keepPreviousData, enabled: !isWeekView },
+		{ placeholderData: keepPreviousData, enabled: view === 'upcoming' },
 	)
 
-	const days = useMemo(
-		() =>
-			isWeekView ? (week.data?.releaseCalendar ?? []) : (upcoming.data?.upcomingReleases ?? []),
-		[isWeekView, week.data, upcoming.data],
-	)
+	const active = view === 'month' ? month : view === 'week' ? week : upcoming
+	const monthData = month.data?.releaseCalendarMonth
+
+	const days = useMemo(() => {
+		if (view === 'month') return monthData?.days ?? []
+		if (view === 'week') return week.data?.releaseCalendar ?? []
+		return upcoming.data?.upcomingReleases ?? []
+	}, [view, monthData, week.data, upcoming.data])
+
 	const summary = useMemo(() => {
-		const entries = days.flatMap((day) => day.entries)
-		return { total: entries.length, owned: entries.filter((entry) => entry.inLibrary).length }
-	}, [days])
+		// Padding cells belong to neighbouring months and would inflate the count.
+		const counted =
+			view === 'month' && monthData
+				? days.filter((day) => isSameMonth(day.date, monthData.monthStart))
+				: days
+		const entries = counted.flatMap((day) => day.entries)
+		return { total: entries.length, owned: entries.filter((e) => e.inLibrary).length }
+	}, [view, days, monthData])
 
-	const active = isWeekView ? week : upcoming
-	const rangeLabel = isWeekView ? weekRangeLabel(days.map((day) => day.date)) : 'Next 90 days'
+	// Default to today when it is in view, so the panel opens on something relevant.
+	const effectiveDate = useMemo(() => {
+		if (selectedDate) return selectedDate
+		if (!monthData) return todayIso()
+		return isSameMonth(todayIso(), monthData.monthStart) ? todayIso() : monthData.monthStart
+	}, [selectedDate, monthData])
+
+	const rangeLabel =
+		view === 'month'
+			? (monthData?.label ?? '')
+			: view === 'week'
+				? weekRangeLabel(days.map((day) => day.date))
+				: 'Next 90 days'
+
+	const offset = view === 'month' ? monthOffset : weekOffset
+	const step = (delta: number) =>
+		view === 'month' ? update({ month: offset + delta }) : update({ week: offset + delta })
 
 	return (
-		<SceneContainer className="gap-5 flex flex-col">
+		<SceneContainer className={cn('gap-4 flex flex-col', view === 'month' && 'min-h-0 flex-1')}>
 			<Helmet>
 				<title>Longbox | Calendar</title>
 			</Helmet>
 
-			<header className="gap-3 flex flex-wrap items-end justify-between">
+			<header className="gap-3 flex shrink-0 flex-wrap items-end justify-between">
 				<div className="gap-0.5 flex flex-col">
-					<Heading size="sm">Release calendar</Heading>
+					<Heading size="sm">{rangeLabel || 'Release calendar'}</Heading>
 					<Text size="sm" variant="muted" className="tabular-nums">
-						{rangeLabel}
-						{summary.total > 0 && (
-							<>
-								{' · '}
-								{summary.total} {summary.total === 1 ? 'release' : 'releases'}
-								{summary.owned > 0 && ` · ${summary.owned} in library`}
-							</>
-						)}
+						{summary.total > 0
+							? `${summary.total} ${summary.total === 1 ? 'release' : 'releases'}${
+									summary.owned > 0 ? ` · ${summary.owned} in library` : ''
+								}`
+							: 'Nothing expected'}
 					</Text>
 				</div>
 
@@ -162,7 +225,6 @@ export default function CalendarScene() {
 						selected={view}
 						onSelect={(next) => update({ view: next })}
 					/>
-
 					<Segmented
 						label="Calendar scope"
 						options={SCOPES}
@@ -170,29 +232,29 @@ export default function CalendarScene() {
 						onSelect={(next) => update({ scope: next })}
 					/>
 
-					{isWeekView && (
+					{view !== 'upcoming' && (
 						<div className="gap-1 flex items-center">
 							<Button
 								size="icon"
 								variant="ghost"
-								aria-label="Previous week"
-								onClick={() => update({ week: weekOffset - 1 })}
+								aria-label={view === 'month' ? 'Previous month' : 'Previous week'}
+								onClick={() => step(-1)}
 							>
 								<ChevronLeft className="h-4 w-4" />
 							</Button>
 							<Button
 								size="sm"
 								variant="ghost"
-								disabled={weekOffset === 0}
-								onClick={() => update({ week: 0 })}
+								disabled={offset === 0}
+								onClick={() => (view === 'month' ? update({ month: 0 }) : update({ week: 0 }))}
 							>
 								Today
 							</Button>
 							<Button
 								size="icon"
 								variant="ghost"
-								aria-label="Next week"
-								onClick={() => update({ week: weekOffset + 1 })}
+								aria-label={view === 'month' ? 'Next month' : 'Next week'}
+								onClick={() => step(1)}
 							>
 								<ChevronRight className="h-4 w-4" />
 							</Button>
@@ -202,20 +264,39 @@ export default function CalendarScene() {
 			</header>
 
 			{active.isLoading ? (
-				isWeekView ? (
+				view === 'month' ? (
+					<CalendarMonthSkeleton />
+				) : view === 'week' ? (
 					<CalendarWeekSkeleton />
 				) : (
 					<UpcomingListSkeleton />
 				)
+			) : view === 'month' ? (
+				<div
+					className={cn(
+						'gap-3 min-h-0 lg:flex-row flex flex-1 flex-col',
+						month.isPlaceholderData && 'opacity-60 motion-safe:transition-opacity',
+					)}
+				>
+					<CalendarMonthGrid
+						days={days}
+						monthStart={monthData?.monthStart ?? ''}
+						selectedDate={effectiveDate}
+						onSelectDate={(date) => update({ date })}
+					/>
+					<DayDetail
+						date={effectiveDate}
+						day={days.find((day) => day.date === effectiveDate)}
+						days={days}
+					/>
+				</div>
 			) : summary.total === 0 ? (
-				<EmptyState scope={scope} isWeekView={isWeekView} />
+				<EmptyState scope={scope} view={view} />
 			) : (
-				// Dimmed rather than replaced: what you were reading stays legible while the
-				// next answer arrives.
 				<div
 					className={cn(active.isPlaceholderData && 'opacity-60 motion-safe:transition-opacity')}
 				>
-					{isWeekView ? <CalendarWeek days={days} /> : <UpcomingList days={days} />}
+					{view === 'week' ? <CalendarWeek days={days} /> : <UpcomingList days={days} />}
 				</div>
 			)}
 		</SceneContainer>
@@ -245,7 +326,9 @@ function Segmented<T extends string>({
 					type="button"
 					aria-pressed={selected === value}
 					className={cn(
-						'px-3 py-1.5 text-sm rounded-md motion-safe:transition-colors',
+						// Tighter on a phone: two of these plus the nav have to share a row that
+						// would otherwise push the grid below the fold.
+						'px-2 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm rounded-md motion-safe:transition-colors',
 						'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
 						selected === value
 							? 'font-medium bg-muted text-foreground'
@@ -260,17 +343,15 @@ function Segmented<T extends string>({
 	)
 }
 
-function EmptyState({ scope, isWeekView }: { scope: CalendarScope; isWeekView: boolean }) {
-	const followedScope = scope === CalendarScope.Followed
-
+function EmptyState({ scope, view }: { scope: CalendarScope; view: CalendarView }) {
 	return (
 		<div className="gap-2 p-10 flex flex-col items-center rounded-lg border border-dashed border-border text-center">
 			<CalendarCheck className="h-8 w-8 text-muted-foreground" />
 			<Text className="font-medium">
-				{isWeekView ? 'Nothing expected this week' : 'Nothing expected yet'}
+				{view === 'week' ? 'Nothing expected this week' : 'Nothing expected yet'}
 			</Text>
 			<Text size="sm" variant="muted" className="max-w-md">
-				{followedScope
+				{scope === CalendarScope.Followed
 					? 'Your pull list is empty or quiet. Switch to All series to see everything coming, and follow anything you want to track.'
 					: 'No provider-reported releases land in this window for your matched series. A sync may not have run yet.'}
 			</Text>

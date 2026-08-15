@@ -77,22 +77,27 @@ export default function CalendarSyncStatus() {
 
 	return (
 		<div className="gap-2 flex items-center">
-			<Text size="xs" variant="muted" className="tabular-nums">
+			{/* The timestamp is the first thing to go when space is tight; the button is not. */}
+			<Text size="xs" variant="muted" className="sm:inline hidden tabular-nums">
 				{isRunning
 					? 'Syncing…'
 					: status.lastSyncedAt
 						? `Synced ${relativeTime(status.lastSyncedAt)}`
 						: 'Never synced'}
+				{/*
+				 * Without a schedule the calendar only changes when someone presses the
+				 * button, which is the difference between "quiet week" and "nothing has
+				 * ever been fetched" — worth saying rather than leaving to be discovered.
+				 */}
+				{!status.isScheduled && !isRunning && ' · not scheduled'}
 			</Text>
 
 			{canSync && (
-				<Button
-					size="sm"
-					variant="ghost"
-					disabled={isRunning}
-					onClick={() => sync()}
-					aria-label="Sync the release calendar now"
-				>
+				// No `aria-label`: the visible text is already the accessible name, and an
+				// aria-label would *replace* it with different words — which is precisely the
+				// mismatch WCAG "Label in Name" exists to prevent, and it broke voice control
+				// for anyone saying "click sync now".
+				<Button size="sm" variant="ghost" disabled={isRunning} onClick={() => sync()}>
 					<RefreshCw
 						// Spins only while a sweep is in flight, and only if the viewer wants motion.
 						className={cn('mr-1.5 h-3.5 w-3.5', isRunning && 'motion-safe:animate-spin')}

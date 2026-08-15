@@ -32,6 +32,23 @@ function parseIsoDay(isoDate: string): Date | null {
 	return new Date(Date.UTC(year, month - 1, day))
 }
 
+/** Today as ISO `YYYY-MM-DD` in the viewer's own timezone, not UTC. */
+export function todayIso(now: Date = new Date()): string {
+	const month = String(now.getMonth() + 1).padStart(2, '0')
+	const day = String(now.getDate()).padStart(2, '0')
+	return `${now.getFullYear()}-${month}-${day}`
+}
+
+/**
+ * Whether an ISO day falls in the same calendar month as `monthStart`.
+ *
+ * String-compared on the `YYYY-MM` prefix rather than by parsing both: the values are
+ * fixed-width ISO dates from the server, and this runs 42 times per month render.
+ */
+export function isSameMonth(isoDate: string, monthStart: string): boolean {
+	return isoDate.slice(0, 7) === monthStart.slice(0, 7)
+}
+
 /** Just the weekday, e.g. "Sun". */
 export function weekdayLabel(isoDate: string): string {
 	const date = parseIsoDay(isoDate)

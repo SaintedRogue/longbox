@@ -69,6 +69,20 @@ pub struct CalendarDay {
 	pub entries: Vec<CalendarEntry>,
 }
 
+/// A month as a calendar actually draws one: six whole weeks of cells, including the tail
+/// of the previous month and the head of the next.
+#[derive(SimpleObject)]
+pub struct CalendarMonth {
+	/// ISO `YYYY-MM-01` for the month being shown — the frontend compares each cell's
+	/// date against this to know which cells are padding.
+	pub month_start: String,
+	/// e.g. "August 2026".
+	pub label: String,
+	/// Always 42 cells, oldest first. A grid that changed height month to month would
+	/// make the page jump on every page-through.
+	pub days: Vec<CalendarDay>,
+}
+
 #[derive(SimpleObject)]
 pub struct UpdateItem {
 	pub media_id: ID,
@@ -93,6 +107,26 @@ pub(crate) fn week_window(today: NaiveDate, week_offset: i32) -> (NaiveDate, Nai
 	let start =
 		today - Duration::days(days_from_sunday) + Duration::weeks(week_offset as i64);
 	(start, start + Duration::days(6))
+}
+
+/// The first of the month `month_offset` months from `today`'s month.
+pub(crate) fn month_start(today: NaiveDate, month_offset: i32) -> NaiveDate {
+	// Work in absolute months so the arithmetic can't produce a month 0 or 13.
+	let absolute = today.year() * 12 + (today.month0() as i32) + month_offset;
+	let year = absolute.div_euclid(12);
+	let month0 = absolute.rem_euclid(12) as u32;
+	NaiveDate::from_ymd_opt(year, month0 + 1, 1).unwrap_or(today)
+}
+
+/// The Sunday-aligned grid a month is drawn on: whole weeks, so every row has seven
+/// cells, padded with the tail of the previous month and the head of the next.
+///
+/// Six rows rather than five-or-six. A grid that changes height month to month makes the
+/// whole page jump when you page through it, and a calendar is something you page through.
+pub(crate) fn month_grid_window(month_start: NaiveDate) -> (NaiveDate, NaiveDate) {
+	let lead = month_start.weekday().num_days_from_sunday() as i64;
+	let start = month_start - Duration::days(lead);
+	(start, start + Duration::days(41))
 }
 
 /// Accessible series for the viewer, as `id -> name`. Library exclusions and
@@ -267,6 +301,45 @@ impl ReleaseCalendarQuery {
 		Ok(days)
 	}
 
+	/// A month laid out as a grid: six whole weeks of cells, every one present whether or
+	/// not it has anything on it, so the frontend renders rows without gap logic.
+	async fn release_calendar_month(
+		&self,
+		ctx: &Context<'_>,
+		#[graphql(default = 0)] month_offset: i32,
+		#[graphql(default_with = "CalendarScope::Followed")] scope: CalendarScope,
+	) -> Result<CalendarMonth> {
+		let AuthContext { user, .. } = ctx.data::<AuthContext>()?;
+		let conn = ctx.data::<CoreContext>()?.conn.as_ref();
+
+		let start_of_month = month_start(Utc::now().date_naive(), month_offset);
+		let (start, end) = month_grid_window(start_of_month);
+
+		let mut by_date: HashMap<String, Vec<CalendarEntry>> = HashMap::new();
+		for entry in entries_between(conn, user, scope, start, end).await? {
+			by_date
+				.entry(entry.release_date.clone())
+				.or_default()
+				.push(entry);
+		}
+
+		let days = (0..42)
+			.map(|offset| {
+				let date = (start + Duration::days(offset)).to_string();
+				CalendarDay {
+					entries: by_date.remove(&date).unwrap_or_default(),
+					date,
+				}
+			})
+			.collect();
+
+		Ok(CalendarMonth {
+			month_start: start_of_month.to_string(),
+			label: start_of_month.format("%B %Y").to_string(),
+			days,
+		})
+	}
+
 	/// Everything expected from today onward, grouped by day.
 	///
 	/// Unlike the week grid this omits days with nothing on them: it is a list of what is
@@ -398,6 +471,64 @@ impl ReleaseCalendarQuery {
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	fn day(year: i32, month: u32, day: u32) -> NaiveDate {
+		NaiveDate::from_ymd_opt(year, month, day).unwrap()
+	}
+
+	#[test]
+	fn month_start_snaps_to_the_first() {
+		assert_eq!(month_start(day(2026, 8, 15), 0), day(2026, 8, 1));
+		assert_eq!(month_start(day(2026, 8, 1), 0), day(2026, 8, 1));
+		assert_eq!(month_start(day(2026, 8, 31), 0), day(2026, 8, 1));
+	}
+
+	/// Naive month arithmetic overflows into a month 0 or 13 at the year boundary; this
+	/// works in absolute months so it cannot.
+	#[test]
+	fn month_start_crosses_years_in_both_directions() {
+		assert_eq!(month_start(day(2026, 12, 10), 1), day(2027, 1, 1));
+		assert_eq!(month_start(day(2026, 1, 10), -1), day(2025, 12, 1));
+		assert_eq!(month_start(day(2026, 8, 15), 12), day(2027, 8, 1));
+		assert_eq!(month_start(day(2026, 8, 15), -20), day(2024, 12, 1));
+	}
+
+	/// Every row must have seven cells, so the grid starts on the Sunday on or before the
+	/// first of the month.
+	#[test]
+	fn month_grid_starts_on_a_sunday_and_is_always_six_weeks() {
+		for (year, month) in [(2026, 8), (2026, 2), (2027, 1), (2024, 2)] {
+			let first = day(year, month, 1);
+			let (start, end) = month_grid_window(first);
+
+			assert_eq!(
+				start.weekday().num_days_from_sunday(),
+				0,
+				"{year}-{month} grid must start on a Sunday"
+			);
+			assert!(start <= first, "grid must not start after the 1st");
+			assert_eq!(
+				(end - start).num_days(),
+				41,
+				"{year}-{month} grid must be exactly six weeks"
+			);
+			// The whole month has to fit inside the six rows.
+			let next_month = month_start(first, 1);
+			assert!(
+				end >= next_month - Duration::days(1),
+				"{year}-{month} grid must cover the whole month"
+			);
+		}
+	}
+
+	/// A month that starts on a Sunday must not gain a blank leading week.
+	#[test]
+	fn a_month_starting_on_sunday_has_no_leading_padding() {
+		// 2026-11-01 is a Sunday.
+		let first = day(2026, 11, 1);
+		assert_eq!(first.weekday().num_days_from_sunday(), 0);
+		assert_eq!(month_grid_window(first).0, first);
+	}
 
 	#[test]
 	fn week_window_is_sunday_aligned() {

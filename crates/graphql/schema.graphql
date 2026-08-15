@@ -422,6 +422,25 @@ type CalendarEntry {
 	isFollowed: Boolean!
 }
 
+"""
+A month as a calendar actually draws one: six whole weeks of cells, including the tail
+of the previous month and the head of the next.
+"""
+type CalendarMonth {
+	"""
+	ISO `YYYY-MM-01` for the month being shown — the frontend compares each cell's
+	date against this to know which cells are padding.
+	"""
+	monthStart: String!
+	"e.g. \"August 2026\"."
+	label: String!
+	"""
+	Always 42 cells, oldest first. A grid that changed height month to month would
+	make the page jump on every page-through.
+	"""
+	days: [CalendarDay!]!
+}
+
 enum CalendarScope {
 	"Only series the viewer follows — the personal pull list."
 	FOLLOWED
@@ -3356,6 +3375,11 @@ type Query {
 	are present, empty or not, so the grid renders without gap logic).
 	"""
 	releaseCalendar(weekOffset: Int! = 0, scope: CalendarScope! = FOLLOWED): [CalendarDay!]!
+	"""
+	A month laid out as a grid: six whole weeks of cells, every one present whether or
+	not it has anything on it, so the frontend renders rows without gap logic.
+	"""
+	releaseCalendarMonth(monthOffset: Int! = 0, scope: CalendarScope! = FOLLOWED): CalendarMonth!
 	"""
 	Everything expected from today onward, grouped by day.
 	
