@@ -50,7 +50,7 @@ export default function CalendarScene() {
 				<h1 className="text-2xl font-bold">Release calendar</h1>
 
 				<div className="gap-2 flex items-center">
-					<div className="border-edge p-0.5 flex rounded-lg border" role="tablist">
+					<div className="p-0.5 flex rounded-lg border border-border" role="tablist">
 						{(
 							[
 								[CalendarScope.Followed, 'My pull list'],
@@ -64,8 +64,8 @@ export default function CalendarScene() {
 								className={cx(
 									'px-3 py-1.5 text-sm rounded-md transition-colors',
 									scope === value
-										? 'bg-background-surface font-medium text-foreground'
-										: 'text-foreground-muted hover:text-foreground',
+										? 'font-medium bg-muted text-foreground'
+										: 'text-muted-foreground hover:text-foreground',
 								)}
 								onClick={() => setScope(value)}
 							>
@@ -77,20 +77,20 @@ export default function CalendarScene() {
 					<div className="gap-1 flex items-center">
 						<button
 							aria-label="Previous week"
-							className="p-2 text-foreground-muted hover:bg-background-surface rounded-md hover:text-foreground"
+							className="p-2 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
 							onClick={() => setWeekOffset((w) => w - 1)}
 						>
 							<ChevronLeft className="h-4 w-4" />
 						</button>
 						<button
-							className="px-3 py-1.5 text-sm text-foreground-muted hover:bg-background-surface rounded-md hover:text-foreground"
+							className="px-3 py-1.5 text-sm rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
 							onClick={() => setWeekOffset(0)}
 						>
 							Today
 						</button>
 						<button
 							aria-label="Next week"
-							className="p-2 text-foreground-muted hover:bg-background-surface rounded-md hover:text-foreground"
+							className="p-2 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
 							onClick={() => setWeekOffset((w) => w + 1)}
 						>
 							<ChevronRight className="h-4 w-4" />
@@ -100,10 +100,10 @@ export default function CalendarScene() {
 			</div>
 
 			{!isLoading && isEmptyWeek && (
-				<div className="gap-2 border-edge p-10 flex flex-col items-center rounded-lg border border-dashed text-center">
-					<CalendarCheck className="h-8 w-8 text-foreground-muted" />
+				<div className="gap-2 p-10 flex flex-col items-center rounded-lg border border-dashed border-border text-center">
+					<CalendarCheck className="h-8 w-8 text-muted-foreground" />
 					<p className="font-medium">Nothing expected this week</p>
-					<p className="max-w-md text-sm text-foreground-muted">
+					<p className="max-w-md text-sm text-muted-foreground">
 						{scope === CalendarScope.Followed
 							? 'Follow a series (from its page menu) to build your pull list, or switch to All series. Releases appear after the next calendar sync.'
 							: 'No provider-reported releases land in this window for your matched series.'}
@@ -116,14 +116,14 @@ export default function CalendarScene() {
 					<div
 						key={day.date}
 						className={cx(
-							'min-h-24 gap-2 border-edge p-2 flex flex-col rounded-lg border',
-							isToday(day.date) && 'border-brand',
+							'min-h-24 gap-2 p-2 flex flex-col rounded-lg border border-border',
+							isToday(day.date) && 'border-primary',
 						)}
 					>
 						<span
 							className={cx(
 								'text-xs font-semibold tracking-wide uppercase',
-								isToday(day.date) ? 'text-brand' : 'text-foreground-muted',
+								isToday(day.date) ? 'text-primary' : 'text-muted-foreground',
 							)}
 						>
 							{dayLabel(day.date)}
@@ -132,7 +132,7 @@ export default function CalendarScene() {
 							<Link
 								key={`${entry.seriesId}-${entry.number ?? entry.title ?? ''}`}
 								to={paths.seriesOverview(String(entry.seriesId))}
-								className="gap-2 bg-background-surface p-1.5 hover:bg-background-surface-hover flex items-center rounded-md"
+								className="gap-2 p-1.5 flex items-center rounded-md bg-muted hover:bg-muted"
 							>
 								{entry.coverUrl && (
 									<img
@@ -147,7 +147,7 @@ export default function CalendarScene() {
 										{entry.seriesName}
 										{entry.number ? ` #${entry.number}` : ''}
 									</p>
-									<p className="text-xs text-foreground-muted truncate">
+									<p className="text-xs truncate text-muted-foreground">
 										{entry.inLibrary ? 'In library' : 'Expected'}
 									</p>
 								</div>

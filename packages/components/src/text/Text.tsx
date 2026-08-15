@@ -11,7 +11,7 @@ export const TEXT_VARIANTS = {
 	label:
 		'font-medium leading-none text-foreground peer-disabled:cursor-not-allowed peer-disabled:opacity-70',
 	muted: 'text-muted-foreground',
-	primary: 'text-brand',
+	primary: 'text-primary',
 	secondary: 'text-foreground',
 }
 

@@ -130,7 +130,7 @@ export default function OperatorSelect({ idx }: Props) {
 										key={operator}
 										onSelect={() => updateField({ operation: operator })}
 										className={cn('transition-all duration-75', {
-											'text-brand': operator === fieldDef.operation,
+											'text-primary': operator === fieldDef.operation,
 										})}
 										value={operator}
 									>

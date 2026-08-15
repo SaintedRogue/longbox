@@ -32,7 +32,7 @@ export default function TableSearchInput({ onChange }: Props) {
 									ref={filterColRef}
 									id="currency"
 									name="currency"
-									className="h-full appearance-none rounded-md border-transparent bg-transparent py-0 px-4 text-center text-sm focus:outline-brand"
+									className="h-full appearance-none rounded-md border-transparent bg-transparent py-0 px-4 text-center text-sm focus:outline-primary"
 								>
 									{headers.map((column) => (
 										<option key={column.id} value={column.id}>

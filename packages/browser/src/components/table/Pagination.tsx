@@ -105,7 +105,7 @@ function PaginationNumber({ onClick, page, isActive, onPrefetch }: PaginationNum
 			size="icon"
 			onClick={onClick}
 			variant="ghost"
-			className={cn('h-5 w-5', isActive ? '!text-brand' : '')}
+			className={cn('h-5 w-5', isActive ? '!text-primary' : '')}
 			onMouseEnter={onPrefetch ? onPrefetch : undefined}
 		>
 			{page}

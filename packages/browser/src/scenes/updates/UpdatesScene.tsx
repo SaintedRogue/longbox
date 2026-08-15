@@ -57,10 +57,10 @@ export default function UpdatesScene() {
 				<h1 className="text-2xl font-bold">Updates</h1>
 				<button
 					className={cx(
-						'gap-2 px-3 py-1.5 text-sm border-edge flex items-center rounded-md border transition-colors',
+						'gap-2 px-3 py-1.5 text-sm flex items-center rounded-md border border-border transition-colors',
 						unreadOnly
-							? 'bg-background-surface font-medium text-foreground'
-							: 'text-foreground-muted hover:text-foreground',
+							? 'font-medium bg-muted text-foreground'
+							: 'text-muted-foreground hover:text-foreground',
 					)}
 					aria-pressed={unreadOnly}
 					onClick={toggleUnreadOnly}
@@ -71,10 +71,10 @@ export default function UpdatesScene() {
 			</div>
 
 			{!isLoading && groups.length === 0 && (
-				<div className="gap-2 border-edge p-10 flex flex-col items-center rounded-lg border border-dashed text-center">
-					<Rss className="h-8 w-8 text-foreground-muted" />
+				<div className="gap-2 p-10 flex flex-col items-center rounded-lg border border-dashed border-border text-center">
+					<Rss className="h-8 w-8 text-muted-foreground" />
 					<p className="font-medium">{unreadOnly ? 'All caught up' : 'No updates yet'}</p>
-					<p className="max-w-md text-sm text-foreground-muted">
+					<p className="max-w-md text-sm text-muted-foreground">
 						{unreadOnly
 							? 'Every new book in your followed series has been read.'
 							: 'New books added to series you follow show up here. Follow a series from its page menu to get started.'}
@@ -84,7 +84,7 @@ export default function UpdatesScene() {
 
 			{groups.map((group) => (
 				<section key={group.dayKey} className="gap-2 flex flex-col">
-					<h2 className="text-sm font-semibold tracking-wide text-foreground-muted uppercase">
+					<h2 className="text-sm font-semibold tracking-wide text-muted-foreground uppercase">
 						{dayGroupLabel(group.dayKey)}
 					</h2>
 					<ul className="gap-1 flex flex-col">
@@ -92,18 +92,18 @@ export default function UpdatesScene() {
 							<li key={item.mediaId}>
 								<Link
 									to={paths.bookOverview(String(item.mediaId))}
-									className="gap-3 p-2 hover:bg-background-surface flex items-center rounded-md"
+									className="gap-3 p-2 flex items-center rounded-md hover:bg-muted"
 								>
 									<span
 										aria-label={item.isRead ? 'Read' : 'Unread'}
 										className={cx(
 											'h-2 w-2 shrink-0 rounded-full',
-											item.isRead ? 'bg-transparent' : 'bg-brand',
+											item.isRead ? 'bg-transparent' : 'bg-primary',
 										)}
 									/>
 									<div className="min-w-0 flex-1">
 										<p className="text-sm font-medium truncate">{item.mediaName}</p>
-										<p className="text-xs text-foreground-muted truncate">{item.seriesName}</p>
+										<p className="text-xs truncate text-muted-foreground">{item.seriesName}</p>
 									</div>
 								</Link>
 							</li>
@@ -113,7 +113,7 @@ export default function UpdatesScene() {
 			))}
 
 			{data?.updatesFeed.capped && (
-				<p className="text-xs text-foreground-muted text-center">
+				<p className="text-xs text-center text-muted-foreground">
 					Showing the most recent 500 updates.
 				</p>
 			)}

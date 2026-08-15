@@ -103,7 +103,7 @@ export default function URLPagination({ pages, currentPage, onChangePage, onPref
 								'h-11 min-w-11 px-2 text-sm md:h-7 md:min-w-7 md:text-xs inline-flex shrink-0 items-center justify-center rounded-md tabular-nums transition-colors',
 								isCurrent
 									? 'bg-fill-brand-secondary font-semibold text-foreground'
-									: 'text-foreground-muted hover:bg-background-surface-hover hover:text-foreground',
+									: 'text-muted-foreground hover:bg-muted hover:text-foreground',
 							)}
 						>
 							{page}
@@ -124,7 +124,7 @@ export default function URLPagination({ pages, currentPage, onChangePage, onPref
 							<button
 								type="button"
 								aria-label={t('pagination.input.label')}
-								className="h-11 w-11 md:h-7 md:w-7 text-foreground-muted hover:bg-background-surface-hover inline-flex shrink-0 items-center justify-center rounded-md hover:text-foreground"
+								className="h-11 w-11 md:h-7 md:w-7 inline-flex shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
 							>
 								<MoreHorizontal className="h-4 w-4" />
 							</button>

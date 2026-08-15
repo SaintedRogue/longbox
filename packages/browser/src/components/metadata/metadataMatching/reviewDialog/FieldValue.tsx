@@ -49,7 +49,7 @@ export function FieldValue({ value, highlight, compareWith }: Props) {
 			<ToolTip content={<div className="max-w-[400px]">{str}</div>}>
 				<Text
 					size="sm"
-					className={cn('line-clamp-2 cursor-help', highlight && 'font-semibold text-brand')}
+					className={cn('line-clamp-2 cursor-help', highlight && 'font-semibold text-primary')}
 				>
 					{str}
 				</Text>
@@ -58,7 +58,7 @@ export function FieldValue({ value, highlight, compareWith }: Props) {
 	}
 
 	return (
-		<Text size="sm" className={cn(highlight && 'font-semibold text-brand')}>
+		<Text size="sm" className={cn(highlight && 'font-semibold text-primary')}>
 			{str}
 		</Text>
 	)
