@@ -17,6 +17,11 @@ export default [
 			'**/.next/**',
 			'**/.vercel/**',
 			'**/emoji/data.json',
+			// Worked examples of things that run *outside* Longbox — a plugin is a
+			// standalone Node service, not part of this app, and holding it to the
+			// browser app's rules would mean rewriting it into something nobody would
+			// actually copy. Prettier still formats them.
+			'examples/**',
 		],
 	},
 	{

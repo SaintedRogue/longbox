@@ -20,12 +20,13 @@ const MetadataIntegrationsScene = lazy(() => import('./server/metadataIntegratio
 const ServerLogsScene = lazy(() => import('./server/logs/ServerLogsScene.tsx'))
 const JobSettingsScene = lazy(() => import('./server/jobs/JobSettingsScene.tsx'))
 const TagSettingsScene = lazy(() => import('./server/tags'))
+const PluginSettingsScene = lazy(() => import('./server/plugins'))
 
 /**
  * The main router for the settings scene(s). Mostly just a collection of nested routers
  */
 export default function SettingsRouter() {
-	const { checkPermission } = useAppContext()
+	const { checkPermission, user } = useAppContext()
 
 	const apiKeys = checkPermission(UserPermission.AccessApiKeys)
 	const canManageServer = checkPermission(UserPermission.ManageServer)
@@ -33,6 +34,10 @@ export default function SettingsRouter() {
 	const canManageEmail = checkPermission(UserPermission.EmailerManage)
 	const canReadProviders = checkPermission(UserPermission.MetadataProviderRead)
 	const canManageLibrary = checkPermission(UserPermission.ManageLibrary)
+	// Plugins are gated on ownership rather than a permission: registering one points the
+	// server at an arbitrary URL and hands it a credential, which is the same question as
+	// who administers the server. The resolvers enforce the same rule.
+	const isServerOwner = user?.isServerOwner ?? false
 
 	return (
 		<Routes>
@@ -53,6 +58,7 @@ export default function SettingsRouter() {
 					<Route path="metadata-integrations" element={<MetadataIntegrationsScene />} />
 				)}
 				{canManageLibrary && <Route path="tags" element={<TagSettingsScene />} />}
+				{isServerOwner && <Route path="plugins" element={<PluginSettingsScene />} />}
 
 				<Route path="*" element={<Navigate to="account" replace />} />
 			</Route>

@@ -9,6 +9,7 @@ import {
 	KeyRound,
 	Mail,
 	PackageSearch,
+	Plug,
 	ScrollText,
 	Server,
 	Tag,
@@ -156,6 +157,15 @@ export const createRouteGroups = (client: QueryClient, api: Api): RouteGroup[] =
 				localeKey: 'server/notifications',
 				permissions: [UserPermission.ReadNotifier],
 				to: '/settings/notifications',
+			},
+			{
+				icon: Plug,
+				label: 'Plugins',
+				localeKey: 'server/plugins',
+				// No `permissions` entry: this one is owner-only, which the permission
+				// filter cannot express. `SettingsRouter` gates the route on ownership and
+				// the resolvers enforce it server-side.
+				to: '/settings/plugins',
 			},
 			{
 				icon: Tag,

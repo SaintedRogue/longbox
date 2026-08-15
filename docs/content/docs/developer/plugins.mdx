@@ -1,0 +1,178 @@
+---
+title: Plugins
+description: Extend your longbox with a service you run yourself
+---
+
+A plugin adds functionality to Longbox without changing Longbox. It is a small HTTP service
+you run — in its own repository, in whatever language you like, on its own release cycle —
+that a Longbox server calls when it needs something the release does not provide.
+
+Nothing is loaded into the server process. Longbox is always the client, and a plugin never
+calls back in. That is what makes a plugin able to be genuinely yours: it can be private,
+it can be a single file, and it can break without taking your library down with it. A
+plugin that stops answering is marked unhealthy and skipped.
+
+<Callout type="warn">
+A plugin is code you have chosen to run, and Longbox calls it with a credential attached.
+Registering one is server-owner-only for that reason. Point your longbox at things you
+trust, the same way you would with anything else on your network.
+</Callout>
+
+## The shape of it
+
+You register a plugin by base URL, for example `http://my-plugin:8080/longbox/v1`. Longbox
+then expects three kinds of endpoint under it.
+
+| Endpoint | Method | Purpose |
+| --- | --- | --- |
+| `/manifest` | `GET` | Who you are and what you can do |
+| `/health` | `GET` | Whether you are working right now |
+| *capability endpoints* | varies | The actual work |
+
+Every request carries `X-Longbox-Protocol`, an `X-Longbox-Request-Id` you can log against,
+and `Authorization: Bearer <token>`.
+
+`manifest` and `health` should be servable **without** checking the token — they carry no
+secrets, and Longbox has to read your manifest during registration, before you have had a
+chance to paste the token anywhere. Capability endpoints are the ones that must check it.
+
+## The manifest
+
+This is the whole handshake. Longbox will not store anything about a plugin until it has
+read a manifest that parses and whose `protocol` it speaks.
+
+```json
+{
+	"protocol": 1,
+	"id": "com.example.my-plugin",
+	"name": "My Plugin",
+	"version": "0.1.0",
+	"description": "What this does, in one line.",
+	"capabilities": ["release-source"],
+	"config": [
+		{ "key": "api_key", "label": "API key", "type": "secret", "required": true },
+		{ "key": "region", "label": "Region", "type": "select", "options": ["us", "eu"], "default": "us" }
+	]
+}
+```
+
+`id` is yours and should be stable. Longbox slugifies it once, at registration, into a
+local identity that survives you renaming yourself later.
+
+### Declaring configuration
+
+`config` is what lets a plugin be configurable without Longbox knowing anything about it.
+Longbox renders a settings form from it, stores what the operator enters, and hands the
+values back to you on every capability call.
+
+| `type` | Rendered as | Notes |
+| --- | --- | --- |
+| `string` | Text input | |
+| `secret` | Password input | Encrypted at rest, never returned to the browser |
+| `number` | Number input | |
+| `boolean` | Checkbox | |
+| `select` | Dropdown | Requires `options` |
+
+The set is deliberately small. You describe *what* you need; Longbox decides how to collect
+it. Nothing you write runs in anybody's browser.
+
+A field marked `required` must have a value before settings will save. A `secret` submitted
+blank means "keep the stored one" — the form never receives a stored secret, so it cannot
+send one back.
+
+## Capability: `release-source`
+
+Contribute expected issues to the release calendar.
+
+Longbox tells you which series it cares about and gives you its own ids for them. You answer
+using those same ids, so nothing has to be reconciled afterwards.
+
+`POST /releases`
+
+```json
+{
+	"config": { "api_key": "…", "region": "us" },
+	"window": { "start": "2026-08-01", "end": "2026-11-01" },
+	"series": [{ "id": "01J…", "name": "Absolute Green Lantern", "year": 2025 }]
+}
+```
+
+Answer with:
+
+```json
+{
+	"releases": [
+		{
+			"series_id": "01J…",
+			"external_id": "your-stable-id-for-this-issue",
+			"number": "7",
+			"title": "The Long Way Down",
+			"cover_url": "https://…",
+			"release_date": "2026-09-03"
+		}
+	]
+}
+```
+
+Only `series_id` and `external_id` are required. Everything else may be omitted.
+
+Two rules worth internalising:
+
+- **`external_id` is the upsert key.** Keep it stable for a given issue and a re-sweep
+  updates the row instead of adding a second one.
+- **You may only answer about series you were asked about.** A release naming anything else
+  is dropped rather than trusted, so there is no way to write rows against a series the
+  operator never asked you to look at.
+
+Longbox only asks about series somebody **follows**. Follows are the subscription — an
+unfollowed series is never described to a plugin, which keeps both the request size and the
+amount of library data leaving your server proportional to what you actually asked for.
+
+Releases land after the next Release Calendar Sync (**Settings → Server → Jobs**).
+
+## Registering
+
+1. Run your plugin somewhere your longbox can reach it.
+2. **Settings → Server → Plugins → Register**, and give it the base URL. Longbox reads your
+   manifest immediately; nothing is stored if that fails.
+3. Copy the token it shows you into your plugin. This is the only time it is shown — it is
+   stored encrypted and cannot be read back. You can rotate it later.
+4. Fill in whatever config you declared, use **Test connection**, then enable it.
+
+A plugin is registered **disabled**. Registering something is not the same as deciding to
+let it run.
+
+## When things go wrong
+
+Longbox records why the last attempt failed and shows it on the plugin's card verbatim —
+your error message is the thing the operator reads, so make it a good one.
+
+| What Longbox does | When |
+| --- | --- |
+| Refuses to register | Manifest is unreachable, unparseable, or declares a protocol it does not speak |
+| Marks unhealthy, skips | Any non-2xx, a timeout, or a malformed body during a sweep |
+| Drops the response | Body exceeds 8 MB |
+| Retries | Next scheduled run. There is no immediate retry |
+
+Requests time out after 30 seconds.
+
+## A worked example
+
+`examples/reference-plugin/` in the Longbox repository is a complete plugin in one
+dependency-free file. It implements all three endpoints with nothing but Node's standard
+library, and reports an invented issue per followed series so you can watch a release
+travel onto the calendar before writing anything real.
+
+```bash
+node server.js    # listens on 8099
+```
+
+## Versioning
+
+`protocol` is an integer, bumped only for breaking wire changes. A plugin advertising a
+protocol the server does not speak is refused at handshake with a legible reason rather than
+failing later at a call site.
+
+Capabilities are open. A plugin may advertise ones a given Longbox build has never heard of;
+that is not an error, and the build simply never calls them. Adding a capability to Longbox
+therefore never breaks an existing plugin.
