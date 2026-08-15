@@ -243,7 +243,7 @@ export default function GlobalSearchScene() {
 							{results.authors.nodes.map((author) => (
 								<span
 									key={author.name}
-									className="px-3 py-1 text-sm bg-background-surface text-foreground-subtle rounded-md"
+									className="px-3 py-1 text-sm rounded-md bg-muted text-muted-foreground"
 								>
 									{author.name}
 								</span>

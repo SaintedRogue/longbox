@@ -245,7 +245,7 @@ function FieldList({ fields, filters, totalActive, onSelect, onClear }: FieldLis
 						>
 							<span className="truncate">{field.label}</span>
 							<span className="gap-1.5 flex shrink-0 items-center text-muted-foreground">
-								{count > 0 && <span className="text-xs text-foreground-subtle">{count}</span>}
+								{count > 0 && <span className="text-xs text-muted-foreground">{count}</span>}
 								<ChevronRight className="h-4 w-4" />
 							</span>
 						</Command.Item>
@@ -342,7 +342,7 @@ function ValueList({ field, filters, options, onApply, onBack }: ValueListProps)
 							className="cursor-pointer justify-between"
 						>
 							<span className="truncate">{option.label}</span>
-							{isSelected && <Check className="h-4 w-4 text-foreground-subtle shrink-0" />}
+							{isSelected && <Check className="h-4 w-4 shrink-0 text-muted-foreground" />}
 						</Command.Item>
 					)
 				})}
@@ -403,7 +403,7 @@ function RangeInputs({ field, filters, onApply }: RangeInputsProps) {
 				onChange={(e) => setDraft((prev) => ({ ...prev, from: e.target.value }))}
 				onBlur={() => commit(draft)}
 			/>
-			<span className="text-sm text-foreground-muted">to</span>
+			<span className="text-sm text-muted-foreground">to</span>
 			<Input
 				type="number"
 				aria-label={`${field.label} to`}

@@ -97,7 +97,7 @@ export function SearchProgress({ providerLabel }: Props) {
 				{[0, 1, 2].map((row) => (
 					<div
 						key={row}
-						className="h-16 motion-safe:animate-pulse bg-background-surface w-full rounded-md"
+						className="h-16 motion-safe:animate-pulse w-full rounded-md bg-muted"
 						style={{ animationDelay: `${row * 120}ms`, opacity: 1 - row * 0.25 }}
 					/>
 				))}

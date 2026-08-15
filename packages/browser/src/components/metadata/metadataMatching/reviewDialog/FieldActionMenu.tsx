@@ -139,7 +139,7 @@ export function FieldActionMenu({ field, disabled, onEditManually }: Props) {
 					) : (
 						<ChevronDown
 							className={cn('h-3.5 w-3.5', {
-								'text-brand': hasOverride,
+								'text-primary': hasOverride,
 							})}
 						/>
 					)}

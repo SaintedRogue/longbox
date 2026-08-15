@@ -75,7 +75,7 @@ export default function BookClubNavigation() {
 						key={tab.to}
 						underline={false}
 						className={cx('px-1 py-3 text-sm font-medium border-b-2 whitespace-nowrap', {
-							'text-brand border-primary': tab.isActive,
+							'border-primary text-primary': tab.isActive,
 							'border-transparent text-muted-foreground hover:border-border': !tab.isActive,
 						})}
 					>

@@ -33,7 +33,7 @@ export default function NumericRangeFilter({
 	return (
 		<div className="py-2 gap-y-1.5 flex flex-col">
 			<Label>{label}</Label>
-			{description && <p className="text-xs text-foreground-muted">{description}</p>}
+			{description && <p className="text-xs text-muted-foreground">{description}</p>}
 
 			<div className="gap-x-2 flex items-center">
 				<Input
@@ -42,7 +42,7 @@ export default function NumericRangeFilter({
 					aria-label={`${label} from`}
 					{...form.register(fromName, { valueAsNumber: true })}
 				/>
-				<span className="text-sm text-foreground-muted">to</span>
+				<span className="text-sm text-muted-foreground">to</span>
 				<Input
 					type="number"
 					placeholder={placeholderTo ?? 'To'}

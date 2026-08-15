@@ -160,7 +160,7 @@ export default function LibraryUploadSection() {
 					accept={BOOK_ACCEPT_ATTRIBUTE}
 					disabled={isDisabled}
 					onChange={handleFilesSelected}
-					className="max-w-2xl text-sm text-foreground-subtle file:mr-3 file:border-edge file:bg-background-surface file:px-3 file:py-1.5 file:text-sm file:cursor-pointer file:rounded-md file:border file:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+					className="max-w-2xl text-sm file:mr-3 file:px-3 file:py-1.5 file:text-sm text-muted-foreground file:cursor-pointer file:rounded-md file:border file:border-border file:bg-muted file:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
 				/>
 				<Text size="sm" variant="muted">
 					{t(getKey('files.accepted'), { extensions: ACCEPTED_BOOK_EXTENSIONS.join(', ') })}

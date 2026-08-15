@@ -98,7 +98,7 @@ export function FieldSelector({ idx }: Props) {
 									updateField({ field: option.value, source })
 									setOpen(false)
 								}}
-								className={cn('transition-all duration-75', { 'text-brand': false })}
+								className={cn('transition-all duration-75', { 'text-primary': false })}
 								value={option.value}
 							>
 								{t(getAttributeKey(source, option.value))}

@@ -46,8 +46,8 @@ export function FieldSourceChips({ field, sources, onAdopt, disabled }: Props) {
 						disabled={disabled}
 						onClick={() => onAdopt(value)}
 						className={cn(
-							'px-1.5 py-0.5 gap-1 rounded border-edge bg-background-surface flex max-w-[220px] items-center border text-left',
-							'hover:bg-background-surface-hover disabled:cursor-not-allowed disabled:opacity-50',
+							'px-1.5 py-0.5 gap-1 rounded flex max-w-[220px] items-center border border-border bg-muted text-left',
+							'hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50',
 						)}
 					>
 						<Text size="xs" variant="muted" className="font-medium shrink-0">

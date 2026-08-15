@@ -65,7 +65,7 @@ export default function FilterSlideOver({ prompt, formVariant }: Props) {
 				<Button variant="ghost" className="gap-1.5 flex h-full items-center">
 					<Filter className="h-4 w-4" />
 					<span>Filter</span>
-					<span className="text-brand">({nonSearchFilterCount})</span>
+					<span className="text-primary">({nonSearchFilterCount})</span>
 				</Button>
 			}
 			size={isMobile ? 'xl' : 'default'}

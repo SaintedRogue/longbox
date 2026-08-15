@@ -6,14 +6,14 @@ import { Link as RouterLink } from 'react-router-dom'
 import { cn } from '../utils'
 
 const linkVariants = cva(
-	'font-medium hover:underline outline-none focus-visible:outline focus-visible:outline-brand',
+	'font-medium hover:underline outline-none focus-visible:outline focus-visible:outline-primary',
 	{
 		defaultVariants: {
 			variant: 'default',
 		},
 		variants: {
 			variant: {
-				brand: 'text-brand',
+				brand: 'text-primary',
 				default: 'text-foreground',
 				muted: 'text-muted-foreground',
 			},
