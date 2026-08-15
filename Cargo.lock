@@ -2834,6 +2834,7 @@ dependencies = [
  "metadata_integrations",
  "models",
  "num-traits",
+ "plugin_integrations",
  "pretty_assertions",
  "sea-orm",
  "serde",
@@ -4061,6 +4062,7 @@ dependencies = [
  "palette",
  "pdf",
  "pdfium-render",
+ "plugin_integrations",
  "prefixed-api-key",
  "quick-xml",
  "rand 0.9.2",
@@ -5346,6 +5348,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "38f6d39893cca0701371e3c27294f09797214b86f1fb951b89ade8ec04e2abab"
 dependencies = [
  "plotters-backend",
+]
+
+[[package]]
+name = "plugin_integrations"
+version = "0.1.0"
+dependencies = [
+ "async-graphql",
+ "chrono",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.17",
+ "tokio",
+ "tracing",
+ "url",
+ "uuid",
+ "wiremock",
 ]
 
 [[package]]
