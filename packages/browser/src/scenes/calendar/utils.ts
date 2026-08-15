@@ -44,6 +44,51 @@ export function dayNumber(isoDate: string): string {
 }
 
 /**
+ * How long ago an RFC 3339 timestamp was, in the coarsest useful unit.
+ *
+ * Staleness is the question being asked of the sync time ("is what I'm looking at
+ * current?"), and a relative answer answers it directly where an absolute one makes the
+ * reader do the arithmetic. Falls back to a local date once it's old enough that "43 days
+ * ago" stops being easier to reason about than the date itself.
+ */
+export function relativeTime(iso: string, now: Date = new Date()): string {
+	const then = new Date(iso)
+	if (Number.isNaN(then.getTime())) return ''
+
+	const seconds = Math.floor((now.getTime() - then.getTime()) / 1000)
+	if (seconds < 0) return 'just now' // clock skew; "in -3 seconds" helps nobody
+	if (seconds < 60) return 'just now'
+
+	const minutes = Math.floor(seconds / 60)
+	if (minutes < 60) return `${minutes}m ago`
+
+	const hours = Math.floor(minutes / 60)
+	if (hours < 24) return `${hours}h ago`
+
+	const days = Math.floor(hours / 24)
+	if (days < 7) return `${days}d ago`
+
+	return then.toLocaleDateString()
+}
+
+/**
+ * "August" — or "August 2027" when it isn't the current year.
+ *
+ * The upcoming list can run a quarter ahead, so a bare month name would be ambiguous
+ * across a year boundary; including the year only when it differs keeps the common case
+ * from carrying a redundant number.
+ */
+export function monthLabel(isoDate: string): string {
+	const date = parseIsoDay(isoDate)
+	if (!date) return ''
+
+	const month = date.toLocaleString('en-US', { month: 'long', timeZone: 'UTC' })
+	return date.getUTCFullYear() === new Date().getFullYear()
+		? month
+		: `${month} ${date.getUTCFullYear()}`
+}
+
+/**
  * A compact label for the whole week: "Aug 9 – 15", or "Aug 30 – Sep 5" when the week
  * straddles two months. Repeating the month on both sides reads as noise when it hasn't
  * changed, which is the case six weeks out of seven.

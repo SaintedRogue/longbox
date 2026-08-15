@@ -1,4 +1,12 @@
-import { dayLabel, dayNumber, isToday, weekdayLabel, weekRangeLabel } from './utils'
+import {
+	dayLabel,
+	dayNumber,
+	isToday,
+	monthLabel,
+	relativeTime,
+	weekdayLabel,
+	weekRangeLabel,
+} from './utils'
 
 /** A Sunday-aligned week, the shape `releaseCalendar` always returns. */
 const week = (start: string) => {
@@ -60,5 +68,45 @@ describe('weekRangeLabel', () => {
 
 	it('is empty for an empty week rather than rendering a stray dash', () => {
 		expect(weekRangeLabel([])).toBe('')
+	})
+})
+
+describe('relativeTime', () => {
+	const now = new Date('2026-08-15T12:00:00Z')
+	const ago = (ms: number) => new Date(now.getTime() - ms).toISOString()
+
+	it('coarsens as the gap grows', () => {
+		expect(relativeTime(ago(5_000), now)).toBe('just now')
+		expect(relativeTime(ago(90_000), now)).toBe('1m ago')
+		expect(relativeTime(ago(3 * 3_600_000), now)).toBe('3h ago')
+		expect(relativeTime(ago(2 * 86_400_000), now)).toBe('2d ago')
+	})
+
+	/** Past a week, the date itself is easier to reason about than a day count. */
+	it('falls back to a date once it is a week old', () => {
+		expect(relativeTime(ago(30 * 86_400_000), now)).toMatch(/\d/)
+		expect(relativeTime(ago(30 * 86_400_000), now)).not.toContain('ago')
+	})
+
+	/** A server clock slightly ahead of the browser must not render "in -3 seconds". */
+	it('treats a future timestamp as just now', () => {
+		expect(relativeTime(new Date(now.getTime() + 5_000).toISOString(), now)).toBe('just now')
+	})
+
+	it('is empty for an unparseable timestamp', () => {
+		expect(relativeTime('nope', now)).toBe('')
+	})
+})
+
+describe('monthLabel', () => {
+	/** The upcoming list runs a quarter ahead, so a bare month name can straddle a year. */
+	it('names the year only when it is not the current one', () => {
+		const thisYear = new Date().getFullYear()
+		expect(monthLabel(`${thisYear}-08-09`)).toBe('August')
+		expect(monthLabel(`${thisYear + 2}-08-09`)).toBe(`August ${thisYear + 2}`)
+	})
+
+	it('is empty for malformed input', () => {
+		expect(monthLabel('nope')).toBe('')
 	})
 })

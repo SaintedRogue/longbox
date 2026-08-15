@@ -24,6 +24,7 @@ import { ProviderMatchDialog } from '@/components/metadata/providerMatch'
 import { EntityHeader } from '@/components/sharedLayout'
 import { useAppContext } from '@/context'
 import { useBrowseReturnPath } from '@/hooks/useBrowseHistory'
+import { useFollowSeries } from '@/hooks/useFollowSeries'
 import { usePaths } from '@/paths'
 import { browseSceneKey } from '@/stores/browseHistory'
 
@@ -41,12 +42,6 @@ const completeSeriesMutation = graphql(`
 const followedSeriesQuery = graphql(`
 	query FollowedSeriesIds {
 		followedSeriesIds
-	}
-`)
-
-const followSeriesMutation = graphql(`
-	mutation FollowSeries($id: ID!, $isFollowing: Boolean!) {
-		followSeries(id: $id, isFollowing: $isFollowing)
 	}
 `)
 
@@ -94,17 +89,7 @@ export default function SeriesHeader() {
 
 	const { data: followedData } = useGraphQL(followedSeriesQuery, ['followedSeriesIds'])
 	const isFollowing = (followedData?.followedSeriesIds ?? []).some((fid) => String(fid) === id)
-	const { mutate: followSeries } = useGraphQLMutation(followSeriesMutation, {
-		onSuccess: () => {
-			client.invalidateQueries({ queryKey: ['followedSeriesIds'] })
-			client.invalidateQueries({ queryKey: ['releaseCalendar'], exact: false })
-			client.invalidateQueries({ queryKey: ['updatesFeed'] })
-		},
-		onError: (error) => {
-			console.error(error)
-			toast.error('Failed to update follow', { description: extractErrorMessage(error) })
-		},
-	})
+	const { setFollowing } = useFollowSeries()
 
 	const { mutate: completeSeries } = useGraphQLMutation(completeSeriesMutation, {
 		onSuccess,
@@ -127,7 +112,7 @@ export default function SeriesHeader() {
 						<Bell className="mr-2 h-4 w-4" />
 					),
 					onClick: () => {
-						followSeries({ id, isFollowing: !isFollowing })
+						setFollowing(id, !isFollowing)
 					},
 				},
 				{
