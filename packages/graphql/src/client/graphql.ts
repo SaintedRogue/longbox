@@ -2564,6 +2564,7 @@ export type Mutation = {
   deleteMessage: BookClubDiscussionMessage;
   deleteMetadataProvider: MetadataProviderConfigModel;
   deleteNotifier: Notifier;
+  deletePlugin: Scalars['Boolean']['output'];
   /**
    * Deletes a reading list by ID.
    *
@@ -2652,6 +2653,24 @@ export type Mutation = {
   /** Enqueue a job that scans for loose files and builds an organize preview. */
   planOrganizeLooseFiles: Scalars['Boolean']['output'];
   processLibraryThumbnails: Scalars['Boolean']['output'];
+  /**
+   * Re-read a plugin's manifest, picking up new capabilities or config fields without
+   * re-registering it.
+   */
+  refreshPluginManifest: Plugin;
+  /**
+   * Register a plugin by URL.
+   *
+   * Registration requires a successful handshake: Longbox reads the manifest before it
+   * will store anything, so a row always corresponds to something that actually
+   * answered and declared what it is. `manifest` and `health` are therefore expected to
+   * be servable without the token — they carry no secrets — while capability endpoints
+   * must require it.
+   *
+   * The plugin is stored **disabled**. Registering something is not the same as
+   * deciding to let it run, and the operator still has to configure it.
+   */
+  registerPlugin: RegisteredPlugin;
   /** Reject all pending metadata matches, setting their status to NoMatch */
   rejectAllPendingMatches: Scalars['Int']['output'];
   /** Reject the current match candidates for a media item */
@@ -2723,6 +2742,11 @@ export type Mutation = {
    */
   testMetadataProvider: ProviderValidationResult;
   /**
+   * Call a plugin's health endpoint. Unlike the other mutations this never errors on an
+   * unreachable plugin — "it is down, and here is why" is the answer, not a failure.
+   */
+  testPlugin: PluginTestResult;
+  /**
    * Toggle a reaction on a message
    *
    * Returns true if the reaction was added, false if removed
@@ -2772,6 +2796,8 @@ export type Mutation = {
   updateNavigationArrangement: Arrangement;
   updateNavigationArrangementLock: Arrangement;
   updateNotifier: Notifier;
+  /** Patch a plugin. Returns the new token only when one was rotated. */
+  updatePlugin: RegisteredPlugin;
   updatePublicUrl: ServerConfigModel;
   /**
    * Updates an existing reading list.
@@ -3144,6 +3170,11 @@ export type MutationDeleteNotifierArgs = {
 };
 
 
+export type MutationDeletePluginArgs = {
+  id: Scalars['Int']['input'];
+};
+
+
 export type MutationDeleteReadingListArgs = {
   id: Scalars['String']['input'];
 };
@@ -3288,6 +3319,16 @@ export type MutationProcessLibraryThumbnailsArgs = {
 };
 
 
+export type MutationRefreshPluginManifestArgs = {
+  id: Scalars['Int']['input'];
+};
+
+
+export type MutationRegisterPluginArgs = {
+  input: RegisterPluginInput;
+};
+
+
 export type MutationRejectMediaMatchArgs = {
   candidateIndex: Scalars['Int']['input'];
   mediaId: Scalars['ID']['input'];
@@ -3427,6 +3468,11 @@ export type MutationTestMetadataProviderArgs = {
 };
 
 
+export type MutationTestPluginArgs = {
+  id: Scalars['Int']['input'];
+};
+
+
 export type MutationToggleReactionArgs = {
   customEmojiId?: InputMaybe<Scalars['Int']['input']>;
   emoji?: InputMaybe<Scalars['String']['input']>;
@@ -3535,6 +3581,12 @@ export type MutationUpdateNavigationArrangementLockArgs = {
 export type MutationUpdateNotifierArgs = {
   id: Scalars['Int']['input'];
   input: NotifierInput;
+};
+
+
+export type MutationUpdatePluginArgs = {
+  id: Scalars['Int']['input'];
+  input: PatchPluginInput;
 };
 
 
@@ -3991,6 +4043,20 @@ export type PatchMetadataProviderConfigInput = {
   position?: InputMaybe<Scalars['Int']['input']>;
 };
 
+/** A patch: every field is optional, and an omitted field is left alone. */
+export type PatchPluginInput = {
+  baseUrl?: InputMaybe<Scalars['String']['input']>;
+  enabled?: InputMaybe<Scalars['Boolean']['input']>;
+  /** Issue a fresh token, invalidating the old one. The new token is returned once. */
+  rotateToken?: InputMaybe<Scalars['Boolean']['input']>;
+  /**
+   * Values for the fields the plugin's manifest declares. Merged over what is already
+   * stored, so a form may send only what changed — and a blank secret means "keep the
+   * stored one", since the UI never receives it to send back.
+   */
+  settings?: InputMaybe<Scalars['JSON']['input']>;
+};
+
 export type PlaceholderGenerationOutput = {
   __typename?: 'PlaceholderGenerationOutput';
   /** The number of placeholder metadata entries that were generated */
@@ -3999,6 +4065,90 @@ export type PlaceholderGenerationOutput = {
   skippedEntities: Scalars['Int']['output'];
   /** The total number of entities that were visited */
   visitedEntities: Scalars['Int']['output'];
+};
+
+/**
+ * A registered plugin as the settings UI sees it.
+ *
+ * Built by hand rather than flattened straight off the entity because two of its fields
+ * must never be returned as stored: the shared token is not exposed at all, and the
+ * settings blob has its secret-typed values stripped. Constructing the read model in one
+ * place is what makes that guarantee auditable.
+ */
+export type Plugin = {
+  __typename?: 'Plugin';
+  baseUrl: Scalars['String']['output'];
+  capabilities: Array<Scalars['String']['output']>;
+  configFields: Array<PluginConfigField>;
+  /**
+   * Declared secret fields that currently hold a value, so the form can show
+   * "set" without ever receiving the secret itself.
+   */
+  configuredSecretKeys: Array<Scalars['String']['output']>;
+  createdAt: Scalars['String']['output'];
+  description?: Maybe<Scalars['String']['output']>;
+  enabled: Scalars['Boolean']['output'];
+  id: Scalars['Int']['output'];
+  /**
+   * Whether the base URL and token currently produce a usable client. False points
+   * at a malformed URL rather than at an unreachable plugin.
+   */
+  isAddressable: Scalars['Boolean']['output'];
+  /** Why the last attempt failed. Null when the last attempt succeeded. */
+  lastError?: Maybe<Scalars['String']['output']>;
+  /** RFC 3339, or null if this plugin has never been reached. */
+  lastHandshakeAt?: Maybe<Scalars['String']['output']>;
+  name: Scalars['String']['output'];
+  protocolVersion?: Maybe<Scalars['Int']['output']>;
+  /** Operator-supplied config, with every secret-typed value removed. */
+  settings: Scalars['JSON']['output'];
+  slug: Scalars['String']['output'];
+  /** Null when the plugin has never completed a handshake. */
+  version?: Maybe<Scalars['String']['output']>;
+};
+
+/** One operator-supplied setting a plugin declares in its manifest. */
+export type PluginConfigField = {
+  __typename?: 'PluginConfigField';
+  /** Prefilled when the operator has not set a value yet. Never applies to secrets. */
+  default?: Maybe<Scalars['String']['output']>;
+  /** Longer explanation rendered beneath the field. */
+  help?: Maybe<Scalars['String']['output']>;
+  key: Scalars['String']['output'];
+  label: Scalars['String']['output'];
+  /** Allowed values for [`PluginConfigFieldType::Select`]. */
+  options?: Maybe<Array<Scalars['String']['output']>>;
+  required: Scalars['Boolean']['output'];
+  type: PluginConfigFieldType;
+};
+
+/**
+ * How a declared config field should be collected from the operator.
+ *
+ * Deliberately a small closed set. A plugin describes *what* it needs; Longbox decides
+ * how to render and store it. Anything richer would mean shipping plugin-authored code
+ * to the browser, which v1 does not do.
+ */
+export enum PluginConfigFieldType {
+  Boolean = 'BOOLEAN',
+  Number = 'NUMBER',
+  /** Free text that is never returned to the client once stored. */
+  Secret = 'SECRET',
+  /** One of `options`. */
+  Select = 'SELECT',
+  /** Free text, stored and returned as-is. */
+  String = 'STRING'
+}
+
+/** Outcome of poking a plugin's health endpoint. */
+export type PluginTestResult = {
+  __typename?: 'PluginTestResult';
+  /**
+   * The plugin's own explanation when it reports unhealthy, or ours when we could not
+   * reach it at all.
+   */
+  detail?: Maybe<Scalars['String']['output']>;
+  ok: Scalars['Boolean']['output'];
 };
 
 /**
@@ -4209,6 +4359,20 @@ export type Query = {
   parseComicFilename: ParsedComicFilename;
   /** Return all metadata fetch records that are awaiting user review. */
   pendingMetadataMatches: Array<MetadataFetchRecord>;
+  pluginById?: Maybe<Plugin>;
+  /**
+   * The plugin protocol revision this build speaks, so the settings UI can tell an
+   * operator which version a plugin they are about to write should target.
+   */
+  pluginProtocolVersion: Scalars['Int']['output'];
+  /**
+   * Every registered plugin.
+   *
+   * Server-owner only, and not because the list is especially sensitive: a plugin is
+   * an arbitrary URL this server will call with a credential attached, so who may see
+   * and change that set is the same question as who may administer the server.
+   */
+  plugins: Array<Plugin>;
   previousBookClubDiscussions: Array<BookClubDiscussion>;
   /**
    * Retrieves a reading list by ID for the current user.
@@ -4549,6 +4713,11 @@ export type QueryParseComicFilenameArgs = {
 };
 
 
+export type QueryPluginByIdArgs = {
+  id: Scalars['Int']['input'];
+};
+
+
 export type QueryPreviousBookClubDiscussionsArgs = {
   bookClubId: Scalars['ID']['input'];
 };
@@ -4822,6 +4991,24 @@ export type RecentlyAddedInput = {
   name?: InputMaybe<Scalars['String']['input']>;
 };
 
+/**
+ * Register a plugin by URL.
+ *
+ * Only the URL is required: a plugin's name, version, capabilities and config schema are
+ * all read from its manifest at handshake, so nothing here duplicates something the
+ * plugin already declares about itself.
+ */
+export type RegisterPluginInput = {
+  /** Root of the plugin's protocol endpoints, e.g. `http://my-plugin:8080/longbox/v1`. */
+  baseUrl: Scalars['String']['input'];
+  /**
+   * Supply a token Longbox should use instead of generating one. For deployments that
+   * provision both sides from the same configuration; leave unset for the normal flow,
+   * where Longbox generates a token and shows it once.
+   */
+  token?: InputMaybe<Scalars['String']['input']>;
+};
+
 export type RegisteredEmailDevice = {
   __typename?: 'RegisteredEmailDevice';
   email: Scalars['String']['output'];
@@ -4829,6 +5016,20 @@ export type RegisteredEmailDevice = {
   id: Scalars['Int']['output'];
   name: Scalars['String']['output'];
   sendHistory: Array<EmailerSendRecord>;
+};
+
+/**
+ * What registering a plugin returns. The token is shown here and never again — it is
+ * stored encrypted, and there is deliberately no way to read it back.
+ */
+export type RegisteredPlugin = {
+  __typename?: 'RegisteredPlugin';
+  plugin: Plugin;
+  /**
+   * Copy this into the plugin's own configuration; Longbox sends it as
+   * `Authorization: Bearer <token>` on every call.
+   */
+  token: Scalars['String']['output'];
 };
 
 export type ReleaseCalendarConfigInput = {
@@ -7436,6 +7637,55 @@ export type UnofficialProvidersSetAcknowledgedMutationVariables = Exact<{
 
 
 export type UnofficialProvidersSetAcknowledgedMutation = { __typename?: 'Mutation', setUnofficialProvidersAcknowledged: { __typename?: 'ServerConfigModel', id: number, unofficialProvidersAcknowledgedAt?: any | null } };
+
+export type PluginCardUpdateMutationVariables = Exact<{
+  id: Scalars['Int']['input'];
+  input: PatchPluginInput;
+}>;
+
+
+export type PluginCardUpdateMutation = { __typename?: 'Mutation', updatePlugin: { __typename?: 'RegisteredPlugin', plugin: { __typename?: 'Plugin', id: number, enabled: boolean } } };
+
+export type PluginCardDeleteMutationVariables = Exact<{
+  id: Scalars['Int']['input'];
+}>;
+
+
+export type PluginCardDeleteMutation = { __typename?: 'Mutation', deletePlugin: boolean };
+
+export type PluginCardRefreshMutationVariables = Exact<{
+  id: Scalars['Int']['input'];
+}>;
+
+
+export type PluginCardRefreshMutation = { __typename?: 'Mutation', refreshPluginManifest: { __typename?: 'Plugin', id: number, name: string } };
+
+export type PluginCardTestMutationVariables = Exact<{
+  id: Scalars['Int']['input'];
+}>;
+
+
+export type PluginCardTestMutation = { __typename?: 'Mutation', testPlugin: { __typename?: 'PluginTestResult', ok: boolean, detail?: string | null } };
+
+export type PluginConfigFormSaveMutationVariables = Exact<{
+  id: Scalars['Int']['input'];
+  input: PatchPluginInput;
+}>;
+
+
+export type PluginConfigFormSaveMutation = { __typename?: 'Mutation', updatePlugin: { __typename?: 'RegisteredPlugin', plugin: { __typename?: 'Plugin', id: number } } };
+
+export type PluginListPluginsQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type PluginListPluginsQuery = { __typename?: 'Query', pluginProtocolVersion: number, plugins: Array<{ __typename?: 'Plugin', id: number, slug: string, name: string, baseUrl: string, enabled: boolean, protocolVersion?: number | null, lastHandshakeAt?: string | null, lastError?: string | null, version?: string | null, description?: string | null, capabilities: Array<string>, settings: any, configuredSecretKeys: Array<string>, isAddressable: boolean, configFields: Array<{ __typename?: 'PluginConfigField', key: string, label: string, type: PluginConfigFieldType, required: boolean, default?: string | null, options?: Array<string> | null, help?: string | null }> }> };
+
+export type RegisterPluginDialogRegisterMutationVariables = Exact<{
+  input: RegisterPluginInput;
+}>;
+
+
+export type RegisterPluginDialogRegisterMutation = { __typename?: 'Mutation', registerPlugin: { __typename?: 'RegisteredPlugin', token: string, plugin: { __typename?: 'Plugin', id: number, name: string, slug: string } } };
 
 export type CreateTagModalMutationVariables = Exact<{
   tags: Array<Scalars['String']['input']> | Scalars['String']['input'];
@@ -12126,6 +12376,88 @@ export const UnofficialProvidersSetAcknowledgedDocument = new TypedDocumentStrin
   }
 }
     `) as unknown as TypedDocumentString<UnofficialProvidersSetAcknowledgedMutation, UnofficialProvidersSetAcknowledgedMutationVariables>;
+export const PluginCardUpdateDocument = new TypedDocumentString(`
+    mutation PluginCardUpdate($id: Int!, $input: PatchPluginInput!) {
+  updatePlugin(id: $id, input: $input) {
+    plugin {
+      id
+      enabled
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<PluginCardUpdateMutation, PluginCardUpdateMutationVariables>;
+export const PluginCardDeleteDocument = new TypedDocumentString(`
+    mutation PluginCardDelete($id: Int!) {
+  deletePlugin(id: $id)
+}
+    `) as unknown as TypedDocumentString<PluginCardDeleteMutation, PluginCardDeleteMutationVariables>;
+export const PluginCardRefreshDocument = new TypedDocumentString(`
+    mutation PluginCardRefresh($id: Int!) {
+  refreshPluginManifest(id: $id) {
+    id
+    name
+  }
+}
+    `) as unknown as TypedDocumentString<PluginCardRefreshMutation, PluginCardRefreshMutationVariables>;
+export const PluginCardTestDocument = new TypedDocumentString(`
+    mutation PluginCardTest($id: Int!) {
+  testPlugin(id: $id) {
+    ok
+    detail
+  }
+}
+    `) as unknown as TypedDocumentString<PluginCardTestMutation, PluginCardTestMutationVariables>;
+export const PluginConfigFormSaveDocument = new TypedDocumentString(`
+    mutation PluginConfigFormSave($id: Int!, $input: PatchPluginInput!) {
+  updatePlugin(id: $id, input: $input) {
+    plugin {
+      id
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<PluginConfigFormSaveMutation, PluginConfigFormSaveMutationVariables>;
+export const PluginListPluginsDocument = new TypedDocumentString(`
+    query PluginListPlugins {
+  pluginProtocolVersion
+  plugins {
+    id
+    slug
+    name
+    baseUrl
+    enabled
+    protocolVersion
+    lastHandshakeAt
+    lastError
+    version
+    description
+    capabilities
+    settings
+    configuredSecretKeys
+    isAddressable
+    configFields {
+      key
+      label
+      type
+      required
+      default
+      options
+      help
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<PluginListPluginsQuery, PluginListPluginsQueryVariables>;
+export const RegisterPluginDialogRegisterDocument = new TypedDocumentString(`
+    mutation RegisterPluginDialogRegister($input: RegisterPluginInput!) {
+  registerPlugin(input: $input) {
+    token
+    plugin {
+      id
+      name
+      slug
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<RegisterPluginDialogRegisterMutation, RegisterPluginDialogRegisterMutationVariables>;
 export const CreateTagModalDocument = new TypedDocumentString(`
     mutation CreateTagModal($tags: [String!]!) {
   createTags(tags: $tags) {

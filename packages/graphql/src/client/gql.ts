@@ -231,6 +231,13 @@ type Documents = {
     "\n\tmutation TestMetadataProvider($id: Int!) {\n\t\ttestMetadataProvider(id: $id) {\n\t\t\tstatus\n\t\t\tmessage\n\t\t}\n\t}\n": typeof types.TestMetadataProviderDocument,
     "\n\tquery UnofficialProvidersAcknowledged {\n\t\tserverConfig {\n\t\t\tid\n\t\t\tunofficialProvidersAcknowledgedAt\n\t\t}\n\t}\n": typeof types.UnofficialProvidersAcknowledgedDocument,
     "\n\tmutation UnofficialProvidersSetAcknowledged($acknowledged: Boolean!) {\n\t\tsetUnofficialProvidersAcknowledged(acknowledged: $acknowledged) {\n\t\t\tid\n\t\t\tunofficialProvidersAcknowledgedAt\n\t\t}\n\t}\n": typeof types.UnofficialProvidersSetAcknowledgedDocument,
+    "\n\tmutation PluginCardUpdate($id: Int!, $input: PatchPluginInput!) {\n\t\tupdatePlugin(id: $id, input: $input) {\n\t\t\tplugin {\n\t\t\t\tid\n\t\t\t\tenabled\n\t\t\t}\n\t\t}\n\t}\n": typeof types.PluginCardUpdateDocument,
+    "\n\tmutation PluginCardDelete($id: Int!) {\n\t\tdeletePlugin(id: $id)\n\t}\n": typeof types.PluginCardDeleteDocument,
+    "\n\tmutation PluginCardRefresh($id: Int!) {\n\t\trefreshPluginManifest(id: $id) {\n\t\t\tid\n\t\t\tname\n\t\t}\n\t}\n": typeof types.PluginCardRefreshDocument,
+    "\n\tmutation PluginCardTest($id: Int!) {\n\t\ttestPlugin(id: $id) {\n\t\t\tok\n\t\t\tdetail\n\t\t}\n\t}\n": typeof types.PluginCardTestDocument,
+    "\n\tmutation PluginConfigFormSave($id: Int!, $input: PatchPluginInput!) {\n\t\tupdatePlugin(id: $id, input: $input) {\n\t\t\tplugin {\n\t\t\t\tid\n\t\t\t}\n\t\t}\n\t}\n": typeof types.PluginConfigFormSaveDocument,
+    "\n\tquery PluginListPlugins {\n\t\tpluginProtocolVersion\n\t\tplugins {\n\t\t\tid\n\t\t\tslug\n\t\t\tname\n\t\t\tbaseUrl\n\t\t\tenabled\n\t\t\tprotocolVersion\n\t\t\tlastHandshakeAt\n\t\t\tlastError\n\t\t\tversion\n\t\t\tdescription\n\t\t\tcapabilities\n\t\t\tsettings\n\t\t\tconfiguredSecretKeys\n\t\t\tisAddressable\n\t\t\tconfigFields {\n\t\t\t\tkey\n\t\t\t\tlabel\n\t\t\t\ttype\n\t\t\t\trequired\n\t\t\t\tdefault\n\t\t\t\toptions\n\t\t\t\thelp\n\t\t\t}\n\t\t}\n\t}\n": typeof types.PluginListPluginsDocument,
+    "\n\tmutation RegisterPluginDialogRegister($input: RegisterPluginInput!) {\n\t\tregisterPlugin(input: $input) {\n\t\t\ttoken\n\t\t\tplugin {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\tslug\n\t\t\t}\n\t\t}\n\t}\n": typeof types.RegisterPluginDialogRegisterDocument,
     "\n\tmutation CreateTagModal($tags: [String!]!) {\n\t\tcreateTags(tags: $tags) {\n\t\t\tid\n\t\t\tname\n\t\t}\n\t}\n": typeof types.CreateTagModalDocument,
     "\n\tmutation DeleteTagConfirmModal($tags: [String!]!) {\n\t\tdeleteTags(tags: $tags) {\n\t\t\tid\n\t\t\tname\n\t\t}\n\t}\n": typeof types.DeleteTagConfirmModalDocument,
     "\n\tmutation RenameTagModal($id: Int!, $name: String!) {\n\t\trenameTag(id: $id, name: $name) {\n\t\t\tid\n\t\t\tname\n\t\t}\n\t}\n": typeof types.RenameTagModalDocument,
@@ -479,6 +486,13 @@ const documents: Documents = {
     "\n\tmutation TestMetadataProvider($id: Int!) {\n\t\ttestMetadataProvider(id: $id) {\n\t\t\tstatus\n\t\t\tmessage\n\t\t}\n\t}\n": types.TestMetadataProviderDocument,
     "\n\tquery UnofficialProvidersAcknowledged {\n\t\tserverConfig {\n\t\t\tid\n\t\t\tunofficialProvidersAcknowledgedAt\n\t\t}\n\t}\n": types.UnofficialProvidersAcknowledgedDocument,
     "\n\tmutation UnofficialProvidersSetAcknowledged($acknowledged: Boolean!) {\n\t\tsetUnofficialProvidersAcknowledged(acknowledged: $acknowledged) {\n\t\t\tid\n\t\t\tunofficialProvidersAcknowledgedAt\n\t\t}\n\t}\n": types.UnofficialProvidersSetAcknowledgedDocument,
+    "\n\tmutation PluginCardUpdate($id: Int!, $input: PatchPluginInput!) {\n\t\tupdatePlugin(id: $id, input: $input) {\n\t\t\tplugin {\n\t\t\t\tid\n\t\t\t\tenabled\n\t\t\t}\n\t\t}\n\t}\n": types.PluginCardUpdateDocument,
+    "\n\tmutation PluginCardDelete($id: Int!) {\n\t\tdeletePlugin(id: $id)\n\t}\n": types.PluginCardDeleteDocument,
+    "\n\tmutation PluginCardRefresh($id: Int!) {\n\t\trefreshPluginManifest(id: $id) {\n\t\t\tid\n\t\t\tname\n\t\t}\n\t}\n": types.PluginCardRefreshDocument,
+    "\n\tmutation PluginCardTest($id: Int!) {\n\t\ttestPlugin(id: $id) {\n\t\t\tok\n\t\t\tdetail\n\t\t}\n\t}\n": types.PluginCardTestDocument,
+    "\n\tmutation PluginConfigFormSave($id: Int!, $input: PatchPluginInput!) {\n\t\tupdatePlugin(id: $id, input: $input) {\n\t\t\tplugin {\n\t\t\t\tid\n\t\t\t}\n\t\t}\n\t}\n": types.PluginConfigFormSaveDocument,
+    "\n\tquery PluginListPlugins {\n\t\tpluginProtocolVersion\n\t\tplugins {\n\t\t\tid\n\t\t\tslug\n\t\t\tname\n\t\t\tbaseUrl\n\t\t\tenabled\n\t\t\tprotocolVersion\n\t\t\tlastHandshakeAt\n\t\t\tlastError\n\t\t\tversion\n\t\t\tdescription\n\t\t\tcapabilities\n\t\t\tsettings\n\t\t\tconfiguredSecretKeys\n\t\t\tisAddressable\n\t\t\tconfigFields {\n\t\t\t\tkey\n\t\t\t\tlabel\n\t\t\t\ttype\n\t\t\t\trequired\n\t\t\t\tdefault\n\t\t\t\toptions\n\t\t\t\thelp\n\t\t\t}\n\t\t}\n\t}\n": types.PluginListPluginsDocument,
+    "\n\tmutation RegisterPluginDialogRegister($input: RegisterPluginInput!) {\n\t\tregisterPlugin(input: $input) {\n\t\t\ttoken\n\t\t\tplugin {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\tslug\n\t\t\t}\n\t\t}\n\t}\n": types.RegisterPluginDialogRegisterDocument,
     "\n\tmutation CreateTagModal($tags: [String!]!) {\n\t\tcreateTags(tags: $tags) {\n\t\t\tid\n\t\t\tname\n\t\t}\n\t}\n": types.CreateTagModalDocument,
     "\n\tmutation DeleteTagConfirmModal($tags: [String!]!) {\n\t\tdeleteTags(tags: $tags) {\n\t\t\tid\n\t\t\tname\n\t\t}\n\t}\n": types.DeleteTagConfirmModalDocument,
     "\n\tmutation RenameTagModal($id: Int!, $name: String!) {\n\t\trenameTag(id: $id, name: $name) {\n\t\t\tid\n\t\t\tname\n\t\t}\n\t}\n": types.RenameTagModalDocument,
@@ -1375,6 +1389,34 @@ export function graphql(source: "\n\tquery UnofficialProvidersAcknowledged {\n\t
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n\tmutation UnofficialProvidersSetAcknowledged($acknowledged: Boolean!) {\n\t\tsetUnofficialProvidersAcknowledged(acknowledged: $acknowledged) {\n\t\t\tid\n\t\t\tunofficialProvidersAcknowledgedAt\n\t\t}\n\t}\n"): typeof import('./graphql').UnofficialProvidersSetAcknowledgedDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\tmutation PluginCardUpdate($id: Int!, $input: PatchPluginInput!) {\n\t\tupdatePlugin(id: $id, input: $input) {\n\t\t\tplugin {\n\t\t\t\tid\n\t\t\t\tenabled\n\t\t\t}\n\t\t}\n\t}\n"): typeof import('./graphql').PluginCardUpdateDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\tmutation PluginCardDelete($id: Int!) {\n\t\tdeletePlugin(id: $id)\n\t}\n"): typeof import('./graphql').PluginCardDeleteDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\tmutation PluginCardRefresh($id: Int!) {\n\t\trefreshPluginManifest(id: $id) {\n\t\t\tid\n\t\t\tname\n\t\t}\n\t}\n"): typeof import('./graphql').PluginCardRefreshDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\tmutation PluginCardTest($id: Int!) {\n\t\ttestPlugin(id: $id) {\n\t\t\tok\n\t\t\tdetail\n\t\t}\n\t}\n"): typeof import('./graphql').PluginCardTestDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\tmutation PluginConfigFormSave($id: Int!, $input: PatchPluginInput!) {\n\t\tupdatePlugin(id: $id, input: $input) {\n\t\t\tplugin {\n\t\t\t\tid\n\t\t\t}\n\t\t}\n\t}\n"): typeof import('./graphql').PluginConfigFormSaveDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\tquery PluginListPlugins {\n\t\tpluginProtocolVersion\n\t\tplugins {\n\t\t\tid\n\t\t\tslug\n\t\t\tname\n\t\t\tbaseUrl\n\t\t\tenabled\n\t\t\tprotocolVersion\n\t\t\tlastHandshakeAt\n\t\t\tlastError\n\t\t\tversion\n\t\t\tdescription\n\t\t\tcapabilities\n\t\t\tsettings\n\t\t\tconfiguredSecretKeys\n\t\t\tisAddressable\n\t\t\tconfigFields {\n\t\t\t\tkey\n\t\t\t\tlabel\n\t\t\t\ttype\n\t\t\t\trequired\n\t\t\t\tdefault\n\t\t\t\toptions\n\t\t\t\thelp\n\t\t\t}\n\t\t}\n\t}\n"): typeof import('./graphql').PluginListPluginsDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\tmutation RegisterPluginDialogRegister($input: RegisterPluginInput!) {\n\t\tregisterPlugin(input: $input) {\n\t\t\ttoken\n\t\t\tplugin {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\tslug\n\t\t\t}\n\t\t}\n\t}\n"): typeof import('./graphql').RegisterPluginDialogRegisterDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

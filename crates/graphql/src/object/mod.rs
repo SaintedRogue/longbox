@@ -32,6 +32,7 @@ pub mod metadata_fetch_record;
 pub mod missing_entity;
 pub mod notifier;
 pub mod organize;
+pub mod plugin;
 pub mod reading_list;
 pub mod reading_list_item;
 pub mod reading_session;

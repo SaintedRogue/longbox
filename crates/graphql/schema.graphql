@@ -2617,6 +2617,32 @@ type Mutation {
 	acceptAllPendingMatches(strategy: MergeStrategy, excludeFields: [MetadataField!]): Int!
 	"Reject all pending metadata matches, setting their status to NoMatch"
 	rejectAllPendingMatches: Int!
+	"""
+	Register a plugin by URL.
+	
+	Registration requires a successful handshake: Longbox reads the manifest before it
+	will store anything, so a row always corresponds to something that actually
+	answered and declared what it is. `manifest` and `health` are therefore expected to
+	be servable without the token — they carry no secrets — while capability endpoints
+	must require it.
+	
+	The plugin is stored **disabled**. Registering something is not the same as
+	deciding to let it run, and the operator still has to configure it.
+	"""
+	registerPlugin(input: RegisterPluginInput!): RegisteredPlugin!
+	"Patch a plugin. Returns the new token only when one was rotated."
+	updatePlugin(id: Int!, input: PatchPluginInput!): RegisteredPlugin!
+	deletePlugin(id: Int!): Boolean!
+	"""
+	Re-read a plugin's manifest, picking up new capabilities or config fields without
+	re-registering it.
+	"""
+	refreshPluginManifest(id: Int!): Plugin!
+	"""
+	Call a plugin's health endpoint. Unlike the other mutations this never errors on an
+	unreachable plugin — "it is down, and here is why" is the answer, not a failure.
+	"""
+	testPlugin(id: Int!): PluginTestResult!
 	createSmartList(input: SaveSmartListInput!): SmartList!
 	updateSmartList(id: ID!, input: SaveSmartListInput!): SmartList!
 	deleteSmartList(id: ID!): SmartList!
@@ -3024,6 +3050,20 @@ input PatchMetadataProviderConfigInput {
 	apiTokenExpiresAt: DateTime
 }
 
+"A patch: every field is optional, and an omitted field is left alone."
+input PatchPluginInput {
+	baseUrl: String
+	enabled: Boolean
+	"""
+	Values for the fields the plugin's manifest declares. Merged over what is already
+	stored, so a form may send only what changed — and a blank secret means "keep the
+	stored one", since the UI never receives it to send back.
+	"""
+	settings: JSON
+	"Issue a fresh token, invalidating the old one. The new token is returned once."
+	rotateToken: Boolean
+}
+
 type PlaceholderGenerationOutput {
 	"The total number of entities that were visited"
 	visitedEntities: Int!
@@ -3031,6 +3071,87 @@ type PlaceholderGenerationOutput {
 	skippedEntities: Int!
 	"The number of placeholder metadata entries that were generated"
 	generatedMetadata: Int!
+}
+
+"""
+A registered plugin as the settings UI sees it.
+
+Built by hand rather than flattened straight off the entity because two of its fields
+must never be returned as stored: the shared token is not exposed at all, and the
+settings blob has its secret-typed values stripped. Constructing the read model in one
+place is what makes that guarantee auditable.
+"""
+type Plugin {
+	id: Int!
+	slug: String!
+	name: String!
+	baseUrl: String!
+	enabled: Boolean!
+	protocolVersion: Int
+	"RFC 3339, or null if this plugin has never been reached."
+	lastHandshakeAt: String
+	"Why the last attempt failed. Null when the last attempt succeeded."
+	lastError: String
+	createdAt: String!
+	"Null when the plugin has never completed a handshake."
+	version: String
+	description: String
+	capabilities: [String!]!
+	configFields: [PluginConfigField!]!
+	"Operator-supplied config, with every secret-typed value removed."
+	settings: JSON!
+	"""
+	Declared secret fields that currently hold a value, so the form can show
+	"set" without ever receiving the secret itself.
+	"""
+	configuredSecretKeys: [String!]!
+	"""
+	Whether the base URL and token currently produce a usable client. False points
+	at a malformed URL rather than at an unreachable plugin.
+	"""
+	isAddressable: Boolean!
+}
+
+"One operator-supplied setting a plugin declares in its manifest."
+type PluginConfigField {
+	key: String!
+	label: String!
+	type: PluginConfigFieldType!
+	required: Boolean!
+	"Prefilled when the operator has not set a value yet. Never applies to secrets."
+	default: String
+	"Allowed values for [`PluginConfigFieldType::Select`]."
+	options: [String!]
+	"Longer explanation rendered beneath the field."
+	help: String
+}
+
+"""
+How a declared config field should be collected from the operator.
+
+Deliberately a small closed set. A plugin describes *what* it needs; Longbox decides
+how to render and store it. Anything richer would mean shipping plugin-authored code
+to the browser, which v1 does not do.
+"""
+enum PluginConfigFieldType {
+	"Free text, stored and returned as-is."
+	STRING
+	"Free text that is never returned to the client once stored."
+	SECRET
+	NUMBER
+	BOOLEAN
+	"One of `options`."
+	SELECT
+}
+
+"Outcome of poking a plugin's health endpoint."
+type PluginTestResult {
+	ok: Boolean!
+	"""
+	The plugin's own explanation when it reports unhealthy, or ours when we could not
+	reach it at all.
+	"""
+	detail: String
 }
 
 """
@@ -3291,6 +3412,20 @@ type Query {
 	"Return all metadata fetch records that are awaiting user review."
 	pendingMetadataMatches: [MetadataFetchRecord!]!
 	"""
+	Every registered plugin.
+	
+	Server-owner only, and not because the list is especially sensitive: a plugin is
+	an arbitrary URL this server will call with a credential attached, so who may see
+	and change that set is the same question as who may administer the server.
+	"""
+	plugins: [Plugin!]!
+	pluginById(id: Int!): Plugin
+	"""
+	The plugin protocol revision this build speaks, so the settings UI can tell an
+	operator which version a plugin they are about to write should target.
+	"""
+	pluginProtocolVersion: Int!
+	"""
 	The full metadata a provider holds for one of its own records.
 	
 	Exists because some providers' search endpoints are list views. League of Comic
@@ -3501,12 +3636,43 @@ input RecentlyAddedInput {
 	links: [FilterableArrangementEntityLink!]! = []
 }
 
+"""
+Register a plugin by URL.
+
+Only the URL is required: a plugin's name, version, capabilities and config schema are
+all read from its manifest at handshake, so nothing here duplicates something the
+plugin already declares about itself.
+"""
+input RegisterPluginInput {
+	"Root of the plugin's protocol endpoints, e.g. `http://my-plugin:8080/longbox/v1`."
+	baseUrl: String!
+	"""
+	Supply a token Longbox should use instead of generating one. For deployments that
+	provision both sides from the same configuration; leave unset for the normal flow,
+	where Longbox generates a token and shows it once.
+	"""
+	token: String
+}
+
 type RegisteredEmailDevice {
 	id: Int!
 	name: String!
 	email: String!
 	forbidden: Boolean!
 	sendHistory: [EmailerSendRecord!]!
+}
+
+"""
+What registering a plugin returns. The token is shown here and never again — it is
+stored encrypted, and there is deliberately no way to read it back.
+"""
+type RegisteredPlugin {
+	plugin: Plugin!
+	"""
+	Copy this into the plugin's own configuration; Longbox sends it as
+	`Authorization: Bearer <token>` on every call.
+	"""
+	token: String!
 }
 
 input ReleaseCalendarConfigInput {
