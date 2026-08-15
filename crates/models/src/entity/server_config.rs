@@ -28,6 +28,9 @@ pub struct Model {
 	/// (not a bool) so the acceptance is auditable and can be cleared to re-prompt
 	/// if the disclosure wording changes.
 	pub unofficial_providers_acknowledged_at: Option<DateTimeUtc>,
+	/// When the release calendar last pulled, by any route. See the migration for why
+	/// this lives here rather than on the scheduled job.
+	pub last_release_calendar_sync_at: Option<DateTimeUtc>,
 }
 
 #[derive(FromQueryResult)]

@@ -18,5 +18,8 @@ pub use fetch_job::{
 	SKIP_STATUSES,
 };
 pub use provider_cache::{ProviderCacheError, ProviderClientCache};
-pub use release_calendar::{run_release_calendar_sync, sync_provider_releases};
+pub use release_calendar::{
+	run_release_calendar_sync, sweep_in_flight, sync_provider_releases,
+	sync_release_calendar, ReleaseSyncSummary,
+};
 pub use runtime::{provider_budget_id, DbProviderRuntime};

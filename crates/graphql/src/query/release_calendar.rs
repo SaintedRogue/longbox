@@ -6,13 +6,14 @@ use std::collections::{HashMap, HashSet};
 
 use async_graphql::{Context, Enum, Object, Result, SimpleObject, ID};
 use chrono::{Datelike, Duration, NaiveDate, Utc};
+use longbox_core::filesystem::metadata::sweep_in_flight;
 use metadata_integrations::issue_numbers_match;
 use models::{
 	entity::{
-		expected_issue, media, media_metadata, reading_session, series, series_follow,
-		user::AuthUser,
+		expected_issue, media, media_metadata, reading_session, scheduled_job, series,
+		series_follow, server_config, user::AuthUser,
 	},
-	shared::enums::ReadingStatus,
+	shared::enums::{ReadingStatus, ScheduledJobKind},
 };
 use sea_orm::{prelude::*, QueryOrder, QuerySelect};
 
@@ -40,6 +41,25 @@ pub struct CalendarEntry {
 	pub release_date: String,
 	/// Whether a book with this issue number already exists in the series.
 	pub in_library: bool,
+	/// Whether the viewer follows this series. Drives the subscribe control, and is what
+	/// lets the "all releases" view offer to subscribe to something it is showing you.
+	pub is_followed: bool,
+}
+
+/// How far ahead the upcoming view may look. Matches the sweep's own forward window —
+/// asking for more than the oracle ever writes would just render empty days.
+const MAX_UPCOMING_DAYS: i32 = 90;
+
+/// The state of the calendar's own data: is it refreshing, and how stale is it.
+#[derive(SimpleObject)]
+pub struct ReleaseCalendarStatus {
+	/// A sweep is in flight right now. Starting a second one is refused.
+	pub is_running: bool,
+	/// RFC 3339 of the last *successful* sync, by any route. Null if it has never run.
+	pub last_synced_at: Option<String>,
+	/// Whether an enabled schedule exists, so the UI can say whether this refreshes on
+	/// its own or only when asked.
+	pub is_scheduled: bool,
 }
 
 #[derive(SimpleObject)]
@@ -102,6 +122,104 @@ async fn followed_series_ids_for(
 		.collect())
 }
 
+/// Every expected issue the viewer can see between `start` and `end`, oldest first.
+///
+/// Shared by the week grid and the upcoming list: they differ only in the window they ask
+/// for and how they group the answer, so the scoping, the in-library match and the follow
+/// lookup all live here rather than being kept in step in two places.
+async fn entries_between(
+	conn: &DatabaseConnection,
+	user: &AuthUser,
+	scope: CalendarScope,
+	start: NaiveDate,
+	end: NaiveDate,
+) -> Result<Vec<CalendarEntry>> {
+	let accessible = accessible_series(conn, user).await?;
+	let follows = followed_series_ids_for(conn, &user.id).await?;
+
+	let scoped_ids: Vec<String> = match scope {
+		CalendarScope::All => accessible.keys().cloned().collect(),
+		CalendarScope::Followed => accessible
+			.keys()
+			.filter(|id| follows.contains(*id))
+			.cloned()
+			.collect(),
+	};
+	if scoped_ids.is_empty() {
+		return Ok(vec![]);
+	}
+
+	let expected = expected_issue::Entity::find()
+		.filter(expected_issue::Column::SeriesId.is_in(scoped_ids))
+		.filter(expected_issue::Column::ReleaseDate.gte(start.to_string()))
+		.filter(expected_issue::Column::ReleaseDate.lte(end.to_string()))
+		.order_by_asc(expected_issue::Column::ReleaseDate)
+		.all(conn)
+		.await?;
+
+	// Owned issue numbers per involved series, for the in-library badge.
+	let involved: Vec<String> = expected.iter().map(|e| e.series_id.clone()).collect();
+	let mut numbers_by_series: HashMap<String, Vec<String>> = HashMap::new();
+	if !involved.is_empty() {
+		let books = media::Entity::find()
+			.filter(media::Column::SeriesId.is_in(involved))
+			.select_only()
+			.column(media::Column::Id)
+			.column(media::Column::SeriesId)
+			.into_tuple::<(String, Option<String>)>()
+			.all(conn)
+			.await?;
+		let media_ids: Vec<String> = books.iter().map(|(id, _)| id.clone()).collect();
+		let series_by_media: HashMap<String, String> = books
+			.into_iter()
+			.filter_map(|(id, sid)| sid.map(|sid| (id, sid)))
+			.collect();
+		let metadata_numbers = media_metadata::Entity::find()
+			.filter(media_metadata::Column::MediaId.is_in(media_ids))
+			.all(conn)
+			.await?;
+		for row in metadata_numbers {
+			let (Some(media_id), Some(number)) = (row.media_id, row.number) else {
+				continue;
+			};
+			if let Some(series_id) = series_by_media.get(&media_id) {
+				numbers_by_series
+					.entry(series_id.clone())
+					.or_default()
+					.push(number.normalize().to_string());
+			}
+		}
+	}
+
+	Ok(expected
+		.into_iter()
+		.filter_map(|entry| {
+			let release_date = entry.release_date.clone()?;
+			let series_name = accessible.get(&entry.series_id)?.clone();
+			let in_library = entry.number.as_deref().is_some_and(|expected_number| {
+				numbers_by_series
+					.get(&entry.series_id)
+					.is_some_and(|owned| {
+						owned
+							.iter()
+							.any(|n| issue_numbers_match(n, expected_number))
+					})
+			});
+
+			Some(CalendarEntry {
+				is_followed: follows.contains(&entry.series_id),
+				series_id: ID::from(entry.series_id),
+				series_name,
+				number: entry.number,
+				title: entry.title,
+				cover_url: entry.cover_url,
+				release_date,
+				in_library,
+			})
+		})
+		.collect())
+}
+
 #[Object]
 impl ReleaseCalendarQuery {
 	/// Series ids the viewer follows.
@@ -127,19 +245,6 @@ impl ReleaseCalendarQuery {
 		let AuthContext { user, .. } = ctx.data::<AuthContext>()?;
 		let conn = ctx.data::<CoreContext>()?.conn.as_ref();
 
-		let accessible = accessible_series(conn, user).await?;
-		let scoped_ids: Vec<String> = match scope {
-			CalendarScope::All => accessible.keys().cloned().collect(),
-			CalendarScope::Followed => {
-				let follows = followed_series_ids_for(conn, &user.id).await?;
-				accessible
-					.keys()
-					.filter(|id| follows.contains(*id))
-					.cloned()
-					.collect()
-			},
-		};
-
 		let (start, end) = week_window(Utc::now().date_naive(), week_offset);
 		let mut days: Vec<CalendarDay> = (0..7)
 			.map(|d| CalendarDay {
@@ -148,88 +253,76 @@ impl ReleaseCalendarQuery {
 			})
 			.collect();
 
-		if scoped_ids.is_empty() {
-			return Ok(days);
-		}
-
-		let expected = expected_issue::Entity::find()
-			.filter(expected_issue::Column::SeriesId.is_in(scoped_ids))
-			.filter(expected_issue::Column::ReleaseDate.gte(start.to_string()))
-			.filter(expected_issue::Column::ReleaseDate.lte(end.to_string()))
-			.order_by_asc(expected_issue::Column::ReleaseDate)
-			.all(conn)
-			.await?;
-
-		// Owned issue numbers per involved series, for the in-library badge.
-		let involved: Vec<String> =
-			expected.iter().map(|e| e.series_id.clone()).collect();
-		let mut numbers_by_series: HashMap<String, Vec<String>> = HashMap::new();
-		if !involved.is_empty() {
-			let books = media::Entity::find()
-				.filter(media::Column::SeriesId.is_in(involved))
-				.select_only()
-				.column(media::Column::Id)
-				.column(media::Column::SeriesId)
-				.into_tuple::<(String, Option<String>)>()
-				.all(conn)
-				.await?;
-			let media_ids: Vec<String> = books.iter().map(|(id, _)| id.clone()).collect();
-			let series_by_media: HashMap<String, String> = books
-				.into_iter()
-				.filter_map(|(id, sid)| sid.map(|sid| (id, sid)))
-				.collect();
-			let metadata_numbers = media_metadata::Entity::find()
-				.filter(media_metadata::Column::MediaId.is_in(media_ids))
-				.all(conn)
-				.await?;
-			for row in metadata_numbers {
-				let (Some(media_id), Some(number)) = (row.media_id, row.number) else {
-					continue;
-				};
-				if let Some(series_id) = series_by_media.get(&media_id) {
-					numbers_by_series
-						.entry(series_id.clone())
-						.or_default()
-						.push(number.normalize().to_string());
-				}
-			}
-		}
-
-		for entry in expected {
-			let Some(release_date) = entry.release_date.clone() else {
-				continue;
-			};
-			let Some(series_name) = accessible.get(&entry.series_id) else {
-				continue;
-			};
-			let in_library = entry.number.as_deref().is_some_and(|expected_number| {
-				numbers_by_series
-					.get(&entry.series_id)
-					.is_some_and(|owned| {
-						owned
-							.iter()
-							.any(|n| issue_numbers_match(n, expected_number))
-					})
-			});
-			let day_index = NaiveDate::parse_from_str(&release_date, "%Y-%m-%d")
+		for entry in entries_between(conn, user, scope, start, end).await? {
+			let day_index = NaiveDate::parse_from_str(&entry.release_date, "%Y-%m-%d")
 				.ok()
 				.and_then(|d| usize::try_from((d - start).num_days()).ok())
 				.filter(|i| *i < 7);
 			let Some(day_index) = day_index else {
 				continue;
 			};
-			days[day_index].entries.push(CalendarEntry {
-				series_id: ID::from(entry.series_id.clone()),
-				series_name: series_name.clone(),
-				number: entry.number,
-				title: entry.title,
-				cover_url: entry.cover_url,
-				release_date,
-				in_library,
-			});
+			days[day_index].entries.push(entry);
 		}
 
 		Ok(days)
+	}
+
+	/// Everything expected from today onward, grouped by day.
+	///
+	/// Unlike the week grid this omits days with nothing on them: it is a list of what is
+	/// coming, and a run of empty dates carries no information in that framing.
+	async fn upcoming_releases(
+		&self,
+		ctx: &Context<'_>,
+		#[graphql(default = 90)] days: i32,
+		#[graphql(default_with = "CalendarScope::Followed")] scope: CalendarScope,
+	) -> Result<Vec<CalendarDay>> {
+		let AuthContext { user, .. } = ctx.data::<AuthContext>()?;
+		let conn = ctx.data::<CoreContext>()?.conn.as_ref();
+
+		let today = Utc::now().date_naive();
+		let end = today + Duration::days(days.clamp(1, MAX_UPCOMING_DAYS) as i64);
+
+		let mut grouped: Vec<CalendarDay> = Vec::new();
+		for entry in entries_between(conn, user, scope, today, end).await? {
+			// `entries_between` returns oldest first, so the run of entries for one date is
+			// contiguous and only the last group can ever match.
+			match grouped.last_mut() {
+				Some(day) if day.date == entry.release_date => day.entries.push(entry),
+				_ => grouped.push(CalendarDay {
+					date: entry.release_date.clone(),
+					entries: vec![entry],
+				}),
+			}
+		}
+
+		Ok(grouped)
+	}
+
+	/// Whether the calendar is syncing, and when it last did.
+	async fn release_calendar_status(
+		&self,
+		ctx: &Context<'_>,
+	) -> Result<ReleaseCalendarStatus> {
+		let core = ctx.data::<CoreContext>()?;
+		let conn = core.conn.as_ref();
+
+		let last_synced_at = server_config::Entity::find()
+			.one(conn)
+			.await?
+			.and_then(|config| config.last_release_calendar_sync_at)
+			.map(|t| t.to_rfc3339());
+
+		let schedule = scheduled_job::Entity::find()
+			.filter(scheduled_job::Column::Kind.eq(ScheduledJobKind::ReleaseCalendarSync))
+			.one(conn)
+			.await?;
+
+		Ok(ReleaseCalendarStatus {
+			is_running: sweep_in_flight(),
+			last_synced_at,
+			is_scheduled: schedule.is_some_and(|job| job.enabled),
+		})
 	}
 
 	/// New books in followed series, newest first — 30-day window, hard cap.

@@ -4,14 +4,18 @@
 //! for ComicVine) equals the provider's series id; everything else is dropped.
 //! Skeletons are never media: "in library" is computed at query time.
 
-use std::collections::HashMap;
+use std::{
+	collections::HashMap,
+	sync::atomic::{AtomicBool, Ordering},
+};
 
 use chrono::{Duration, Utc};
 use metadata_integrations::UpcomingRelease;
 use models::{
+	entity::scheduled_job::ReleaseCalendarConfig,
 	entity::{
 		expected_issue, external_metadata_link, metadata_provider_config, scheduled_job,
-		series_metadata,
+		series_metadata, server_config,
 	},
 	shared::enums::MetadataProvider as MetadataProviderEnum,
 };
@@ -177,15 +181,94 @@ where
 	Ok(())
 }
 
-/// One scheduled oracle pass: for each enabled+configured provider, budget
-/// permitting, fetch the window and upsert matches. A provider that is
-/// budget-exhausted or errors is skipped (logged) — the next scheduled run is
-/// the retry mechanism.
+/// Whether a sweep is in flight, so a second one cannot start on top of it.
+///
+/// A process-global rather than something on `Ctx`: Longbox is a single process, the cron
+/// task and the manual trigger are the only two callers, and the thing being protected is
+/// a shared provider budget and rate limiter that are themselves process-wide. Guarding at
+/// the same scope as the resource keeps the two from disagreeing.
+static SWEEP_IN_FLIGHT: AtomicBool = AtomicBool::new(false);
+
+/// Whether a release-calendar sweep is running right now.
+pub fn sweep_in_flight() -> bool {
+	SWEEP_IN_FLIGHT.load(Ordering::SeqCst)
+}
+
+/// What a sweep did, for reporting back to whoever asked for it.
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct ReleaseSyncSummary {
+	/// Metadata providers that were actually asked (enabled, configured, in budget).
+	pub providers_swept: usize,
+	/// Plugins advertising `release-source` that were asked.
+	pub plugins_swept: usize,
+	/// Releases bound to a library series and upserted.
+	pub matched: usize,
+}
+
+/// A scheduled oracle pass. See [`sync_release_calendar`].
 pub async fn run_release_calendar_sync(
 	job: &scheduled_job::Model,
 	ctx: &Ctx,
 ) -> CoreResult<()> {
-	let config = job.release_calendar_config();
+	sync_release_calendar(job.release_calendar_config(), ctx)
+		.await
+		.map(|_| ())
+}
+
+/// One oracle pass: for each enabled+configured provider, budget permitting, fetch the
+/// window and upsert matches, then do the same for every `release-source` plugin. A source
+/// that is budget-exhausted or errors is skipped (logged) — the next run is the retry.
+///
+/// Takes the config directly rather than a `scheduled_job::Model` so a manual sync works
+/// on a server that has never configured a schedule. Requiring a cron expression before
+/// you may press "Sync now" would be a strange thing to insist on.
+pub async fn sync_release_calendar(
+	config: ReleaseCalendarConfig,
+	ctx: &Ctx,
+) -> CoreResult<ReleaseSyncSummary> {
+	if SWEEP_IN_FLIGHT.swap(true, Ordering::SeqCst) {
+		return Err(CoreError::InternalError(
+			"A release-calendar sync is already running".to_string(),
+		));
+	}
+	// Released however this returns, including on the `?` early exits below.
+	let _guard = SweepGuard;
+
+	let summary = sweep(config, ctx).await?;
+
+	// Stamped on success only: a failed sweep has not refreshed anything, and saying it
+	// did would be worse than saying nothing.
+	if let Some(server_config) =
+		server_config::Entity::find().one(ctx.conn.as_ref()).await?
+	{
+		let active = server_config::ActiveModel {
+			id: sea_orm::ActiveValue::Unchanged(server_config.id),
+			last_release_calendar_sync_at: Set(Some(Utc::now())),
+			..Default::default()
+		};
+		server_config::Entity::update(active)
+			.exec(ctx.conn.as_ref())
+			.await?;
+	}
+
+	Ok(summary)
+}
+
+/// Clears [`SWEEP_IN_FLIGHT`] on drop, so an early return or a panic cannot wedge the flag
+/// on and lock out every later sync.
+struct SweepGuard;
+
+impl Drop for SweepGuard {
+	fn drop(&mut self) {
+		SWEEP_IN_FLIGHT.store(false, Ordering::SeqCst);
+	}
+}
+
+async fn sweep(
+	config: ReleaseCalendarConfig,
+	ctx: &Ctx,
+) -> CoreResult<ReleaseSyncSummary> {
+	let mut summary = ReleaseSyncSummary::default();
 	let today = Utc::now().date_naive();
 	let start = today - Duration::days(WINDOW_PAST_DAYS);
 	let end = today + Duration::days(WINDOW_FUTURE_DAYS);
@@ -235,6 +318,8 @@ pub async fn run_release_calendar_sync(
 				let stats =
 					sync_provider_releases(ctx.conn.as_ref(), provider.id(), releases)
 						.await?;
+				summary.providers_swept += 1;
+				summary.matched += stats.matched;
 				tracing::info!(
 					provider = budget_id,
 					fetched = stats.fetched,
@@ -248,23 +333,25 @@ pub async fn run_release_calendar_sync(
 		}
 	}
 
-	let plugin_sources = sweep_plugin_releases(ctx, start, end).await?;
+	let (plugins_swept, plugin_matched) = sweep_plugin_releases(ctx, start, end).await?;
+	summary.plugins_swept = plugins_swept;
+	summary.matched += plugin_matched;
 
 	// Surface a config foot-gun: sweeping is pointless with nothing to sweep. A
 	// plugin-only server is a legitimate setup, so this only fires when neither kind of
 	// release source is configured.
-	if provider_configs.is_empty() && plugin_sources == 0 {
+	if provider_configs.is_empty() && plugins_swept == 0 {
 		return Err(CoreError::InternalError(
 			"Release-calendar sync ran with no enabled metadata providers or release-source plugins"
 				.to_string(),
 		));
 	}
 
-	Ok(())
+	Ok(summary)
 }
 
 /// Ask every enabled `release-source` plugin about the followed series, and upsert what
-/// they report. Returns how many plugins were asked.
+/// they report. Returns (plugins asked, releases matched).
 ///
 /// A plugin that errors is recorded against its row and skipped — the operator sees the
 /// reason in settings, and the next scheduled run is the retry. One broken plugin must
@@ -273,14 +360,14 @@ async fn sweep_plugin_releases(
 	ctx: &Ctx,
 	start: chrono::NaiveDate,
 	end: chrono::NaiveDate,
-) -> CoreResult<usize> {
+) -> CoreResult<(usize, usize)> {
 	let plugins = crate::plugin::load_enabled_with_capability(
 		ctx,
 		PluginCapability::RELEASE_SOURCE,
 	)
 	.await?;
 	if plugins.is_empty() {
-		return Ok(0);
+		return Ok((0, 0));
 	}
 
 	let conn = ctx.conn.as_ref();
@@ -290,9 +377,10 @@ async fn sweep_plugin_releases(
 			plugins = plugins.len(),
 			"Release-source plugins are enabled, but nobody follows a series yet"
 		);
-		return Ok(plugins.len());
+		return Ok((plugins.len(), 0));
 	}
 
+	let mut matched = 0usize;
 	let window = ReleaseWindow {
 		start: start.to_string(),
 		end: end.to_string(),
@@ -316,6 +404,7 @@ async fn sweep_plugin_releases(
 					.collect();
 
 				let accepted_count = resolved.len();
+				matched += accepted_count;
 				upsert_expected_issues(conn, &provider_id, resolved).await?;
 				crate::plugin::record_outcome(conn, loaded.row.id, None).await?;
 
@@ -337,7 +426,7 @@ async fn sweep_plugin_releases(
 		}
 	}
 
-	Ok(plugins.len())
+	Ok((plugins.len(), matched))
 }
 
 #[cfg(test)]

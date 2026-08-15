@@ -25,7 +25,7 @@ mod notifier;
 mod organize;
 mod plugin;
 pub(crate) mod reading_list;
-mod release_calendar;
+pub(crate) mod release_calendar;
 mod search;
 mod series;
 mod series_metadata_overview;
