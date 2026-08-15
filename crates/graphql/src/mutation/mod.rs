@@ -18,6 +18,7 @@ mod media_metadata;
 mod metadata_provider;
 mod notifier;
 mod organize;
+mod plugin;
 mod reading_list;
 pub mod reading_progress;
 mod scheduled_job_config;
@@ -50,6 +51,7 @@ use media_metadata::MediaMetadataMutation;
 use metadata_provider::MetadataProviderMutation;
 use notifier::NotifierMutation;
 use organize::OrganizeMutation;
+use plugin::PluginMutation;
 use reading_list::ReadingListMutation;
 use reading_progress::ReadProgressMutation;
 use scheduled_job_config::ScheduledJobConfigMutation;
@@ -103,6 +105,7 @@ struct SystemMutations(
 	ServerConfigMutation,
 	ScheduledJobConfigMutation,
 	MetadataProviderMutation,
+	PluginMutation,
 );
 
 #[derive(async_graphql::MergedObject, Default)]

@@ -1532,6 +1532,7 @@
 				"metadata": "Metadata",
 				"notifications": "Notifications",
 				"tags": "Tags",
+				"plugins": "Plugins",
 				"label": "Management"
 			}
 		},
@@ -2577,6 +2578,11 @@
 				"title": "Delete provider",
 				"description": "Are you sure you want to delete {{providerName}}? This action cannot be undone."
 			}
+		},
+		"server/plugins": {
+			"helmet": "Plugins",
+			"title": "Plugins",
+			"description": "Extensions you run yourself, which Longbox calls to add functionality it does not ship"
 		},
 		"server/tags": {
 			"helmet": "Tag management",

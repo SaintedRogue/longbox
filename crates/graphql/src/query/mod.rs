@@ -23,6 +23,7 @@ mod media_metadata_overview;
 mod metadata_provider;
 mod notifier;
 mod organize;
+mod plugin;
 pub(crate) mod reading_list;
 mod release_calendar;
 mod search;
@@ -59,6 +60,7 @@ use media_metadata_overview::MediaMetadataOverviewQuery;
 use metadata_provider::MetadataProviderQuery;
 use notifier::NotifierQuery;
 use organize::OrganizeQuery;
+use plugin::PluginQuery;
 use reading_list::ReadingListQuery;
 use release_calendar::ReleaseCalendarQuery;
 use search::SearchQuery;
@@ -113,6 +115,7 @@ struct SystemQueries(
 	LogQuery,
 	ConfigQuery,
 	MetadataProviderQuery,
+	PluginQuery,
 	EnrichmentQuery,
 	ServerConfigQuery,
 	FilesystemQuery,

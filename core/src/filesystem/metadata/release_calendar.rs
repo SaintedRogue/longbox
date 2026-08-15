@@ -15,6 +15,7 @@ use models::{
 	},
 	shared::enums::MetadataProvider as MetadataProviderEnum,
 };
+use plugin_integrations::{protocol::PluginCapability, ReleaseWindow};
 use sea_orm::{prelude::*, sea_query::OnConflict, ActiveValue::Set, QueryFilter};
 
 use super::provider_budget_id;
@@ -95,15 +96,56 @@ where
 		}
 	}
 
-	for release in releases {
-		let Some(series_id) = series_by_external_id.get(&release.series_external_id)
-		else {
-			continue;
-		};
-		stats.matched += 1;
+	let resolved: Vec<ResolvedRelease> = releases
+		.into_iter()
+		.filter_map(|release| {
+			let series_id = series_by_external_id.get(&release.series_external_id)?;
+			Some(ResolvedRelease {
+				series_id: series_id.clone(),
+				external_id: release.external_id,
+				number: release.number,
+				title: release.title,
+				cover_url: release.cover_url,
+				release_date: release.release_date,
+			})
+		})
+		.collect();
 
+	stats.matched = resolved.len();
+	upsert_expected_issues(conn, provider_id, resolved).await?;
+
+	Ok(stats)
+}
+
+/// A release already bound to one of our series.
+///
+/// The two sweeps arrive at this point differently — a metadata provider's releases have
+/// to be matched to a series by external id, whereas a plugin is *told* which series to
+/// answer about and echoes the id back — but from here on the work is identical, so they
+/// share it rather than keeping two upserts in step by hand.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ResolvedRelease {
+	pub series_id: String,
+	pub external_id: String,
+	pub number: Option<String>,
+	pub title: Option<String>,
+	pub cover_url: Option<String>,
+	pub release_date: Option<String>,
+}
+
+/// Upsert resolved releases as `expected_issues` skeleton rows, keyed on
+/// (series, provider, external id) so a re-sweep updates rather than duplicates.
+pub async fn upsert_expected_issues<C>(
+	conn: &C,
+	provider_id: &str,
+	releases: Vec<ResolvedRelease>,
+) -> CoreResult<()>
+where
+	C: ConnectionTrait,
+{
+	for release in releases {
 		let active = expected_issue::ActiveModel {
-			series_id: Set(series_id.clone()),
+			series_id: Set(release.series_id),
 			provider: Set(provider_id.to_string()),
 			external_id: Set(release.external_id),
 			number: Set(release.number),
@@ -132,7 +174,7 @@ where
 			.await?;
 	}
 
-	Ok(stats)
+	Ok(())
 }
 
 /// One scheduled oracle pass: for each enabled+configured provider, budget
@@ -206,14 +248,96 @@ pub async fn run_release_calendar_sync(
 		}
 	}
 
-	// Surface a config foot-gun: sweeping is pointless with no providers.
-	if provider_configs.is_empty() {
+	let plugin_sources = sweep_plugin_releases(ctx, start, end).await?;
+
+	// Surface a config foot-gun: sweeping is pointless with nothing to sweep. A
+	// plugin-only server is a legitimate setup, so this only fires when neither kind of
+	// release source is configured.
+	if provider_configs.is_empty() && plugin_sources == 0 {
 		return Err(CoreError::InternalError(
-			"Release-calendar sync ran with no enabled metadata providers".to_string(),
+			"Release-calendar sync ran with no enabled metadata providers or release-source plugins"
+				.to_string(),
 		));
 	}
 
 	Ok(())
+}
+
+/// Ask every enabled `release-source` plugin about the followed series, and upsert what
+/// they report. Returns how many plugins were asked.
+///
+/// A plugin that errors is recorded against its row and skipped — the operator sees the
+/// reason in settings, and the next scheduled run is the retry. One broken plugin must
+/// never fail the sweep for the others, or for the metadata providers that already ran.
+async fn sweep_plugin_releases(
+	ctx: &Ctx,
+	start: chrono::NaiveDate,
+	end: chrono::NaiveDate,
+) -> CoreResult<usize> {
+	let plugins = crate::plugin::load_enabled_with_capability(
+		ctx,
+		PluginCapability::RELEASE_SOURCE,
+	)
+	.await?;
+	if plugins.is_empty() {
+		return Ok(0);
+	}
+
+	let conn = ctx.conn.as_ref();
+	let series = crate::plugin::followed_series_refs(conn).await?;
+	if series.is_empty() {
+		tracing::info!(
+			plugins = plugins.len(),
+			"Release-source plugins are enabled, but nobody follows a series yet"
+		);
+		return Ok(plugins.len());
+	}
+
+	let window = ReleaseWindow {
+		start: start.to_string(),
+		end: end.to_string(),
+	};
+
+	for loaded in &plugins {
+		let provider_id = loaded.provider_id();
+
+		match crate::plugin::fetch_releases(loaded, &series, window.clone()).await {
+			Ok(accepted) => {
+				let resolved: Vec<ResolvedRelease> = accepted
+					.into_iter()
+					.map(|(series_id, release)| ResolvedRelease {
+						series_id,
+						external_id: release.external_id,
+						number: release.number,
+						title: release.title,
+						cover_url: release.cover_url,
+						release_date: release.release_date,
+					})
+					.collect();
+
+				let accepted_count = resolved.len();
+				upsert_expected_issues(conn, &provider_id, resolved).await?;
+				crate::plugin::record_outcome(conn, loaded.row.id, None).await?;
+
+				tracing::info!(
+					plugin = loaded.row.slug,
+					accepted = accepted_count,
+					"Plugin release sweep complete"
+				);
+			},
+			Err(error) => {
+				tracing::error!(plugin = loaded.row.slug, %error, "Plugin release sweep failed");
+				crate::plugin::record_outcome(
+					conn,
+					loaded.row.id,
+					Some(error.to_string()),
+				)
+				.await?;
+			},
+		}
+	}
+
+	Ok(plugins.len())
 }
 
 #[cfg(test)]
