@@ -1,15 +1,16 @@
 import { useGraphQL } from '@longbox/client'
-import { cx } from '@longbox/components'
+import { Button, cn, Heading, Text } from '@longbox/components'
 import { CalendarScope, graphql } from '@longbox/graphql'
+import { keepPreviousData } from '@tanstack/react-query'
 import { CalendarCheck, ChevronLeft, ChevronRight } from 'lucide-react'
-import { useState } from 'react'
+import { useMemo } from 'react'
 import { Helmet } from 'react-helmet'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 
 import { SceneContainer } from '@/components/container'
-import { usePaths } from '@/paths'
 
-import { dayLabel, isToday } from './utils'
+import CalendarWeek, { CalendarWeekSkeleton } from './CalendarWeek'
+import { weekRangeLabel } from './utils'
 
 const query = graphql(`
 	query ReleaseCalendar($weekOffset: Int!, $scope: CalendarScope!) {
@@ -27,47 +28,103 @@ const query = graphql(`
 	}
 `)
 
+const SCOPES = [
+	[CalendarScope.Followed, 'My pull list'],
+	[CalendarScope.All, 'All series'],
+] as const
+
+/**
+ * Week and scope live in the URL rather than in component state.
+ *
+ * They are what the page *is*, so they should survive a reload, be linkable to someone
+ * else, and respond to the back button. Holding them in `useState` quietly made all three
+ * untrue.
+ */
+function useCalendarParams() {
+	const [params, setParams] = useSearchParams()
+
+	const weekOffset = Number.parseInt(params.get('week') ?? '0', 10) || 0
+	const scope =
+		params.get('scope') === CalendarScope.All ? CalendarScope.All : CalendarScope.Followed
+
+	const update = (next: { week?: number; scope?: CalendarScope }) => {
+		const merged = new URLSearchParams(params)
+		// Both defaults are omitted rather than written, so the everyday URL stays clean.
+		if (next.week !== undefined) {
+			if (next.week === 0) merged.delete('week')
+			else merged.set('week', String(next.week))
+		}
+		if (next.scope !== undefined) {
+			if (next.scope === CalendarScope.Followed) merged.delete('scope')
+			else merged.set('scope', next.scope)
+		}
+		// Paging a week is not a destination worth its own history entry.
+		setParams(merged, { replace: true })
+	}
+
+	return { weekOffset, scope, update }
+}
+
 export default function CalendarScene() {
-	const paths = usePaths()
-	const [weekOffset, setWeekOffset] = useState(0)
-	const [scope, setScope] = useState<CalendarScope>(CalendarScope.Followed)
+	const { weekOffset, scope, update } = useCalendarParams()
 
-	const { data, isLoading } = useGraphQL(query, ['releaseCalendar', weekOffset, scope], {
-		weekOffset,
-		scope,
-	})
+	const { data, isLoading, isPlaceholderData } = useGraphQL(
+		query,
+		['releaseCalendar', weekOffset, scope],
+		{ weekOffset, scope },
+		// Hold the previous week on screen while the next one loads, so paging shifts the
+		// content instead of blanking the page and springing back.
+		{ placeholderData: keepPreviousData },
+	)
 
-	const days = data?.releaseCalendar ?? []
-	const isEmptyWeek = days.every((day) => day.entries.length === 0)
+	const days = useMemo(() => data?.releaseCalendar ?? [], [data])
+	const summary = useMemo(() => {
+		const entries = days.flatMap((day) => day.entries)
+		return { total: entries.length, owned: entries.filter((entry) => entry.inLibrary).length }
+	}, [days])
+
+	const rangeLabel = weekRangeLabel(days.map((day) => day.date))
 
 	return (
-		<SceneContainer className="gap-4 flex flex-col">
+		<SceneContainer className="gap-5 flex flex-col">
 			<Helmet>
 				<title>Longbox | Calendar</title>
 			</Helmet>
 
-			<div className="gap-2 flex flex-wrap items-center justify-between">
-				<h1 className="text-2xl font-bold">Release calendar</h1>
+			<header className="gap-3 flex flex-wrap items-end justify-between">
+				<div className="gap-0.5 flex flex-col">
+					<Heading size="sm">Release calendar</Heading>
+					<Text size="sm" variant="muted" className="tabular-nums">
+						{rangeLabel}
+						{summary.total > 0 && (
+							<>
+								{' · '}
+								{summary.total} {summary.total === 1 ? 'release' : 'releases'}
+								{summary.owned > 0 && ` · ${summary.owned} in library`}
+							</>
+						)}
+					</Text>
+				</div>
 
-				<div className="gap-2 flex items-center">
-					<div className="p-0.5 flex rounded-lg border border-border" role="tablist">
-						{(
-							[
-								[CalendarScope.Followed, 'My pull list'],
-								[CalendarScope.All, 'All series'],
-							] as const
-						).map(([value, label]) => (
+				<div className="gap-2 flex flex-wrap items-center">
+					<div
+						className="p-0.5 flex rounded-lg border border-border"
+						role="group"
+						aria-label="Calendar scope"
+					>
+						{SCOPES.map(([value, label]) => (
 							<button
 								key={value}
-								role="tab"
-								aria-selected={scope === value}
-								className={cx(
-									'px-3 py-1.5 text-sm rounded-md transition-colors',
+								type="button"
+								aria-pressed={scope === value}
+								className={cn(
+									'px-3 py-1.5 text-sm rounded-md motion-safe:transition-colors',
+									'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
 									scope === value
 										? 'font-medium bg-muted text-foreground'
 										: 'text-muted-foreground hover:text-foreground',
 								)}
-								onClick={() => setScope(value)}
+								onClick={() => update({ scope: value })}
 							>
 								{label}
 							</button>
@@ -75,87 +132,65 @@ export default function CalendarScene() {
 					</div>
 
 					<div className="gap-1 flex items-center">
-						<button
+						<Button
+							size="icon"
+							variant="ghost"
 							aria-label="Previous week"
-							className="p-2 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-							onClick={() => setWeekOffset((w) => w - 1)}
+							onClick={() => update({ week: weekOffset - 1 })}
 						>
 							<ChevronLeft className="h-4 w-4" />
-						</button>
-						<button
-							className="px-3 py-1.5 text-sm rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-							onClick={() => setWeekOffset(0)}
+						</Button>
+						<Button
+							size="sm"
+							variant="ghost"
+							disabled={weekOffset === 0}
+							onClick={() => update({ week: 0 })}
 						>
 							Today
-						</button>
-						<button
+						</Button>
+						<Button
+							size="icon"
+							variant="ghost"
 							aria-label="Next week"
-							className="p-2 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-							onClick={() => setWeekOffset((w) => w + 1)}
+							onClick={() => update({ week: weekOffset + 1 })}
 						>
 							<ChevronRight className="h-4 w-4" />
-						</button>
+						</Button>
 					</div>
 				</div>
-			</div>
+			</header>
 
-			{!isLoading && isEmptyWeek && (
-				<div className="gap-2 p-10 flex flex-col items-center rounded-lg border border-dashed border-border text-center">
-					<CalendarCheck className="h-8 w-8 text-muted-foreground" />
-					<p className="font-medium">Nothing expected this week</p>
-					<p className="max-w-md text-sm text-muted-foreground">
-						{scope === CalendarScope.Followed
-							? 'Follow a series (from its page menu) to build your pull list, or switch to All series. Releases appear after the next calendar sync.'
-							: 'No provider-reported releases land in this window for your matched series.'}
-					</p>
+			{isLoading ? (
+				<CalendarWeekSkeleton />
+			) : summary.total === 0 ? (
+				<EmptyWeek scope={scope} />
+			) : (
+				// Dimmed rather than replaced: the week you were reading stays legible while
+				// the next one arrives.
+				<div className={cn(isPlaceholderData && 'opacity-60 motion-safe:transition-opacity')}>
+					<CalendarWeek days={days} />
 				</div>
 			)}
-
-			<div className="gap-3 sm:grid-cols-2 lg:grid-cols-7 grid grid-cols-1">
-				{days.map((day) => (
-					<div
-						key={day.date}
-						className={cx(
-							'min-h-24 gap-2 p-2 flex flex-col rounded-lg border border-border',
-							isToday(day.date) && 'border-primary',
-						)}
-					>
-						<span
-							className={cx(
-								'text-xs font-semibold tracking-wide uppercase',
-								isToday(day.date) ? 'text-primary' : 'text-muted-foreground',
-							)}
-						>
-							{dayLabel(day.date)}
-						</span>
-						{day.entries.map((entry) => (
-							<Link
-								key={`${entry.seriesId}-${entry.number ?? entry.title ?? ''}`}
-								to={paths.seriesOverview(String(entry.seriesId))}
-								className="gap-2 p-1.5 flex items-center rounded-md bg-muted hover:bg-muted"
-							>
-								{entry.coverUrl && (
-									<img
-										src={entry.coverUrl}
-										alt=""
-										loading="lazy"
-										className="h-12 w-8 shrink-0 rounded-sm object-cover"
-									/>
-								)}
-								<div className="min-w-0 flex-1">
-									<p className="text-sm font-medium truncate">
-										{entry.seriesName}
-										{entry.number ? ` #${entry.number}` : ''}
-									</p>
-									<p className="text-xs truncate text-muted-foreground">
-										{entry.inLibrary ? 'In library' : 'Expected'}
-									</p>
-								</div>
-							</Link>
-						))}
-					</div>
-				))}
-			</div>
 		</SceneContainer>
+	)
+}
+
+function EmptyWeek({ scope }: { scope: CalendarScope }) {
+	return (
+		<div className="gap-2 p-10 flex flex-col items-center rounded-lg border border-dashed border-border text-center">
+			<CalendarCheck className="h-8 w-8 text-muted-foreground" />
+			<Text className="font-medium">Nothing expected this week</Text>
+			<Text size="sm" variant="muted" className="max-w-md">
+				{scope === CalendarScope.Followed
+					? 'Follow a series from its page menu to build your pull list. Releases appear after the next calendar sync.'
+					: 'No provider-reported releases land in this window for your matched series.'}
+			</Text>
+			<Link
+				to="/settings/jobs"
+				className="text-sm text-primary hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+			>
+				Check calendar sync
+			</Link>
+		</div>
 	)
 }
