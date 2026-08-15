@@ -34,6 +34,7 @@ itertools.workspace = true
 metadata_integrations = { path = "../crates/integrations/metadata" }
 migrations = { path = "../crates/migrations" }
 models = { path = "../crates/models" }
+plugin_integrations = { path = "../crates/integrations/plugin" }
 md5.workspace = true
 natord.workspace = true
 rand.workspace = true

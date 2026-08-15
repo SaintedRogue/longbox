@@ -17,6 +17,7 @@ pub mod job;
 pub mod kobo;
 pub mod omnibus;
 pub mod opds;
+pub mod plugin;
 pub mod utils;
 
 use config::logging::LONGBOX_SHADOW_TEXT;

@@ -44,6 +44,7 @@ pub mod metadata_provider_config;
 pub mod metadata_response_cache;
 pub mod notifier;
 pub mod organize_plan_record;
+pub mod plugin;
 pub mod reading_device;
 pub mod reading_list;
 pub mod reading_list_item;

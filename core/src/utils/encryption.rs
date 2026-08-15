@@ -7,6 +7,16 @@ pub fn create_encryption_key() -> CoreResult<String> {
 	Ok(data_encoding::BASE64.encode(&random_bytes))
 }
 
+/// A random shared secret, for handing to something outside Longbox that has to prove
+/// it is itself — currently plugin tokens.
+///
+/// Same generator as [`create_encryption_key`], 32 bytes of OS randomness, but named for
+/// what it is used for: the two have very different lifetimes and blast radii, and a
+/// reader should not have to infer which one a call site meant.
+pub fn create_shared_secret() -> CoreResult<String> {
+	create_encryption_key()
+}
+
 pub fn encrypt_string(str: &str, encryption_key: &String) -> CoreResult<String> {
 	let encrypted_bytes = encrypt(str.as_bytes(), encryption_key.as_bytes())
 		.map_err(|e| CoreError::EncryptionFailed(e.to_string()))?;
