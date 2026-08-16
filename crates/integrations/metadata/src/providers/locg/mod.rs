@@ -997,11 +997,16 @@ impl MetadataProvider for LocgClient {
 
 	/// Sweep LOCG's weekly release lists across `[start, end]`.
 	///
-	/// One request per ISO week covers the window. The catch is that release cards
-	/// carry no series id in any view, while [`UpcomingRelease`] needs one to join
-	/// against stored series — so each *distinct* series in the window costs an extra
-	/// page fetch, bounded by [`MAX_SERIES_RESOLUTIONS_PER_SWEEP`] and biased toward
-	/// most-followed series by requesting `order=pulls`. Any truncation is logged.
+	/// One request per ISO week covers the window. The catch is that release cards carry
+	/// no series id in any view, and a series id is what binds a release to a library
+	/// series — so each *distinct* series in the window costs an extra page fetch, bounded
+	/// by [`MAX_SERIES_RESOLUTIONS_PER_SWEEP`] and biased toward most-followed series by
+	/// requesting `order=pulls`.
+	///
+	/// Exhausting that budget no longer costs coverage, only linkage: every card in the
+	/// window is returned either way, and one whose series went unresolved comes back with
+	/// the name LOCG printed and no id. That distinction is the whole reason the budget is
+	/// affordable — the expensive lookup buys the *join*, not the release.
 	async fn fetch_upcoming_releases(
 		&self,
 		start: NaiveDate,
@@ -1065,7 +1070,7 @@ impl MetadataProvider for LocgClient {
 		let mut releases: Vec<UpcomingRelease> = Vec::new();
 		let mut resolved: Vec<(String, Option<String>)> = Vec::new();
 		let mut lookups = 0usize;
-		let mut skipped_for_budget = 0usize;
+		let mut unresolved_for_budget = 0usize;
 
 		for card in &cards {
 			if releases.len() >= cap {
@@ -1075,11 +1080,14 @@ impl MetadataProvider for LocgClient {
 
 			let series_id = match resolved.iter().find(|(name, _)| name == &series_name) {
 				Some((_, id)) => id.clone(),
+				// Out of lookup budget. The card is still a real release and is reported
+				// as one — it simply arrives unbound, and a later sweep whose budget
+				// reaches this series will bind it in place.
+				None if lookups >= MAX_SERIES_RESOLUTIONS_PER_SWEEP => {
+					unresolved_for_budget += 1;
+					None
+				},
 				None => {
-					if lookups >= MAX_SERIES_RESOLUTIONS_PER_SWEEP {
-						skipped_for_budget += 1;
-						continue;
-					}
 					lookups += 1;
 					let id = match self.issue_page_series_id(&card.id).await {
 						Ok(id) => id,
@@ -1093,12 +1101,9 @@ impl MetadataProvider for LocgClient {
 				},
 			};
 
-			let Some(series_id) = series_id else {
-				continue;
-			};
-
 			releases.push(UpcomingRelease {
 				series_external_id: series_id,
+				series_name: Some(series_name),
 				external_id: card.id.clone(),
 				number: number_raw,
 				title: Some(card.title.clone()),
@@ -1107,14 +1112,16 @@ impl MetadataProvider for LocgClient {
 			});
 		}
 
-		if skipped_for_budget > 0 {
-			tracing::warn!(
+		if unresolved_for_budget > 0 {
+			tracing::info!(
 				provider = self.id(),
-				skipped = skipped_for_budget,
+				unresolved = unresolved_for_budget,
 				resolved_series = lookups,
 				limit = MAX_SERIES_RESOLUTIONS_PER_SWEEP,
-				"LOCG release sweep truncated: release cards carry no series id, so \
-				 each new series costs a page fetch. Most-followed series were kept."
+				"LOCG release sweep hit its series-resolution budget: release cards carry \
+				 no series id, so each new series costs a page fetch. Those releases are \
+				 still reported, but cannot bind to a library series until a later sweep \
+				 resolves them. Most-followed series were resolved first."
 			);
 		}
 

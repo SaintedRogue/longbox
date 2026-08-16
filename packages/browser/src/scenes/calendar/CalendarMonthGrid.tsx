@@ -94,7 +94,9 @@ export default function CalendarMonthGrid({ days, monthStart, selectedDate, onSe
 					const inMonth = isSameMonth(day.date, monthStart)
 					const today = isToday(day.date)
 					const selected = day.date === selectedDate
-					const overflow = day.entries.length - MAX_CHIPS
+					// Against the true count, not the returned one: on a busy day the server
+					// trims the list, and "+2 more" under a capped list would understate it.
+					const overflow = day.total - MAX_CHIPS
 
 					return (
 						<button
@@ -102,7 +104,7 @@ export default function CalendarMonthGrid({ days, monthStart, selectedDate, onSe
 							type="button"
 							onClick={() => onSelectDate(day.date)}
 							aria-pressed={selected}
-							aria-label={`${day.date}, ${day.entries.length} releases`}
+							aria-label={`${day.date}, ${day.total} releases`}
 							className={cn(
 								// `min-h-11` is a 44px touch target on a phone, where rows size to
 								// content; on a desktop the grid stretches and rows grow past it.
@@ -137,7 +139,7 @@ export default function CalendarMonthGrid({ days, monthStart, selectedDate, onSe
 								<div className="gap-0.5 sm:hidden flex flex-wrap items-center">
 									{day.entries.slice(0, 3).map((entry, index) => (
 										<span
-											key={`${entry.seriesId}-${index}`}
+											key={`${entry.seriesId ?? entry.seriesName}-${index}`}
 											className={cn(
 												'h-1.5 w-1.5 rounded-full',
 												entry.inLibrary ? 'bg-success' : 'bg-primary',
@@ -145,9 +147,9 @@ export default function CalendarMonthGrid({ days, monthStart, selectedDate, onSe
 											aria-hidden
 										/>
 									))}
-									{day.entries.length > 3 && (
+									{day.total > 3 && (
 										<Text size="xs" variant="muted" className="leading-none tabular-nums">
-											+{day.entries.length - 3}
+											+{day.total - 3}
 										</Text>
 									)}
 								</div>
@@ -156,7 +158,7 @@ export default function CalendarMonthGrid({ days, monthStart, selectedDate, onSe
 							<div className="gap-0.5 min-h-0 sm:flex hidden flex-1 flex-col overflow-hidden">
 								{day.entries.slice(0, MAX_CHIPS).map((entry, index) => (
 									<EntryChip
-										key={`${entry.seriesId}-${entry.number ?? ''}-${index}`}
+										key={`${entry.seriesId ?? entry.seriesName}-${entry.number ?? ''}-${index}`}
 										entry={entry}
 									/>
 								))}

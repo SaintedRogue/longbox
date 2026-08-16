@@ -461,6 +461,11 @@ export type CalendarDay = {
   /** ISO `YYYY-MM-DD`. */
   date: Scalars['String']['output'];
   entries: Array<CalendarEntry>;
+  /**
+   * How many releases this day actually has, before [`MAX_ENTRIES_PER_DAY`]. Counts
+   * stay truthful even where the list is trimmed, so a day badge never under-reports.
+   */
+  total: Scalars['Int']['output'];
 };
 
 export type CalendarEntry = {
@@ -476,7 +481,13 @@ export type CalendarEntry = {
   number?: Maybe<Scalars['String']['output']>;
   /** ISO `YYYY-MM-DD`. */
   releaseDate: Scalars['String']['output'];
-  seriesId: Scalars['ID']['output'];
+  /**
+   * The library series this release belongs to, or null when none does — either
+   * because nothing here matches it, or because the viewer cannot see the series that
+   * does. Null means there is nothing to link to and nothing to follow.
+   */
+  seriesId?: Maybe<Scalars['ID']['output']>;
+  /** The library's name for the series when it is bound, otherwise the provider's. */
   seriesName: Scalars['String']['output'];
   title?: Maybe<Scalars['String']['output']>;
 };
@@ -502,10 +513,17 @@ export type CalendarMonth = {
 };
 
 export enum CalendarScope {
-  /** Every series the viewer can access. */
-  All = 'ALL',
+  /**
+   * Every release the providers reported, whether or not anything here corresponds to
+   * it. This is the "what is coming out" question, which is not a question about the
+   * library: a calendar that only lists what you already own cannot show you anything
+   * you might want to start.
+   */
+  Everything = 'EVERYTHING',
   /** Only series the viewer follows — the personal pull list. */
-  Followed = 'FOLLOWED'
+  Followed = 'FOLLOWED',
+  /** Every series in the viewer's library, followed or not. */
+  Library = 'LIBRARY'
 }
 
 export type Character = {
@@ -2629,7 +2647,15 @@ export type Mutation = {
   editMessage: BookClubDiscussionMessage;
   favoriteMedia: Media;
   favoriteSeries: Series;
-  /** Start a job which will search external metadata providers */
+  /**
+   * Start a job which will search external metadata providers
+   *
+   * Matches the library's series as well as its books. Series matching is what binds a
+   * release to a series, so a library whose series are unmatched has an empty release
+   * calendar however well its books are matched — and until this reached the series
+   * scope, nothing in the API could match series in bulk at all. The added cost is
+   * small next to what this already does: a library has far fewer series than books.
+   */
   fetchLibraryMetadata: Scalars['Boolean']['output'];
   /**
    * Search external metadata providers for a media item and return match candidates.
@@ -3279,6 +3305,7 @@ export type MutationFavoriteSeriesArgs = {
 export type MutationFetchLibraryMetadataArgs = {
   forceRefetch?: Scalars['Boolean']['input'];
   id: Scalars['ID']['input'];
+  includeSeries?: Scalars['Boolean']['input'];
 };
 
 
@@ -6801,7 +6828,7 @@ export type ReleaseCalendarMonthQueryVariables = Exact<{
 }>;
 
 
-export type ReleaseCalendarMonthQuery = { __typename?: 'Query', releaseCalendarMonth: { __typename?: 'CalendarMonth', monthStart: string, label: string, days: Array<{ __typename?: 'CalendarDay', date: string, entries: Array<{ __typename?: 'CalendarEntry', seriesId: string, seriesName: string, number?: string | null, title?: string | null, coverUrl?: string | null, inLibrary: boolean, isFollowed: boolean }> }> } };
+export type ReleaseCalendarMonthQuery = { __typename?: 'Query', releaseCalendarMonth: { __typename?: 'CalendarMonth', monthStart: string, label: string, days: Array<{ __typename?: 'CalendarDay', date: string, total: number, entries: Array<{ __typename?: 'CalendarEntry', seriesId?: string | null, seriesName: string, number?: string | null, title?: string | null, coverUrl?: string | null, inLibrary: boolean, isFollowed: boolean }> }> } };
 
 export type ReleaseCalendarQueryVariables = Exact<{
   weekOffset: Scalars['Int']['input'];
@@ -6809,14 +6836,14 @@ export type ReleaseCalendarQueryVariables = Exact<{
 }>;
 
 
-export type ReleaseCalendarQuery = { __typename?: 'Query', releaseCalendar: Array<{ __typename?: 'CalendarDay', date: string, entries: Array<{ __typename?: 'CalendarEntry', seriesId: string, seriesName: string, number?: string | null, title?: string | null, coverUrl?: string | null, inLibrary: boolean, isFollowed: boolean }> }> };
+export type ReleaseCalendarQuery = { __typename?: 'Query', releaseCalendar: Array<{ __typename?: 'CalendarDay', date: string, total: number, entries: Array<{ __typename?: 'CalendarEntry', seriesId?: string | null, seriesName: string, number?: string | null, title?: string | null, coverUrl?: string | null, inLibrary: boolean, isFollowed: boolean }> }> };
 
 export type UpcomingReleasesQueryVariables = Exact<{
   scope: CalendarScope;
 }>;
 
 
-export type UpcomingReleasesQuery = { __typename?: 'Query', upcomingReleases: Array<{ __typename?: 'CalendarDay', date: string, entries: Array<{ __typename?: 'CalendarEntry', seriesId: string, seriesName: string, number?: string | null, title?: string | null, coverUrl?: string | null, inLibrary: boolean, isFollowed: boolean }> }> };
+export type UpcomingReleasesQuery = { __typename?: 'Query', upcomingReleases: Array<{ __typename?: 'CalendarDay', date: string, total: number, entries: Array<{ __typename?: 'CalendarEntry', seriesId?: string | null, seriesName: string, number?: string | null, title?: string | null, coverUrl?: string | null, inLibrary: boolean, isFollowed: boolean }> }> };
 
 export type CalendarSyncStatusQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -10507,6 +10534,7 @@ export const ReleaseCalendarMonthDocument = new TypedDocumentString(`
     label
     days {
       date
+      total
       entries {
         seriesId
         seriesName
@@ -10524,6 +10552,7 @@ export const ReleaseCalendarDocument = new TypedDocumentString(`
     query ReleaseCalendar($weekOffset: Int!, $scope: CalendarScope!) {
   releaseCalendar(weekOffset: $weekOffset, scope: $scope) {
     date
+    total
     entries {
       seriesId
       seriesName
@@ -10540,6 +10569,7 @@ export const UpcomingReleasesDocument = new TypedDocumentString(`
     query UpcomingReleases($scope: CalendarScope!) {
   upcomingReleases(scope: $scope) {
     date
+    total
     entries {
       seriesId
       seriesName

@@ -402,11 +402,22 @@ input BookmarkInput {
 type CalendarDay {
 	"ISO `YYYY-MM-DD`."
 	date: String!
+	"""
+	How many releases this day actually has, before [`MAX_ENTRIES_PER_DAY`]. Counts
+	stay truthful even where the list is trimmed, so a day badge never under-reports.
+	"""
+	total: Int!
 	entries: [CalendarEntry!]!
 }
 
 type CalendarEntry {
-	seriesId: ID!
+	"""
+	The library series this release belongs to, or null when none does — either
+	because nothing here matches it, or because the viewer cannot see the series that
+	does. Null means there is nothing to link to and nothing to follow.
+	"""
+	seriesId: ID
+	"The library's name for the series when it is bound, otherwise the provider's."
 	seriesName: String!
 	number: String
 	title: String
@@ -444,8 +455,15 @@ type CalendarMonth {
 enum CalendarScope {
 	"Only series the viewer follows — the personal pull list."
 	FOLLOWED
-	"Every series the viewer can access."
-	ALL
+	"Every series in the viewer's library, followed or not."
+	LIBRARY
+	"""
+	Every release the providers reported, whether or not anything here corresponds to
+	it. This is the "what is coming out" question, which is not a question about the
+	library: a calendar that only lists what you already own cannot show you anything
+	you might want to start.
+	"""
+	EVERYTHING
 }
 
 type Character {
@@ -2470,8 +2488,19 @@ type Mutation {
 	generateLibraryThumbnails(id: ID!, forceRegenerate: Boolean! = false): Boolean!
 	processLibraryThumbnails(id: ID!, forceRegenerate: Boolean! = false): Boolean!
 	deleteLibraryThumbnails(id: ID!): Boolean!
-	"Start a job which will search external metadata providers"
-	fetchLibraryMetadata(id: ID!, forceRefetch: Boolean! = false): Boolean!
+	"""
+	Start a job which will search external metadata providers
+	
+	Matches the library's series as well as its books. Series matching is what binds a
+	release to a series, so a library whose series are unmatched has an empty release
+	calendar however well its books are matched — and until this reached the series
+	scope, nothing in the API could match series in bulk at all. The added cost is
+	small next to what this already does: a library has far fewer series than books.
+	"""
+	fetchLibraryMetadata(		id: ID!,		forceRefetch: Boolean! = false,
+		"Set false to match only books, skipping the series pass."
+		includeSeries: Boolean! = true
+	): Boolean!
 	"Bulk-set locked metadata fields for all series metadata in a library"
 	setLibrarySeriesLockedFields(libraryId: ID!, lockedFields: [MetadataField!]!): Int!
 	"Bulk-set locked metadata fields for all media metadata in a library"

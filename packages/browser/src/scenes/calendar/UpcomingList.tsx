@@ -42,7 +42,7 @@ export default function UpcomingList({ days }: { days: CalendarDay[] }) {
 									isToday(day.date) ? 'border-primary/40' : 'border-border',
 								)}
 							>
-								<DayHeading date={day.date} count={day.entries.length} />
+								<DayHeading date={day.date} count={day.total} />
 							</div>
 
 							<div className="gap-1.5 sm:grid-cols-2 xl:grid-cols-3 grid grid-cols-1">

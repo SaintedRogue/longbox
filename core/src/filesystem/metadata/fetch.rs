@@ -1,4 +1,6 @@
-use metadata_integrations::{parse_comic_filename, MatchCandidate, SearchQuery};
+use metadata_integrations::{
+	parse_comic_filename, split_series_name_year, MatchCandidate, SearchQuery,
+};
 use models::{
 	entity::{
 		library_config, media, media_metadata, metadata_fetch_record,
@@ -129,13 +131,26 @@ pub async fn fetch_series_metadata(
 	let mut all_candidates: Vec<MatchCandidate> = Vec::new();
 	let mut was_rate_limited = false;
 
+	// A scanned library names a series after its folder, and those folders conventionally
+	// carry a "(2025)" or "(Marvel, 2020)" suffix. Searching that raw name is doubly
+	// self-defeating: the suffix stops the provider's title from ever comparing as exact,
+	// *and* the year that would corroborate the match is thrown away — which is precisely
+	// the pair of signals the scorer adds together to clear its auto-apply threshold. With
+	// the raw name the ceiling is a fuzzy match; split, an exact title plus its year lands
+	// above the bar.
+	let (search_title, name_year) = split_series_name_year(series_name);
+
 	for config in &provider_configs {
 		match provider_cache.get_or_create(config).await {
 			Ok(provider) => {
 				let query = SearchQuery {
-					title: series_name.to_string(),
+					title: search_title.to_string(),
+					// Weakest evidence last: an explicit override is the caller's
+					// decision, stored metadata is a previous match, and the year read
+					// off the folder name is only a convention.
 					series_year: year_override
-						.or_else(|| series_meta.as_ref().and_then(|m| m.year)),
+						.or_else(|| series_meta.as_ref().and_then(|m| m.year))
+						.or(name_year),
 					limit: Some(10),
 					..Default::default()
 				};

@@ -19,7 +19,7 @@ pub use merge::{AutoApplyConfig, FieldMerger, MergeStrategy, MetadataFieldOverri
 pub use provider::MetadataProvider;
 pub use rate_limit::RateLimiter;
 pub use scoring::{issue_numbers_match, MatchScorer};
-pub use title::compose_comic_title;
+pub use title::{compose_comic_title, split_series_name_year};
 pub use types::{
 	ConfidenceFactor, ExternalMediaMetadata, ExternalMetadata, ExternalSeriesMetadata,
 	MatchCandidate, MediaType, MetadataField, ProviderValidationResult,
