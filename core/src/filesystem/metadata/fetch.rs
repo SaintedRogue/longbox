@@ -247,9 +247,10 @@ pub async fn fetch_series_metadata(
 				confidence = candidate.confidence,
 				"Auto-applying series metadata match"
 			);
-			// Auto-apply writes with no human present, so nothing else will trigger the
-			// detail fetch a reviewer's click does. Providers whose search is already
-			// complete return the candidate untouched and pay nothing.
+			// The stored candidate is a search card for list-view providers, so it has to
+			// be filled in before it is written. Every apply path needs this, manual
+			// accepts included — the browser's fetch during review is for display only.
+			// Providers whose search is already complete return the candidate untouched.
 			let candidate = apply::hydrate_candidate_for_apply(
 				&candidate,
 				&provider_configs,

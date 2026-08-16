@@ -4,7 +4,10 @@ use metadata_integrations::{
 	MatchCandidate, MergeStrategy, MetadataField, MetadataFieldOverride,
 };
 use models::{
-	entity::{media, media_metadata, metadata_fetch_record, series, series_metadata},
+	entity::{
+		media, media_metadata, metadata_fetch_record, metadata_provider_config, series,
+		series_metadata,
+	},
 	shared::enums::{
 		MetadataFetchStatus, MetadataProvider, MetadataResetImpact, UserPermission,
 	},
@@ -189,10 +192,17 @@ impl SeriesMetadataMutation {
 		exclude_fields: Option<Vec<MetadataField>>,
 		overrides: Option<Vec<MetadataFieldOverride>>,
 	) -> Result<MetadataFetchRecord> {
-		let conn = ctx.data::<CoreContext>()?.conn.as_ref();
+		let core_ctx = ctx.data::<CoreContext>()?;
+		let conn = core_ctx.conn.as_ref();
 		let strategy = strategy.unwrap_or(MergeStrategy::FillGaps);
 		let exclude_fields = exclude_fields.unwrap_or_default();
 		let overrides = overrides.unwrap_or_default();
+
+		// Needed to re-fetch a list-view provider's full record before applying it.
+		let provider_configs = metadata_provider_config::Entity::find()
+			.filter(metadata_provider_config::Column::Enabled.eq(true))
+			.all(conn)
+			.await?;
 
 		let status = metadata_fetch_record::Entity::find()
 			.filter(metadata_fetch_record::Column::SeriesId.eq(series_id.to_string()))
@@ -238,10 +248,21 @@ impl SeriesMetadataMutation {
 			);
 		}
 
+		// As in `accept_media_match`: the stored candidate is a search card for list-view
+		// providers, and the full record the reviewer saw was fetched by the browser. The
+		// mutation only receives an index, so it has to fetch that record again itself.
+		let candidate = longbox_core::filesystem::metadata::hydrate_candidate_for_apply(
+			candidate,
+			&provider_configs,
+			&core_ctx.provider_cache(),
+			false,
+		)
+		.await;
+
 		longbox_core::filesystem::metadata::apply_series_match(
 			conn,
 			series_id.as_ref(),
-			candidate,
+			&candidate,
 			strategy,
 			exclude_fields,
 			overrides,

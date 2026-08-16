@@ -9,6 +9,7 @@ mod runtime;
 pub use apply::{
 	apply_media_match, apply_series_match, find_auto_apply_candidate,
 	find_media_external_id_holder, find_series_external_id_holder,
+	hydrate_candidate_for_apply,
 };
 pub use enrichment::{ApplyActor, EnrichmentTarget};
 pub(crate) use fetch::filter_to_provider;
