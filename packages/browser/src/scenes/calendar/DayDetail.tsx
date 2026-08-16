@@ -22,6 +22,11 @@ const NEXT_UP_LIMIT = 4
  */
 export default function DayDetail({ day, date, days }: Props) {
 	const entries = day?.entries ?? []
+	// The server caps how many entries one day returns but always reports the true count,
+	// so a busy new-comic Wednesday says how much it is not showing instead of quietly
+	// looking like a short day.
+	const total = day?.total ?? 0
+	const trimmed = total - entries.length
 
 	// Most days are empty, and a 320px panel saying "nothing here" is exactly the wasted
 	// space this redesign is meant to remove. So an empty day answers the question the
@@ -40,9 +45,9 @@ export default function DayDetail({ day, date, days }: Props) {
 		>
 			<div className="gap-2 flex shrink-0 items-baseline justify-between">
 				<Text className="font-medium">{dayLabel(date)}</Text>
-				{entries.length > 0 && (
+				{total > 0 && (
 					<Text size="xs" variant="muted" className="tabular-nums">
-						{entries.length} {entries.length === 1 ? 'release' : 'releases'}
+						{total} {total === 1 ? 'release' : 'releases'}
 					</Text>
 				)}
 			</div>
@@ -51,10 +56,16 @@ export default function DayDetail({ day, date, days }: Props) {
 				<div className="gap-1.5 min-h-0 flex flex-col overflow-y-auto">
 					{entries.map((entry, index) => (
 						<CalendarEntryCard
-							key={`${entry.seriesId}-${entry.number ?? ''}-${index}`}
+							key={`${entry.seriesId ?? entry.seriesName}-${entry.number ?? ''}-${index}`}
 							entry={entry}
 						/>
 					))}
+
+					{trimmed > 0 && (
+						<Text size="xs" variant="muted" className="pt-1 text-center">
+							{trimmed} more not shown. Followed and owned series are listed first.
+						</Text>
+					)}
 				</div>
 			) : (
 				<div className="gap-2 min-h-0 flex flex-col overflow-y-auto">

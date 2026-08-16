@@ -1076,8 +1076,9 @@ async fn upcoming_releases_resolve_series_ids_and_skip_variants() {
 	assert!(!releases.is_empty(), "expected releases in the window");
 	for release in &releases {
 		assert_eq!(
-			release.series_external_id, "178012",
-			"every release must carry a resolved series id"
+			release.series_external_id.as_deref(),
+			Some("178012"),
+			"the lookup budget is ample here, so every release should be bound"
 		);
 		assert!(!release.external_id.is_empty());
 	}
@@ -1226,7 +1227,7 @@ async fn live_upcoming_releases() {
 		.unwrap();
 	println!("{} releases: {releases:#?}", releases.len());
 	for release in &releases {
-		assert!(!release.series_external_id.is_empty());
+		assert!(release.series_external_id.as_deref() != Some(""));
 		assert!(!release.external_id.is_empty());
 	}
 }

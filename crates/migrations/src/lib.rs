@@ -42,6 +42,7 @@ mod m20260811_000000_add_unofficial_providers_ack;
 mod m20260812_000000_metadata_enrichment_pool;
 mod m20260815_000000_add_plugins;
 mod m20260815_010000_add_last_release_calendar_sync;
+mod m20260815_020000_calendar_all_releases;
 
 pub struct Migrator;
 
@@ -90,6 +91,7 @@ impl MigratorTrait for Migrator {
 			Box::new(m20260812_000000_metadata_enrichment_pool::Migration),
 			Box::new(m20260815_000000_add_plugins::Migration),
 			Box::new(m20260815_010000_add_last_release_calendar_sync::Migration),
+			Box::new(m20260815_020000_calendar_all_releases::Migration),
 		]
 	}
 }

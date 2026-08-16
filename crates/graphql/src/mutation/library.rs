@@ -988,6 +988,12 @@ impl LibraryMutation {
 	}
 
 	/// Start a job which will search external metadata providers
+	///
+	/// Matches the library's series as well as its books. Series matching is what binds a
+	/// release to a series, so a library whose series are unmatched has an empty release
+	/// calendar however well its books are matched — and until this reached the series
+	/// scope, nothing in the API could match series in bulk at all. The added cost is
+	/// small next to what this already does: a library has far fewer series than books.
 	#[graphql(guard = "PermissionGuard::one(UserPermission::MetadataFetchRecordManage)")]
 	#[tracing::instrument(skip(self, ctx))]
 	async fn fetch_library_metadata(
@@ -995,6 +1001,11 @@ impl LibraryMutation {
 		ctx: &Context<'_>,
 		id: ID,
 		#[graphql(default = false)] force_refetch: bool,
+		#[graphql(
+			default = true,
+			desc = "Set false to match only books, skipping the series pass."
+		)]
+		include_series: bool,
 	) -> Result<bool> {
 		let AuthContext { user, .. } = ctx.data::<AuthContext>()?;
 		let core = ctx.data::<CoreContext>()?;
@@ -1022,6 +1033,17 @@ impl LibraryMutation {
 				"No compatible metadata providers for this library type"
 			);
 			return Ok(false);
+		}
+
+		// Series first: it is the cheaper pass and the one the release calendar is waiting
+		// on, so it should not queue behind every book in the library.
+		if include_series {
+			core.enqueue(LongboxJob::metadata_fetch(MetadataFetchJobParams {
+				force_refetch,
+				scope: MetadataFetchScope::SeriesInLibrary(library.id.clone()),
+			}))
+			.await?;
+			tracing::debug!("Enqueued library series metadata fetch job");
 		}
 
 		core.enqueue(LongboxJob::metadata_fetch(MetadataFetchJobParams {

@@ -23,6 +23,7 @@ const monthQuery = graphql(`
 			label
 			days {
 				date
+				total
 				entries {
 					seriesId
 					seriesName
@@ -41,6 +42,7 @@ const weekQuery = graphql(`
 	query ReleaseCalendar($weekOffset: Int!, $scope: CalendarScope!) {
 		releaseCalendar(weekOffset: $weekOffset, scope: $scope) {
 			date
+			total
 			entries {
 				seriesId
 				seriesName
@@ -58,6 +60,7 @@ const upcomingQuery = graphql(`
 	query UpcomingReleases($scope: CalendarScope!) {
 		upcomingReleases(scope: $scope) {
 			date
+			total
 			entries {
 				seriesId
 				seriesName
@@ -71,9 +74,16 @@ const upcomingQuery = graphql(`
 	}
 `)
 
+/**
+ * Three genuinely different questions, not three filters on one.
+ *
+ * "My pull list" and "My library" are both about what you have; "All releases" is about
+ * what exists, and is the only one that can show you something you do not already own.
+ */
 const SCOPES = [
 	[CalendarScope.Followed, 'My pull list'],
-	[CalendarScope.All, 'All series'],
+	[CalendarScope.Library, 'My library'],
+	[CalendarScope.Everything, 'All releases'],
 ] as const
 
 const VIEWS = [
@@ -130,7 +140,7 @@ function useCalendarParams() {
 	return {
 		monthOffset: intParam('month'),
 		weekOffset: intParam('week'),
-		scope: params.get('scope') === CalendarScope.All ? CalendarScope.All : CalendarScope.Followed,
+		scope: SCOPES.find(([value]) => value === params.get('scope'))?.[0] ?? CalendarScope.Followed,
 		view,
 		selectedDate: params.get('date'),
 		update,
@@ -176,8 +186,14 @@ export default function CalendarScene() {
 			view === 'month' && monthData
 				? days.filter((day) => isSameMonth(day.date, monthData.monthStart))
 				: days
+		// Summed from each day's reported total rather than from the entries returned: a
+		// busy day is trimmed for transport, and counting rows would under-report it.
+		// `owned` counts rows, which is safe because owned entries sort ahead of the cap.
 		const entries = counted.flatMap((day) => day.entries)
-		return { total: entries.length, owned: entries.filter((e) => e.inLibrary).length }
+		return {
+			total: counted.reduce((sum, day) => sum + day.total, 0),
+			owned: entries.filter((e) => e.inLibrary).length,
+		}
 	}, [view, days, monthData])
 
 	// Default to today when it is in view, so the panel opens on something relevant.
@@ -352,8 +368,10 @@ function EmptyState({ scope, view }: { scope: CalendarScope; view: CalendarView 
 			</Text>
 			<Text size="sm" variant="muted" className="max-w-md">
 				{scope === CalendarScope.Followed
-					? 'Your pull list is empty or quiet. Switch to All series to see everything coming, and follow anything you want to track.'
-					: 'No provider-reported releases land in this window for your matched series. A sync may not have run yet.'}
+					? 'Your pull list is empty or quiet. Switch to All releases to see everything coming, and follow anything you want to track.'
+					: scope === CalendarScope.Library
+						? 'Nothing lands in this window for the series in your library. Switch to All releases to see everything coming, matched or not.'
+						: 'No releases at all in this window, which means the calendar has no provider data yet rather than that nothing is shipping. A sync may not have run.'}
 			</Text>
 			<Link
 				to="/settings/jobs"

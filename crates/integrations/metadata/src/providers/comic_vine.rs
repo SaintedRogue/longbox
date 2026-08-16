@@ -381,6 +381,8 @@ impl MetadataProvider for ComicVineClient {
 		#[derive(Deserialize)]
 		struct CvVolumeRef {
 			id: i64,
+			#[serde(default)]
+			name: Option<String>,
 		}
 		#[derive(Deserialize)]
 		struct CvWindowIssue {
@@ -422,11 +424,12 @@ impl MetadataProvider for ComicVineClient {
 			let page_len = page.len();
 
 			for issue in page {
-				let Some(volume) = issue.volume else {
-					continue;
-				};
+				// A volume-less issue is still a release. It cannot bind to a library
+				// series without an id, but it belongs in "what is coming out".
+				let volume = issue.volume;
 				releases.push(UpcomingRelease {
-					series_external_id: volume.id.to_string(),
+					series_external_id: volume.as_ref().map(|v| v.id.to_string()),
+					series_name: volume.and_then(|v| v.name),
 					external_id: issue.id.to_string(),
 					number: issue.issue_number,
 					title: issue.name,
@@ -1284,12 +1287,12 @@ mod tests {
 	}
 
 	#[tokio::test]
-	async fn upcoming_releases_paginate_and_skip_volumeless() {
+	async fn upcoming_releases_paginate_and_keep_volumeless() {
 		use wiremock::matchers::query_param;
 
 		let server = MockServer::start().await;
-		// Page 1: a full 100-row page (99 with volumes + 1 without, which is
-		// skipped) forces a second request at offset=100.
+		// Page 1: a full 100-row page (99 with volumes + 1 without, which is kept but
+		// left unbound) forces a second request at offset=100.
 		let mut page_one: Vec<serde_json::Value> =
 			(1..=99).map(|i| window_issue(i, Some(1000 + i))).collect();
 		page_one.push(window_issue(500, None));
@@ -1321,9 +1324,16 @@ mod tests {
 			.await
 			.expect("sweep succeeds");
 
-		assert_eq!(releases.len(), 100, "99 matched on page 1 + 1 on page 2");
+		assert_eq!(releases.len(), 101, "100 on page 1 + 1 on page 2");
+		// The volumeless row is reported like any other, with nothing to bind it by.
+		let volumeless = releases
+			.iter()
+			.find(|r| r.external_id == "500")
+			.expect("a volumeless issue is still a release");
+		assert_eq!(volumeless.series_external_id, None);
+
 		let first = &releases[0];
-		assert_eq!(first.series_external_id, "1001");
+		assert_eq!(first.series_external_id.as_deref(), Some("1001"));
 		assert_eq!(first.external_id, "1");
 		assert_eq!(first.number.as_deref(), Some("1"));
 		assert_eq!(first.release_date.as_deref(), Some("2026-08-12"));

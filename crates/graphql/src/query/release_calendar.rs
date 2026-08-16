@@ -26,13 +26,22 @@ pub struct ReleaseCalendarQuery;
 pub enum CalendarScope {
 	/// Only series the viewer follows — the personal pull list.
 	Followed,
-	/// Every series the viewer can access.
-	All,
+	/// Every series in the viewer's library, followed or not.
+	Library,
+	/// Every release the providers reported, whether or not anything here corresponds to
+	/// it. This is the "what is coming out" question, which is not a question about the
+	/// library: a calendar that only lists what you already own cannot show you anything
+	/// you might want to start.
+	Everything,
 }
 
 #[derive(SimpleObject)]
 pub struct CalendarEntry {
-	pub series_id: ID,
+	/// The library series this release belongs to, or null when none does — either
+	/// because nothing here matches it, or because the viewer cannot see the series that
+	/// does. Null means there is nothing to link to and nothing to follow.
+	pub series_id: Option<ID>,
+	/// The library's name for the series when it is bound, otherwise the provider's.
 	pub series_name: String,
 	pub number: Option<String>,
 	pub title: Option<String>,
@@ -50,6 +59,14 @@ pub struct CalendarEntry {
 /// asking for more than the oracle ever writes would just render empty days.
 const MAX_UPCOMING_DAYS: i32 = 90;
 
+/// Most entries any one day will return.
+///
+/// Only [`CalendarScope::Everything`] gets near it: a single new-comic Wednesday is several
+/// hundred releases across the providers, and a month grid asks for forty-two days at once.
+/// Capping per day rather than per query is what makes that bounded without truncating the
+/// far end of the window — the days a reader cares about are still all present.
+const MAX_ENTRIES_PER_DAY: usize = 50;
+
 /// The state of the calendar's own data: is it refreshing, and how stale is it.
 #[derive(SimpleObject)]
 pub struct ReleaseCalendarStatus {
@@ -66,7 +83,31 @@ pub struct ReleaseCalendarStatus {
 pub struct CalendarDay {
 	/// ISO `YYYY-MM-DD`.
 	pub date: String,
+	/// How many releases this day actually has, before [`MAX_ENTRIES_PER_DAY`]. Counts
+	/// stay truthful even where the list is trimmed, so a day badge never under-reports.
+	pub total: i32,
 	pub entries: Vec<CalendarEntry>,
+}
+
+/// Assemble one day's cell, ordered so that trimming can only ever drop the releases the
+/// viewer has least stake in: followed series first, then owned, then anything bound to the
+/// library at all, then alphabetically.
+fn build_day(date: String, mut entries: Vec<CalendarEntry>) -> CalendarDay {
+	let total = entries.len() as i32;
+	entries.sort_by(|a, b| {
+		b.is_followed
+			.cmp(&a.is_followed)
+			.then_with(|| b.in_library.cmp(&a.in_library))
+			.then_with(|| b.series_id.is_some().cmp(&a.series_id.is_some()))
+			.then_with(|| a.series_name.cmp(&b.series_name))
+			.then_with(|| a.number.cmp(&b.number))
+	});
+	entries.truncate(MAX_ENTRIES_PER_DAY);
+	CalendarDay {
+		date,
+		total,
+		entries,
+	}
 }
 
 /// A month as a calendar actually draws one: six whole weeks of cells, including the tail
@@ -171,28 +212,42 @@ async fn entries_between(
 	let accessible = accessible_series(conn, user).await?;
 	let follows = followed_series_ids_for(conn, &user.id).await?;
 
-	let scoped_ids: Vec<String> = match scope {
-		CalendarScope::All => accessible.keys().cloned().collect(),
-		CalendarScope::Followed => accessible
-			.keys()
-			.filter(|id| follows.contains(*id))
-			.cloned()
-			.collect(),
-	};
-	if scoped_ids.is_empty() {
-		return Ok(vec![]);
-	}
-
-	let expected = expected_issue::Entity::find()
-		.filter(expected_issue::Column::SeriesId.is_in(scoped_ids))
+	let windowed = expected_issue::Entity::find()
 		.filter(expected_issue::Column::ReleaseDate.gte(start.to_string()))
-		.filter(expected_issue::Column::ReleaseDate.lte(end.to_string()))
+		.filter(expected_issue::Column::ReleaseDate.lte(end.to_string()));
+
+	// `Everything` deliberately applies no series filter — an unbound release has no
+	// series to scope by, and it is exactly what that scope exists to show.
+	let query = match scope {
+		CalendarScope::Everything => windowed,
+		CalendarScope::Library | CalendarScope::Followed => {
+			let scoped_ids: Vec<String> = match scope {
+				CalendarScope::Followed => accessible
+					.keys()
+					.filter(|id| follows.contains(*id))
+					.cloned()
+					.collect(),
+				_ => accessible.keys().cloned().collect(),
+			};
+			if scoped_ids.is_empty() {
+				return Ok(vec![]);
+			}
+			windowed.filter(expected_issue::Column::SeriesId.is_in(scoped_ids))
+		},
+	};
+
+	let expected = query
 		.order_by_asc(expected_issue::Column::ReleaseDate)
 		.all(conn)
 		.await?;
 
-	// Owned issue numbers per involved series, for the in-library badge.
-	let involved: Vec<String> = expected.iter().map(|e| e.series_id.clone()).collect();
+	// Owned issue numbers per involved series, for the in-library badge. Only series the
+	// viewer can actually see are asked about.
+	let involved: Vec<String> = expected
+		.iter()
+		.filter_map(|e| e.series_id.clone())
+		.filter(|id| accessible.contains_key(id))
+		.collect();
 	let mut numbers_by_series: HashMap<String, Vec<String>> = HashMap::new();
 	if !involved.is_empty() {
 		let books = media::Entity::find()
@@ -229,21 +284,53 @@ async fn entries_between(
 		.into_iter()
 		.filter_map(|entry| {
 			let release_date = entry.release_date.clone()?;
-			let series_name = accessible.get(&entry.series_id)?.clone();
-			let in_library = entry.number.as_deref().is_some_and(|expected_number| {
-				numbers_by_series
-					.get(&entry.series_id)
-					.is_some_and(|owned| {
-						owned
-							.iter()
-							.any(|n| issue_numbers_match(n, expected_number))
-					})
-			});
+
+			// A row bound to a series the viewer cannot see is presented as an unbound
+			// release rather than dropped or linked: the release itself is public
+			// knowledge from the provider, while the fact that *this* server holds the
+			// series is not the calendar's to disclose.
+			let bound = entry
+				.series_id
+				.as_ref()
+				.filter(|id| accessible.contains_key(*id));
+
+			let (series_id, series_name, is_followed, in_library) = match bound {
+				Some(id) => {
+					let in_library =
+						entry.number.as_deref().is_some_and(|expected_number| {
+							numbers_by_series.get(id).is_some_and(|owned| {
+								owned
+									.iter()
+									.any(|n| issue_numbers_match(n, expected_number))
+							})
+						});
+					(
+						Some(ID::from(id.clone())),
+						// The library's name wins over the provider's: it is the one the
+						// user filed the series under and the one they will recognise.
+						accessible.get(id).cloned().unwrap_or_default(),
+						follows.contains(id),
+						in_library,
+					)
+				},
+				// Falling back through the issue title covers providers that name the
+				// series only inside it; a release with neither is still worth a date.
+				None => (
+					None,
+					entry
+						.series_name
+						.clone()
+						.or_else(|| entry.title.clone())
+						.unwrap_or_else(|| "Unknown series".to_string()),
+					false,
+					false,
+				),
+			};
 
 			Some(CalendarEntry {
-				is_followed: follows.contains(&entry.series_id),
-				series_id: ID::from(entry.series_id),
+				series_id,
 				series_name,
+				is_followed,
 				number: entry.number,
 				title: entry.title,
 				cover_url: entry.cover_url,
@@ -280,12 +367,7 @@ impl ReleaseCalendarQuery {
 		let conn = ctx.data::<CoreContext>()?.conn.as_ref();
 
 		let (start, end) = week_window(Utc::now().date_naive(), week_offset);
-		let mut days: Vec<CalendarDay> = (0..7)
-			.map(|d| CalendarDay {
-				date: (start + Duration::days(d)).to_string(),
-				entries: Vec::new(),
-			})
-			.collect();
+		let mut by_index: Vec<Vec<CalendarEntry>> = (0..7).map(|_| Vec::new()).collect();
 
 		for entry in entries_between(conn, user, scope, start, end).await? {
 			let day_index = NaiveDate::parse_from_str(&entry.release_date, "%Y-%m-%d")
@@ -295,10 +377,16 @@ impl ReleaseCalendarQuery {
 			let Some(day_index) = day_index else {
 				continue;
 			};
-			days[day_index].entries.push(entry);
+			by_index[day_index].push(entry);
 		}
 
-		Ok(days)
+		Ok(by_index
+			.into_iter()
+			.enumerate()
+			.map(|(index, entries)| {
+				build_day((start + Duration::days(index as i64)).to_string(), entries)
+			})
+			.collect())
 	}
 
 	/// A month laid out as a grid: six whole weeks of cells, every one present whether or
@@ -326,10 +414,8 @@ impl ReleaseCalendarQuery {
 		let days = (0..42)
 			.map(|offset| {
 				let date = (start + Duration::days(offset)).to_string();
-				CalendarDay {
-					entries: by_date.remove(&date).unwrap_or_default(),
-					date,
-				}
+				let entries = by_date.remove(&date).unwrap_or_default();
+				build_day(date, entries)
 			})
 			.collect();
 
@@ -356,20 +442,22 @@ impl ReleaseCalendarQuery {
 		let today = Utc::now().date_naive();
 		let end = today + Duration::days(days.clamp(1, MAX_UPCOMING_DAYS) as i64);
 
-		let mut grouped: Vec<CalendarDay> = Vec::new();
+		let mut grouped: Vec<(String, Vec<CalendarEntry>)> = Vec::new();
 		for entry in entries_between(conn, user, scope, today, end).await? {
 			// `entries_between` returns oldest first, so the run of entries for one date is
 			// contiguous and only the last group can ever match.
 			match grouped.last_mut() {
-				Some(day) if day.date == entry.release_date => day.entries.push(entry),
-				_ => grouped.push(CalendarDay {
-					date: entry.release_date.clone(),
-					entries: vec![entry],
-				}),
+				Some((date, entries)) if *date == entry.release_date => {
+					entries.push(entry)
+				},
+				_ => grouped.push((entry.release_date.clone(), vec![entry])),
 			}
 		}
 
-		Ok(grouped)
+		Ok(grouped
+			.into_iter()
+			.map(|(date, entries)| build_day(date, entries))
+			.collect())
 	}
 
 	/// Whether the calendar is syncing, and when it last did.

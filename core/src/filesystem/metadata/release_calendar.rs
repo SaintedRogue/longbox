@@ -35,11 +35,15 @@ const SWEEP_CAP: usize = 3000;
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct ReleaseSyncStats {
 	pub fetched: usize,
+	/// Releases written — every one that was fetched, bound or not.
+	pub stored: usize,
+	/// The subset that resolved to a series in this library.
 	pub matched: usize,
 }
 
-/// Upsert the releases that match a library series (by the provider's series
-/// id) into `expected_issues`. Pure DB logic, testable without providers.
+/// Upsert **every** release a provider reported into `expected_issues`, binding the ones
+/// whose series id corresponds to a library series. Pure DB logic, testable without
+/// providers.
 pub async fn sync_provider_releases<C>(
 	conn: &C,
 	provider_id: &str,
@@ -102,34 +106,48 @@ where
 
 	let resolved: Vec<ResolvedRelease> = releases
 		.into_iter()
-		.filter_map(|release| {
-			let series_id = series_by_external_id.get(&release.series_external_id)?;
-			Some(ResolvedRelease {
-				series_id: series_id.clone(),
+		.map(|release| {
+			// Binding is an enrichment, not a filter. A release nothing here matches is
+			// still what is coming out, and dropping it is what left the "all releases"
+			// view with nothing to show.
+			let series_id = release
+				.series_external_id
+				.as_ref()
+				.and_then(|external| series_by_external_id.get(external))
+				.cloned();
+			ResolvedRelease {
+				series_id,
+				series_name: release.series_name,
+				series_external_id: release.series_external_id,
 				external_id: release.external_id,
 				number: release.number,
 				title: release.title,
 				cover_url: release.cover_url,
 				release_date: release.release_date,
-			})
+			}
 		})
 		.collect();
 
-	stats.matched = resolved.len();
+	stats.stored = resolved.len();
+	stats.matched = resolved.iter().filter(|r| r.series_id.is_some()).count();
 	upsert_expected_issues(conn, provider_id, resolved).await?;
 
 	Ok(stats)
 }
 
-/// A release already bound to one of our series.
+/// A release ready to store, bound to one of our series or not.
 ///
 /// The two sweeps arrive at this point differently — a metadata provider's releases have
-/// to be matched to a series by external id, whereas a plugin is *told* which series to
-/// answer about and echoes the id back — but from here on the work is identical, so they
-/// share it rather than keeping two upserts in step by hand.
+/// to be matched to a series by external id and often match nothing, whereas a plugin is
+/// *told* which series to answer about and echoes the id back, so its releases are always
+/// bound — but from here on the work is identical, so they share it rather than keeping
+/// two upserts in step by hand.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResolvedRelease {
-	pub series_id: String,
+	/// `None` when no series in this library corresponds to the release.
+	pub series_id: Option<String>,
+	pub series_name: Option<String>,
+	pub series_external_id: Option<String>,
 	pub external_id: String,
 	pub number: Option<String>,
 	pub title: Option<String>,
@@ -137,8 +155,12 @@ pub struct ResolvedRelease {
 	pub release_date: Option<String>,
 }
 
-/// Upsert resolved releases as `expected_issues` skeleton rows, keyed on
-/// (series, provider, external id) so a re-sweep updates rather than duplicates.
+/// Upsert releases as `expected_issues` skeleton rows, keyed on (provider, external id) so
+/// a re-sweep updates rather than duplicates.
+///
+/// `series_id` is among the updated columns, which is what lets a release that arrived
+/// unbound become bound later: match the series, and the next sweep attaches the releases
+/// already sitting in the table rather than waiting for the provider to mention them again.
 pub async fn upsert_expected_issues<C>(
 	conn: &C,
 	provider_id: &str,
@@ -150,6 +172,8 @@ where
 	for release in releases {
 		let active = expected_issue::ActiveModel {
 			series_id: Set(release.series_id),
+			series_name: Set(release.series_name),
+			series_external_id: Set(release.series_external_id),
 			provider: Set(provider_id.to_string()),
 			external_id: Set(release.external_id),
 			number: Set(release.number),
@@ -162,11 +186,13 @@ where
 		expected_issue::Entity::insert(active)
 			.on_conflict(
 				OnConflict::columns([
-					expected_issue::Column::SeriesId,
 					expected_issue::Column::Provider,
 					expected_issue::Column::ExternalId,
 				])
 				.update_columns([
+					expected_issue::Column::SeriesId,
+					expected_issue::Column::SeriesName,
+					expected_issue::Column::SeriesExternalId,
 					expected_issue::Column::Number,
 					expected_issue::Column::Title,
 					expected_issue::Column::CoverUrl,
@@ -201,7 +227,9 @@ pub struct ReleaseSyncSummary {
 	pub providers_swept: usize,
 	/// Plugins advertising `release-source` that were asked.
 	pub plugins_swept: usize,
-	/// Releases bound to a library series and upserted.
+	/// Releases upserted, whether or not they correspond to anything in this library.
+	pub stored: usize,
+	/// The subset of those that bound to a library series.
 	pub matched: usize,
 }
 
@@ -319,10 +347,12 @@ async fn sweep(
 					sync_provider_releases(ctx.conn.as_ref(), provider.id(), releases)
 						.await?;
 				summary.providers_swept += 1;
+				summary.stored += stats.stored;
 				summary.matched += stats.matched;
 				tracing::info!(
 					provider = budget_id,
 					fetched = stats.fetched,
+					stored = stats.stored,
 					matched = stats.matched,
 					"Release-calendar sweep complete"
 				);
@@ -335,6 +365,7 @@ async fn sweep(
 
 	let (plugins_swept, plugin_matched) = sweep_plugin_releases(ctx, start, end).await?;
 	summary.plugins_swept = plugins_swept;
+	summary.stored += plugin_matched;
 	summary.matched += plugin_matched;
 
 	// Surface a config foot-gun: sweeping is pointless with nothing to sweep. A
@@ -393,8 +424,12 @@ async fn sweep_plugin_releases(
 			Ok(accepted) => {
 				let resolved: Vec<ResolvedRelease> = accepted
 					.into_iter()
+					// Always bound: a plugin is asked about specific series and echoes
+					// the id back, so there is nothing here to resolve or to miss.
 					.map(|(series_id, release)| ResolvedRelease {
-						series_id,
+						series_id: Some(series_id),
+						series_name: None,
+						series_external_id: None,
 						external_id: release.external_id,
 						number: release.number,
 						title: release.title,
@@ -475,7 +510,8 @@ mod tests {
 
 	fn release(series_ext: &str, ext: &str, number: &str) -> UpcomingRelease {
 		UpcomingRelease {
-			series_external_id: series_ext.to_string(),
+			series_external_id: Some(series_ext.to_string()),
+			series_name: Some(format!("Series {series_ext}")),
 			external_id: ext.to_string(),
 			number: Some(number.to_string()),
 			title: Some(format!("#{number}")),
@@ -515,7 +551,8 @@ mod tests {
 			&conn,
 			"locg",
 			vec![UpcomingRelease {
-				series_external_id: "178012".to_string(),
+				series_external_id: Some("178012".to_string()),
+				series_name: Some("Absolute Batman".to_string()),
 				external_id: "2463692".to_string(),
 				number: Some("1".to_string()),
 				title: Some("Absolute Batman #1".to_string()),
@@ -533,7 +570,7 @@ mod tests {
 			.await
 			.expect("query");
 		assert_eq!(rows.len(), 1);
-		assert_eq!(rows[0].series_id, "s-1");
+		assert_eq!(rows[0].series_id.as_deref(), Some("s-1"));
 		assert_eq!(rows[0].provider, "locg");
 	}
 
@@ -561,7 +598,8 @@ mod tests {
 			&conn,
 			"locg",
 			vec![UpcomingRelease {
-				series_external_id: "178012".to_string(),
+				series_external_id: Some("178012".to_string()),
+				series_name: Some("Absolute Batman".to_string()),
 				external_id: "issue-1".to_string(),
 				number: None,
 				title: None,
@@ -573,6 +611,12 @@ mod tests {
 		.expect("sweep succeeds");
 
 		assert_eq!(stats.matched, 0, "ids are only meaningful per provider");
+		assert_eq!(
+			stats.stored, 1,
+			"failing to match is not a reason to forget the release"
+		);
+		let rows = expected_issue::Entity::find().all(&conn).await.unwrap();
+		assert_eq!(rows[0].series_id, None, "stored, but bound to nothing");
 	}
 
 	#[tokio::test]
@@ -589,7 +633,7 @@ mod tests {
 			vec![
 				release("1001", "11", "1"),
 				release("2002", "22", "5"),
-				release("9999", "33", "1"), // unknown series → dropped
+				release("9999", "33", "1"), // unknown series → stored, unbound
 			],
 		)
 		.await
@@ -599,17 +643,56 @@ mod tests {
 			stats,
 			ReleaseSyncStats {
 				fetched: 3,
+				stored: 3,
 				matched: 2
 			}
 		);
 		let rows = expected_issue::Entity::find().all(&conn).await.unwrap();
-		assert_eq!(rows.len(), 2);
+		assert_eq!(rows.len(), 3, "all three are stored; two of them bind");
 		assert!(rows
 			.iter()
-			.any(|r| r.series_id == "s1" && r.external_id == "11"));
+			.any(|r| r.series_id.as_deref() == Some("s1") && r.external_id == "11"));
 		assert!(rows
 			.iter()
-			.any(|r| r.series_id == "s2" && r.external_id == "22"));
+			.any(|r| r.series_id.as_deref() == Some("s2") && r.external_id == "22"));
+		// The unbound one keeps the provider's own name for the series, which is the only
+		// thing the calendar can label it with.
+		let unbound = rows
+			.iter()
+			.find(|r| r.external_id == "33")
+			.expect("the unmatched release is still stored");
+		assert_eq!(unbound.series_id, None);
+		assert_eq!(unbound.series_name.as_deref(), Some("Series 9999"));
+		assert_eq!(unbound.series_external_id.as_deref(), Some("9999"));
+	}
+
+	/// The payoff of storing unbound releases: matching a series later binds the rows that
+	/// are already sitting in the table, instead of waiting for the provider to mention
+	/// those issues again.
+	#[tokio::test]
+	async fn a_release_stored_unbound_binds_once_the_series_is_matched() {
+		let conn = mem_db().await;
+
+		// Sweep first, with nothing in the library to match against.
+		sync_provider_releases(&conn, "metron", vec![release("120", "9911", "13")])
+			.await
+			.expect("first sweep succeeds");
+		let rows = expected_issue::Entity::find().all(&conn).await.unwrap();
+		assert_eq!(rows.len(), 1);
+		assert_eq!(rows[0].series_id, None, "nothing to bind to yet");
+
+		// The series is then added and matched to the provider.
+		seed_series(&conn, "s1", Some("metron"), Some("120"), None).await;
+
+		let stats =
+			sync_provider_releases(&conn, "metron", vec![release("120", "9911", "13")])
+				.await
+				.expect("second sweep succeeds");
+
+		assert_eq!(stats.matched, 1);
+		let rows = expected_issue::Entity::find().all(&conn).await.unwrap();
+		assert_eq!(rows.len(), 1, "bound in place rather than duplicated");
+		assert_eq!(rows[0].series_id.as_deref(), Some("s1"));
 	}
 
 	#[tokio::test]

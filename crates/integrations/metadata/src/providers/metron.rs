@@ -139,6 +139,8 @@ impl MetadataProvider for MetronClient {
 		struct MetronSeriesRef {
 			#[serde(default)]
 			id: Option<i64>,
+			#[serde(default)]
+			name: Option<String>,
 		}
 		#[derive(Deserialize)]
 		struct MetronWindowIssue {
@@ -172,11 +174,15 @@ impl MetadataProvider for MetronClient {
 			seen += page_len;
 
 			for hit in response.results {
-				let Some(series_id) = hit.series.as_ref().and_then(|s| s.id) else {
-					continue;
-				};
+				// An issue whose series ref is missing or unidentified still ships that
+				// week; it just cannot be bound to a library series.
+				let series = hit.series;
 				releases.push(UpcomingRelease {
-					series_external_id: series_id.to_string(),
+					series_external_id: series
+						.as_ref()
+						.and_then(|s| s.id)
+						.map(|id| id.to_string()),
+					series_name: series.and_then(|s| s.name),
 					external_id: hit.id.to_string(),
 					number: hit.number,
 					title: hit.issue,
@@ -759,7 +765,7 @@ mod tests {
 	}
 
 	#[tokio::test]
-	async fn upcoming_releases_map_window_items_and_skip_seriesless() {
+	async fn upcoming_releases_map_window_items_and_keep_seriesless() {
 		let server = MockServer::start().await;
 		Mock::given(method("GET"))
 			.and(path("/issue/"))
@@ -775,7 +781,7 @@ mod tests {
 						"image": "https://static.metron.cloud/saga-13.jpg",
 						"series": { "id": 120, "name": "Saga" }
 					},
-					// No series link — unmatched, skipped.
+					// No series link — still a release, just not bindable to a series.
 					{ "id": 9912, "number": "1", "issue": "Mystery #1" }
 				]
 			})))
@@ -792,13 +798,24 @@ mod tests {
 			.await
 			.expect("sweep succeeds");
 
-		assert_eq!(releases.len(), 1);
+		assert_eq!(
+			releases.len(),
+			2,
+			"a missing series ref is not a reason to drop"
+		);
 		let release = &releases[0];
-		assert_eq!(release.series_external_id, "120");
+		assert_eq!(release.series_external_id.as_deref(), Some("120"));
+		assert_eq!(release.series_name.as_deref(), Some("Saga"));
 		assert_eq!(release.external_id, "9911");
 		assert_eq!(release.number.as_deref(), Some("13"));
 		assert_eq!(release.title.as_deref(), Some("Saga #13"));
 		assert_eq!(release.release_date.as_deref(), Some("2026-08-12"));
+
+		// Reported, but with nothing to bind it to a series by.
+		let seriesless = &releases[1];
+		assert_eq!(seriesless.external_id, "9912");
+		assert_eq!(seriesless.series_external_id, None);
+		assert_eq!(seriesless.series_name, None);
 	}
 
 	#[tokio::test]

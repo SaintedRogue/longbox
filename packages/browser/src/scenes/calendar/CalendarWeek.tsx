@@ -22,7 +22,7 @@ function WeekColumns({ days }: { days: CalendarDay[] }) {
 						isToday(day.date) ? 'border-primary/40 bg-primary/5' : 'border-border',
 					)}
 				>
-					<DayHeading date={day.date} count={day.entries.length} />
+					<DayHeading date={day.date} count={day.total} />
 
 					{day.entries.length ? (
 						<div className="gap-1.5 flex flex-col">
@@ -64,7 +64,7 @@ function AgendaList({ days }: { days: CalendarDay[] }) {
 							isToday(day.date) ? 'border-primary/40' : 'border-border',
 						)}
 					>
-						<DayHeading date={day.date} count={day.entries.length} />
+						<DayHeading date={day.date} count={day.total} />
 					</div>
 
 					<div className="gap-1.5 flex flex-col">
