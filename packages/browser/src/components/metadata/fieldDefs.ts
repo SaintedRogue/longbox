@@ -81,18 +81,53 @@ export const MEDIA_FIELD_DEFS: MetadataFieldDef[] = [
 	{ field: MetadataField.VolumeCount, binding: 'volume', validation: { min: 1 } },
 	{ field: MetadataField.Series, binding: 'series' },
 	{ field: MetadataField.SeriesGroup, binding: 'seriesGroup' },
-	{ field: MetadataField.StoryArc, binding: 'storyArc' },
+	{
+		field: MetadataField.StoryArc,
+		binding: 'storyArc',
+		candidateKey: 'storyArc',
+		editorType: 'text',
+	},
 	{ field: MetadataField.StoryArcNumber, binding: 'storyArcNumber' },
-	{ field: MetadataField.Publisher, binding: 'publisher' },
+	{
+		field: MetadataField.Publisher,
+		binding: 'publisher',
+		candidateKey: 'publisher',
+		editorType: 'text',
+	},
 	{ field: MetadataField.AgeRating, binding: 'ageRating', validation: { min: 0 } },
-	{ field: MetadataField.Editors, binding: 'editors' },
-	{ field: MetadataField.Pencillers, binding: 'pencillers' },
-	{ field: MetadataField.Inkers, binding: 'inkers' },
-	{ field: MetadataField.Characters, binding: 'characters' },
+	{
+		field: MetadataField.Editors,
+		binding: 'editors',
+		candidateKey: 'editors',
+		editorType: 'badgeList',
+	},
+	{
+		field: MetadataField.Pencillers,
+		binding: 'pencillers',
+		candidateKey: 'pencillers',
+		editorType: 'badgeList',
+	},
+	{
+		field: MetadataField.Inkers,
+		binding: 'inkers',
+		candidateKey: 'inkers',
+		editorType: 'badgeList',
+	},
+	{
+		field: MetadataField.Characters,
+		binding: 'characters',
+		candidateKey: 'characters',
+		editorType: 'badgeList',
+	},
 	{ field: MetadataField.Language, binding: 'language' },
 	{ field: MetadataField.Links, binding: 'links' },
 	{ field: MetadataField.Notes, binding: 'notes' },
-	{ field: MetadataField.Teams, binding: 'teams' },
+	{
+		field: MetadataField.Teams,
+		binding: 'teams',
+		candidateKey: 'teams',
+		editorType: 'badgeList',
+	},
 	{ field: MetadataField.IdentifierAmazon, binding: 'identifierAmazon' },
 	{ field: MetadataField.IdentifierCalibre, binding: 'identifierCalibre' },
 	{ field: MetadataField.IdentifierGoogle, binding: 'identifierGoogle' },
@@ -210,8 +245,11 @@ export type FieldComparison = {
 	candidateValue: unknown
 }
 
-// Note: We don't just return all fields since external metadata is a subset of internal, and I don't
-// think it makes sense to show fields which are never going to be present in a matching decision
+// Only fields with a `candidateKey` become rows: external metadata is a subset of what
+// Longbox stores, and a row a provider can never fill is a row of dashes. Keep the two in
+// step — a field the providers do carry but that has no `candidateKey` here is invisible in
+// review, which is how characters, pencillers, inkers, editors, teams, story arc and
+// publisher went unreviewable despite every provider returning them.
 export function getMediaFieldComparisons(
 	currentMetadata: Record<string, unknown> | null | undefined,
 	candidateMetadata: Record<string, unknown>,
