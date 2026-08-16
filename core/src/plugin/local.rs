@@ -429,21 +429,48 @@ mod tests {
 	/// The whole path, against the reference plugin: launch a directory, wait for it to
 	/// come up, and read the manifest back over the wire Longbox actually uses.
 	///
-	/// Skipped where `node` is unavailable rather than failed. The supervisor runs whatever
-	/// command a descriptor names and has no opinion about language, so this test is about
-	/// spawn/health/stop — making it depend on an interpreter being installed everywhere
-	/// would buy flakiness for no extra coverage.
+	/// Skipped where a usable `node` is unavailable rather than failed. The supervisor runs
+	/// whatever command a descriptor names and has no opinion about language, so this test
+	/// is about spawn/health/stop — making it depend on a particular interpreter being
+	/// installed everywhere would buy flakiness for no extra coverage.
+	///
+	/// The version floor is not incidental. The Rust CI job does not set up Node, so the
+	/// interpreter there is whatever the runner image ships, which is old enough that the
+	/// reference plugin's `require('node:http')` throws on load — the process exits before
+	/// it can answer, and the failure reads as a broken supervisor rather than a stale
+	/// interpreter. Skipping is the honest outcome: nothing about the supervisor is in
+	/// question, and the same path is covered live elsewhere.
 	#[tokio::test]
 	async fn launches_a_plugin_directory_and_reads_its_manifest() {
-		if std::process::Command::new("node")
+		const MIN_NODE_MAJOR: u32 = 18;
+
+		let node_major = std::process::Command::new("node")
 			.arg("--version")
-			.stdout(Stdio::null())
-			.stderr(Stdio::null())
-			.status()
-			.is_err()
-		{
-			eprintln!("skipping: node is not installed");
-			return;
+			.output()
+			.ok()
+			.filter(|out| out.status.success())
+			.and_then(|out| {
+				// `v22.14.0` → 22
+				String::from_utf8(out.stdout)
+					.ok()?
+					.trim()
+					.trim_start_matches('v')
+					.split('.')
+					.next()?
+					.parse::<u32>()
+					.ok()
+			});
+
+		match node_major {
+			Some(major) if major >= MIN_NODE_MAJOR => {},
+			Some(major) => {
+				eprintln!("skipping: node {major} is older than {MIN_NODE_MAJOR}");
+				return;
+			},
+			None => {
+				eprintln!("skipping: no usable node");
+				return;
+			},
 		}
 
 		let reference = Path::new(env!("CARGO_MANIFEST_DIR"))
