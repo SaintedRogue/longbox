@@ -645,7 +645,7 @@ export type ConfidenceFactor = {
 /** An event that is emitted by the core and consumed by a client */
 export type CoreEvent = CreatedManySeries | CreatedMedia | CreatedOrUpdatedManyMedia | DiscoveredMissingLibrary | JobOutput | JobStarted | JobUpdate;
 
-export type CoreJobOutput = AnalyzeMediaOutput | LibraryScanOutput | MetadataFetchJobOutput | OrganizeLooseFilesOutput | PlaceholderGenerationOutput | SeriesScanOutput | ThumbnailGenerationOutput;
+export type CoreJobOutput = AnalyzeMediaOutput | DownloadQueueOutput | LibraryScanOutput | MetadataFetchJobOutput | OrganizeLooseFilesOutput | PlaceholderGenerationOutput | SeriesScanOutput | ThumbnailGenerationOutput;
 
 export type CreateAnnotationInput = {
   annotationText?: InputMaybe<Scalars['String']['input']>;
@@ -853,10 +853,105 @@ export type DiscordConfigInput = {
   webhookUrl: Scalars['String']['input'];
 };
 
+/** A plugin directory sitting under `{config}/plugins`, whether or not it is registered. */
+export type DiscoveredLocalPlugin = {
+  __typename?: 'DiscoveredLocalPlugin';
+  /**
+   * The command Longbox would run. Surfaced deliberately: installing this means
+   * executing it inside the server, so the operator should see it before agreeing to.
+   */
+  command: Array<Scalars['String']['output']>;
+  description?: Maybe<Scalars['String']['output']>;
+  /** Directory name, and the handle `installLocalPlugin` takes. */
+  dir: Scalars['String']['output'];
+  /** Id the directory declares. Slugified, this is what the plugin would be registered as. */
+  id: Scalars['String']['output'];
+  /**
+   * Whether a plugin with this id is already registered, so the UI can offer "install"
+   * or say why it cannot.
+   */
+  installed: Scalars['Boolean']['output'];
+  name: Scalars['String']['output'];
+  version?: Maybe<Scalars['String']['output']>;
+};
+
 export type DiscoveredMissingLibrary = {
   __typename?: 'DiscoveredMissingLibrary';
   id: Scalars['String']['output'];
 };
+
+/**
+ * A candidate offered by a plugin, with the plugin that offered it.
+ *
+ * The origin travels with the candidate because a `downloadId` is opaque and only means
+ * something to its author — enqueuing has to name both.
+ */
+export type DownloadCandidateResult = {
+  __typename?: 'DownloadCandidateResult';
+  confidence?: Maybe<Scalars['Float']['output']>;
+  downloadId: Scalars['String']['output'];
+  pluginName: Scalars['String']['output'];
+  pluginSlug: Scalars['String']['output'];
+  sizeBytes?: Maybe<Scalars['Int']['output']>;
+  source?: Maybe<Scalars['String']['output']>;
+  title: Scalars['String']['output'];
+};
+
+/**
+ * One entry in the download queue, as the UI sees it.
+ *
+ * A shaped object rather than the raw model: `status` is exposed as an enum so a client
+ * cannot receive a string it has no case for, and the internal staging path stays server
+ * side, since it names a location on the host that no browser has any use for.
+ */
+export type DownloadQueueEntry = {
+  __typename?: 'DownloadQueueEntry';
+  createdAt: Scalars['String']['output'];
+  error?: Maybe<Scalars['String']['output']>;
+  id: Scalars['Int']['output'];
+  mediaId?: Maybe<Scalars['ID']['output']>;
+  number?: Maybe<Scalars['String']['output']>;
+  /** Which plugin offered this file. Shown so a queue with several sources is legible. */
+  pluginSlug: Scalars['String']['output'];
+  progressBytes: Scalars['Int']['output'];
+  seriesId?: Maybe<Scalars['ID']['output']>;
+  /** Total size when the source declared one. Absent is common and not an error. */
+  sizeBytes?: Maybe<Scalars['Int']['output']>;
+  source?: Maybe<Scalars['String']['output']>;
+  /**
+   * `None` when the stored value is one this build does not recognise — a row written by
+   * a newer version is displayed rather than hidden.
+   */
+  status?: Maybe<DownloadStatus>;
+  title: Scalars['String']['output'];
+};
+
+export type DownloadQueueOutput = {
+  __typename?: 'DownloadQueueOutput';
+  bytes: Scalars['Int']['output'];
+  completed: Scalars['Int']['output'];
+  failed: Scalars['Int']['output'];
+};
+
+/**
+ * Where a queued download has got to.
+ *
+ * Text in the database rather than a closed enum, so a value written by a newer build
+ * reads as "not a state this build acts on" instead of failing the query that loaded it.
+ */
+export enum DownloadStatus {
+  /** Approved and waiting for a worker. */
+  Approved = 'APPROVED',
+  Cancelled = 'CANCELLED',
+  Completed = 'COMPLETED',
+  Downloading = 'DOWNLOADING',
+  Failed = 'FAILED',
+  /**
+   * Found and waiting for someone to approve it. The default, because choosing to
+   * download something is a decision; auto-grab is the opt-in that skips it.
+   */
+  Pending = 'PENDING'
+}
 
 export type EditMessageInput = {
   content: Scalars['String']['input'];
@@ -939,6 +1034,21 @@ export type EmailerSendRecord = {
 export type EmailerSendTo =
   { anonymous: SendToEmail; device?: never; }
   |  { anonymous?: never; device: SendToDevice; };
+
+export type EnqueueDownloadInput = {
+  /**
+   * Queue it already approved, skipping the review step. The pull-list pass uses this
+   * when auto-grab is on; a person choosing from search results does not need to.
+   */
+  approve?: Scalars['Boolean']['input'];
+  downloadId: Scalars['String']['input'];
+  number?: InputMaybe<Scalars['String']['input']>;
+  pluginSlug: Scalars['String']['input'];
+  seriesId?: InputMaybe<Scalars['ID']['input']>;
+  sizeBytes?: InputMaybe<Scalars['Int']['input']>;
+  source?: InputMaybe<Scalars['String']['input']>;
+  title: Scalars['String']['input'];
+};
 
 /**
  * Everything the review grid needs for one entity: the sources to compare, and where
@@ -2492,6 +2602,8 @@ export type Mutation = {
    * unmounted share for a library the user emptied.
    */
   cleanLibrary: CleanLibraryResponse;
+  /** Clear finished entries. Anything still in flight is left alone. */
+  clearFinishedDownloads: Scalars['Int']['output'];
   /** trashes current readthrough, if there is one */
   clearMediaProgress: Scalars['Boolean']['output'];
   /** Clear the scan history for a specific library */
@@ -2645,6 +2757,13 @@ export type Mutation = {
   detectBookGroups: DetectBookGroupsResult;
   /** Edit your own message */
   editMessage: BookClubDiscussionMessage;
+  /**
+   * Put a candidate on the queue.
+   *
+   * Upserts on (plugin, download id) so offering the same file twice updates what is
+   * known about it rather than stacking duplicates — re-running a search is ordinary.
+   */
+  enqueueDownload: DownloadQueueEntry;
   favoriteMedia: Media;
   favoriteSeries: Series;
   /**
@@ -2694,6 +2813,19 @@ export type Mutation = {
    */
   followSeries: Scalars['Boolean']['output'];
   generateLibraryThumbnails: Scalars['Boolean']['output'];
+  /**
+   * Install a plugin from a directory under `{config}/plugins`.
+   *
+   * The ordering differs from [`Self::register_plugin`] out of necessity: a local plugin
+   * is not answering yet, so its identity has to come from the directory's `plugin.json`
+   * before anything can be started. Longbox launches it, reads the manifest it actually
+   * serves, and refuses the install if the two disagree — a directory cannot claim one id
+   * on disk and another over the wire.
+   *
+   * The process is stopped again once the handshake succeeds. Installing something is not
+   * the same as deciding to let it run; enabling it is, and that starts it for real.
+   */
+  installLocalPlugin: RegisteredPlugin;
   /** Deletes the membership of the caller to the target book club */
   leaveBookClub: BookClubMember;
   /** Lock or unlock a discussion (Moderator+) */
@@ -2743,15 +2875,34 @@ export type Mutation = {
   resetLibraryMetadata: Library;
   resetSeriesMetadata: Series;
   respondToBookClubInvitation: BookClubInvitation;
+  /** Start a pass over everything approved. */
+  runDownloadQueue: Scalars['Boolean']['output'];
   /**
    * Enqueue a scan job for a library. This will index the filesystem from the library's root path
    * and update the database accordingly.
    */
   scanLibrary: Scalars['Boolean']['output'];
   scanSeries: Scalars['Boolean']['output'];
+  /**
+   * Ask every enabled download-source plugin what would satisfy a wanted issue.
+   *
+   * Read-only: nothing is queued by searching. Results carry an opaque handle that
+   * `enqueueDownload` takes back, so a candidate can be considered without committing
+   * to it and without resolving an address that may be single-use.
+   */
+  searchDownloads: Array<DownloadCandidateResult>;
   sendAttachmentEmail: SendAttachmentEmailOutput;
   /** Send a message in a discussion */
   sendMessage: BookClubDiscussionMessage;
+  /**
+   * Move a queue entry to a new state: approve it, cancel it, or send a failed one back
+   * to be retried.
+   *
+   * Only states a person can meaningfully choose are accepted. `downloading` and
+   * `completed` are outcomes the worker reports, and letting them be set by hand would
+   * mean the queue could claim something happened that did not.
+   */
+  setDownloadStatus: DownloadQueueEntry;
   /** Bulk-set locked metadata fields for all media metadata in a library */
   setLibraryMediaLockedFields: Scalars['Int']['output'];
   /** Bulk-set locked metadata fields for all series metadata in a library */
@@ -3290,6 +3441,11 @@ export type MutationEditMessageArgs = {
 };
 
 
+export type MutationEnqueueDownloadArgs = {
+  input: EnqueueDownloadInput;
+};
+
+
 export type MutationFavoriteMediaArgs = {
   id: Scalars['ID']['input'];
   isFavorite: Scalars['Boolean']['input'];
@@ -3345,6 +3501,11 @@ export type MutationFollowSeriesArgs = {
 export type MutationGenerateLibraryThumbnailsArgs = {
   forceRegenerate?: Scalars['Boolean']['input'];
   id: Scalars['ID']['input'];
+};
+
+
+export type MutationInstallLocalPluginArgs = {
+  dir: Scalars['String']['input'];
 };
 
 
@@ -3462,6 +3623,13 @@ export type MutationScanSeriesArgs = {
 };
 
 
+export type MutationSearchDownloadsArgs = {
+  format?: ReleaseFormat;
+  number?: InputMaybe<Scalars['String']['input']>;
+  seriesId: Scalars['ID']['input'];
+};
+
+
 export type MutationSendAttachmentEmailArgs = {
   input: SendAttachmentEmailsInput;
 };
@@ -3470,6 +3638,12 @@ export type MutationSendAttachmentEmailArgs = {
 export type MutationSendMessageArgs = {
   discussionId: Scalars['ID']['input'];
   input: SendMessageInput;
+};
+
+
+export type MutationSetDownloadStatusArgs = {
+  id: Scalars['Int']['input'];
+  status: DownloadStatus;
 };
 
 
@@ -4309,6 +4483,26 @@ export type Query = {
   characters: PaginatedCharacterResponse;
   /** List the custom emojis available on this server */
   customEmojis: Array<CustomEmoji>;
+  /**
+   * Every registered plugin.
+   *
+   * Server-owner only, and not because the list is especially sensitive: a plugin is
+   * an arbitrary URL this server will call with a credential attached, so who may see
+   * and change that set is the same question as who may administer the server.
+   * Plugin directories found under `{config}/plugins`, installed or not.
+   *
+   * This is the route that needs no catalogue and no container: drop a directory onto
+   * the config volume and it appears here ready to install.
+   */
+  discoveredLocalPlugins: Array<DiscoveredLocalPlugin>;
+  /**
+   * The download queue, newest first.
+   *
+   * Server-owner only for the same reason plugins are: a download writes a file into a
+   * library from a source the operator chose, so who may see and drive that set is the
+   * same question as who may administer the server.
+   */
+  downloadQueue: Array<DownloadQueueEntry>;
   duplicateMedia: Array<Media>;
   emailDeviceById?: Maybe<RegisteredEmailDevice>;
   emailDevices: Array<RegisteredEmailDevice>;
@@ -4428,13 +4622,6 @@ export type Query = {
    * operator which version a plugin they are about to write should target.
    */
   pluginProtocolVersion: Scalars['Int']['output'];
-  /**
-   * Every registered plugin.
-   *
-   * Server-owner only, and not because the list is especially sensitive: a plugin is
-   * an arbitrary URL this server will call with a credential attached, so who may see
-   * and change that set is the same question as who may administer the server.
-   */
   plugins: Array<Plugin>;
   previousBookClubDiscussions: Array<BookClubDiscussion>;
   /**
@@ -4629,6 +4816,11 @@ export type QueryCharactersArgs = {
   orderBy?: Array<CharacterOrderBy>;
   pagination?: Pagination;
   search?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+export type QueryDownloadQueueArgs = {
+  status?: InputMaybe<Array<DownloadStatus>>;
 };
 
 
@@ -5148,6 +5340,21 @@ export type ReleaseCalendarStatus = {
 };
 
 /**
+ * What shape of release a search is for.
+ *
+ * A plugin is free to ignore this and return whatever it has — it is a hint about what
+ * would satisfy the request, not a filter Longbox will enforce on the answer.
+ */
+export enum ReleaseFormat {
+  /** A single issue. */
+  Issue = 'ISSUE',
+  /** A large collected edition. */
+  Omnibus = 'OMNIBUS',
+  /** A collected edition of a story arc. */
+  Tpb = 'TPB'
+}
+
+/**
  * the current reading position for a book, derived from the latest session
  * with the highest `readthrough_number`
  */
@@ -5245,6 +5452,8 @@ export type ScheduledJobConfigInput =
 
 /** The kind of a scheduled job, aligned with the config variants */
 export enum ScheduledJobKind {
+  /** Look for files for followed issues that are expected but not in the library */
+  DownloadSweep = 'DOWNLOAD_SWEEP',
   /** Scan one or more libraries on a cron schedule */
   LibraryScan = 'LIBRARY_SCAN',
   /** Retry fetching metadata for records that were rate-limited or failed */
@@ -6618,7 +6827,7 @@ export type ReconcileActiveJobsQuery = { __typename?: 'Query', jobs: { __typenam
 export type UseCoreEventSubscriptionVariables = Exact<{ [key: string]: never; }>;
 
 
-export type UseCoreEventSubscription = { __typename?: 'Subscription', readEvents: { __typename: 'CreatedManySeries', count: number, libraryId: string } | { __typename: 'CreatedMedia', id: string, seriesId: string } | { __typename: 'CreatedOrUpdatedManyMedia', count: number, seriesId: string } | { __typename: 'DiscoveredMissingLibrary', id: string } | { __typename: 'JobOutput', id: string, output: { __typename: 'AnalyzeMediaOutput' } | { __typename: 'LibraryScanOutput', createdMedia: number, createdSeries: number, updatedMedia: number, updatedSeries: number } | { __typename: 'MetadataFetchJobOutput' } | { __typename: 'OrganizeLooseFilesOutput', moved: number, proposedMoves: number } | { __typename: 'PlaceholderGenerationOutput' } | { __typename: 'SeriesScanOutput', createdMedia: number, updatedMedia: number } | { __typename: 'ThumbnailGenerationOutput' } } | { __typename: 'JobStarted', id: string } | { __typename: 'JobUpdate', id: string, status?: JobStatus | null, message?: string | null, completedTasks?: number | null, remainingTasks?: number | null, completedSubtasks?: number | null, totalSubtasks?: number | null, subtitle?: string | null } };
+export type UseCoreEventSubscription = { __typename?: 'Subscription', readEvents: { __typename: 'CreatedManySeries', count: number, libraryId: string } | { __typename: 'CreatedMedia', id: string, seriesId: string } | { __typename: 'CreatedOrUpdatedManyMedia', count: number, seriesId: string } | { __typename: 'DiscoveredMissingLibrary', id: string } | { __typename: 'JobOutput', id: string, output: { __typename: 'AnalyzeMediaOutput' } | { __typename: 'DownloadQueueOutput' } | { __typename: 'LibraryScanOutput', createdMedia: number, createdSeries: number, updatedMedia: number, updatedSeries: number } | { __typename: 'MetadataFetchJobOutput' } | { __typename: 'OrganizeLooseFilesOutput', moved: number, proposedMoves: number } | { __typename: 'PlaceholderGenerationOutput' } | { __typename: 'SeriesScanOutput', createdMedia: number, updatedMedia: number } | { __typename: 'ThumbnailGenerationOutput' } } | { __typename: 'JobStarted', id: string } | { __typename: 'JobUpdate', id: string, status?: JobStatus | null, message?: string | null, completedTasks?: number | null, remainingTasks?: number | null, completedSubtasks?: number | null, totalSubtasks?: number | null, subtitle?: string | null } };
 
 export type UseFollowSeriesMutationVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -7177,7 +7386,7 @@ export type ScanRecordInspectorJobsQueryVariables = Exact<{
 }>;
 
 
-export type ScanRecordInspectorJobsQuery = { __typename?: 'Query', jobById?: { __typename?: 'Job', id: string, outputData?: { __typename: 'AnalyzeMediaOutput' } | { __typename: 'LibraryScanOutput', totalFiles: number, totalDirectories: number, ignoredFiles: number, skippedFiles: number, ignoredDirectories: number, createdMedia: number, updatedMedia: number, createdSeries: number, updatedSeries: number } | { __typename: 'MetadataFetchJobOutput' } | { __typename: 'OrganizeLooseFilesOutput' } | { __typename: 'PlaceholderGenerationOutput' } | { __typename: 'SeriesScanOutput' } | { __typename: 'ThumbnailGenerationOutput' } | null, logs?: Array<{ __typename?: 'Log', id: number }> } | null };
+export type ScanRecordInspectorJobsQuery = { __typename?: 'Query', jobById?: { __typename?: 'Job', id: string, outputData?: { __typename: 'AnalyzeMediaOutput' } | { __typename: 'DownloadQueueOutput' } | { __typename: 'LibraryScanOutput', totalFiles: number, totalDirectories: number, ignoredFiles: number, skippedFiles: number, ignoredDirectories: number, createdMedia: number, updatedMedia: number, createdSeries: number, updatedSeries: number } | { __typename: 'MetadataFetchJobOutput' } | { __typename: 'OrganizeLooseFilesOutput' } | { __typename: 'PlaceholderGenerationOutput' } | { __typename: 'SeriesScanOutput' } | { __typename: 'ThumbnailGenerationOutput' } | null, logs?: Array<{ __typename?: 'Log', id: number }> } | null };
 
 export type DeleteLibraryThumbnailsMutationVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -7442,6 +7651,29 @@ export type NavigationArrangementUpdateLockStatusMutationVariables = Exact<{
 
 export type NavigationArrangementUpdateLockStatusMutation = { __typename?: 'Mutation', updateNavigationArrangementLock: { __typename: 'Arrangement' } };
 
+export type DownloadQueueQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type DownloadQueueQuery = { __typename?: 'Query', downloadQueue: Array<{ __typename?: 'DownloadQueueEntry', id: number, title: string, source?: string | null, status?: DownloadStatus | null, pluginSlug: string, sizeBytes?: number | null, progressBytes: number, error?: string | null }> };
+
+export type SetDownloadStatusMutationVariables = Exact<{
+  id: Scalars['Int']['input'];
+  status: DownloadStatus;
+}>;
+
+
+export type SetDownloadStatusMutation = { __typename?: 'Mutation', setDownloadStatus: { __typename?: 'DownloadQueueEntry', id: number, status?: DownloadStatus | null } };
+
+export type RunDownloadQueueMutationVariables = Exact<{ [key: string]: never; }>;
+
+
+export type RunDownloadQueueMutation = { __typename?: 'Mutation', runDownloadQueue: boolean };
+
+export type ClearFinishedDownloadsMutationVariables = Exact<{ [key: string]: never; }>;
+
+
+export type ClearFinishedDownloadsMutation = { __typename?: 'Mutation', clearFinishedDownloads: number };
+
 export type CreateEmailerSceneEmailersQueryVariables = Exact<{ [key: string]: never; }>;
 
 
@@ -7623,6 +7855,8 @@ export type JobActionMenuDeleteLogsMutation = { __typename?: 'Mutation', deleteJ
 
 type JobDataInspector_AnalyzeMediaOutput_Fragment = { __typename: 'AnalyzeMediaOutput' } & { ' $fragmentName'?: 'JobDataInspector_AnalyzeMediaOutput_Fragment' };
 
+type JobDataInspector_DownloadQueueOutput_Fragment = { __typename: 'DownloadQueueOutput' } & { ' $fragmentName'?: 'JobDataInspector_DownloadQueueOutput_Fragment' };
+
 type JobDataInspector_LibraryScanOutput_Fragment = { __typename: 'LibraryScanOutput', totalFiles: number, totalDirectories: number, ignoredFiles: number, skippedFiles: number, ignoredDirectories: number, createdMedia: number, updatedMedia: number, createdSeries: number, updatedSeries: number } & { ' $fragmentName'?: 'JobDataInspector_LibraryScanOutput_Fragment' };
 
 type JobDataInspector_MetadataFetchJobOutput_Fragment = { __typename: 'MetadataFetchJobOutput' } & { ' $fragmentName'?: 'JobDataInspector_MetadataFetchJobOutput_Fragment' };
@@ -7635,7 +7869,7 @@ type JobDataInspector_SeriesScanOutput_Fragment = { __typename: 'SeriesScanOutpu
 
 type JobDataInspector_ThumbnailGenerationOutput_Fragment = { __typename: 'ThumbnailGenerationOutput', visitedFiles: number, skippedFiles: number, generatedThumbnails: number, removedThumbnails: number } & { ' $fragmentName'?: 'JobDataInspector_ThumbnailGenerationOutput_Fragment' };
 
-export type JobDataInspectorFragment = JobDataInspector_AnalyzeMediaOutput_Fragment | JobDataInspector_LibraryScanOutput_Fragment | JobDataInspector_MetadataFetchJobOutput_Fragment | JobDataInspector_OrganizeLooseFilesOutput_Fragment | JobDataInspector_PlaceholderGenerationOutput_Fragment | JobDataInspector_SeriesScanOutput_Fragment | JobDataInspector_ThumbnailGenerationOutput_Fragment;
+export type JobDataInspectorFragment = JobDataInspector_AnalyzeMediaOutput_Fragment | JobDataInspector_DownloadQueueOutput_Fragment | JobDataInspector_LibraryScanOutput_Fragment | JobDataInspector_MetadataFetchJobOutput_Fragment | JobDataInspector_OrganizeLooseFilesOutput_Fragment | JobDataInspector_PlaceholderGenerationOutput_Fragment | JobDataInspector_SeriesScanOutput_Fragment | JobDataInspector_ThumbnailGenerationOutput_Fragment;
 
 export type ScheduledJobsQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -7660,6 +7894,9 @@ export type JobTableQueryVariables = Exact<{
 export type JobTableQuery = { __typename?: 'Query', jobs: { __typename?: 'PaginatedJobResponse', nodes: Array<{ __typename?: 'Job', id: string, name: string, description?: string | null, status: JobStatus, createdAt: any, completedAt?: any | null, msElapsed: number, logCount: number, outputData?: (
         { __typename?: 'AnalyzeMediaOutput' }
         & { ' $fragmentRefs'?: { 'JobDataInspector_AnalyzeMediaOutput_Fragment': JobDataInspector_AnalyzeMediaOutput_Fragment } }
+      ) | (
+        { __typename?: 'DownloadQueueOutput' }
+        & { ' $fragmentRefs'?: { 'JobDataInspector_DownloadQueueOutput_Fragment': JobDataInspector_DownloadQueueOutput_Fragment } }
       ) | (
         { __typename?: 'LibraryScanOutput' }
         & { ' $fragmentRefs'?: { 'JobDataInspector_LibraryScanOutput_Fragment': JobDataInspector_LibraryScanOutput_Fragment } }
@@ -7770,6 +8007,18 @@ export type UnofficialProvidersSetAcknowledgedMutationVariables = Exact<{
 
 
 export type UnofficialProvidersSetAcknowledgedMutation = { __typename?: 'Mutation', setUnofficialProvidersAcknowledged: { __typename?: 'ServerConfigModel', id: number, unofficialProvidersAcknowledgedAt?: any | null } };
+
+export type DiscoveredLocalPluginsQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type DiscoveredLocalPluginsQuery = { __typename?: 'Query', discoveredLocalPlugins: Array<{ __typename?: 'DiscoveredLocalPlugin', dir: string, id: string, name: string, version?: string | null, description?: string | null, command: Array<string>, installed: boolean }> };
+
+export type InstallLocalPluginMutationVariables = Exact<{
+  dir: Scalars['String']['input'];
+}>;
+
+
+export type InstallLocalPluginMutation = { __typename?: 'Mutation', installLocalPlugin: { __typename?: 'RegisteredPlugin', plugin: { __typename?: 'Plugin', id: number, name: string, slug: string } } };
 
 export type PluginCardUpdateMutationVariables = Exact<{
   id: Scalars['Int']['input'];
@@ -12111,6 +12360,38 @@ export const NavigationArrangementUpdateLockStatusDocument = new TypedDocumentSt
   }
 }
     `) as unknown as TypedDocumentString<NavigationArrangementUpdateLockStatusMutation, NavigationArrangementUpdateLockStatusMutationVariables>;
+export const DownloadQueueDocument = new TypedDocumentString(`
+    query DownloadQueue {
+  downloadQueue {
+    id
+    title
+    source
+    status
+    pluginSlug
+    sizeBytes
+    progressBytes
+    error
+  }
+}
+    `) as unknown as TypedDocumentString<DownloadQueueQuery, DownloadQueueQueryVariables>;
+export const SetDownloadStatusDocument = new TypedDocumentString(`
+    mutation SetDownloadStatus($id: Int!, $status: DownloadStatus!) {
+  setDownloadStatus(id: $id, status: $status) {
+    id
+    status
+  }
+}
+    `) as unknown as TypedDocumentString<SetDownloadStatusMutation, SetDownloadStatusMutationVariables>;
+export const RunDownloadQueueDocument = new TypedDocumentString(`
+    mutation RunDownloadQueue {
+  runDownloadQueue
+}
+    `) as unknown as TypedDocumentString<RunDownloadQueueMutation, RunDownloadQueueMutationVariables>;
+export const ClearFinishedDownloadsDocument = new TypedDocumentString(`
+    mutation ClearFinishedDownloads {
+  clearFinishedDownloads
+}
+    `) as unknown as TypedDocumentString<ClearFinishedDownloadsMutation, ClearFinishedDownloadsMutationVariables>;
 export const CreateEmailerSceneEmailersDocument = new TypedDocumentString(`
     query CreateEmailerSceneEmailers {
   emailers {
@@ -12566,6 +12847,30 @@ export const UnofficialProvidersSetAcknowledgedDocument = new TypedDocumentStrin
   }
 }
     `) as unknown as TypedDocumentString<UnofficialProvidersSetAcknowledgedMutation, UnofficialProvidersSetAcknowledgedMutationVariables>;
+export const DiscoveredLocalPluginsDocument = new TypedDocumentString(`
+    query DiscoveredLocalPlugins {
+  discoveredLocalPlugins {
+    dir
+    id
+    name
+    version
+    description
+    command
+    installed
+  }
+}
+    `) as unknown as TypedDocumentString<DiscoveredLocalPluginsQuery, DiscoveredLocalPluginsQueryVariables>;
+export const InstallLocalPluginDocument = new TypedDocumentString(`
+    mutation InstallLocalPlugin($dir: String!) {
+  installLocalPlugin(dir: $dir) {
+    plugin {
+      id
+      name
+      slug
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<InstallLocalPluginMutation, InstallLocalPluginMutationVariables>;
 export const PluginCardUpdateDocument = new TypedDocumentString(`
     mutation PluginCardUpdate($id: Int!, $input: PatchPluginInput!) {
   updatePlugin(id: $id, input: $input) {

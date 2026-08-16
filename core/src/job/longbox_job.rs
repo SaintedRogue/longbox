@@ -45,6 +45,10 @@ pub enum LongboxJob {
 		library_id: String,
 		mode: OrganizeMode,
 	},
+	/// Drain the approved part of the download queue. Carries no parameters: the queue is
+	/// the state, so a second enqueue picks up whatever is approved by the time it runs
+	/// rather than a snapshot taken when it was scheduled.
+	DownloadQueue,
 }
 
 impl LongboxJob {
@@ -58,6 +62,7 @@ impl LongboxJob {
 			LongboxJob::MetadataFetch { .. } => "metadata_fetch",
 			LongboxJob::AnalyzeMedia { .. } => "analyze_media",
 			LongboxJob::OrganizeLooseFiles { .. } => "organize_loose_files",
+			LongboxJob::DownloadQueue => "download_queue",
 		}
 	}
 
@@ -82,6 +87,7 @@ impl LongboxJob {
 			LongboxJob::OrganizeLooseFiles { library_id, .. } => {
 				Some(format!("Organize loose files: {library_id}"))
 			},
+			LongboxJob::DownloadQueue => Some("Fetch approved downloads".to_string()),
 		}
 	}
 
@@ -114,5 +120,9 @@ impl LongboxJob {
 
 	pub fn organize_loose_files(library_id: String, mode: OrganizeMode) -> Self {
 		LongboxJob::OrganizeLooseFiles { library_id, mode }
+	}
+
+	pub fn download_queue() -> Self {
+		LongboxJob::DownloadQueue
 	}
 }

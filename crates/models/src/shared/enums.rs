@@ -940,4 +940,6 @@ pub enum ScheduledJobKind {
 	MetadataRetry,
 	/// Sweep provider release windows into release_calendar_entries (the release calendar)
 	ReleaseCalendarSync,
+	/// Look for files for followed issues that are expected but not in the library
+	DownloadSweep,
 }

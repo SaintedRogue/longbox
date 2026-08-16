@@ -15,6 +15,7 @@ pub mod book_club_member_favorite_book;
 pub mod bookmark;
 pub mod collection;
 pub mod custom_emoji;
+pub mod download_queue;
 pub mod emailer;
 pub mod emailer_send_record;
 pub mod external_metadata_link;

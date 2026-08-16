@@ -7,8 +7,9 @@ use url::Url;
 use crate::{
 	error::{PluginError, PluginResult},
 	protocol::{
-		PluginHealth, PluginManifest, ReleasesRequest, ReleasesResponse,
-		AUTHORIZATION_HEADER, PROTOCOL_HEADER, PROTOCOL_VERSION, REQUEST_ID_HEADER,
+		PluginHealth, PluginManifest, ReleasesRequest, ReleasesResponse, ResolveRequest,
+		ResolveResponse, SearchRequest, SearchResponse, AUTHORIZATION_HEADER,
+		PROTOCOL_HEADER, PROTOCOL_VERSION, REQUEST_ID_HEADER,
 	},
 };
 
@@ -183,6 +184,58 @@ impl PluginClient {
 	) -> PluginResult<ReleasesResponse> {
 		let url = self.endpoint("releases")?;
 		self.send(self.http.post(url).json(request)).await
+	}
+
+	/// Ask what files would satisfy a wanted issue.
+	pub async fn search(&self, request: &SearchRequest) -> PluginResult<SearchResponse> {
+		let url = self.endpoint("search")?;
+		self.send(self.http.post(url).json(request)).await
+	}
+
+	/// Turn a candidate's opaque handle into somewhere the bytes can be fetched from.
+	///
+	/// Called only when a download is actually about to happen, which is the reason this is
+	/// separate from [`Self::search`]: a resolved address is frequently short-lived, and
+	/// resolving every candidate at search time would spend them on results nobody takes.
+	pub async fn resolve(
+		&self,
+		request: &ResolveRequest,
+	) -> PluginResult<ResolveResponse> {
+		let url = self.endpoint("resolve")?;
+		self.send(self.http.post(url).json(request)).await
+	}
+
+	/// Ask the plugin to serve the bytes itself, for a host Longbox cannot reduce to a URL.
+	///
+	/// Returns the raw response rather than a parsed body: this is a comic file, and the
+	/// entire point of the queue is that such a thing is streamed to disk instead of being
+	/// held in memory. The response-size ceiling the other calls enforce deliberately does
+	/// not apply here; the download job imposes its own, because it is the thing that knows
+	/// what a reasonable file is.
+	pub async fn fetch_stream(
+		&self,
+		request: &ResolveRequest,
+	) -> PluginResult<reqwest::Response> {
+		let url = self.endpoint("fetch")?;
+		let response = self
+			.decorate(self.http.post(url).json(request))
+			.send()
+			.await
+			.map_err(|e| PluginError::Unreachable(e.to_string()))?;
+
+		let status = response.status();
+		if status == StatusCode::UNAUTHORIZED {
+			return Err(PluginError::Unauthorized);
+		}
+		if !status.is_success() {
+			// The body is not read: this endpoint answers with a file, and an error body
+			// large enough to matter is exactly what should not be buffered here.
+			return Err(PluginError::BadStatus {
+				status: status.as_u16(),
+				body: String::new(),
+			});
+		}
+		Ok(response)
 	}
 }
 
@@ -368,6 +421,187 @@ mod tests {
 		assert_eq!(response.releases.len(), 1);
 		assert_eq!(response.releases[0].number.as_deref(), Some("7"));
 		assert_eq!(response.releases[0].title, None);
+	}
+
+	fn download_query() -> crate::protocol::DownloadQuery {
+		crate::protocol::DownloadQuery {
+			series_name: "Absolute Batman".into(),
+			series_year: Some(2024),
+			number: Some("7".into()),
+			format: crate::protocol::ReleaseFormat::Issue,
+			series_id: "series-1".into(),
+		}
+	}
+
+	#[tokio::test]
+	async fn search_posts_the_query_and_parses_candidates() {
+		let server = MockServer::start().await;
+		Mock::given(method("POST"))
+			.and(path("/search"))
+			.respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+				"candidates": [{
+					"download_id": "opaque-handle",
+					"title": "Absolute Batman #7",
+					"source": "Example",
+					"size_bytes": 41943040u64,
+					"format": "issue",
+				}],
+			})))
+			.mount(&server)
+			.await;
+
+		let client = PluginClient::new(&server.uri(), None).unwrap();
+		let response = client
+			.search(&SearchRequest {
+				config: Default::default(),
+				query: download_query(),
+			})
+			.await
+			.unwrap();
+
+		assert_eq!(response.candidates.len(), 1);
+		let candidate = &response.candidates[0];
+		assert_eq!(candidate.download_id, "opaque-handle");
+		assert_eq!(candidate.size_bytes, Some(41_943_040));
+		assert_eq!(
+			candidate.format,
+			Some(crate::protocol::ReleaseFormat::Issue)
+		);
+		// Absent optional fields must not be an error: a plugin that knows nothing about
+		// its own confidence should not have to invent a number.
+		assert_eq!(candidate.confidence, None);
+	}
+
+	/// A plugin with nothing to offer answers `{}`, not an error.
+	#[tokio::test]
+	async fn search_tolerates_an_absent_candidate_list() {
+		let server = MockServer::start().await;
+		Mock::given(method("POST"))
+			.and(path("/search"))
+			.respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({})))
+			.mount(&server)
+			.await;
+
+		let client = PluginClient::new(&server.uri(), None).unwrap();
+		let response = client
+			.search(&SearchRequest {
+				config: Default::default(),
+				query: download_query(),
+			})
+			.await
+			.unwrap();
+		assert!(response.candidates.is_empty());
+	}
+
+	#[tokio::test]
+	async fn resolve_returns_a_url_and_any_headers_it_needs() {
+		let server = MockServer::start().await;
+		Mock::given(method("POST"))
+			.and(path("/resolve"))
+			.respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+				"url": "https://files.example/abc.cbz",
+				"headers": { "referer": "https://example/page" },
+				"filename": "Absolute Batman 007.cbz",
+			})))
+			.mount(&server)
+			.await;
+
+		let client = PluginClient::new(&server.uri(), None).unwrap();
+		let resolved = client
+			.resolve(&ResolveRequest {
+				config: Default::default(),
+				download_id: "opaque-handle".into(),
+			})
+			.await
+			.unwrap();
+
+		assert_eq!(
+			resolved.url.as_deref(),
+			Some("https://files.example/abc.cbz")
+		);
+		assert!(!resolved.stream, "a plain URL is not a streamed resolve");
+		assert_eq!(
+			resolved.headers.get("referer").map(String::as_str),
+			Some("https://example/page")
+		);
+		assert_eq!(
+			resolved.filename.as_deref(),
+			Some("Absolute Batman 007.cbz")
+		);
+	}
+
+	/// A host Longbox cannot reduce to a request answers with no URL at all.
+	#[tokio::test]
+	async fn resolve_can_ask_longbox_to_stream_from_the_plugin() {
+		let server = MockServer::start().await;
+		Mock::given(method("POST"))
+			.and(path("/resolve"))
+			.respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+				"stream": true,
+				"filename": "encrypted-host.cbz",
+			})))
+			.mount(&server)
+			.await;
+
+		let client = PluginClient::new(&server.uri(), None).unwrap();
+		let resolved = client
+			.resolve(&ResolveRequest {
+				config: Default::default(),
+				download_id: "opaque-handle".into(),
+			})
+			.await
+			.unwrap();
+
+		assert!(resolved.stream);
+		assert_eq!(resolved.url, None, "a streamed resolve has no URL to fetch");
+		assert_eq!(resolved.filename.as_deref(), Some("encrypted-host.cbz"));
+	}
+
+	/// The streamed path returns the raw response, so a file-sized body is never buffered.
+	#[tokio::test]
+	async fn fetch_stream_returns_the_body_unparsed() {
+		let server = MockServer::start().await;
+		Mock::given(method("POST"))
+			.and(path("/fetch"))
+			.respond_with(
+				ResponseTemplate::new(200).set_body_bytes(b"PK\x03\x04fake-cbz".to_vec()),
+			)
+			.mount(&server)
+			.await;
+
+		let client = PluginClient::new(&server.uri(), None).unwrap();
+		let response = client
+			.fetch_stream(&ResolveRequest {
+				config: Default::default(),
+				download_id: "opaque-handle".into(),
+			})
+			.await
+			.expect("the plugin serves the bytes");
+
+		let body = response.bytes().await.unwrap();
+		assert!(body.starts_with(b"PK"), "got {body:?}");
+	}
+
+	#[tokio::test]
+	async fn a_failed_stream_reports_the_status_without_reading_the_body() {
+		let server = MockServer::start().await;
+		Mock::given(method("POST"))
+			.and(path("/fetch"))
+			.respond_with(ResponseTemplate::new(503))
+			.mount(&server)
+			.await;
+
+		let client = PluginClient::new(&server.uri(), None).unwrap();
+		let error = client
+			.fetch_stream(&ResolveRequest {
+				config: Default::default(),
+				download_id: "x".into(),
+			})
+			.await
+			.unwrap_err();
+
+		assert!(matches!(error, PluginError::BadStatus { status: 503, .. }));
+		assert!(error.is_transient(), "a 503 is worth retrying");
 	}
 
 	#[test]

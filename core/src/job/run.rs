@@ -142,6 +142,9 @@ pub async fn dispatch_job(
 		LongboxJob::OrganizeLooseFiles { library_id, mode } => {
 			run_job(&job_ctx, &mut OrganizeLooseFilesJob::new(library_id, mode)).await
 		},
+		LongboxJob::DownloadQueue => {
+			run_job(&job_ctx, &mut crate::download::DownloadQueueJob).await
+		},
 	};
 
 	if let Err(e) = result {

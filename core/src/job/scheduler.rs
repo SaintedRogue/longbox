@@ -136,6 +136,11 @@ async fn dispatch(job: &scheduled_job::Model, ctx: &Ctx) -> CoreResult<()> {
 		ScheduledJobKind::ReleaseCalendarSync => {
 			crate::filesystem::metadata::run_release_calendar_sync(job, ctx).await
 		},
+		ScheduledJobKind::DownloadSweep => {
+			crate::download::sweep::run_download_sweep(job, ctx)
+				.await
+				.map(|_| ())
+		},
 	}
 }
 

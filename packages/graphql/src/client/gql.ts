@@ -191,6 +191,10 @@ type Documents = {
     "\n\tquery NavigationArrangement {\n\t\tme {\n\t\t\tpreferences {\n\t\t\t\tnavigationArrangement {\n\t\t\t\t\tlocked\n\t\t\t\t\tsections {\n\t\t\t\t\t\t__typename\n\t\t\t\t\t\tconfig {\n\t\t\t\t\t\t\t__typename\n\t\t\t\t\t\t\t... on SystemArrangementConfig {\n\t\t\t\t\t\t\t\tvariant\n\t\t\t\t\t\t\t\tlinks\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t}\n\t\t\t\t\t\tvisible\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t}\n": typeof types.NavigationArrangementDocument,
     "\n\tmutation NavigationArrangementUpdate($input: NavigationArrangementInput!) {\n\t\tupdateNavigationArrangement(input: $input) {\n\t\t\t__typename\n\t\t}\n\t}\n": typeof types.NavigationArrangementUpdateDocument,
     "\n\tmutation NavigationArrangementUpdateLockStatus($locked: Boolean!) {\n\t\tupdateNavigationArrangementLock(locked: $locked) {\n\t\t\t__typename\n\t\t}\n\t}\n": typeof types.NavigationArrangementUpdateLockStatusDocument,
+    "\n\tquery DownloadQueue {\n\t\tdownloadQueue {\n\t\t\tid\n\t\t\ttitle\n\t\t\tsource\n\t\t\tstatus\n\t\t\tpluginSlug\n\t\t\tsizeBytes\n\t\t\tprogressBytes\n\t\t\terror\n\t\t}\n\t}\n": typeof types.DownloadQueueDocument,
+    "\n\tmutation SetDownloadStatus($id: Int!, $status: DownloadStatus!) {\n\t\tsetDownloadStatus(id: $id, status: $status) {\n\t\t\tid\n\t\t\tstatus\n\t\t}\n\t}\n": typeof types.SetDownloadStatusDocument,
+    "\n\tmutation RunDownloadQueue {\n\t\trunDownloadQueue\n\t}\n": typeof types.RunDownloadQueueDocument,
+    "\n\tmutation ClearFinishedDownloads {\n\t\tclearFinishedDownloads\n\t}\n": typeof types.ClearFinishedDownloadsDocument,
     "\n\tquery CreateEmailerSceneEmailers {\n\t\temailers {\n\t\t\tname\n\t\t}\n\t}\n": typeof types.CreateEmailerSceneEmailersDocument,
     "\n\tmutation CreateEmailerSceneCreateEmailer($input: EmailerInput!) {\n\t\tcreateEmailer(input: $input) {\n\t\t\tid\n\t\t}\n\t}\n": typeof types.CreateEmailerSceneCreateEmailerDocument,
     "\n\tquery EditEmailerScene($id: Int!) {\n\t\temailers {\n\t\t\tname\n\t\t}\n\t\temailerById(id: $id) {\n\t\t\tid\n\t\t\tname\n\t\t\tisPrimary\n\t\t\tsmtpHost\n\t\t\tsmtpPort\n\t\t\tlastUsedAt\n\t\t\tmaxAttachmentSizeBytes\n\t\t\tsenderDisplayName\n\t\t\tsenderEmail\n\t\t\ttlsEnabled\n\t\t\tusername\n\t\t}\n\t}\n": typeof types.EditEmailerSceneDocument,
@@ -235,6 +239,8 @@ type Documents = {
     "\n\tmutation TestMetadataProvider($id: Int!) {\n\t\ttestMetadataProvider(id: $id) {\n\t\t\tstatus\n\t\t\tmessage\n\t\t}\n\t}\n": typeof types.TestMetadataProviderDocument,
     "\n\tquery UnofficialProvidersAcknowledged {\n\t\tserverConfig {\n\t\t\tid\n\t\t\tunofficialProvidersAcknowledgedAt\n\t\t}\n\t}\n": typeof types.UnofficialProvidersAcknowledgedDocument,
     "\n\tmutation UnofficialProvidersSetAcknowledged($acknowledged: Boolean!) {\n\t\tsetUnofficialProvidersAcknowledged(acknowledged: $acknowledged) {\n\t\t\tid\n\t\t\tunofficialProvidersAcknowledgedAt\n\t\t}\n\t}\n": typeof types.UnofficialProvidersSetAcknowledgedDocument,
+    "\n\tquery DiscoveredLocalPlugins {\n\t\tdiscoveredLocalPlugins {\n\t\t\tdir\n\t\t\tid\n\t\t\tname\n\t\t\tversion\n\t\t\tdescription\n\t\t\tcommand\n\t\t\tinstalled\n\t\t}\n\t}\n": typeof types.DiscoveredLocalPluginsDocument,
+    "\n\tmutation InstallLocalPlugin($dir: String!) {\n\t\tinstallLocalPlugin(dir: $dir) {\n\t\t\tplugin {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\tslug\n\t\t\t}\n\t\t}\n\t}\n": typeof types.InstallLocalPluginDocument,
     "\n\tmutation PluginCardUpdate($id: Int!, $input: PatchPluginInput!) {\n\t\tupdatePlugin(id: $id, input: $input) {\n\t\t\tplugin {\n\t\t\t\tid\n\t\t\t\tenabled\n\t\t\t}\n\t\t}\n\t}\n": typeof types.PluginCardUpdateDocument,
     "\n\tmutation PluginCardDelete($id: Int!) {\n\t\tdeletePlugin(id: $id)\n\t}\n": typeof types.PluginCardDeleteDocument,
     "\n\tmutation PluginCardRefresh($id: Int!) {\n\t\trefreshPluginManifest(id: $id) {\n\t\t\tid\n\t\t\tname\n\t\t}\n\t}\n": typeof types.PluginCardRefreshDocument,
@@ -450,6 +456,10 @@ const documents: Documents = {
     "\n\tquery NavigationArrangement {\n\t\tme {\n\t\t\tpreferences {\n\t\t\t\tnavigationArrangement {\n\t\t\t\t\tlocked\n\t\t\t\t\tsections {\n\t\t\t\t\t\t__typename\n\t\t\t\t\t\tconfig {\n\t\t\t\t\t\t\t__typename\n\t\t\t\t\t\t\t... on SystemArrangementConfig {\n\t\t\t\t\t\t\t\tvariant\n\t\t\t\t\t\t\t\tlinks\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t}\n\t\t\t\t\t\tvisible\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t}\n": types.NavigationArrangementDocument,
     "\n\tmutation NavigationArrangementUpdate($input: NavigationArrangementInput!) {\n\t\tupdateNavigationArrangement(input: $input) {\n\t\t\t__typename\n\t\t}\n\t}\n": types.NavigationArrangementUpdateDocument,
     "\n\tmutation NavigationArrangementUpdateLockStatus($locked: Boolean!) {\n\t\tupdateNavigationArrangementLock(locked: $locked) {\n\t\t\t__typename\n\t\t}\n\t}\n": types.NavigationArrangementUpdateLockStatusDocument,
+    "\n\tquery DownloadQueue {\n\t\tdownloadQueue {\n\t\t\tid\n\t\t\ttitle\n\t\t\tsource\n\t\t\tstatus\n\t\t\tpluginSlug\n\t\t\tsizeBytes\n\t\t\tprogressBytes\n\t\t\terror\n\t\t}\n\t}\n": types.DownloadQueueDocument,
+    "\n\tmutation SetDownloadStatus($id: Int!, $status: DownloadStatus!) {\n\t\tsetDownloadStatus(id: $id, status: $status) {\n\t\t\tid\n\t\t\tstatus\n\t\t}\n\t}\n": types.SetDownloadStatusDocument,
+    "\n\tmutation RunDownloadQueue {\n\t\trunDownloadQueue\n\t}\n": types.RunDownloadQueueDocument,
+    "\n\tmutation ClearFinishedDownloads {\n\t\tclearFinishedDownloads\n\t}\n": types.ClearFinishedDownloadsDocument,
     "\n\tquery CreateEmailerSceneEmailers {\n\t\temailers {\n\t\t\tname\n\t\t}\n\t}\n": types.CreateEmailerSceneEmailersDocument,
     "\n\tmutation CreateEmailerSceneCreateEmailer($input: EmailerInput!) {\n\t\tcreateEmailer(input: $input) {\n\t\t\tid\n\t\t}\n\t}\n": types.CreateEmailerSceneCreateEmailerDocument,
     "\n\tquery EditEmailerScene($id: Int!) {\n\t\temailers {\n\t\t\tname\n\t\t}\n\t\temailerById(id: $id) {\n\t\t\tid\n\t\t\tname\n\t\t\tisPrimary\n\t\t\tsmtpHost\n\t\t\tsmtpPort\n\t\t\tlastUsedAt\n\t\t\tmaxAttachmentSizeBytes\n\t\t\tsenderDisplayName\n\t\t\tsenderEmail\n\t\t\ttlsEnabled\n\t\t\tusername\n\t\t}\n\t}\n": types.EditEmailerSceneDocument,
@@ -494,6 +504,8 @@ const documents: Documents = {
     "\n\tmutation TestMetadataProvider($id: Int!) {\n\t\ttestMetadataProvider(id: $id) {\n\t\t\tstatus\n\t\t\tmessage\n\t\t}\n\t}\n": types.TestMetadataProviderDocument,
     "\n\tquery UnofficialProvidersAcknowledged {\n\t\tserverConfig {\n\t\t\tid\n\t\t\tunofficialProvidersAcknowledgedAt\n\t\t}\n\t}\n": types.UnofficialProvidersAcknowledgedDocument,
     "\n\tmutation UnofficialProvidersSetAcknowledged($acknowledged: Boolean!) {\n\t\tsetUnofficialProvidersAcknowledged(acknowledged: $acknowledged) {\n\t\t\tid\n\t\t\tunofficialProvidersAcknowledgedAt\n\t\t}\n\t}\n": types.UnofficialProvidersSetAcknowledgedDocument,
+    "\n\tquery DiscoveredLocalPlugins {\n\t\tdiscoveredLocalPlugins {\n\t\t\tdir\n\t\t\tid\n\t\t\tname\n\t\t\tversion\n\t\t\tdescription\n\t\t\tcommand\n\t\t\tinstalled\n\t\t}\n\t}\n": types.DiscoveredLocalPluginsDocument,
+    "\n\tmutation InstallLocalPlugin($dir: String!) {\n\t\tinstallLocalPlugin(dir: $dir) {\n\t\t\tplugin {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\tslug\n\t\t\t}\n\t\t}\n\t}\n": types.InstallLocalPluginDocument,
     "\n\tmutation PluginCardUpdate($id: Int!, $input: PatchPluginInput!) {\n\t\tupdatePlugin(id: $id, input: $input) {\n\t\t\tplugin {\n\t\t\t\tid\n\t\t\t\tenabled\n\t\t\t}\n\t\t}\n\t}\n": types.PluginCardUpdateDocument,
     "\n\tmutation PluginCardDelete($id: Int!) {\n\t\tdeletePlugin(id: $id)\n\t}\n": types.PluginCardDeleteDocument,
     "\n\tmutation PluginCardRefresh($id: Int!) {\n\t\trefreshPluginManifest(id: $id) {\n\t\t\tid\n\t\t\tname\n\t\t}\n\t}\n": types.PluginCardRefreshDocument,
@@ -1240,6 +1252,22 @@ export function graphql(source: "\n\tmutation NavigationArrangementUpdateLockSta
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
+export function graphql(source: "\n\tquery DownloadQueue {\n\t\tdownloadQueue {\n\t\t\tid\n\t\t\ttitle\n\t\t\tsource\n\t\t\tstatus\n\t\t\tpluginSlug\n\t\t\tsizeBytes\n\t\t\tprogressBytes\n\t\t\terror\n\t\t}\n\t}\n"): typeof import('./graphql').DownloadQueueDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\tmutation SetDownloadStatus($id: Int!, $status: DownloadStatus!) {\n\t\tsetDownloadStatus(id: $id, status: $status) {\n\t\t\tid\n\t\t\tstatus\n\t\t}\n\t}\n"): typeof import('./graphql').SetDownloadStatusDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\tmutation RunDownloadQueue {\n\t\trunDownloadQueue\n\t}\n"): typeof import('./graphql').RunDownloadQueueDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\tmutation ClearFinishedDownloads {\n\t\tclearFinishedDownloads\n\t}\n"): typeof import('./graphql').ClearFinishedDownloadsDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
 export function graphql(source: "\n\tquery CreateEmailerSceneEmailers {\n\t\temailers {\n\t\t\tname\n\t\t}\n\t}\n"): typeof import('./graphql').CreateEmailerSceneEmailersDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
@@ -1413,6 +1441,14 @@ export function graphql(source: "\n\tquery UnofficialProvidersAcknowledged {\n\t
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n\tmutation UnofficialProvidersSetAcknowledged($acknowledged: Boolean!) {\n\t\tsetUnofficialProvidersAcknowledged(acknowledged: $acknowledged) {\n\t\t\tid\n\t\t\tunofficialProvidersAcknowledgedAt\n\t\t}\n\t}\n"): typeof import('./graphql').UnofficialProvidersSetAcknowledgedDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\tquery DiscoveredLocalPlugins {\n\t\tdiscoveredLocalPlugins {\n\t\t\tdir\n\t\t\tid\n\t\t\tname\n\t\t\tversion\n\t\t\tdescription\n\t\t\tcommand\n\t\t\tinstalled\n\t\t}\n\t}\n"): typeof import('./graphql').DiscoveredLocalPluginsDocument;
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n\tmutation InstallLocalPlugin($dir: String!) {\n\t\tinstallLocalPlugin(dir: $dir) {\n\t\t\tplugin {\n\t\t\t\tid\n\t\t\t\tname\n\t\t\t\tslug\n\t\t\t}\n\t\t}\n\t}\n"): typeof import('./graphql').InstallLocalPluginDocument;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

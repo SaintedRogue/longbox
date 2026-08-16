@@ -37,6 +37,9 @@ pub struct Ctx {
 	pub library_watcher: Arc<LibraryWatcher>,
 	pub apalis_state: Arc<ApalisWorkerState>,
 	pub job_storage: MemoryStorage<LongboxJob>,
+	/// Local plugins Longbox has launched. Lives here so the set has exactly one owner and
+	/// a child process cannot outlive the context that started it.
+	pub plugin_processes: Arc<crate::plugin::local::PluginProcesses>,
 }
 
 impl Ctx {
@@ -81,6 +84,7 @@ impl Ctx {
 			library_watcher,
 			apalis_state,
 			job_storage,
+			plugin_processes: crate::plugin::local::PluginProcesses::new(),
 		}
 	}
 
@@ -108,6 +112,7 @@ impl Ctx {
 			library_watcher,
 			apalis_state,
 			job_storage,
+			plugin_processes: crate::plugin::local::PluginProcesses::new(),
 		}
 	}
 
@@ -136,6 +141,7 @@ impl Ctx {
 			library_watcher,
 			apalis_state,
 			job_storage,
+			plugin_processes: crate::plugin::local::PluginProcesses::new(),
 		}
 	}
 

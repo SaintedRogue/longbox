@@ -582,7 +582,7 @@ type ConfidenceFactor {
 "An event that is emitted by the core and consumed by a client"
 union CoreEvent = JobStarted | JobUpdate | JobOutput | DiscoveredMissingLibrary | CreatedMedia | CreatedManySeries | CreatedOrUpdatedManyMedia
 
-union CoreJobOutput = LibraryScanOutput | SeriesScanOutput | ThumbnailGenerationOutput | PlaceholderGenerationOutput | MetadataFetchJobOutput | AnalyzeMediaOutput | OrganizeLooseFilesOutput
+union CoreJobOutput = LibraryScanOutput | SeriesScanOutput | ThumbnailGenerationOutput | PlaceholderGenerationOutput | MetadataFetchJobOutput | AnalyzeMediaOutput | OrganizeLooseFilesOutput | DownloadQueueOutput
 
 input CreateAnnotationInput {
 	mediaId: String!
@@ -785,8 +785,99 @@ input DiscordConfigInput {
 	webhookUrl: String!
 }
 
+"A plugin directory sitting under `{config}/plugins`, whether or not it is registered."
+type DiscoveredLocalPlugin {
+	"Directory name, and the handle `installLocalPlugin` takes."
+	dir: String!
+	"Id the directory declares. Slugified, this is what the plugin would be registered as."
+	id: String!
+	name: String!
+	version: String
+	description: String
+	"""
+	The command Longbox would run. Surfaced deliberately: installing this means
+	executing it inside the server, so the operator should see it before agreeing to.
+	"""
+	command: [String!]!
+	"""
+	Whether a plugin with this id is already registered, so the UI can offer "install"
+	or say why it cannot.
+	"""
+	installed: Boolean!
+}
+
 type DiscoveredMissingLibrary {
 	id: String!
+}
+
+"""
+A candidate offered by a plugin, with the plugin that offered it.
+
+The origin travels with the candidate because a `downloadId` is opaque and only means
+something to its author — enqueuing has to name both.
+"""
+type DownloadCandidateResult {
+	pluginSlug: String!
+	pluginName: String!
+	downloadId: String!
+	title: String!
+	source: String
+	sizeBytes: Int
+	confidence: Float
+}
+
+"""
+One entry in the download queue, as the UI sees it.
+
+A shaped object rather than the raw model: `status` is exposed as an enum so a client
+cannot receive a string it has no case for, and the internal staging path stays server
+side, since it names a location on the host that no browser has any use for.
+"""
+type DownloadQueueEntry {
+	id: Int!
+	seriesId: ID
+	mediaId: ID
+	"Which plugin offered this file. Shown so a queue with several sources is legible."
+	pluginSlug: String!
+	title: String!
+	source: String
+	number: String
+	"""
+	`None` when the stored value is one this build does not recognise — a row written by
+	a newer version is displayed rather than hidden.
+	"""
+	status: DownloadStatus
+	"Total size when the source declared one. Absent is common and not an error."
+	sizeBytes: Int
+	progressBytes: Int!
+	error: String
+	createdAt: String!
+}
+
+type DownloadQueueOutput {
+	completed: Int!
+	failed: Int!
+	bytes: Int!
+}
+
+"""
+Where a queued download has got to.
+
+Text in the database rather than a closed enum, so a value written by a newer build
+reads as "not a state this build acts on" instead of failing the query that loaded it.
+"""
+enum DownloadStatus {
+	"""
+	Found and waiting for someone to approve it. The default, because choosing to
+	download something is a decision; auto-grab is the opt-in that skips it.
+	"""
+	PENDING
+	"Approved and waiting for a worker."
+	APPROVED
+	DOWNLOADING
+	COMPLETED
+	FAILED
+	CANCELLED
 }
 
 input EditMessageInput {
@@ -868,6 +959,21 @@ type EmailerSendRecord {
 input EmailerSendTo @oneOf {
 	device: SendToDevice
 	anonymous: SendToEmail
+}
+
+input EnqueueDownloadInput {
+	pluginSlug: String!
+	downloadId: String!
+	title: String!
+	seriesId: ID
+	source: String
+	number: String
+	sizeBytes: Int
+	"""
+	Queue it already approved, skipping the review step. The pull-list pass uses this
+	when auto-grab is on; a person choosing from search results does not need to.
+	"""
+	approve: Boolean! = false
 }
 
 """
@@ -2671,6 +2777,34 @@ type Mutation {
 	"Reject all pending metadata matches, setting their status to NoMatch"
 	rejectAllPendingMatches: Int!
 	"""
+	Ask every enabled download-source plugin what would satisfy a wanted issue.
+	
+	Read-only: nothing is queued by searching. Results carry an opaque handle that
+	`enqueueDownload` takes back, so a candidate can be considered without committing
+	to it and without resolving an address that may be single-use.
+	"""
+	searchDownloads(seriesId: ID!, number: String, format: ReleaseFormat! = ISSUE): [DownloadCandidateResult!]!
+	"""
+	Put a candidate on the queue.
+	
+	Upserts on (plugin, download id) so offering the same file twice updates what is
+	known about it rather than stacking duplicates — re-running a search is ordinary.
+	"""
+	enqueueDownload(input: EnqueueDownloadInput!): DownloadQueueEntry!
+	"""
+	Move a queue entry to a new state: approve it, cancel it, or send a failed one back
+	to be retried.
+	
+	Only states a person can meaningfully choose are accepted. `downloading` and
+	`completed` are outcomes the worker reports, and letting them be set by hand would
+	mean the queue could claim something happened that did not.
+	"""
+	setDownloadStatus(id: Int!, status: DownloadStatus!): DownloadQueueEntry!
+	"Start a pass over everything approved."
+	runDownloadQueue: Boolean!
+	"Clear finished entries. Anything still in flight is left alone."
+	clearFinishedDownloads: Int!
+	"""
 	Register a plugin by URL.
 	
 	Registration requires a successful handshake: Longbox reads the manifest before it
@@ -2683,6 +2817,19 @@ type Mutation {
 	deciding to let it run, and the operator still has to configure it.
 	"""
 	registerPlugin(input: RegisterPluginInput!): RegisteredPlugin!
+	"""
+	Install a plugin from a directory under `{config}/plugins`.
+	
+	The ordering differs from [`Self::register_plugin`] out of necessity: a local plugin
+	is not answering yet, so its identity has to come from the directory's `plugin.json`
+	before anything can be started. Longbox launches it, reads the manifest it actually
+	serves, and refuses the install if the two disagree — a directory cannot claim one id
+	on disk and another over the wire.
+	
+	The process is stopped again once the handshake succeeds. Installing something is not
+	the same as deciding to let it run; enabling it is, and that starts it for real.
+	"""
+	installLocalPlugin(dir: String!): RegisteredPlugin!
 	"Patch a plugin. Returns the new token only when one was rotated."
 	updatePlugin(id: Int!, input: PatchPluginInput!): RegisteredPlugin!
 	deletePlugin(id: Int!): Boolean!
@@ -3495,7 +3642,12 @@ type Query {
 	Server-owner only, and not because the list is especially sensitive: a plugin is
 	an arbitrary URL this server will call with a credential attached, so who may see
 	and change that set is the same question as who may administer the server.
+	Plugin directories found under `{config}/plugins`, installed or not.
+	
+	This is the route that needs no catalogue and no container: drop a directory onto
+	the config volume and it appears here ready to install.
 	"""
+	discoveredLocalPlugins: [DiscoveredLocalPlugin!]!
 	plugins: [Plugin!]!
 	pluginById(id: Int!): Plugin
 	"""
@@ -3503,6 +3655,17 @@ type Query {
 	operator which version a plugin they are about to write should target.
 	"""
 	pluginProtocolVersion: Int!
+	"""
+	The download queue, newest first.
+	
+	Server-owner only for the same reason plugins are: a download writes a file into a
+	library from a source the operator chose, so who may see and drive that set is the
+	same question as who may administer the server.
+	"""
+	downloadQueue(
+		"Restrict to these states. Omitted returns everything."
+		status: [DownloadStatus!]
+	): [DownloadQueueEntry!]!
 	"""
 	The full metadata a provider holds for one of its own records.
 	
@@ -3779,6 +3942,21 @@ type ReleaseCalendarStatus {
 }
 
 """
+What shape of release a search is for.
+
+A plugin is free to ignore this and return whatever it has — it is a hint about what
+would satisfy the request, not a filter Longbox will enforce on the answer.
+"""
+enum ReleaseFormat {
+	"A single issue."
+	ISSUE
+	"A collected edition of a story arc."
+	TPB
+	"A large collected edition."
+	OMNIBUS
+}
+
+"""
 the current reading position for a book, derived from the latest session
 with the highest `readthrough_number`
 """
@@ -3879,6 +4057,8 @@ enum ScheduledJobKind {
 	METADATA_RETRY
 	"Sweep provider release windows into release_calendar_entries (the release calendar)"
 	RELEASE_CALENDAR_SYNC
+	"Look for files for followed issues that are expected but not in the library"
+	DOWNLOAD_SWEEP
 }
 
 """

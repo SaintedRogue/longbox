@@ -11,4 +11,11 @@ export const PLUGINS_QUERY_KEY = ['plugins']
  */
 export const CAPABILITY_LABELS: Record<string, string> = {
 	'release-source': 'Release calendar',
+	'download-source': 'Downloads',
 }
+
+/**
+ * Query key for plugin directories found on disk. Separate from the registered list
+ * because installing one changes both, and they are fetched independently.
+ */
+export const DISCOVERED_PLUGINS_QUERY_KEY = ['discoveredLocalPlugins']

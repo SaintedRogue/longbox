@@ -62,6 +62,14 @@ pub async fn run_http_server(config: LongboxConfig) -> ServerResult<()> {
 		.await
 		.map_err(|e| ServerError::ServerStartError(e.to_string()))?;
 
+	// Local plugins are launched after the scheduler, because a `release-source` plugin has
+	// to be answering before the first sweep can ask it anything. A plugin that will not
+	// start is recorded against its own row rather than failing the boot: the library must
+	// still serve when an extension is broken.
+	core.init_plugins()
+		.await
+		.map_err(|e| ServerError::ServerStartError(e.to_string()))?;
+
 	let oidc_provider: Option<Arc<OidcProvider>> = {
 		if let Some(oidc_config) = config.oidc.as_ref().filter(|c| c.is_configured()) {
 			let state = OidcProvider::new(oidc_config).await.map_err(|e| {

@@ -7,6 +7,7 @@ mod book_club_member;
 mod book_club_suggestion;
 mod book_group;
 mod custom_emoji;
+mod download;
 mod email_device;
 mod emailer;
 mod epub;
@@ -41,6 +42,7 @@ use book_club_member::BookClubMemberMutation;
 use book_club_suggestion::BookClubSuggestionMutation;
 use book_group::BookGroupMutation;
 use custom_emoji::CustomEmojiMutation;
+use download::DownloadMutation;
 use email_device::EmailDeviceMutation;
 use emailer::EmailerMutation;
 use epub::EpubMutation;
@@ -107,6 +109,7 @@ struct SystemMutations(
 	ServerConfigMutation,
 	ScheduledJobConfigMutation,
 	MetadataProviderMutation,
+	DownloadMutation,
 	PluginMutation,
 	ReleaseCalendarMutation,
 );

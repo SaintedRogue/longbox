@@ -10,6 +10,7 @@ pub mod api_key;
 pub mod config;
 mod context;
 pub mod database;
+pub mod download;
 pub mod error;
 mod event;
 pub mod filesystem;
@@ -301,5 +302,23 @@ impl LongboxCore {
 
 	pub async fn init_library_watcher(&self) -> CoreResult<()> {
 		self.ctx.library_watcher.init().await
+	}
+
+	/// Launch every enabled local plugin.
+	///
+	/// Returns `Ok` even when individual plugins fail: a plugin that will not start is a
+	/// problem with that plugin, recorded against its row for the operator to see, and not
+	/// a reason to refuse to serve the library.
+	pub async fn init_plugins(&self) -> CoreResult<()> {
+		plugin::start_enabled_local_plugins(&self.ctx).await
+	}
+
+	/// Stop every local plugin Longbox launched.
+	///
+	/// Child processes are also killed on drop, so this is belt-and-braces — but an
+	/// orderly stop lets a plugin finish what it is doing, and makes the shutdown legible
+	/// in the log rather than looking like the plugins crashed.
+	pub async fn shutdown_plugins(&self) {
+		self.ctx.plugin_processes.stop_all().await;
 	}
 }

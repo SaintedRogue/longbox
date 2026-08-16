@@ -3,6 +3,7 @@ use std::fmt::Debug;
 use async_graphql::Union;
 use serde::{de, Deserialize, Serialize};
 
+use crate::download::DownloadQueueOutput;
 use crate::filesystem::{
 	image::{PlaceholderGenerationOutput, ThumbnailGenerationOutput},
 	media::analysis::AnalyzeMediaOutput,
@@ -21,6 +22,7 @@ pub enum CoreJobOutput {
 	MetadataFetch(MetadataFetchJobOutput),
 	AnalyzeMedia(AnalyzeMediaOutput),
 	OrganizeLooseFiles(OrganizeLooseFilesOutput),
+	DownloadQueue(DownloadQueueOutput),
 }
 
 /// A trait to extend the output type for a job with a common interface. Job output starts
