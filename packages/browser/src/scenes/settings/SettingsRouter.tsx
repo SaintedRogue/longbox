@@ -21,6 +21,7 @@ const ServerLogsScene = lazy(() => import('./server/logs/ServerLogsScene.tsx'))
 const JobSettingsScene = lazy(() => import('./server/jobs/JobSettingsScene.tsx'))
 const TagSettingsScene = lazy(() => import('./server/tags'))
 const PluginSettingsScene = lazy(() => import('./server/plugins'))
+const DownloadQueueScene = lazy(() => import('./server/downloads'))
 
 /**
  * The main router for the settings scene(s). Mostly just a collection of nested routers
@@ -59,6 +60,7 @@ export default function SettingsRouter() {
 				)}
 				{canManageLibrary && <Route path="tags" element={<TagSettingsScene />} />}
 				{isServerOwner && <Route path="plugins" element={<PluginSettingsScene />} />}
+				{isServerOwner && <Route path="downloads" element={<DownloadQueueScene />} />}
 
 				<Route path="*" element={<Navigate to="account" replace />} />
 			</Route>

@@ -43,6 +43,8 @@ mod m20260812_000000_metadata_enrichment_pool;
 mod m20260815_000000_add_plugins;
 mod m20260815_010000_add_last_release_calendar_sync;
 mod m20260815_020000_calendar_all_releases;
+mod m20260816_000000_local_plugins_and_sources;
+mod m20260816_010000_download_queue;
 
 pub struct Migrator;
 
@@ -92,6 +94,8 @@ impl MigratorTrait for Migrator {
 			Box::new(m20260815_000000_add_plugins::Migration),
 			Box::new(m20260815_010000_add_last_release_calendar_sync::Migration),
 			Box::new(m20260815_020000_calendar_all_releases::Migration),
+			Box::new(m20260816_000000_local_plugins_and_sources::Migration),
+			Box::new(m20260816_010000_download_queue::Migration),
 		]
 	}
 }

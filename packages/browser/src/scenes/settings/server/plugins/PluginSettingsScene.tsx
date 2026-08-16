@@ -4,6 +4,7 @@ import { Helmet } from 'react-helmet'
 
 import { ContentContainer, SceneContainer } from '@/components/container'
 
+import DiscoveredPluginList from './DiscoveredPluginList'
 import PluginList from './PluginList'
 import RegisterPluginDialog from './RegisterPluginDialog'
 
@@ -36,6 +37,22 @@ export default function PluginSettingsScene() {
 					<Suspense fallback={null}>
 						<PluginList />
 					</Suspense>
+
+					<div className="gap-3 pt-2 flex flex-col">
+						<div className="gap-1 max-w-2xl flex flex-col">
+							<Heading size="sm">Available to install</Heading>
+							<Text size="sm" variant="muted">
+								Folders under <code className="text-xs">plugins/</code> on the config volume.
+								Longbox runs these itself, so they need no container of their own — and because it
+								runs them inside the server, the command each one would run is shown before you
+								install it.
+							</Text>
+						</div>
+
+						<Suspense fallback={null}>
+							<DiscoveredPluginList />
+						</Suspense>
+					</div>
 				</div>
 			</ContentContainer>
 		</SceneContainer>

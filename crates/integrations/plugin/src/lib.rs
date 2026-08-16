@@ -17,9 +17,10 @@ mod settings;
 pub use client::PluginClient;
 pub use error::{PluginError, PluginResult};
 pub use protocol::{
-	PluginCapability, PluginConfigField, PluginConfigFieldType, PluginHealth,
-	PluginManifest, PluginRelease, ReleaseWindow, ReleasesRequest, ReleasesResponse,
-	SeriesRef, PROTOCOL_VERSION,
+	DownloadCandidate, DownloadQuery, PluginCapability, PluginConfigField,
+	PluginConfigFieldType, PluginHealth, PluginManifest, PluginRelease, ReleaseFormat,
+	ReleaseWindow, ReleasesRequest, ReleasesResponse, ResolveRequest, ResolveResponse,
+	SearchRequest, SearchResponse, SeriesRef, PROTOCOL_VERSION,
 };
 pub use settings::{
 	merge_settings, redact_settings, secret_keys_with_values, SettingsError,

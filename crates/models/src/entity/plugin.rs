@@ -26,7 +26,20 @@ pub struct Model {
 	/// Display name, refreshed from the manifest on each successful handshake.
 	pub name: String,
 	/// Root of the plugin's protocol endpoints, e.g. `http://my-plugin:8080/longbox/v1`.
+	///
+	/// For a [`PluginKind::Local`] plugin this is rewritten each time the process is
+	/// launched, because Longbox assigns the loopback port. It is still stored rather than
+	/// held only in memory so the settings UI can show where a running plugin is answering.
 	pub base_url: String,
+	/// How Longbox reaches this plugin: a service the operator runs (`remote`), or a
+	/// directory here that Longbox launches (`local`). See [`PluginKind`].
+	pub kind: String,
+	/// Directory name under `{config_dir}/plugins`, for `local` plugins only. Stored rather
+	/// than derived from the slug so a later rename cannot strand the installed files.
+	pub install_dir: Option<String>,
+	/// Where the installed files came from, so the UI can offer a reinstall and say what it
+	/// would be reinstalling. `None` for a plugin the operator placed by hand.
+	pub source_url: Option<String>,
 	/// The shared secret Longbox generated for this plugin, encrypted at rest. Never
 	/// leaves the server: it is shown to the operator exactly once, at registration.
 	#[graphql(skip)]
@@ -57,11 +70,43 @@ pub struct Model {
 	pub updated_at: Option<DateTimeWithTimeZone>,
 }
 
+/// How Longbox reaches a plugin.
+///
+/// Stored as text rather than a `DeriveActiveEnum` for the same reason plugins are not a
+/// `MetadataProvider` variant: an unrecognised value must degrade to something sensible
+/// rather than fail a query, so a database written by a newer build still loads here.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, async_graphql::Enum)]
+pub enum PluginKind {
+	/// A service the operator runs; Longbox only holds its URL.
+	Remote,
+	/// A directory under `{config_dir}/plugins` that Longbox launches as a child process
+	/// and reaches over loopback.
+	Local,
+}
+
+impl PluginKind {
+	pub fn as_str(self) -> &'static str {
+		match self {
+			Self::Remote => "remote",
+			Self::Local => "local",
+		}
+	}
+}
+
 impl Model {
 	/// The value this plugin writes into `release_calendar_entries.provider`, and the id under
 	/// which its contributions are attributed anywhere a provider id is expected.
 	pub fn provider_id(&self) -> String {
 		provider_id_for(&self.slug)
+	}
+
+	/// Anything unrecognised reads as [`PluginKind::Remote`], which is the behaviour a
+	/// pre-`kind` row needs anyway and never launches a process by accident.
+	pub fn plugin_kind(&self) -> PluginKind {
+		match self.kind.as_str() {
+			"local" => PluginKind::Local,
+			_ => PluginKind::Remote,
+		}
 	}
 }
 

@@ -9,6 +9,7 @@ mod book_group;
 pub(crate) mod character;
 mod config;
 mod custom_emoji;
+pub mod download;
 mod email_device;
 mod emailer;
 mod enrichment;
@@ -47,6 +48,7 @@ use book_group::BookGroupQuery;
 use character::CharacterQuery;
 use config::ConfigQuery;
 use custom_emoji::CustomEmojiQuery;
+use download::DownloadQuery;
 use email_device::EmailDeviceQuery;
 use emailer::EmailerQuery;
 use enrichment::EnrichmentQuery;
@@ -116,6 +118,7 @@ struct SystemQueries(
 	ConfigQuery,
 	MetadataProviderQuery,
 	PluginQuery,
+	DownloadQuery,
 	EnrichmentQuery,
 	ServerConfigQuery,
 	FilesystemQuery,

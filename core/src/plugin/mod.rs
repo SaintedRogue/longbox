@@ -5,6 +5,8 @@
 //! Longbox's side of the relationship — credentials, persistence, and what to do when a
 //! plugin misbehaves.
 
+pub mod local;
+
 use std::collections::{BTreeMap, HashSet};
 
 use chrono::Utc;
@@ -79,6 +81,91 @@ pub fn client_for(
 		.as_deref()
 		.and_then(|t| decrypt_string(t, encryption_key).ok());
 	PluginClient::new(&row.base_url, token)
+}
+
+/// Where a local plugin's files live. `None` for a remote plugin, which has no directory.
+pub fn plugin_dir(ctx: &Ctx, row: &plugin::Model) -> Option<std::path::PathBuf> {
+	let dir = row.install_dir.as_deref()?;
+	Some(local::plugins_root(&ctx.config.get_config_dir()).join(dir))
+}
+
+/// Launch a local plugin and record where it ended up answering.
+///
+/// The address is persisted on every start rather than held only in memory: `client_for`
+/// and everything built on it read the row, so writing it back is what lets the rest of the
+/// system stay unaware that this plugin is one we launched.
+pub async fn start_local(ctx: &Ctx, row: &plugin::Model) -> CoreResult<String> {
+	let dir = plugin_dir(ctx, row).ok_or_else(|| {
+		CoreError::InternalError(format!(
+			"Plugin {} is local but has no install directory recorded",
+			row.slug
+		))
+	})?;
+	let descriptor = local::LocalPluginDescriptor::read(&dir)?;
+
+	// A directory swapped underneath a registration must not inherit its identity, its
+	// stored settings or its token — so the descriptor has to still claim the id the slug
+	// was derived from.
+	let expected = plugin::slugify_plugin_id(&descriptor.id);
+	if expected.as_deref() != Some(row.slug.as_str()) {
+		return Err(CoreError::InternalError(format!(
+			"Plugin directory {} now declares id {:?}, which is not the {} it was installed as",
+			dir.display(),
+			descriptor.id,
+			row.slug
+		)));
+	}
+
+	let encryption_key = ctx.get_encryption_key().await?;
+	let token = row
+		.encrypted_token
+		.as_deref()
+		.and_then(|t| decrypt_string(t, &encryption_key).ok());
+
+	let base_url = ctx
+		.plugin_processes
+		.start(&row.slug, &dir, &descriptor, token.as_deref())
+		.await?;
+
+	plugin::ActiveModel {
+		id: sea_orm::ActiveValue::Unchanged(row.id),
+		base_url: Set(base_url.clone()),
+		..Default::default()
+	}
+	.update(ctx.conn.as_ref())
+	.await?;
+
+	tracing::info!(plugin = row.slug, %base_url, "Started local plugin");
+	Ok(base_url)
+}
+
+/// Stop a local plugin if it is running. Safe to call for a remote plugin, which is a no-op.
+pub async fn stop_local(ctx: &Ctx, slug: &str) {
+	ctx.plugin_processes.stop(slug).await;
+}
+
+/// Start every enabled local plugin. Called once at boot.
+///
+/// One plugin failing to start must not stop the others or the server: the failure is
+/// recorded against its row so the operator sees it in settings, and boot continues.
+pub async fn start_enabled_local_plugins(ctx: &Ctx) -> CoreResult<()> {
+	let rows = plugin::Entity::find()
+		.filter(plugin::Column::Enabled.eq(true))
+		.all(ctx.conn.as_ref())
+		.await?;
+
+	for row in rows {
+		if row.plugin_kind() != plugin::PluginKind::Local {
+			continue;
+		}
+		if let Err(error) = start_local(ctx, &row).await {
+			tracing::error!(plugin = row.slug, %error, "Local plugin failed to start");
+			let _ =
+				record_outcome(ctx.conn.as_ref(), row.id, Some(error.to_string())).await;
+		}
+	}
+
+	Ok(())
 }
 
 /// Every enabled plugin whose last handshake advertised `capability`.
@@ -289,6 +376,131 @@ pub async fn fetch_releases(
 
 	let response = loaded.client.releases(&request).await?;
 	Ok(accept_releases(series, response.releases))
+}
+
+/// A candidate together with the plugin that offered it.
+///
+/// The origin is not decoration: a `download_id` is opaque and only means anything to its
+/// author, so resolving has to go back to the same plugin that produced it.
+#[derive(Debug, Clone)]
+pub struct SourcedCandidate {
+	pub plugin_slug: String,
+	pub plugin_name: String,
+	pub candidate: plugin_integrations::DownloadCandidate,
+}
+
+/// Ask every enabled `download-source` plugin what would satisfy this query.
+///
+/// Results are pooled rather than taken from the first plugin that answers, so a second
+/// source can offer a better file than the one that happened to be asked first. A plugin
+/// that errors or times out is logged and skipped — one broken source must not deny the
+/// others, exactly as in the release sweep.
+pub async fn search_downloads(
+	ctx: &Ctx,
+	query: &plugin_integrations::DownloadQuery,
+) -> CoreResult<Vec<SourcedCandidate>> {
+	let plugins =
+		load_enabled_with_capability(ctx, PluginCapability::DOWNLOAD_SOURCE).await?;
+
+	let mut pooled = Vec::new();
+	for loaded in &plugins {
+		let request = plugin_integrations::SearchRequest {
+			config: loaded.settings.clone(),
+			query: query.clone(),
+		};
+
+		match loaded.client.search(&request).await {
+			Ok(response) => {
+				let count = response.candidates.len();
+				pooled.extend(response.candidates.into_iter().map(|candidate| {
+					SourcedCandidate {
+						plugin_slug: loaded.row.slug.clone(),
+						plugin_name: loaded.row.name.clone(),
+						candidate,
+					}
+				}));
+				tracing::debug!(
+					plugin = loaded.row.slug,
+					candidates = count,
+					series = query.series_name,
+					"Download source answered"
+				);
+				let _ = record_outcome(ctx.conn.as_ref(), loaded.row.id, None).await;
+			},
+			Err(error) => {
+				tracing::warn!(plugin = loaded.row.slug, %error, "Download search failed");
+				let _ = record_outcome(
+					ctx.conn.as_ref(),
+					loaded.row.id,
+					Some(error.to_string()),
+				)
+				.await;
+			},
+		}
+	}
+
+	Ok(pooled)
+}
+
+/// Turn a candidate back into somewhere its bytes can be fetched from.
+///
+/// Deliberately a separate step, and deliberately late: a resolved address is often
+/// single-use or short-lived, so it is obtained when a download is about to start rather
+/// than when the candidate was first offered.
+/// A resolved download, with the means to follow it up.
+///
+/// The client and settings travel with the response because a streamed resolve needs a
+/// second call to the same plugin, with the same credentials — looking the row up again
+/// and rebuilding them would be both wasteful and a chance for the two calls to disagree
+/// about which plugin they are talking to.
+pub struct ResolvedDownload {
+	pub response: plugin_integrations::ResolveResponse,
+	pub client: PluginClient,
+	pub request: plugin_integrations::ResolveRequest,
+}
+
+pub async fn resolve_download(
+	conn: &DatabaseConnection,
+	plugin_slug: &str,
+	download_id: &str,
+) -> CoreResult<ResolvedDownload> {
+	let row = plugin::Entity::find()
+		.filter(plugin::Column::Slug.eq(plugin_slug))
+		.filter(plugin::Column::Enabled.eq(true))
+		.one(conn)
+		.await?
+		.ok_or_else(|| {
+			CoreError::NotFound(format!(
+				"Plugin `{plugin_slug}` is not registered or not enabled"
+			))
+		})?;
+
+	// Takes a connection rather than a `Ctx` so the download job can call it: a job holds
+	// a `JobContext`, and threading the whole core context through for one lookup would be
+	// the wrong shape.
+	let encryption_key = models::entity::server_config::Entity::find()
+		.one(conn)
+		.await?
+		.and_then(|config| config.encryption_key)
+		.ok_or(CoreError::EncryptionKeyNotSet)?;
+	let client = client_for(&row, &encryption_key)
+		.map_err(|e| CoreError::InternalError(e.to_string()))?;
+	let settings = decrypt_settings(&row, &encryption_key);
+
+	let request = plugin_integrations::ResolveRequest {
+		config: settings,
+		download_id: download_id.to_string(),
+	};
+	let response = client
+		.resolve(&request)
+		.await
+		.map_err(|e| CoreError::InternalError(e.to_string()))?;
+
+	Ok(ResolvedDownload {
+		response,
+		client,
+		request,
+	})
 }
 
 /// Whether any enabled plugin can contribute to the release calendar. Used to decide

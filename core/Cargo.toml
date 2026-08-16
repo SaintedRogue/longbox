@@ -38,6 +38,9 @@ plugin_integrations = { path = "../crates/integrations/plugin" }
 md5.workspace = true
 natord.workspace = true
 rand.workspace = true
+# Fetching queued downloads. Streamed with `Response::chunk()` rather than the `stream`
+# feature, which drags in a conflicting `js-sys` — see the workspace dependency.
+reqwest.workspace = true
 sea-orm.workspace = true
 url.workspace = true
 serde.workspace = true

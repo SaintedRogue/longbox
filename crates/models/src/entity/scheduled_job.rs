@@ -62,6 +62,39 @@ pub struct ReleaseCalendarConfig {
 	pub locg_enabled: bool,
 }
 
+/// Configuration for the pull-list download sweep
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DownloadSweepConfig {
+	/// Queue findings already approved instead of holding them for review.
+	///
+	/// Default OFF, and deliberately so: a confident wrong match that downloads on its own
+	/// is far more annoying to undo than one that waits to be looked at. This mirrors the
+	/// metadata auto-apply threshold — something you turn on once you trust the results.
+	#[serde(default)]
+	pub auto_approve: bool,
+	/// Upper bound on how many issues one pass will search for.
+	///
+	/// A first run against a large pull list would otherwise ask every enabled plugin
+	/// about hundreds of issues at once, which is slow for us and rude to whatever the
+	/// plugin talks to. The remainder is picked up by the next run.
+	#[serde(default = "default_sweep_limit")]
+	pub max_per_run: usize,
+}
+
+fn default_sweep_limit() -> usize {
+	25
+}
+
+impl Default for DownloadSweepConfig {
+	fn default() -> Self {
+		Self {
+			auto_approve: false,
+			max_per_run: default_sweep_limit(),
+		}
+	}
+}
+
 fn default_true() -> bool {
 	true
 }
@@ -91,6 +124,15 @@ impl Model {
 
 	/// Missing/invalid config falls back to the safe default (CV on, Metron off).
 	pub fn release_calendar_config(&self) -> ReleaseCalendarConfig {
+		self.config
+			.as_ref()
+			.and_then(|v| serde_json::from_value(v.clone()).ok())
+			.unwrap_or_default()
+	}
+
+	/// Missing or unreadable config falls back to the cautious default: find things, but
+	/// do not download them without being asked.
+	pub fn download_sweep_config(&self) -> DownloadSweepConfig {
 		self.config
 			.as_ref()
 			.and_then(|v| serde_json::from_value(v.clone()).ok())
