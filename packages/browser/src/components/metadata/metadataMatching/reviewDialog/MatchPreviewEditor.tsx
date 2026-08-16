@@ -1,12 +1,14 @@
 import { Card, cn, Heading, Text } from '@longbox/components'
-import { MetadataProvider } from '@longbox/graphql'
 import { useLocaleContext } from '@longbox/i18n'
 import { useOverlayScrollbars } from 'overlayscrollbars-react'
 import { useEffect, useMemo, useRef } from 'react'
 
 import { usePreferences } from '@/hooks/usePreferences'
 import { useTheme } from '@/hooks/useTheme'
-import { PARTIAL_SEARCH_PROVIDERS } from '@/scenes/settings/server/metadataIntegrations/providers/constants'
+import {
+	PARTIAL_SEARCH_PROVIDERS,
+	providerFromId,
+} from '@/scenes/settings/server/metadataIntegrations/providers/constants'
 
 import {
 	FieldComparison,
@@ -51,11 +53,17 @@ export function MatchPreviewEditor() {
 	// A search result from a list-view provider carries a title, publisher, cover and date
 	// and nothing else, so comparing against it shows a column of dashes. Fetch the real
 	// thing for the candidate that is actually on screen — one request, not one per result.
+	//
+	// `candidate.provider` is the provider *trait id* (`locg`), not the `MetadataProvider`
+	// enum (`LOCG`), so it has to be translated before it is either compared or sent. Both
+	// failures here are silent: the set lookup just misses, and the column quietly shows
+	// the thin search card as though that were all the provider knew.
+	const candidateProvider = providerFromId(candidate?.provider)
 	const { metadata: fetched, isLoading: isLoadingMetadata } = useCandidateMetadata({
-		provider: candidate?.provider as MetadataProvider | undefined,
+		provider: candidateProvider,
 		externalId: candidate?.externalId,
 		isMedia,
-		enabled: PARTIAL_SEARCH_PROVIDERS.has(candidate?.provider ?? ''),
+		enabled: !!candidateProvider && PARTIAL_SEARCH_PROVIDERS.has(candidateProvider),
 	})
 
 	const fieldComparisons: FieldComparison[] = useMemo(() => {

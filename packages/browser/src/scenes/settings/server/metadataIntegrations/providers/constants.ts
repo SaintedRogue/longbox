@@ -45,6 +45,38 @@ export const isUnofficialProvider = (provider: MetadataProvider): boolean =>
  */
 export const PARTIAL_SEARCH_PROVIDERS: Set<string> = new Set([MetadataProvider.Locg])
 
+/**
+ * The backend speaks two names for every provider, and they are not the same string.
+ *
+ * A `MatchCandidate.provider` is the provider *trait id* — `locg`, `comicvine` — because
+ * that is what identifies a provider implementation and what `external_metadata_link`
+ * stores. The `MetadataProvider` GraphQL enum is `LOCG`, `COMIC_VINE`. Comparing one
+ * against the other silently fails: `PARTIAL_SEARCH_PROVIDERS.has('locg')` is false, and
+ * passing `'locg'` where the schema wants the enum is rejected outright.
+ *
+ * This is not a formatting difference that `toUpperCase` would fix — `comicvine` and
+ * `COMIC_VINE` differ by more than case — so the mapping is explicit.
+ */
+const PROVIDER_BY_TRAIT_ID: Record<string, MetadataProvider> = {
+	comicvine: MetadataProvider.ComicVine,
+	hardcover: MetadataProvider.Hardcover,
+	locg: MetadataProvider.Locg,
+	metron: MetadataProvider.Metron,
+}
+
+/**
+ * Resolve whatever a candidate calls its provider to the enum the API expects.
+ *
+ * Accepts either vocabulary, so a caller does not have to know which one it was handed:
+ * an enum value passes straight through, a trait id is translated, and anything else is
+ * `undefined` rather than a guess.
+ */
+export const providerFromId = (id?: string | null): MetadataProvider | undefined => {
+	if (!id) return undefined
+	if (PROVIDERS.includes(id as MetadataProvider)) return id as MetadataProvider
+	return PROVIDER_BY_TRAIT_ID[id.toLowerCase()]
+}
+
 export const PROVIDERS = Object.values(MetadataProvider)
 
 /**
