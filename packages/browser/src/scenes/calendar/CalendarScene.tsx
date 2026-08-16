@@ -86,6 +86,17 @@ const SCOPES = [
 	[CalendarScope.Everything, 'All releases'],
 ] as const
 
+/**
+ * Opening on "All releases" rather than the pull list.
+ *
+ * The pull list is empty until you have followed something, so defaulting to it means a
+ * brand-new calendar opens on nothing at all and reads as broken. "All releases" always has
+ * something in it, and is also where following starts — you subscribe to a series by seeing
+ * it come out. Kept as one constant because the URL writer below omits whichever value is
+ * the default, and the two drifting apart would put a stale scope in every link.
+ */
+const DEFAULT_SCOPE = CalendarScope.Everything
+
 const VIEWS = [
 	['month', 'Month'],
 	['week', 'Week'],
@@ -122,7 +133,7 @@ function useCalendarParams() {
 		// Every default is omitted rather than written, so the everyday URL stays `/calendar`.
 		if (next.month !== undefined) set('month', String(next.month), next.month === 0)
 		if (next.week !== undefined) set('week', String(next.week), next.week === 0)
-		if (next.scope !== undefined) set('scope', next.scope, next.scope === CalendarScope.Followed)
+		if (next.scope !== undefined) set('scope', next.scope, next.scope === DEFAULT_SCOPE)
 		if (next.date !== undefined) set('date', next.date ?? '', !next.date)
 		if (next.view !== undefined) {
 			set('view', next.view, next.view === 'month')
@@ -140,7 +151,7 @@ function useCalendarParams() {
 	return {
 		monthOffset: intParam('month'),
 		weekOffset: intParam('week'),
-		scope: SCOPES.find(([value]) => value === params.get('scope'))?.[0] ?? CalendarScope.Followed,
+		scope: SCOPES.find(([value]) => value === params.get('scope'))?.[0] ?? DEFAULT_SCOPE,
 		view,
 		selectedDate: params.get('date'),
 		update,

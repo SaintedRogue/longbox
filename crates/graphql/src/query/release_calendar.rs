@@ -361,7 +361,7 @@ impl ReleaseCalendarQuery {
 		&self,
 		ctx: &Context<'_>,
 		#[graphql(default = 0)] week_offset: i32,
-		#[graphql(default_with = "CalendarScope::Followed")] scope: CalendarScope,
+		#[graphql(default_with = "CalendarScope::Everything")] scope: CalendarScope,
 	) -> Result<Vec<CalendarDay>> {
 		let AuthContext { user, .. } = ctx.data::<AuthContext>()?;
 		let conn = ctx.data::<CoreContext>()?.conn.as_ref();
@@ -395,7 +395,7 @@ impl ReleaseCalendarQuery {
 		&self,
 		ctx: &Context<'_>,
 		#[graphql(default = 0)] month_offset: i32,
-		#[graphql(default_with = "CalendarScope::Followed")] scope: CalendarScope,
+		#[graphql(default_with = "CalendarScope::Everything")] scope: CalendarScope,
 	) -> Result<CalendarMonth> {
 		let AuthContext { user, .. } = ctx.data::<AuthContext>()?;
 		let conn = ctx.data::<CoreContext>()?.conn.as_ref();
@@ -434,7 +434,7 @@ impl ReleaseCalendarQuery {
 		&self,
 		ctx: &Context<'_>,
 		#[graphql(default = 90)] days: i32,
-		#[graphql(default_with = "CalendarScope::Followed")] scope: CalendarScope,
+		#[graphql(default_with = "CalendarScope::Everything")] scope: CalendarScope,
 	) -> Result<Vec<CalendarDay>> {
 		let AuthContext { user, .. } = ctx.data::<AuthContext>()?;
 		let conn = ctx.data::<CoreContext>()?.conn.as_ref();
