@@ -181,7 +181,13 @@ where
 
 	Ok(())
 }
-
+/// **Every apply path must call this first.** `apply_media_match` and
+/// `apply_series_match` write whatever candidate they are handed, and for a list-view
+/// provider the stored candidate is a search card — a title, a publisher, a date. The
+/// review grid's full record is fetched by the browser for display only, so a manual
+/// accept that skips this writes the card back and silently drops everything the
+/// operator just reviewed.
+///
 /// Fetch a candidate's full metadata before it is written, when its provider's search
 /// only returns list rows.
 ///

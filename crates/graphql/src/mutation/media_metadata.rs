@@ -10,7 +10,10 @@ use metadata_integrations::{
 	MatchCandidate, MergeStrategy, MetadataField, MetadataFieldOverride, SearchQuery,
 };
 use models::{
-	entity::{library_config, media, media_metadata, metadata_fetch_record, series},
+	entity::{
+		library_config, media, media_metadata, metadata_fetch_record,
+		metadata_provider_config, series,
+	},
 	shared::enums::{MetadataFetchStatus, MetadataProvider, UserPermission},
 };
 use sea_orm::{prelude::*, ActiveValue::Set, IntoActiveModel};
@@ -243,10 +246,17 @@ impl MediaMetadataMutation {
 		exclude_fields: Option<Vec<MetadataField>>,
 		overrides: Option<Vec<MetadataFieldOverride>>,
 	) -> Result<MetadataFetchRecord> {
-		let conn = ctx.data::<CoreContext>()?.conn.as_ref();
+		let core_ctx = ctx.data::<CoreContext>()?;
+		let conn = core_ctx.conn.as_ref();
 		let strategy = strategy.unwrap_or(MergeStrategy::FillGaps);
 		let exclude_fields = exclude_fields.unwrap_or_default();
 		let overrides = overrides.unwrap_or_default();
+
+		// Needed to re-fetch a list-view provider's full record before applying it.
+		let provider_configs = metadata_provider_config::Entity::find()
+			.filter(metadata_provider_config::Column::Enabled.eq(true))
+			.all(conn)
+			.await?;
 
 		let status = metadata_fetch_record::Entity::find()
 			.filter(metadata_fetch_record::Column::MediaId.eq(media_id.to_string()))
@@ -292,10 +302,26 @@ impl MediaMetadataMutation {
 			);
 		}
 
+		// The stored candidate is whatever search returned, and for a list-view provider
+		// that is a card: title, publisher, cover, date. The review grid fetches the full
+		// record to *display*, but that happens in the browser — the accept mutation only
+		// receives an index, so without this it would write the card back and the operator
+		// would watch the title change while the summary, credits, characters, page count
+		// and ISBN they just reviewed silently failed to land.
+		//
+		// Providers whose search is already complete return the candidate untouched.
+		let candidate = longbox_core::filesystem::metadata::hydrate_candidate_for_apply(
+			candidate,
+			&provider_configs,
+			&core_ctx.provider_cache(),
+			true,
+		)
+		.await;
+
 		longbox_core::filesystem::metadata::apply_media_match(
 			conn,
 			media_id.as_ref(),
-			candidate,
+			&candidate,
 			strategy,
 			exclude_fields,
 			overrides,
