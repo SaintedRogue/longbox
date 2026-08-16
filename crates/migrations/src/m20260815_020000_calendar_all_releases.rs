@@ -1,7 +1,7 @@
 use sea_orm_migration::prelude::*;
 
-/// Let `expected_issues` hold **every** release a provider reports, not only the ones that
-/// bind to a series already in the library.
+/// Hold **every** release a provider reports, not only the ones that bind to a series
+/// already in the library.
 ///
 /// The calendar answers two different questions and previously could only answer one. "What
 /// is coming out?" is not a question about your library — you cannot discover a series you
@@ -10,51 +10,44 @@ use sea_orm_migration::prelude::*;
 /// behind it at all. Matching is now an *enrichment* of a release rather than the price of
 /// admission for storing one.
 ///
-/// Three changes, all of which force a table rebuild because SQLite cannot relax a
-/// `NOT NULL`, change a unique index, or drop a foreign key in place:
+/// That requires a nullable `series_id`, which SQLite cannot produce by altering the old
+/// `expected_issues` table in place. The obvious move — build a replacement, drop the
+/// original, rename over it — is the one thing this migration must not do, and the reason
+/// is worth recording because it is not obvious:
 ///
-/// - `series_id` becomes nullable — NULL means "no series in this library corresponds to
-///   this release", which is the normal case for most of what a provider reports.
-/// - `series_name` / `series_external_id` are added, so an unbound release still has
-///   something to display and something to bind *by* on a later sweep, once the series is
-///   matched or added.
-/// - The unique key moves from `(series_id, provider, external_id)` to
-///   `(provider, external_id)`. This is not cosmetic: SQLite treats NULLs as distinct in a
-///   unique index, so keeping `series_id` in the key would let one provider issue exist
-///   once unbound and again bound, and the row could never upgrade in place. `(provider,
-///   external_id)` is also the issue's true identity — the series was only ever in the key
-///   because it happened to be mandatory.
+/// **Migrations here can run concurrently.** rustdoc executes doctests as parallel
+/// processes and several of them open the same development database, so two runners can
+/// enter the same migration at once. Every other migration in this tree survives that
+/// because `CREATE ... IF NOT EXISTS` is *convergent*: whatever the interleaving, all
+/// orderings arrive at the same state. A drop-and-rename rebuild is not convergent — two
+/// runners cannot both rename onto one name, and cleaning up a "leftover" scratch table
+/// may delete the other runner's work in progress. An earlier version of this migration
+/// did exactly that and wedged the schema half-way, which on a forward-only chain means a
+/// server that cannot boot.
+///
+/// So this creates a differently-named table and drains the old ones into it. Every
+/// statement is individually idempotent and the whole is convergent under concurrency:
+/// `CREATE TABLE/INDEX IF NOT EXISTS`, `INSERT OR IGNORE` against a unique key, and
+/// `DROP TABLE IF EXISTS`. No name is ever momentarily missing, so there is no window for
+/// a second runner to fall into.
 #[derive(DeriveMigrationName)]
 pub struct Migration;
+
+/// The legacy tables drained into `release_calendar_entries`.
+///
+/// `expected_issues` is the original. `expected_issues_new` is the scratch table left
+/// behind by the withdrawn rebuild described above — it only exists on databases that ran
+/// that version, and draining it is what repairs them.
+const LEGACY_TABLES: [&str; 2] = ["expected_issues", "expected_issues_new"];
 
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
 	async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
 		let db = manager.get_connection();
 
-		// Already rebuilt — nothing to do.
-		//
-		// A table rebuild is re-entered far more often than the happy path suggests: a run
-		// that dies partway leaves the DDL committed (SQLite does not roll these back for
-		// us here), and two processes can open the same database at once. A rebuild that
-		// is not idempotent wedges the schema half-way with no way forward, which for a
-		// forward-only migration chain means an unbootable server. So every step below is
-		// written to be safe to repeat, and to repair the half-finished state rather than
-		// trip over it.
-		let already_rebuilt = manager.has_table("expected_issues").await?
-			&& manager.has_column("expected_issues", "series_name").await?;
-		if already_rebuilt {
-			return Ok(());
-		}
-
-		// Discard any half-finished attempt, along with its indexes, so the create below
-		// starts from a known state.
-		db.execute_unprepared("DROP TABLE IF EXISTS expected_issues_new;")
-			.await?;
-
 		db.execute_unprepared(
 			r#"
-			CREATE TABLE expected_issues_new (
+			CREATE TABLE IF NOT EXISTS release_calendar_entries (
 				id                 INTEGER PRIMARY KEY AUTOINCREMENT,
 				-- NULL when no series in this library corresponds to the release.
 				series_id          TEXT REFERENCES series(id) ON DELETE CASCADE,
@@ -77,57 +70,31 @@ impl MigrationTrait for Migration {
 		)
 		.await?;
 
-		// Created before the copy so `INSERT OR IGNORE` below resolves any pre-existing
-		// rows that shared a (provider, external_id) across two series — impossible to rule
-		// out under the old key, and a hard failure if it surfaced mid-migration.
+		// (provider, external_id) is the issue's true identity. The old table keyed on
+		// (series_id, provider, external_id), which only made sense while series_id was
+		// mandatory: SQLite treats NULLs as distinct in a unique index, so keeping it in
+		// the key would let one issue exist once unbound and again bound, and the row
+		// could never upgrade in place as its series became known.
 		db.execute_unprepared(
 			r#"
-			CREATE UNIQUE INDEX IF NOT EXISTS ux_ei_identity
-				ON expected_issues_new (provider, external_id);
+			CREATE UNIQUE INDEX IF NOT EXISTS ux_rce_identity
+				ON release_calendar_entries (provider, external_id);
 			"#,
 		)
 		.await?;
-
-		// Guarded, because a half-finished earlier attempt may already have dropped the
-		// source table. Its absence means the copy is done, not that something is wrong.
-		if manager.has_table("expected_issues").await? {
-			// `ORDER BY id` makes the survivor of any such collision the oldest row, so
-			// the choice is deterministic rather than dependent on scan order.
-			db.execute_unprepared(
-				r#"
-				INSERT OR IGNORE INTO expected_issues_new
-					(id, series_id, provider, external_id, number, title, cover_url,
-					 release_date, created_at)
-				SELECT id, series_id, provider, external_id, number, title, cover_url,
-				       release_date, created_at
-				  FROM expected_issues
-				 ORDER BY id;
-				"#,
-			)
-			.await?;
-
-			// Drops the old table's indexes with it, freeing `idx_ei_release_date` to be
-			// recreated below under the same name, and freeing the name for the rename.
-			db.execute_unprepared("DROP TABLE expected_issues;").await?;
-		}
-
-		db.execute_unprepared(
-			"ALTER TABLE expected_issues_new RENAME TO expected_issues;",
-		)
-		.await?;
-
 		db.execute_unprepared(
 			r#"
-			CREATE INDEX IF NOT EXISTS idx_ei_release_date
-				ON expected_issues (release_date);
+			CREATE INDEX IF NOT EXISTS idx_rce_release_date
+				ON release_calendar_entries (release_date);
 			"#,
 		)
 		.await?;
 		// The calendar's library-scoped reads filter on series_id; partial because the
-		// column is now mostly NULL and those rows are never looked up this way.
+		// column is mostly NULL and those rows are never looked up this way.
 		db.execute_unprepared(
 			r#"
-			CREATE INDEX IF NOT EXISTS idx_ei_series ON expected_issues (series_id)
+			CREATE INDEX IF NOT EXISTS idx_rce_series
+				ON release_calendar_entries (series_id)
 				WHERE series_id IS NOT NULL;
 			"#,
 		)
@@ -135,11 +102,15 @@ impl MigrationTrait for Migration {
 		// The bind-on-later-sweep join: given a provider's series id, find its releases.
 		db.execute_unprepared(
 			r#"
-			CREATE INDEX IF NOT EXISTS idx_ei_provider_series ON expected_issues
-				(provider, series_external_id);
+			CREATE INDEX IF NOT EXISTS idx_rce_provider_series
+				ON release_calendar_entries (provider, series_external_id);
 			"#,
 		)
 		.await?;
+
+		for table in LEGACY_TABLES {
+			drain_legacy_table(manager, table).await?;
+		}
 
 		Ok(())
 	}
@@ -149,7 +120,7 @@ impl MigrationTrait for Migration {
 
 		db.execute_unprepared(
 			r#"
-			CREATE TABLE expected_issues_old (
+			CREATE TABLE IF NOT EXISTS expected_issues (
 				id           INTEGER PRIMARY KEY AUTOINCREMENT,
 				series_id    TEXT NOT NULL REFERENCES series(id) ON DELETE CASCADE,
 				provider     TEXT NOT NULL,
@@ -163,37 +134,88 @@ impl MigrationTrait for Migration {
 			"#,
 		)
 		.await?;
-		// Unbound releases have no representation in the old shape and are dropped. The
-		// next sweep re-fetches them, so this loses cache rather than knowledge.
 		db.execute_unprepared(
 			r#"
-			INSERT INTO expected_issues_old
-				(id, series_id, provider, external_id, number, title, cover_url,
-				 release_date, created_at)
-			SELECT id, series_id, provider, external_id, number, title, cover_url,
-			       release_date, created_at
-			  FROM expected_issues
-			 WHERE series_id IS NOT NULL;
-			"#,
-		)
-		.await?;
-		db.execute_unprepared("DROP TABLE expected_issues;").await?;
-		db.execute_unprepared(
-			"ALTER TABLE expected_issues_old RENAME TO expected_issues;",
-		)
-		.await?;
-		db.execute_unprepared(
-			r#"
-			CREATE UNIQUE INDEX idx_ei_identity
+			CREATE UNIQUE INDEX IF NOT EXISTS idx_ei_identity
 				ON expected_issues (series_id, provider, external_id);
 			"#,
 		)
 		.await?;
 		db.execute_unprepared(
-			"CREATE INDEX idx_ei_release_date ON expected_issues (release_date);",
+			r#"
+			CREATE INDEX IF NOT EXISTS idx_ei_release_date
+				ON expected_issues (release_date);
+			"#,
 		)
 		.await?;
+		// Unbound releases have no representation in the old shape and are dropped. The
+		// next sweep re-fetches them, so this loses cache rather than knowledge.
+		db.execute_unprepared(
+			r#"
+			INSERT OR IGNORE INTO expected_issues
+				(series_id, provider, external_id, number, title, cover_url,
+				 release_date, created_at)
+			SELECT series_id, provider, external_id, number, title, cover_url,
+			       release_date, created_at
+			  FROM release_calendar_entries
+			 WHERE series_id IS NOT NULL;
+			"#,
+		)
+		.await?;
+		db.execute_unprepared("DROP TABLE IF EXISTS release_calendar_entries;")
+			.await?;
 
 		Ok(())
 	}
+}
+
+/// Move one legacy table's rows into `release_calendar_entries` and drop it.
+///
+/// A no-op when the table is absent, which is the normal case for a fresh database and
+/// also what a concurrent runner leaves behind once it has finished the same work.
+///
+/// `id` is deliberately not carried over: two source tables can hold the same id, and the
+/// row's identity is `(provider, external_id)` rather than its rowid. Letting the new table
+/// assign ids keeps the drain order-independent.
+async fn drain_legacy_table(
+	manager: &SchemaManager<'_>,
+	table: &str,
+) -> Result<(), DbErr> {
+	if !manager.has_table(table).await? {
+		return Ok(());
+	}
+
+	// A series_id that no longer resolves is carried over as NULL rather than as-is.
+	//
+	// The old column was `NOT NULL REFERENCES series(id)`, so an orphan should be
+	// impossible — but foreign keys are enforced per-connection in SQLite and are not
+	// checked retroactively, so "should be impossible" is not something a migration may
+	// rely on. Inserting one would abort the drain, leave this migration unrecorded, and
+	// fail again identically on every retry: a server permanently unable to start over a
+	// row nobody can see. Downgrading it costs nothing, because a release whose series is
+	// gone is precisely what the new nullable column exists to represent.
+	let series_id = "CASE WHEN series_id IN (SELECT id FROM series) THEN series_id END";
+
+	// The withdrawn rebuild's scratch table already carries the new columns; the original
+	// does not. Reading the schema rather than assuming keeps one drain correct for both.
+	let rest = if manager.has_column(table, "series_name").await? {
+		"series_name, series_external_id, provider, external_id, number, title, \
+		 cover_url, release_date, created_at"
+	} else {
+		"provider, external_id, number, title, cover_url, release_date, created_at"
+	};
+
+	manager
+		.get_connection()
+		.execute_unprepared(&format!(
+			"INSERT OR IGNORE INTO release_calendar_entries (series_id, {rest}) \
+			 SELECT {series_id}, {rest} FROM {table} ORDER BY id;"
+		))
+		.await?;
+	manager
+		.get_connection()
+		.execute_unprepared(&format!("DROP TABLE IF EXISTS {table};"))
+		.await?;
+
+	Ok(())
 }

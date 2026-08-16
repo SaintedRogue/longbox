@@ -9,8 +9,8 @@ use sea_orm::{prelude::*, DeriveEntityModel};
 /// Rows are stored for every release a provider reports, whether or not it corresponds to
 /// anything in this library; `series_id` is the enrichment that says it does.
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, SimpleObject)]
-#[graphql(name = "ExpectedIssueModel")]
-#[sea_orm(table_name = "expected_issues")]
+#[graphql(name = "ReleaseCalendarEntryModel")]
+#[sea_orm(table_name = "release_calendar_entries")]
 pub struct Model {
 	#[sea_orm(primary_key, auto_increment = true)]
 	pub id: i32,

@@ -938,6 +938,6 @@ pub enum ScheduledJobKind {
 	LibraryScan,
 	/// Retry fetching metadata for records that were rate-limited or failed
 	MetadataRetry,
-	/// Sweep provider release windows into expected_issues (the release calendar)
+	/// Sweep provider release windows into release_calendar_entries (the release calendar)
 	ReleaseCalendarSync,
 }

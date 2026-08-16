@@ -1,5 +1,5 @@
 //! The release-calendar oracle: sweep provider store-date windows into
-//! `expected_issues` skeleton rows. Matching is provider-series-ID only —
+//! `release_calendar_entries` skeleton rows. Matching is provider-series-ID only —
 //! a release binds to a series whose stored external id (or Mylar `comicid`,
 //! for ComicVine) equals the provider's series id; everything else is dropped.
 //! Skeletons are never media: "in library" is computed at query time.
@@ -14,8 +14,8 @@ use metadata_integrations::UpcomingRelease;
 use models::{
 	entity::scheduled_job::ReleaseCalendarConfig,
 	entity::{
-		expected_issue, external_metadata_link, metadata_provider_config, scheduled_job,
-		series_metadata, server_config,
+		external_metadata_link, metadata_provider_config, release_calendar_entry,
+		scheduled_job, series_metadata, server_config,
 	},
 	shared::enums::MetadataProvider as MetadataProviderEnum,
 };
@@ -41,7 +41,7 @@ pub struct ReleaseSyncStats {
 	pub matched: usize,
 }
 
-/// Upsert **every** release a provider reported into `expected_issues`, binding the ones
+/// Upsert **every** release a provider reported into `release_calendar_entries`, binding the ones
 /// whose series id corresponds to a library series. Pure DB logic, testable without
 /// providers.
 pub async fn sync_provider_releases<C>(
@@ -130,7 +130,7 @@ where
 
 	stats.stored = resolved.len();
 	stats.matched = resolved.iter().filter(|r| r.series_id.is_some()).count();
-	upsert_expected_issues(conn, provider_id, resolved).await?;
+	upsert_release_calendar_entries(conn, provider_id, resolved).await?;
 
 	Ok(stats)
 }
@@ -155,13 +155,13 @@ pub struct ResolvedRelease {
 	pub release_date: Option<String>,
 }
 
-/// Upsert releases as `expected_issues` skeleton rows, keyed on (provider, external id) so
+/// Upsert releases as `release_calendar_entries` skeleton rows, keyed on (provider, external id) so
 /// a re-sweep updates rather than duplicates.
 ///
 /// `series_id` is among the updated columns, which is what lets a release that arrived
 /// unbound become bound later: match the series, and the next sweep attaches the releases
 /// already sitting in the table rather than waiting for the provider to mention them again.
-pub async fn upsert_expected_issues<C>(
+pub async fn upsert_release_calendar_entries<C>(
 	conn: &C,
 	provider_id: &str,
 	releases: Vec<ResolvedRelease>,
@@ -170,7 +170,7 @@ where
 	C: ConnectionTrait,
 {
 	for release in releases {
-		let active = expected_issue::ActiveModel {
+		let active = release_calendar_entry::ActiveModel {
 			series_id: Set(release.series_id),
 			series_name: Set(release.series_name),
 			series_external_id: Set(release.series_external_id),
@@ -183,20 +183,20 @@ where
 			created_at: Set(Utc::now().into()),
 			..Default::default()
 		};
-		expected_issue::Entity::insert(active)
+		release_calendar_entry::Entity::insert(active)
 			.on_conflict(
 				OnConflict::columns([
-					expected_issue::Column::Provider,
-					expected_issue::Column::ExternalId,
+					release_calendar_entry::Column::Provider,
+					release_calendar_entry::Column::ExternalId,
 				])
 				.update_columns([
-					expected_issue::Column::SeriesId,
-					expected_issue::Column::SeriesName,
-					expected_issue::Column::SeriesExternalId,
-					expected_issue::Column::Number,
-					expected_issue::Column::Title,
-					expected_issue::Column::CoverUrl,
-					expected_issue::Column::ReleaseDate,
+					release_calendar_entry::Column::SeriesId,
+					release_calendar_entry::Column::SeriesName,
+					release_calendar_entry::Column::SeriesExternalId,
+					release_calendar_entry::Column::Number,
+					release_calendar_entry::Column::Title,
+					release_calendar_entry::Column::CoverUrl,
+					release_calendar_entry::Column::ReleaseDate,
 				])
 				.to_owned(),
 			)
@@ -440,7 +440,7 @@ async fn sweep_plugin_releases(
 
 				let accepted_count = resolved.len();
 				matched += accepted_count;
-				upsert_expected_issues(conn, &provider_id, resolved).await?;
+				upsert_release_calendar_entries(conn, &provider_id, resolved).await?;
 				crate::plugin::record_outcome(conn, loaded.row.id, None).await?;
 
 				tracing::info!(
@@ -565,7 +565,7 @@ mod tests {
 
 		assert_eq!(stats.matched, 1, "the LOCG link is what makes this match");
 
-		let rows = expected_issue::Entity::find()
+		let rows = release_calendar_entry::Entity::find()
 			.all(&conn)
 			.await
 			.expect("query");
@@ -615,7 +615,10 @@ mod tests {
 			stats.stored, 1,
 			"failing to match is not a reason to forget the release"
 		);
-		let rows = expected_issue::Entity::find().all(&conn).await.unwrap();
+		let rows = release_calendar_entry::Entity::find()
+			.all(&conn)
+			.await
+			.unwrap();
 		assert_eq!(rows[0].series_id, None, "stored, but bound to nothing");
 	}
 
@@ -647,7 +650,10 @@ mod tests {
 				matched: 2
 			}
 		);
-		let rows = expected_issue::Entity::find().all(&conn).await.unwrap();
+		let rows = release_calendar_entry::Entity::find()
+			.all(&conn)
+			.await
+			.unwrap();
 		assert_eq!(rows.len(), 3, "all three are stored; two of them bind");
 		assert!(rows
 			.iter()
@@ -677,7 +683,10 @@ mod tests {
 		sync_provider_releases(&conn, "metron", vec![release("120", "9911", "13")])
 			.await
 			.expect("first sweep succeeds");
-		let rows = expected_issue::Entity::find().all(&conn).await.unwrap();
+		let rows = release_calendar_entry::Entity::find()
+			.all(&conn)
+			.await
+			.unwrap();
 		assert_eq!(rows.len(), 1);
 		assert_eq!(rows[0].series_id, None, "nothing to bind to yet");
 
@@ -690,7 +699,10 @@ mod tests {
 				.expect("second sweep succeeds");
 
 		assert_eq!(stats.matched, 1);
-		let rows = expected_issue::Entity::find().all(&conn).await.unwrap();
+		let rows = release_calendar_entry::Entity::find()
+			.all(&conn)
+			.await
+			.unwrap();
 		assert_eq!(rows.len(), 1, "bound in place rather than duplicated");
 		assert_eq!(rows[0].series_id.as_deref(), Some("s1"));
 	}
@@ -710,7 +722,10 @@ mod tests {
 			.await
 			.unwrap();
 
-		let rows = expected_issue::Entity::find().all(&conn).await.unwrap();
+		let rows = release_calendar_entry::Entity::find()
+			.all(&conn)
+			.await
+			.unwrap();
 		assert_eq!(rows.len(), 1, "same identity upserts in place");
 		assert_eq!(rows[0].release_date.as_deref(), Some("2026-08-19"));
 	}

@@ -1,4 +1,4 @@
-//! The release calendar and updates feed: read models over `expected_issues`
+//! The release calendar and updates feed: read models over `release_calendar_entries`
 //! (provider skeletons) and the viewer's follows. Nothing here mutates media —
 //! "in library" is derived by number-matching against the series' books.
 
@@ -10,8 +10,8 @@ use longbox_core::filesystem::metadata::sweep_in_flight;
 use metadata_integrations::issue_numbers_match;
 use models::{
 	entity::{
-		expected_issue, media, media_metadata, reading_session, scheduled_job, series,
-		series_follow, server_config, user::AuthUser,
+		media, media_metadata, reading_session, release_calendar_entry, scheduled_job,
+		series, series_follow, server_config, user::AuthUser,
 	},
 	shared::enums::{ReadingStatus, ScheduledJobKind},
 };
@@ -212,9 +212,9 @@ async fn entries_between(
 	let accessible = accessible_series(conn, user).await?;
 	let follows = followed_series_ids_for(conn, &user.id).await?;
 
-	let windowed = expected_issue::Entity::find()
-		.filter(expected_issue::Column::ReleaseDate.gte(start.to_string()))
-		.filter(expected_issue::Column::ReleaseDate.lte(end.to_string()));
+	let windowed = release_calendar_entry::Entity::find()
+		.filter(release_calendar_entry::Column::ReleaseDate.gte(start.to_string()))
+		.filter(release_calendar_entry::Column::ReleaseDate.lte(end.to_string()));
 
 	// `Everything` deliberately applies no series filter — an unbound release has no
 	// series to scope by, and it is exactly what that scope exists to show.
@@ -232,12 +232,12 @@ async fn entries_between(
 			if scoped_ids.is_empty() {
 				return Ok(vec![]);
 			}
-			windowed.filter(expected_issue::Column::SeriesId.is_in(scoped_ids))
+			windowed.filter(release_calendar_entry::Column::SeriesId.is_in(scoped_ids))
 		},
 	};
 
 	let expected = query
-		.order_by_asc(expected_issue::Column::ReleaseDate)
+		.order_by_asc(release_calendar_entry::Column::ReleaseDate)
 		.all(conn)
 		.await?;
 

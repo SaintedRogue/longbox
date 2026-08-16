@@ -249,7 +249,7 @@ pub struct PluginSweepStats {
 /// Filter a plugin's answer down to rows Longbox will actually store.
 ///
 /// A plugin may only speak about series it was asked about. Without this a plugin could
-/// write `expected_issues` rows against any series id it cared to name — including ones
+/// write `release_calendar_entries` rows against any series id it cared to name — including ones
 /// the requesting operator cannot see — so unknown ids are dropped rather than trusted.
 pub fn accept_releases(
 	requested: &[SeriesRef],

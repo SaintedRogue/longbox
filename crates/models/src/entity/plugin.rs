@@ -19,7 +19,7 @@ pub struct Model {
 	#[sea_orm(primary_key, auto_increment = true)]
 	pub id: i32,
 	/// Stable local identity, slugified from the manifest id at registration and never
-	/// rewritten. `expected_issues.provider` stores `plugin:{slug}`, so a plugin that
+	/// rewritten. `release_calendar_entries.provider` stores `plugin:{slug}`, so a plugin that
 	/// renames itself upstream must not orphan the rows it already contributed.
 	#[sea_orm(unique)]
 	pub slug: String,
@@ -58,7 +58,7 @@ pub struct Model {
 }
 
 impl Model {
-	/// The value this plugin writes into `expected_issues.provider`, and the id under
+	/// The value this plugin writes into `release_calendar_entries.provider`, and the id under
 	/// which its contributions are attributed anywhere a provider id is expected.
 	pub fn provider_id(&self) -> String {
 		provider_id_for(&self.slug)
