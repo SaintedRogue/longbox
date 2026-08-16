@@ -5249,7 +5249,7 @@ export enum ScheduledJobKind {
   LibraryScan = 'LIBRARY_SCAN',
   /** Retry fetching metadata for records that were rate-limited or failed */
   MetadataRetry = 'METADATA_RETRY',
-  /** Sweep provider release windows into expected_issues (the release calendar) */
+  /** Sweep provider release windows into release_calendar_entries (the release calendar) */
   ReleaseCalendarSync = 'RELEASE_CALENDAR_SYNC'
 }
 

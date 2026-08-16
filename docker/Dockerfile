@@ -154,7 +154,7 @@ FROM gcr.io/distroless/cc-debian12:debug
 ARG PORT=10801
 
 LABEL org.opencontainers.image.title="Longbox" \
-      org.opencontainers.image.description="A fast, self-hosted, PWA-first comics, manga & digital book server with OPDS support (a fork of Stump)" \
+      org.opencontainers.image.description="A fast, self-hosted, PWA-first comics, manga & digital book server with OPDS support" \
       org.opencontainers.image.source="https://github.com/SaintedRogue/longbox" \
       org.opencontainers.image.url="https://github.com/SaintedRogue/longbox" \
       org.opencontainers.image.documentation="https://github.com/SaintedRogue/longbox#readme" \

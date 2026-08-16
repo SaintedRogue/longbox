@@ -16,7 +16,7 @@
   <PostArgs/>
   <DonateText/>
   <DonateLink/>
-  <Description>Longbox comics/manga/ebook server (PWA-first fork of Stump). Point a library at a folder under /data and browse at IP:10801. Requires no database container.</Description>
+  <Description>Longbox comics/manga/ebook server, PWA-first. Point a library at a folder under /data and browse at IP:10801. Requires no database container.</Description>
   <Config Name="WebUI port" Target="10801" Default="10801" Mode="tcp" Description="App HTTP port (web UI + OPDS). On br0, reach it at this IP:10801." Type="Port" Display="always" Required="false" Mask="false">10801</Config>
   <Config Name="Config / database" Target="/config" Default="/mnt/cache/appdata/longbox" Mode="rw" Description="Longbox config + SQLite database + thumbnails. Keep on the NVMe cache (appdata)." Type="Path" Display="always" Required="true" Mask="false">/mnt/cache/appdata/longbox</Config>
   <Config Name="Library (comics/books)" Target="/data" Default="/mnt/user/media/comics" Mode="rw" Description="Your comics/manga/book library root. Inside Longbox, add libraries pointing at folders under /data. Use rw only if you enable writing ComicInfo.xml back into archives; otherwise ro is safer." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/media/comics</Config>

@@ -3403,19 +3403,19 @@ type Query {
 	One Sunday-aligned week of expected releases, day by day (all seven days
 	are present, empty or not, so the grid renders without gap logic).
 	"""
-	releaseCalendar(weekOffset: Int! = 0, scope: CalendarScope! = FOLLOWED): [CalendarDay!]!
+	releaseCalendar(weekOffset: Int! = 0, scope: CalendarScope! = EVERYTHING): [CalendarDay!]!
 	"""
 	A month laid out as a grid: six whole weeks of cells, every one present whether or
 	not it has anything on it, so the frontend renders rows without gap logic.
 	"""
-	releaseCalendarMonth(monthOffset: Int! = 0, scope: CalendarScope! = FOLLOWED): CalendarMonth!
+	releaseCalendarMonth(monthOffset: Int! = 0, scope: CalendarScope! = EVERYTHING): CalendarMonth!
 	"""
 	Everything expected from today onward, grouped by day.
 	
 	Unlike the week grid this omits days with nothing on them: it is a list of what is
 	coming, and a run of empty dates carries no information in that framing.
 	"""
-	upcomingReleases(days: Int! = 90, scope: CalendarScope! = FOLLOWED): [CalendarDay!]!
+	upcomingReleases(days: Int! = 90, scope: CalendarScope! = EVERYTHING): [CalendarDay!]!
 	"Whether the calendar is syncing, and when it last did."
 	releaseCalendarStatus: ReleaseCalendarStatus!
 	"New books in followed series, newest first — 30-day window, hard cap."
