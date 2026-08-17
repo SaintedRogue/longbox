@@ -50,6 +50,8 @@ pub enum FileError {
 	WebpEncodeError(String),
 	#[error("Failed to read directory")]
 	DirectoryReadError,
+	#[error("Conversion produced an unusable archive: {0}")]
+	ConversionFailed(String),
 	#[error("Incorrect image processor for requested format")]
 	IncorrectProcessorError,
 	#[error("An unknown error occurred: {0}")]

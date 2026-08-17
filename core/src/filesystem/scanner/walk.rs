@@ -22,6 +22,29 @@ use crate::{
 
 use super::ScanOptions;
 
+/// Whether a directory reached during a walk should be skipped along with its whole
+/// subtree.
+///
+/// The case this exists for is the freedesktop trash directory a mount keeps at its own
+/// root — `/data/.Trash-99` for a library at `/data`. It is *inside* the library, so a
+/// walk treats it like any other folder, and anything a scan moves there comes straight
+/// back as new content on the next pass.
+///
+/// [`PathUtils::is_hidden_file`] cannot answer this question: it only ever inspects the
+/// final path component, and `/data/.Trash-99/files` has the entirely ordinary leaf name
+/// `files`. The check has to be made on the directory as it is entered, so the subtree can
+/// be pruned before its children are ever seen.
+///
+/// The walk root is always kept. Libraries do legitimately live under dot-prefixed paths
+/// (`~/.longbox/library`), and judging the root by its own name would hide the lot.
+fn should_skip_walk_dir(entry: &DirEntry) -> bool {
+	entry.depth() > 0
+		&& entry
+			.file_name()
+			.to_str()
+			.is_some_and(|name| name.starts_with('.'))
+}
+
 pub struct WalkerCtx {
 	/// A reference to the database connection
 	pub db: Arc<DatabaseConnection>,
@@ -117,7 +140,7 @@ pub async fn walk_library(
 				// which allows us to add it as a series when there are media items in it
 				.min_depth(0)
 				.into_iter()
-				.filter_entry(|e| e.path().is_dir())
+				.filter_entry(|e| e.path().is_dir() && !should_skip_walk_dir(e))
 				.filter_map(Result::ok)
 				.partition_map(|entry| {
 					let entry_path = entry.path();
@@ -374,6 +397,15 @@ pub async fn walk_series(
 					let entry_path = entry.path();
 
 					if entry_path.is_dir() {
+						if should_skip_walk_dir(&entry) {
+							tracing::trace!(
+								path = ?entry_path,
+								"Skipping hidden dir and everything under it"
+							);
+							it.skip_current_dir();
+							continue;
+						}
+
 						let path_str = entry_path.to_string_lossy().into_owned();
 						let current_mtime = entry_path
 							.metadata()
@@ -571,4 +603,59 @@ pub async fn walk_series(
 		series_is_missing: false,
 		observed_dir_mtimes,
 	})
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	fn walk_entries(root: &Path) -> Vec<DirEntry> {
+		WalkDir::new(root)
+			.min_depth(0)
+			.into_iter()
+			.filter_entry(|e| e.path().is_dir() && !should_skip_walk_dir(e))
+			.filter_map(Result::ok)
+			.collect()
+	}
+
+	#[test]
+	fn test_walk_prunes_a_mount_trash_directory() {
+		// `/data/.Trash-99/files` is where a converted source ends up when it is
+		// "deleted" from a library on its own mount. Walking it turns the trash into a
+		// series, and the scan re-ingests everything it just threw away.
+		let temp_dir = tempfile::TempDir::new().unwrap();
+		let root = temp_dir.path();
+		std::fs::create_dir_all(root.join(".Trash-99/files")).unwrap();
+		std::fs::create_dir_all(root.join("X-Men")).unwrap();
+
+		let walked = walk_entries(root);
+		let names = walked
+			.iter()
+			.map(|e| e.path().to_string_lossy().into_owned())
+			.collect::<Vec<_>>();
+
+		assert!(names.iter().any(|p| p.ends_with("X-Men")));
+		assert!(
+			!names.iter().any(|p| p.contains(".Trash-99")),
+			"trash must be pruned, walked: {names:?}"
+		);
+	}
+
+	#[test]
+	fn test_walk_keeps_a_root_that_is_itself_hidden() {
+		// A library at `~/.longbox/library` is a dot-prefixed *ancestor*, which is fine.
+		// Judging the root by its own name would hide the entire library.
+		let temp_dir = tempfile::TempDir::new().unwrap();
+		let root = temp_dir.path().join(".longbox-library");
+		std::fs::create_dir_all(root.join("Uncanny X-Men")).unwrap();
+
+		let walked = walk_entries(&root);
+		let names = walked
+			.iter()
+			.map(|e| e.path().to_string_lossy().into_owned())
+			.collect::<Vec<_>>();
+
+		assert_eq!(names.len(), 2, "expected the root and its child: {names:?}");
+		assert!(names.iter().any(|p| p.ends_with("Uncanny X-Men")));
+	}
 }

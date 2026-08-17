@@ -17,8 +17,9 @@ use crate::{
 		hash::{self, HASH_SAMPLE_COUNT, HASH_SAMPLE_SIZE},
 		media::{
 			process::{
-				AnalyzedPage, FileConverter, FileProcessor, FileProcessorOptions,
-				ProcessedFile, ProcessedFileHashes,
+				assert_conversion_is_readable, create_unpack_dir,
+				dispose_of_conversion_source, AnalyzedPage, FileConverter, FileProcessor,
+				FileProcessorOptions, ProcessedFile, ProcessedFileHashes,
 			},
 			utils::metadata_from_buf,
 			zip::ZipProcessor,
@@ -421,34 +422,46 @@ impl FileConverter for RarProcessor {
 		} = path_buf.as_path().file_parts();
 
 		let cache_dir = config.get_cache_dir();
-		let unpacked_path = cache_dir.join(file_stem);
+		let unpack_dir = create_unpack_dir(&cache_dir, &file_stem)?;
+		let unpacked_path = unpack_dir.path();
 
 		trace!(?unpacked_path, "Extracting RAR to disk");
 
 		let mut archive = RarProcessor::open_for_processing(path)?;
 		while let Ok(Some(header)) = archive.read_header() {
 			archive = if header.entry().is_file() {
-				header.extract_to(&unpacked_path)?
+				// `extract_with_base` treats the argument as a *directory* and keeps each
+				// entry's own relative path. `extract_to` treats it as the destination
+				// *file*, so using it here wrote every page in the archive over the same
+				// path — the unpack directory ended up a single file holding the last
+				// page, and the conversion silently threw the book away.
+				header.extract_with_base(unpacked_path)?
 			} else {
 				header.skip()?
 			};
 		}
 
-		let zip_path =
-			create_zip_archive(&unpacked_path, &file_name, &extension, parent)?;
+		let zip_path = create_zip_archive(unpacked_path, &file_name, &extension, parent)?;
 
-		// TODO: won't work in docker
-		if delete_source {
-			if let Err(err) = trash::delete(path) {
-				warn!(error = ?err, path, "Failed to delete converted RAR file");
-			}
+		// The unpacked pages are no longer needed; dropping the handle removes them, on
+		// this path and on the error paths below alike.
+		drop(unpack_dir);
+
+		// Order matters: the source is the only remaining copy of the book until the
+		// conversion is proven readable, so verify first and leave the original alone if
+		// anything is wrong.
+		if let Err(err) = assert_conversion_is_readable(&zip_path) {
+			error!(error = ?err, path, ?zip_path, "Discarding an unusable RAR conversion");
+			let _ = std::fs::remove_file(&zip_path);
+			return Err(err);
 		}
 
-		// TODO: maybe check that this path isn't in a pre-defined list of important paths?
-		if let Err(err) = std::fs::remove_dir_all(&unpacked_path) {
-			error!(
-				error = ?err, ?cache_dir, ?unpacked_path, "Failed to delete unpacked RAR contents after conversion",
-			);
+		if let Err(err) =
+			dispose_of_conversion_source(Path::new(path), delete_source, config)
+		{
+			// The conversion is good and indexable; failing to tidy the source is worth
+			// a loud log but not worth throwing the converted file away.
+			warn!(error = ?err, path, "Failed to dispose of the converted RAR source");
 		}
 
 		Ok(zip_path)
@@ -489,7 +502,7 @@ mod tests {
 		);
 
 		// Assert that the operation succeeded
-		assert!(processed_file.is_ok());
+		assert!(processed_file.is_ok(), "{:?}", processed_file.err());
 		// And that the original file was deleted
 		assert!(!Path::new(&temp_rar_file_path).exists());
 	}
@@ -513,6 +526,105 @@ mod tests {
 		assert!(zip_result.is_ok());
 		// And that the original file was deleted
 		assert!(!Path::new(&temp_rar_file_path).exists());
+	}
+
+	#[test]
+	fn test_to_zip_keeps_every_page_under_its_own_name() {
+		// The fixture holds many files. Extracting each of them *onto the same path*
+		// leaves one file behind rather than a directory, and the conversion then
+		// produced a zip with a single nameless entry — a "successful" conversion that
+		// destroyed all but the last page. Assert on the entry names, because a
+		// single-file fixture cannot tell the two behaviours apart.
+		let tempdir = tempfile::tempdir().expect("Failed to create temporary directory");
+		let temp_rar_file_path = tempdir
+			.path()
+			.join("book-complex-tree.rar")
+			.to_string_lossy()
+			.to_string();
+		fs::copy(get_test_complex_rar_path(), &temp_rar_file_path)
+			.expect("Failed to copy the complex test rar");
+		let config = LongboxConfig::debug();
+
+		let zip_path = RarProcessor::to_zip(&temp_rar_file_path, false, None, &config)
+			.expect("conversion should succeed");
+
+		let mut archive = zip::ZipArchive::new(
+			File::open(&zip_path).expect("converted zip is readable"),
+		)
+		.expect("converted file is a valid zip");
+
+		assert!(
+			archive.len() > 1,
+			"expected every page to survive, found {} entries",
+			archive.len()
+		);
+		for index in 0..archive.len() {
+			let entry = archive.by_index(index).expect("entry is readable");
+			assert!(
+				!entry.name().trim_matches('/').is_empty(),
+				"entry {index} has an empty name"
+			);
+		}
+	}
+
+	#[test]
+	fn test_to_zip_moves_the_source_out_of_the_library_when_not_hard_deleting() {
+		// The source must never be left in the library next to its conversion: the
+		// scanner would index both. It must not go to the OS trash either, because for
+		// a library on its own mount that trash lives *inside* the library root.
+		let tempdir = tempfile::tempdir().expect("Failed to create temporary directory");
+		let temp_rar_file_path = tempdir
+			.path()
+			.join("book.rar")
+			.to_string_lossy()
+			.to_string();
+		fs::write(&temp_rar_file_path, get_test_rar_file_data())
+			.expect("Failed to write temporary book.rar");
+
+		let config_dir = tempfile::tempdir().expect("Failed to create config directory");
+		let config = LongboxConfig {
+			config_dir: config_dir.path().to_string_lossy().to_string(),
+			..LongboxConfig::debug()
+		};
+
+		RarProcessor::to_zip(&temp_rar_file_path, false, None, &config)
+			.expect("conversion should succeed");
+
+		assert!(
+			!Path::new(&temp_rar_file_path).exists(),
+			"source must not remain in the library"
+		);
+		assert!(
+			config.get_conversion_backup_dir().join("book.rar").exists(),
+			"source should be recoverable from the conversion backup directory"
+		);
+	}
+
+	#[test]
+	fn test_to_zip_hard_deletes_the_source_without_a_backup() {
+		let tempdir = tempfile::tempdir().expect("Failed to create temporary directory");
+		let temp_rar_file_path = tempdir
+			.path()
+			.join("book.rar")
+			.to_string_lossy()
+			.to_string();
+		fs::write(&temp_rar_file_path, get_test_rar_file_data())
+			.expect("Failed to write temporary book.rar");
+
+		let config_dir = tempfile::tempdir().expect("Failed to create config directory");
+		let config = LongboxConfig {
+			config_dir: config_dir.path().to_string_lossy().to_string(),
+			..LongboxConfig::debug()
+		};
+
+		RarProcessor::to_zip(&temp_rar_file_path, true, None, &config)
+			.expect("conversion should succeed");
+
+		assert!(!Path::new(&temp_rar_file_path).exists());
+		assert!(
+			!config.get_conversion_backup_dir().join("book.rar").exists(),
+			"a hard delete should not keep a copy"
+		);
 	}
 
 	#[test]
