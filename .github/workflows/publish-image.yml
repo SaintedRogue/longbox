@@ -109,3 +109,43 @@ jobs:
           subject-name: ghcr.io/saintedrogue/longbox
           subject-digest: ${{ steps.push.outputs.digest }}
           push-to-registry: true
+
+      # This job builds on the host Docker daemon (see the note at the top), so
+      # every publish leaves its SHA-tagged image behind on the Unraid host and
+      # nothing ever removes it -- 34 had accumulated by 2026-08-17. They share
+      # most layers, so the cost is gradual rather than dramatic, but it only
+      # ever grows.
+      #
+      # Untagging is deliberately not `docker rmi --force` and not an image
+      # prune: dropping a tag leaves the underlying layers alone if anything
+      # else still references them, so a running container started from an old
+      # SHA tag keeps working. `|| true` because a tag shared with :latest is
+      # already gone by the time we reach it.
+      #
+      # Runs on failure too -- a push that dies after the build still leaves an
+      # image on the host, which is exactly when cleanup is most likely to be
+      # skipped.
+      - name: Prune old local image tags
+        if: always()
+        env:
+          IMAGE: ghcr.io/saintedrogue/longbox
+          KEEP: '5'
+        run: |
+          set -euo pipefail
+
+          # `docker images` lists newest-first. :latest aliases the build we just
+          # made, so it is excluded rather than counted against KEEP.
+          stale=$(docker images "$IMAGE" --format '{{.Tag}}' \
+            | grep -v '^latest$' \
+            | tail -n +$((KEEP + 1)) || true)
+
+          if [ -z "$stale" ]; then
+            echo "no stale tags beyond the newest $KEEP"
+            exit 0
+          fi
+
+          echo "$stale" | while read -r tag; do
+            [ -n "$tag" ] || continue
+            echo "untagging $IMAGE:$tag"
+            docker rmi "$IMAGE:$tag" || true
+          done
