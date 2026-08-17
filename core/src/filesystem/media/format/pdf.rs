@@ -17,8 +17,9 @@ use crate::{
 		image::into_image_format,
 		media::{
 			process::{
-				AnalyzedPage, FileConverter, FileProcessor, FileProcessorOptions,
-				ProcessedFile,
+				assert_conversion_is_readable, create_unpack_dir,
+				dispose_of_conversion_source, AnalyzedPage, FileConverter, FileProcessor,
+				FileProcessorOptions, ProcessedFile,
 			},
 			ProcessedFileHashes, ProcessedMediaMetadata,
 		},
@@ -704,9 +705,8 @@ impl FileConverter for PdfProcessor {
 			.set_path_smoothing(true);
 
 		// Prefer configured format, then provided format, then default to WebP for better compression
-		let output_format = format
-			.map(into_image_format)
-			.unwrap_or_else(|| into_image_format(config.get_pdf_render_format()));
+		let output_kind = format.unwrap_or_else(|| config.get_pdf_render_format());
+		let output_format = into_image_format(output_kind);
 
 		let converted_pages = iter
 			.enumerate()
@@ -746,18 +746,22 @@ impl FileConverter for PdfProcessor {
 		} = path_buf.as_path().file_parts();
 
 		let cache_dir = config.get_cache_dir();
-		let unpacked_path = cache_dir.join(file_stem);
-
 		// create folder for the zip
-		std::fs::create_dir_all(&unpacked_path)?;
+		let unpack_dir = create_unpack_dir(&cache_dir, &file_stem)?;
+		let unpacked_path = unpack_dir.path();
 
-		// write each image to the folder
-		for image_buf in converted_pages {
-			// write the image to file with proper extension
-			let output_extension = format.as_ref().map_or("png", |f| f.extension());
-
-			let image_path =
-				unpacked_path.join(format!("{file_name}.{output_extension}"));
+		// write each image to the folder. The page number has to be part of the name:
+		// without it every rendered page is written to the same path and only the last
+		// one survives into the archive. The extension has to come from the format
+		// actually encoded above, or the pages are named for a format they aren't.
+		let output_extension = output_kind.extension();
+		let page_number_width = converted_pages.len().to_string().len();
+		for (index, image_buf) in converted_pages.into_iter().enumerate() {
+			let image_path = unpacked_path.join(format!(
+				"{file_name}-{:0width$}.{output_extension}",
+				index + 1,
+				width = page_number_width
+			));
 
 			// NOTE: This isn't bubbling up because I don't think at this point it should
 			// kill the whole conversion process.
@@ -766,21 +770,25 @@ impl FileConverter for PdfProcessor {
 			}
 		}
 
-		let zip_path =
-			create_zip_archive(&unpacked_path, &file_name, &extension, parent)?;
+		let zip_path = create_zip_archive(unpacked_path, &file_name, &extension, parent)?;
 
-		// TODO: won't work in docker
-		if delete_source {
-			if let Err(err) = trash::delete(path) {
-				tracing::error!(error = ?err, path, "Failed to delete converted PDF source file");
-			}
+		// The rendered pages are no longer needed; dropping the handle removes them, on
+		// this path and on the error paths below alike.
+		drop(unpack_dir);
+
+		// The source is the only remaining copy until the conversion is proven readable,
+		// so verify before disposing of it. See `dispose_of_conversion_source` for why
+		// the OS trash is not an option for a file inside a library.
+		if let Err(err) = assert_conversion_is_readable(&zip_path) {
+			tracing::error!(error = ?err, path, ?zip_path, "Discarding an unusable PDF conversion");
+			let _ = std::fs::remove_file(&zip_path);
+			return Err(err);
 		}
 
-		// TODO: maybe check that this path isn't in a pre-defined list of important paths?
-		if let Err(err) = std::fs::remove_dir_all(&unpacked_path) {
-			tracing::error!(
-				error = ?err, ?cache_dir, ?unpacked_path, "Failed to delete unpacked contents in cache",
-			);
+		if let Err(err) =
+			dispose_of_conversion_source(Path::new(path), delete_source, config)
+		{
+			tracing::warn!(error = ?err, path, "Failed to dispose of the converted PDF source");
 		}
 
 		Ok(zip_path)

@@ -387,6 +387,17 @@ impl LongboxConfig {
 		PathBuf::from(&self.config_dir).join("thumbnails")
 	}
 
+	/// Returns a `PathBuf` to the directory holding originals kept after a format
+	/// conversion.
+	///
+	/// This deliberately lives under the config directory rather than beside the
+	/// converted file. A library on its own mount has its own trash directory *inside*
+	/// the library root (`/data/.Trash-99` for `/data`), so "deleting" a converted
+	/// source into the OS trash hands it straight back to the scanner.
+	pub fn get_conversion_backup_dir(&self) -> PathBuf {
+		PathBuf::from(&self.config_dir).join("conversions-backup")
+	}
+
 	/// Returns a `PathBuf` to the Longbox avatars directory
 	pub fn get_avatars_dir(&self) -> PathBuf {
 		PathBuf::from(&self.config_dir).join("avatars")

@@ -140,6 +140,119 @@ pub trait FileConverter {
 	) -> Result<PathBuf, FileError>;
 }
 
+/// Create a scratch directory for one conversion to unpack into.
+///
+/// This used to be `{cache}/{file_stem}`, which is not unique: the scanner converts books
+/// concurrently, so two books sharing a stem in different series unpack over each other
+/// and the archive built afterwards holds a mix of both. It also collided with whatever an
+/// earlier conversion left at that path — including, after the `extract_to` bug, a *file*,
+/// which `create_dir_all` cannot replace, so every later conversion of that stem failed.
+///
+/// The returned handle removes the directory when it drops, which covers the error paths
+/// that previously leaked the unpacked pages into the cache directory.
+pub(crate) fn create_unpack_dir(
+	cache_dir: &Path,
+	file_stem: &str,
+) -> Result<tempfile::TempDir, FileError> {
+	std::fs::create_dir_all(cache_dir)?;
+
+	tempfile::Builder::new()
+		.prefix(&format!("convert-{file_stem}-"))
+		.tempdir_in(cache_dir)
+		.map_err(FileError::FileIoError)
+}
+
+/// Assert that a freshly written archive is actually readable before anything is allowed
+/// to depend on it — in particular before the source it was made from is disposed of.
+///
+/// A conversion that loses pages still leaves a structurally valid zip behind, so
+/// `create_zip_archive` returning `Ok` is not evidence the conversion worked. The two
+/// things checked here are the ones a broken conversion gets wrong: an archive with no
+/// members at all, and a member with no name (which no reader can address).
+pub(crate) fn assert_conversion_is_readable(zip_path: &Path) -> Result<(), FileError> {
+	let file = std::fs::File::open(zip_path)?;
+	let mut archive = zip::ZipArchive::new(file)?;
+
+	if archive.is_empty() {
+		return Err(FileError::ConversionFailed(format!(
+			"{zip_path:?} contains no entries"
+		)));
+	}
+
+	for index in 0..archive.len() {
+		let entry = archive.by_index(index)?;
+		if entry.name().trim_matches('/').is_empty() {
+			return Err(FileError::ConversionFailed(format!(
+				"{zip_path:?} contains an entry with no name"
+			)));
+		}
+	}
+
+	Ok(())
+}
+
+/// Take the original file out of the library once its conversion is known good.
+///
+/// Leaving it in place is not an option: the scanner would index both the original and
+/// the conversion as separate books. Neither is the OS trash, which is what this used to
+/// do — a library on its own mount keeps its trash *inside* the library root, so
+/// "deleting" the source handed it straight back to the next scan, which converted it
+/// again under a slightly different name, forever.
+///
+/// `hard_delete` is the user's `hard_delete_conversions` setting and is now honoured
+/// literally: on means gone, off means recoverable from the config directory.
+pub(crate) fn dispose_of_conversion_source(
+	path: &Path,
+	hard_delete: bool,
+	config: &LongboxConfig,
+) -> Result<(), FileError> {
+	if hard_delete {
+		std::fs::remove_file(path)?;
+		return Ok(());
+	}
+
+	let backup_dir = config.get_conversion_backup_dir();
+	std::fs::create_dir_all(&backup_dir)?;
+
+	let file_name = path.file_name().ok_or_else(|| {
+		FileError::ConversionFailed(format!("{path:?} has no file name"))
+	})?;
+
+	move_across_filesystems(path, &backup_dir.join(file_name))
+}
+
+/// Move a file that may be crossing a filesystem boundary.
+///
+/// `rename` is the fast path and the only atomic one, but it fails with `EXDEV` whenever
+/// the two paths are on different devices — the normal arrangement here, since `/config`
+/// and a library mount are separate volumes. The fallback copies to a temporary name
+/// *inside the destination directory* so the final step is a same-filesystem rename, and
+/// the source is only unlinked once the destination is safely in place.
+fn move_across_filesystems(from: &Path, to: &Path) -> Result<(), FileError> {
+	if std::fs::rename(from, to).is_ok() {
+		return Ok(());
+	}
+
+	let staged_name = format!(
+		".{}.incoming",
+		to.file_name().and_then(|n| n.to_str()).unwrap_or("source")
+	);
+	let staged = to.with_file_name(staged_name);
+
+	if let Err(error) = std::fs::copy(from, &staged) {
+		let _ = std::fs::remove_file(&staged);
+		return Err(FileError::FileIoError(error));
+	}
+
+	if let Err(error) = std::fs::rename(&staged, to) {
+		let _ = std::fs::remove_file(&staged);
+		return Err(FileError::FileIoError(error));
+	}
+
+	std::fs::remove_file(from)?;
+	Ok(())
+}
+
 /// Struct representing a processed file. This is the output of the `process` function
 /// on a `FileProcessor` implementation.
 #[derive(Debug)]

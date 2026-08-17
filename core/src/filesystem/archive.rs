@@ -8,12 +8,24 @@ use walkdir::WalkDir;
 use zip::{write::FileOptions, CompressionMethod};
 
 /// Creates a new zip file at `destination` from the contents of the directory `unpacked_path`.
+///
+/// `unpacked_path` must be a directory. A file is rejected rather than zipped, because
+/// stripping `prefix` off a path that *is* the prefix leaves an empty entry name, and a
+/// zip whose only member has no name reads as valid right up until something tries to
+/// list its pages.
 pub(crate) fn zip_dir(
 	unpacked_path: &Path,
 	destination: &Path,
 	prefix: &Path,
 ) -> zip::result::ZipResult<()> {
-	let zip_file = std::fs::File::create(destination).unwrap();
+	if !unpacked_path.is_dir() {
+		return Err(zip::result::ZipError::Io(std::io::Error::new(
+			std::io::ErrorKind::NotADirectory,
+			format!("Cannot zip {unpacked_path:?}: not a directory"),
+		)));
+	}
+
+	let zip_file = std::fs::File::create(destination)?;
 
 	let mut zip_writer = zip::ZipWriter::new(zip_file);
 
@@ -34,6 +46,14 @@ pub(crate) fn zip_dir(
 		// Write file or directory explicitly
 		// Some unzip tools unzip files with directory paths correctly, some do not!
 		if path.is_file() {
+			if name.as_os_str().is_empty() {
+				// Unreachable while `unpacked_path` is a directory, but a nameless
+				// member is unrecoverable once written, so refuse rather than trust
+				// the caller.
+				warn!(?path, "Refusing to add a file with an empty entry name");
+				continue;
+			}
+
 			trace!("Adding file to zip file: {:?} as {:?}", path, name);
 			zip_writer.start_file_from_path(name, options)?;
 			let mut f = File::open(path)?;
@@ -115,6 +135,68 @@ mod tests {
 		let mut contents = String::new();
 		file.read_to_string(&mut contents).unwrap();
 		assert_eq!(contents, "Test data");
+	}
+
+	#[test]
+	fn test_zip_dir_rejects_a_file_source() {
+		// A caller that hands us a file instead of a directory has already failed at
+		// something; the danger is that `WalkDir` happily yields that single file, and
+		// stripping the prefix from it leaves an *empty* entry name. That produced a
+		// readable-looking zip holding one nameless member, which no reader can open.
+		let temp_dir = TempDir::new().unwrap();
+		let lone_file = temp_dir.path().join("not-a-dir.jpg");
+		File::create(&lone_file)
+			.unwrap()
+			.write_all(b"jpeg")
+			.unwrap();
+		let destination = temp_dir.path().join("archive.cbz");
+
+		let res = zip_dir(&lone_file, &destination, &lone_file);
+		assert!(res.is_err(), "zipping a file must not silently succeed");
+	}
+
+	#[test]
+	fn test_zip_dir_writes_no_nameless_entries() {
+		let temp_dir = TempDir::new().unwrap();
+		let unpacked_path = temp_dir.path().join("unpacked");
+		let destination = temp_dir.path().join("archive.zip");
+
+		fs::create_dir(&unpacked_path).unwrap();
+		fs::create_dir(unpacked_path.join("nested")).unwrap();
+		File::create(unpacked_path.join("nested/page-001.jpg"))
+			.unwrap()
+			.write_all(b"one")
+			.unwrap();
+		File::create(unpacked_path.join("page-002.jpg"))
+			.unwrap()
+			.write_all(b"two")
+			.unwrap();
+
+		zip_dir(&unpacked_path, &destination, &unpacked_path).unwrap();
+
+		let mut zip_archive =
+			zip::ZipArchive::new(File::open(&destination).unwrap()).unwrap();
+		assert!(zip_archive.len() >= 2);
+		for index in 0..zip_archive.len() {
+			let entry = zip_archive.by_index(index).unwrap();
+			assert!(
+				!entry.name().trim_matches('/').is_empty(),
+				"entry {index} has an empty name"
+			);
+		}
+	}
+
+	#[test]
+	fn test_create_zip_archive_rejects_a_file_source() {
+		let temp_dir = TempDir::new().unwrap();
+		let lone_file = temp_dir.path().join("page.jpg");
+		File::create(&lone_file)
+			.unwrap()
+			.write_all(b"jpeg")
+			.unwrap();
+
+		let res = create_zip_archive(&lone_file, "book.cbr", "cbr", temp_dir.path());
+		assert!(res.is_err(), "a file source must not produce an archive");
 	}
 
 	#[test]
