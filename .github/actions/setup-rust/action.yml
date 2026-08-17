@@ -2,11 +2,6 @@ name: Setup system dependencies
 description: Install system dependencies and setup cache
 
 inputs:
-  cache-dependencies:
-    description: 'Cache dependencies'
-    required: false
-    default: 'true'
-
   cache-locality:
     description: 'The locality of the cache, e.g. either local build or docker build'
     required: false
@@ -46,9 +41,9 @@ runs:
       shell: bash
       run: CHECK_NODE=0 CHECK_CARGO=0 DEV_SETUP=0 ./scripts/system-setup.sh
 
-    # See https://github.com/Swatinem/rust-cache/issues/194
-    - name: Cache Rust Dependencies
-      if: ${{ inputs.cache-dependencies == 'true' }}
-      uses: Swatinem/rust-cache@42dc69e1aa15d09112580998cf2ef0119e2e91ae # v2
-      with:
-        shared-key: longbox-rust-cache
+# Dependency caching deliberately lives in `./.github/actions/cache-rust` rather than
+# here. A composite downloads every action it references before any `if:` is evaluated,
+# so a conditional cache step still cost every caller a download — and on the
+# self-hosted runner that particular download is rate-limited to death by GitHub,
+# failing jobs that had disabled caching in the first place. Callers that want the
+# cache now ask for it explicitly.

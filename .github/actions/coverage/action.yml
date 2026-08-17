@@ -5,18 +5,12 @@ inputs:
   token:
     description: 'Codecov token'
     required: true
-  cache-dependencies:
-    description: 'Whether to cache dependencies'
-    required: false
-    default: 'true'
 
 runs:
   using: composite
   steps:
     - name: Setup rust
       uses: ./.github/actions/setup-rust
-      with:
-        cache-dependencies: ${{ inputs.cache-dependencies }}
 
     - name: Install cargo-llvm-cov
       run: cargo install cargo-llvm-cov

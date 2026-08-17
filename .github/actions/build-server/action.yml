@@ -10,6 +10,11 @@ runs:
     - name: Setup rust
       uses: ./.github/actions/setup-rust
 
+    # This one runs on GitHub-hosted runners with a cold target directory every time,
+    # so the cache is worth its download. The self-hosted CI jobs skip it.
+    - name: Cache Rust dependencies
+      uses: ./.github/actions/cache-rust
+
     # This action can be called to build in a Linux, macOS, or Windows runner
     # This step only runs when using Linux
     - name: Compile server (Linux)

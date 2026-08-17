@@ -1,0 +1,21 @@
+name: Cache Rust dependencies
+description: Restore and save the shared cargo/target cache
+
+# Kept separate from `setup-rust` on purpose. A composite action downloads every
+# action it references *before* evaluating any `if:`, so a cache step living inside
+# `setup-rust` was fetched even by jobs that had explicitly disabled caching. On the
+# self-hosted runner that download is the only one that has never succeeded — GitHub
+# answers `429 Too Many Requests` from that egress IP — and a job cannot survive an
+# action it failed to download, however thoroughly it would have skipped the step.
+#
+# So the reference now exists only where the cache is actually wanted: the release
+# binary build, which runs on GitHub-hosted runners. The self-hosted CI jobs keep
+# their warm target directory between runs and never needed this.
+runs:
+  using: composite
+  steps:
+    # See https://github.com/Swatinem/rust-cache/issues/194
+    - name: Cache Rust Dependencies
+      uses: Swatinem/rust-cache@42dc69e1aa15d09112580998cf2ef0119e2e91ae # v2
+      with:
+        shared-key: longbox-rust-cache
